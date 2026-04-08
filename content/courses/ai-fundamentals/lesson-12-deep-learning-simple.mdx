@@ -1,0 +1,128 @@
+---
+title: "Deep Learning"
+module: 3
+moduleTitle: "Rețele Neuronale și Deep Learning"
+type: theory
+order: 12
+---
+
+## Deep Learning
+
+Ai ajuns la una dintre cele mai importante lecții din curs. Deep Learning este motivul pentru care AI-ul a explodat în ultimii 10 ani — de la mașini autonome la ChatGPT, totul trece prin acest concept.
+
+---
+
+### Ce înseamnă "adânc"?
+
+Imaginează-ți că înveți să pictezi. Primul lucru pe care îl înveți sunt linii de bază — drepte, curbe, unghiuri. Apoi înveți forme — cercuri, pătrate, triunghiuri. Apoi înveți compoziția — cum aranjezi formele în spațiu. Apoi înveți stilul — cum dai viață și emoție tabloului. Fiecare nivel construiește pe cel anterior.
+
+Exact asta înseamnă "adânc" în Deep Learning. O rețea adâncă are mai multe straturi — fiecare strat adaugă un nivel de abstractizare față de cel anterior.
+
+O rețea superficială ar vedea direct de la pixeli la decizie — prea puțin spațiu pentru a extrage concepte complexe. O rețea adâncă are zeci sau sute de straturi intermediare — spațiu suficient pentru a extrage de la linii simple la fețe, emoții, identitate.
+
+---
+
+### Cum "vede" o rețea adâncă o față
+
+Imaginează-ți că descrii o fotografie unui prieten orb, pas cu pas.
+
+Primul pas: "Există linii orizontale și verticale." Stratul 1 detectează margini și contraste de bază.
+
+Al doilea pas: "Liniile formează cercuri și curbe." Stratul 2 detectează forme simple.
+
+Al treilea pas: "Cercurile arată ca ochi, curba arată ca o gură." Stratul 3 detectează trăsături faciale.
+
+Al patrulea pas: "Trăsăturile sunt aranjate ca o față umană, cu expresie zâmbitoare." Stratul 4 înțelege conceptul de față.
+
+Al cincilea pas (și mai departe): "Această față aparține lui Ioan, aproximativ 35 de ani, pare bucuros." Straturile finale extrag identitate, vârstă, emoție.
+
+Fiecare strat "extrage" un nivel mai abstract de informație. Asta e puterea adâncimii.
+
+---
+
+### Cele trei arhitecturi majore
+
+De-a lungul anilor, cercetătorii au descoperit că tipuri diferite de date necesită arhitecturi diferite de rețele. Sunt trei mari familii.
+
+**Rețele Convoluționale (CNN) — pentru imagini**
+
+Imaginează-ți că scanezi o fotografie cu o lupă. Nu privești toată fotografia dintr-o dată — treci lupa sistematic, zonă cu zonă, detectând detalii. CNN-urile funcționează similar: folosesc filtre care "scanează" imaginea în bucăți mici, detectând tipare locale (o margine, o textură, un unghi). Straturile ulterioare combină aceste tipare locale în concepte globale.
+
+Azi CNN-urile recunosc obiecte, detectează boli din radiografii, permit autopilotul Tesla și filtrele de pe Instagram.
+
+**Rețele Recurente (RNN/LSTM) — pentru secvențe**
+
+Imaginează-ți că citești o carte și vrei să înțelegi capitolul curent. Trebuie să ții minte ce s-a întâmplat în capitolele anterioare — contextul contează. Dacă ai citi fiecare propoziție independent, fără memorie, nu ai înțelege nimic.
+
+RNN-urile au o "memorie" care transportă informații de la un pas la altul. LSTM (Long Short-Term Memory) e versiunea avansată care "decide" ce să rețină și ce să uite din informațiile anterioare. Asta le face potrivite pentru text, audio, serii de timp financiare.
+
+**Transformers — arhitectura revoluționară**
+
+Imaginează-ți că înțelegi o propoziție complexă — "Banca a aprobat creditul". Cuvântul "bancă" e ambiguu. Cum știi că e instituție financiară și nu mobilier de parc? Privești simultan toate celelalte cuvinte din propoziție — "aprobare", "credit" — și contextul rezolvă ambiguitatea.
+
+Transformers (inventați în 2017 de Google) fac exact asta: procesează toată secvența simultan, fiecare element "atenționând" la toate celelalte. Acest mecanism de "Attention" le permite să înțeleagă contextul global extrem de eficient.
+
+GPT, Claude, Gemini, ChatGPT — toate sunt Transformers.
+
+---
+
+### Transfer Learning — Umeri de uriași
+
+Imaginează-ți că vrei să devii expert în fotografie de peisaje. Ai două opțiuni.
+
+Prima: înveți fotografia de la zero — compoziția, lumina, expunerea, editarea. Ani de studiu.
+
+A doua: un prieten care e fotograf profesionist de portrete te îndrumă. El știe deja 80% din ce ai nevoie — compoziție, lumină, editare. Te concentrezi pe diferențele specifice peisajelor. Ajungi expert în câteva luni.
+
+**Transfer Learning** funcționează identic. Un model uriaș a fost antrenat pe milioane de imagini sau texte — a "învățat" să înțeleagă lumea la nivel general. Tu iei acel model și îl "afinezi" pe datele tale specifice, cu un cost mic de timp și calcul.
+
+Asta e revoluționar. O clinică medicală mică cu câteva sute de radiografii poate construi un detector de cancer performant — nu antrenând un model de la zero (imposibil), ci afinând un model uriaș pre-antrenat. Un startup poate concura cu giganții tech pentru că folosește modele open source ca punct de plecare.
+
+---
+
+### Limitele Deep Learning-ului
+
+Imaginează-ți că ai un calculator extraordinar de rapid care poate efectua milioane de calcule pe secundă, dar nu știe ce e "fericirea" sau "dreptatea". Poate simula conversații despre fericire — dar nu știe ce e.
+
+Deep Learning e extraordinar la găsirea tiparelor în date masive. Dar are limite clare.
+
+Halucinațiile — modelele generative inventează uneori fapte cu mare încredere. Nu "știu" că inventează.
+
+Cutia neagră — nu înțelegem pe deplin de ce un model ia o anumită decizie. E o problemă serioasă în medicină sau drept.
+
+Biasul — dacă datele de antrenare conțin prejudecăți, modelul le preia. Un model antrenat cu date istorice poate discrimina fără să "vrea".
+
+Costul energetic — antrenarea modelelor mari consumă energie cât mii de gospodării.
+
+---
+
+### Recapitulare
+
+Deep Learning = rețele neuronale cu multe straturi → niveluri de abstractizare din ce în ce mai complexe. CNN = optimizat pentru imagini prin filtre de scanare. RNN/LSTM = optimizat pentru secvențe prin memorie temporală. Transformers = arhitectura dominantă azi, cu mecanismul de Attention. Transfer Learning = refolosești modele pre-antrenate, economisind 99% din efort. Limitele reale: halucinații, cutia neagră, biasuri, cost energetic.
+
+---
+
+```flashcards
+[
+  {
+    "front": "Ce înseamnă 'adânc' în Deep Learning?",
+    "back": "Rețele cu multe straturi ascunse — fiecare strat adaugă un nivel de abstractizare, de la caracteristici simple la concepte complexe."
+  },
+  {
+    "front": "Pentru ce tip de date sunt optimizate CNN-urile?",
+    "back": "Imagini. Folosesc filtre care scanează imaginea în bucăți mici, detectând tipare locale care se combină în concepte globale."
+  },
+  {
+    "front": "Ce sunt Transformers și ce mecanism le face speciale?",
+    "back": "Arhitectura dominantă azi (GPT, Claude, Gemini). Mecanismul de Attention le permite să proceseze toată secvența simultan și să înțeleagă contextul global."
+  },
+  {
+    "front": "Ce este Transfer Learning?",
+    "back": "Refolosești un model uriaș pre-antrenat ca punct de start și îl afinezi pe datele tale specifice. Economisești 99% din efort față de antrenarea de la zero."
+  },
+  {
+    "front": "Ce sunt halucinațiile în Deep Learning?",
+    "back": "Modelele generative inventează uneori fapte cu mare încredere, fără să 'știe' că inventează. O limitare importantă a AI-ului actual."
+  }
+]
+```

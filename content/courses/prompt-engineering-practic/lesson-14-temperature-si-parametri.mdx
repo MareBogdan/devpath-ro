@@ -1,0 +1,134 @@
+---
+title: "Temperature si Parametri"
+module: 3
+type: theory
+order: 14
+---
+
+# Temperature și Parametri de Generare
+
+Dincolo de textul efectiv al prompt-ului, modelele de limbaj expun o serie de parametri numerici care controlează procesul de generare. Înțelegerea acestor parametri permite un control fin al comportamentului modelului.
+
+## Cum generează un LLM text?
+
+La fiecare pas, modelul calculează o distribuție de probabilitate peste toți tokenii posibili ca următori. De exemplu, după "Capitala României este", modelul poate calcula:
+
+- "București" — 97.3%
+- "Cluj" — 1.2%
+- "Brașov" — 0.8%
+- alte cuvinte — 0.7%
+
+Parametrii de generare controlează cum **selectăm** din această distribuție.
+
+## Temperature (Temperatura)
+
+Temperatura este cel mai important parametru. Controlează "aleatorismul" generării.
+
+**Temperature = 0.0** (deterministă)
+- Selectează întotdeauna tokenul cu probabilitatea cea mai mare
+- Output repetabil și consistent
+- Risc: output repetitiv, lipsit de creativitate
+
+**Temperature = 0.7** (echilibrată — default-ul majorității API-urilor)
+- Mix de predictibil și creativ
+- Bun pentru most use cases
+
+**Temperature = 1.0** (creativă)
+- Distribuția originală a modelului, nemodificată
+- Mai multă variație și surprize
+
+**Temperature > 1.0** (haotică)
+- Poate produce output incoherent sau neobișnuit
+
+### Ghid practic pentru temperature
+
+| Use Case | Temperature Recomandată |
+|----------|------------------------|
+| Extragere de date, clasificare | 0.0 - 0.2 |
+| Răspunsuri factuale, Q&A | 0.2 - 0.5 |
+| Conversație generală, asistență | 0.5 - 0.7 |
+| Scriere creativă, brainstorming | 0.7 - 1.0 |
+| Poezie, ficțiune experimentală | 1.0 - 1.5 |
+
+## Top-P (Nucleus Sampling)
+
+Top-P definește un "nucleu" de tokeni probabili. Modelul selectează doar din tokenii care, cumulativ, reprezintă P% din probabilitate.
+
+**Top-P = 0.9**: ia tokenii care împreună au 90% probabilitate, ignoră restul.
+
+Efectul practic: elimină tokenii extrem de improbabili, menținând variație naturală.
+
+### Temperature vs Top-P
+
+Ambii parametri controlează variația, dar diferit:
+- **Temperature** modifică distribuția probabilităților
+- **Top-P** trunchiează coada distribuției
+
+Recomandare: de obicei, modifici fie Temperature, fie Top-P — nu ambii simultan.
+
+## Max Tokens (Lungimea maximă)
+
+Controlează lungimea maximă a răspunsului. Important de setat corect:
+
+- Prea mic: răspunsul se taie la mijloc
+- Prea mare: costuri inutile pentru răspunsuri scurte
+
+## Presence Penalty și Frequency Penalty (OpenAI)
+
+Acești parametri reduc repetitivitatea:
+
+**Frequency Penalty** (0.0 - 2.0):
+- Penalizează tokenii în funcție de cât de des au apărut deja în output
+- Valori mari = mai puțină repetare a acelorași cuvinte
+
+**Presence Penalty** (0.0 - 2.0):
+- Penalizează orice token care a apărut, indiferent de frecvență
+- Valori mari = model mai variat, acoperă mai multe subiecte
+
+## Stop Sequences
+
+Tokeni sau șiruri de caractere care opresc generarea când sunt întâlniți. Utile pentru a preveni generarea de conținut extra după răspunsul dorit.
+
+## Seed (Reproducibilitate)
+
+Unele API-uri (OpenAI) suportă parametrul seed. Cu același seed și aceiași parametri, output-ul este (aproximativ) reproductibil. Util pentru debugging și testare.
+
+## Configurații recomandate pentru cazuri comune
+
+### Clasificare și extragere de date
+- temperature: 0.1
+- top_p: 0.9
+- max_tokens: 200
+
+### Chatbot conversațional
+- temperature: 0.7
+- top_p: 0.95
+- max_tokens: 1024
+- frequency_penalty: 0.3
+
+### Generare de cod
+- temperature: 0.2
+- top_p: 0.9
+- max_tokens: 2048
+
+### Scriere creativă
+- temperature: 0.9
+- top_p: 0.95
+- max_tokens: 2000
+- frequency_penalty: 0.5
+- presence_penalty: 0.3
+
+## Interacțiunea dintre parametri și prompt
+
+Parametrii nu înlocuiesc un prompt bun — sunt complementari. Un prompt slab cu parametri bine calibrați produce output mediocru. Un prompt excelent cu parametri suboptimali produce output bun, dar mai puțin consistent.
+
+Workflow recomandat:
+1. Scrie un prompt bun
+2. Testează cu parametrii default
+3. Identifică problemele (prea repetitiv? prea aleator? prea lung?)
+4. Ajustează parametrii pentru a rezolva problema specifică
+5. Re-testează și iterează
+
+## Concluzie
+
+Parametrii de generare sunt instrumentele de "fine-tuning" ale unui inginer de prompturi. Nu sunt magie — au efecte precise și previzibile odată ce înțelegi mecanismul din spatele lor. Investiția în înțelegerea lor profundă plătește în aplicații mai robuste și mai adaptate nevoilor specifice.

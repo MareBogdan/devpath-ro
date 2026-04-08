@@ -1,0 +1,121 @@
+---
+title: "Ce este Inteligența Artificială?"
+module: 1
+moduleTitle: "Ce este AI"
+type: theory
+order: 1
+---
+
+## Ce este Inteligența Artificială?
+
+Bun venit la primul modul din **AI Fundamentals**! 🎉
+
+Ești pe cale să înveți despre una dintre cele mai transformatoare tehnologii din istoria omenirii. Înainte de cod și formule, să construim o fundație solidă cu întrebarea fundamentală:
+
+**Ce înseamnă, de fapt, "inteligență artificială"?**
+
+---
+
+### O definiție fără jargon
+
+Inteligența Artificială (AI) este un domeniu al informaticii care se ocupă cu crearea de sisteme capabile să îndeplinească sarcini care, în mod normal, ar necesita inteligență umană.
+
+Sarcini precum:
+- 👁️ **Recunoașterea imaginilor** — "Da, asta e o pisică"
+- 🎤 **Înțelegerea vorbirii** — transformă audio în text
+- 📝 **Generarea de text** — scrie eseuri, cod, email-uri
+- 🎮 **Luarea deciziilor** — câștigă la șah, Go, jocuri video
+
+Dar definiția asta e prea abstractă. Hai să o facem concretă.
+
+---
+
+### Analogia cu copilul care învață
+
+Imaginează-ți cum înveți un copil să recunoască o pisică.
+
+**Metoda clasică (imposibilă în practică):**
+> "O pisică are 4 picioare, blană, mustăți, urechi triunghiulare, coadă lungă..."
+
+Imediat dai de probleme. Ce faci cu pisicile fără coadă? Cu sfinxul (pisica rasă)? Excepțiile sunt infinite.
+
+**Metoda AI:**
+> Arăți copilului 10.000 de poze cu pisici și 10.000 de poze cu alte lucruri. El **descoperă singur** ce face o pisică să fie pisică.
+
+Exact asta face AI-ul modern. În loc să programezi reguli manual, **îi dai exemple și el găsește pattern-urile**.
+
+```python
+# Programare clasică — tu scrii regulile explicit:
+def este_pisica(animal):
+    if animal.picioare == 4 and animal.are_blana and animal.are_mustati:
+        return True
+    # Dar ce faci cu pisica cu 3 picioare? Cu sfinxul? 🤔
+    return False
+
+# Abordarea AI — modelul descoperă regulile din date:
+from sklearn.neighbors import KNeighborsClassifier
+
+model = KNeighborsClassifier()
+model.fit(poze_de_antrenare, etichete)  # "pisică" sau "nu pisică"
+
+predictie = model.predict([poza_noua])
+# Output: ["pisică"]  — 94.7% probabilitate
+```
+
+---
+
+### Un scurt istoric (că nu a apărut ieri)
+
+AI nu e o invenție recentă. Are o istorie fascinantă de 70+ ani:
+
+| An | Moment cheie |
+|---|---|
+| **1950** | Alan Turing propune **Testul Turing** — poate o mașină gândi? |
+| **1956** | Termenul "Artificial Intelligence" e inventat la Dartmouth College |
+| **1997** | Deep Blue (IBM) bate campionul mondial la șah, Garry Kasparov |
+| **2012** | AlexNet revoluționează recunoașterea imaginilor cu Deep Learning |
+| **2016** | AlphaGo (DeepMind) bate campionul mondial la jocul Go |
+| **2022** | ChatGPT ajunge la 100 milioane utilizatori în 2 luni — record mondial |
+| **2024** | AI generează cod, muzică, video și se integrează în aproape orice tool |
+
+Progresul a fost lent decenii la rând, apoi **exponențial**. Ești norocos să înveți AI exact în acest moment.
+
+---
+
+### Unde vedem AI azi (spoiler: peste tot)
+
+Interacționezi cu AI de zeci de ori pe zi fără să realizezi:
+
+- 📱 **Deblocarea telefonului** cu Face ID — recunoaștere facială
+- 🎵 **Spotify / YouTube** — algoritmul de recomandări
+- 📧 **Gmail** — filtrarea spam-ului, autocomplete
+- 🗺️ **Google Maps** — estimarea timpului de sosire în trafic real
+- 🛒 **Amazon** — "Clienții care au cumpărat asta, au cumpărat și..."
+- 💬 **ChatGPT, Claude, Gemini** — conversație naturală
+- 🚗 **Tesla Autopilot** — conducere semi-autonomă
+
+Toate astea par magice. Nu sunt. Sunt matematică, date și putere de calcul.
+
+---
+
+### AI nu este magie. Este inginerie.
+
+Reține acest lucru fundamental:
+
+> **AI-ul nu "gândește", nu "simte", nu "vrea" nimic.** Este un program matematic sofisticat care găsește pattern-uri în date și le folosește pentru predicții.
+
+Asta nu îl face mai puțin impresionant — dimpotrivă. Dar înțelegând asta, vei putea:
+- Folosi AI mai eficient
+- Înțelege limitele lui (hallucinations, bias, erori)
+- **Construi** cu AI în loc să te temi de el
+
+---
+
+### Recapitulare
+
+✅ **AI** = sisteme care îndeplinesc sarcini ce necesită inteligență umană
+✅ **Diferența față de programarea clasică:** AI descoperă reguli din date, nu le primește
+✅ **Istoricul AI:** 70+ ani, cu explozia adevărată în ultimii ani
+✅ **AI nu este magie** — este matematică aplicată pe date masive
+
+**Ești gata pentru Lecția 2?** Acolo vom vedea cum "vede" de fapt un calculator lumea — și de ce totul se reduce la numere.

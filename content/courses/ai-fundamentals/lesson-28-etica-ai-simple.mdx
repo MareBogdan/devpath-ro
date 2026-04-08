@@ -1,0 +1,113 @@
+---
+title: "Etica în AI — Mod Simplu"
+module: 6
+moduleTitle: "Aplicații AI în Practică"
+type: theory
+order: 28
+---
+
+## Etica în AI — bias, hallucinations și responsabilitate
+
+Imaginează-ți că ai un prieten cu o memorie enciclopedică, dar care uneori inventează cu perfectă siguranță și care are prejudecăți inconștiente din mediul în care a crescut. Ai da dovadă de înțelepciune să verifici ce îți spune și să conști de limitele lui. **Exact asta trebuie să faci cu AI-ul.**
+
+---
+
+### Hallucinations — când AI-ul inventează cu convingere
+
+Imaginează-ți un student care nu știe răspunsul la un examen, dar în loc să lase alb, scrie ceva plauzibil și convingător. Dacă nu ești expert în acel domeniu, s-ar putea să-l crezi.
+
+**Hallucination** în AI = modelul generează informații false cu aceeași "siguranță" ca informațiile corecte. Nu există o voce mai nesigură sau o pauză de ezitare — modelul scrie la fel de fluid o dată cu o dată falsă.
+
+Exemple tipice:
+- Inventează referințe bibliografice care nu există
+- Citează legi cu numere false
+- Atribuie citate unor persoane care nu le-au spus niciodată
+- "Calculează" greșit și prezintă rezultatul cu certitudine
+
+**Ce faci:** Orice informație factual importantă primită de la AI trebuie verificată la sursele primare. Nu cita din AI fără verificare. AI e bun la idei, structuri, rezumare — nu la fapte precise.
+
+---
+
+### Bias — prejudecățile invizibile
+
+Imaginează-ți o firmă de angajări care în ultimii 50 de ani a angajat predominant bărbați pentru pozițiile de conducere. Dacă antrenezi un AI pe istoricul lor de angajări, AI-ul va "învăța" că bărbații sunt candidați mai buni pentru conducere — chiar dacă nimeni nu i-a spus explicit asta. El reproduce pur și simplu pattern-ul din date.
+
+**Bias** în AI = sistemul produce rezultate sistematic diferite (incorecte sau inechitabile) pentru anumite grupuri.
+
+Tipuri de bias:
+- **Bias din date istorice:** dacă trecutul a fost discriminatoriu, AI-ul reproduce discriminarea
+- **Bias de reprezentare:** grupuri subreprezentate în datele de antrenare → erori mai mari pentru acele grupuri
+- **Bias de confirmare:** AI-ul tinde să confirme premisele din întrebarea ta
+
+**Concret:** Sistemele de recunoaștere facială antrenate majoritar pe fețe caucaziene fac mai multe erori pentru persoane de altă etnie. Nu e rea-voință — e consecința datelor de antrenare.
+
+---
+
+### Privacy — ce se întâmplă cu datele tale
+
+Imaginează-ți că trimiți un email confidențial printr-un serviciu de poștă care folosește conținutrul emailurilor pentru a-și antrena angajații. Ți-ar părea rău dacă informațiile tale confidențiale ar ajunge să "instruiască" alte persoane.
+
+La fel cu AI: unele servicii folosesc conversațiile tale pentru a-și îmbunătăți modelele. Dacă discuți date confidențiale ale firmei, strategii de business sau informații personale sensibile, acestea pot ajunge în datele de antrenare.
+
+**Ce faci:** Nu trimite date confidențiale sau PII (informații de identificare personală) la modele AI publice. Verifică politica de date a serviciului AI pe care îl folosești.
+
+---
+
+### Deepfakes — realitatea fabricată
+
+Imaginează-ți că tehnologia ajunge la un punct în care poți pune cuvinte în gura oricui, perfect sincronizat, imposibil de distins de real. O zi de vorbire înregistrată a oricărei persoane publice e suficientă pentru a crea un videoclip convingător cu ea spunând orice.
+
+**Deepfakes** = conținut audio/video sintetic, generat de AI, care pare autentic. Aplicații problematice:
+- Videoclipuri cu politicieni spunând lucruri pe care nu le-au spus niciodată
+- Escrocherii telefonice cu vocea clonată a unui familiar ("Mamă, am nevoie urgent de bani")
+- Imagini sintetice distribuite ca fotografii reale
+
+**Ce faci:** Fii sceptic față de conținut emoțional extrem sau cu cereri urgente. Verifică sursa originală. Sunat înapoi persoanele care cer bani de urgență — chiar dacă vocea pare familiară.
+
+---
+
+### EU AI Act — regulile europene
+
+Imaginează-ți că Europa a creat un cod de circulație pentru inteligența artificială. La fel cum mașinile sunt clasificate după siguranță și emisii, sistemele AI sunt clasificate după riscul pe care îl prezintă.
+
+**Sisteme interzise:** scoring social generalizat de stat, manipulare subliminală, recunoaștere facială în timp real în spații publice (cu excepții stricte).
+
+**Sisteme cu risc înalt (reglementate strict):** AI în angajări, AI în educație pentru evaluare, AI în creditare bancară, AI în sistemul juridic.
+
+**Transparență obligatorie:** dacă interacționezi cu un chatbot, acesta trebuie să declare că e AI. Conținutrul sintetic trebuie marcat ca atare.
+
+**De ce contează:** Dacă construiești o aplicație AI în România (parte a UE), trebuie să respecți aceste reguli. Nerespectarea = amenzi semnificative.
+
+---
+
+### Cum ești un utilizator responsabil
+
+Imaginează-ți un cuțit de bucătărie. E un instrument util, dar necesită responsabilitate în utilizare. AI-ul e la fel — extrem de util, dar cu potențial de daune dacă e folosit neglijent sau malițios.
+
+**Ca utilizator:**
+- Verifică informațiile importante înainte de a le folosi sau distribui
+- Nu produce conținut destinat manipulării sau dezinformării
+- Declară când conținutrul e generat cu AI, când e relevant
+- Fii sceptic față de conținut AI extrem emoțional
+
+**Ca builder de aplicații:**
+- Testează pentru bias înainte de deployment
+- Informează utilizatorii că interacționează cu AI
+- Permite contestarea deciziilor AI
+- Nu colecta mai multe date decât e necesar
+
+---
+
+### Rezumat
+
+AI-ul e un instrument puternic cu limitări reale. Hallucinations, bias și privacy sunt probleme tehnice concrete, nu scenarii apocaliptice. Le gestionezi prin cunoaștere și precauție: verifici informațiile importante, ești conștient de prejudecăți potențiale, protejezi datele sensibile și folosești AI cu intenție bună.
+
+```flashcards
+[
+  {"front": "Ce este o hallucination în AI?", "back": "Modelul generează informații false cu aceeași siguranță ca informațiile corecte — inventează referințe, citate, legi sau fapte care nu există. Mereu verifică informațiile factuale importante."},
+  {"front": "De unde vine bias-ul în sistemele AI?", "back": "Din datele de antrenare — dacă datele istorice reflectă discriminare sau subreprezentare, modelul reproduce acele pattern-uri. Nu e rea-voință, e consecința matematică a antrenării pe date imperfecte."},
+  {"front": "Ce sunt deepfakes?", "back": "Conținut audio/video sintetic generat de AI care pare autentic — videoclipuri cu persoane spunând lucruri pe care nu le-au spus, voci clonate pentru escrocherii. Soluție: verifică sursa originală, fii sceptic față de urgențe."},
+  {"front": "Ce interzice EU AI Act?", "back": "Scoring social generalizat de stat, manipulare subliminală, recunoaștere facială în timp real în spații publice. Sisteme cu risc înalt (angajări, creditare, educație) necesită audit și supraveghere umană."},
+  {"front": "Cum protejezi datele confidențiale când folosești AI?", "back": "Nu trimite PII sau date confidențiale ale firmei la modele AI publice. Verifică politica de date a serviciului. Folosește Enterprise API sau modele self-hosted pentru informații sensibile."}
+]
+```

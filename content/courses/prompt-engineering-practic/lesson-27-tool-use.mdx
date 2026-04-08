@@ -1,0 +1,159 @@
+---
+title: "Tool Use și Function Calling"
+module: 6
+type: theory
+order: 27
+---
+
+# Tool Use și Function Calling
+
+Unul dintre cele mai semnificative salturi în capabilitatea modelelor AI moderne este capacitatea de a utiliza instrumente externe — nu doar de a genera text, ci de a interacționa cu sisteme reale: motoare de căutare, API-uri, calculatoare, baze de date, calendare. Această capabilitate se numește **tool use** sau **function calling** și schimbă fundamental ce poți face cu un model de limbaj.
+
+## Cum funcționează: mecanismul de bază
+
+La nivel tehnic, tool use funcționează astfel:
+
+1. Definești un set de funcții (tools) cu o descriere și o schemă de parametri
+2. Incluzi această definiție în contextul modelului
+3. Modelul decide când și cu ce parametri să apeleze un tool
+4. Rezultatul tool-ului este returnat modelului
+5. Modelul continuă generarea cu noile informații
+
+Modelul nu "execută" codul — el generează un apel structurat (de obicei JSON) pe care aplicația ta îl interceptează, execută funcția reală și returnează rezultatul.
+
+**Exemplu de definiție a unui tool (format simplificat JSON Schema):**
+
+```json
+{
+  "name": "get_weather",
+  "description": "Returnează temperatura și condițiile meteo actuale pentru un oraș specificat. Folosește-l când utilizatorul întreabă despre vreme sau planifică activități care depind de condițiile meteo.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "city": {
+        "type": "string",
+        "description": "Numele orașului, de exemplu 'București' sau 'Cluj-Napoca'"
+      },
+      "unit": {
+        "type": "string",
+        "enum": ["celsius", "fahrenheit"],
+        "description": "Unitatea de temperatură dorită"
+      }
+    },
+    "required": ["city"]
+  }
+}
+```
+
+Elementul critic în această definiție este câmpul `description` — acesta este textul pe care modelul îl citește pentru a decide dacă și când să apeleze tool-ul. O descriere imprecisă duce la apeluri greșite sau la ignorarea tool-ului când ar fi util.
+
+## Scrierea descrierilor de tool: arta specificității
+
+Descrierea unui tool trebuie să răspundă la trei întrebări implicite:
+
+**Ce face tool-ul?** (comportamentul)
+**Când trebuie folosit?** (condițiile de activare)
+**Când NU trebuie folosit?** (limitele)
+
+```json
+{
+  "name": "search_web",
+  "description": "Caută informații actuale pe internet. Folosește-l pentru: informații care s-ar fi putut schimba după 2023, prețuri actuale, știri recente, verificarea datelor publice. NU îl folosi pentru: întrebări matematice, cunoștințe generale stabile (istorie, știință de bază), sau când poți răspunde din cunoștințele proprii.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "query": {
+        "type": "string",
+        "description": "Termenul de căutare, formulat ca o interogare clară și specifică"
+      }
+    },
+    "required": ["query"]
+  }
+}
+```
+
+Observă instrucțiunile explicite despre când NU se folosește tool-ul — acest lucru previne apeluri nenecesare.
+
+## Prompting cu awareness de tool use
+
+Când construiești un sistem cu tool use, system prompt-ul trebuie să reflecte tool-urile disponibile și strategia de utilizare.
+
+**Exemplu de system prompt cu tool use:**
+
+```
+Ești un asistent productiv cu acces la următoarele instrumente:
+- search_web(query): caută informații actuale pe internet
+- get_weather(city, unit): returnează vremea actuală
+- calculate(expression): evaluează expresii matematice
+- get_calendar_events(date_range): returnează evenimentele din calendar
+
+Strategia ta: Folosește tools când ai nevoie de informații actuale sau calcule. Nu inventa date — dacă nu știi ceva, caută. Dacă un tool returnează eroare, anunță utilizatorul și oferă alternativa ta din cunoștințele proprii dacă este relevant. Prezintă întotdeauna sursa informației (web search vs. cunoștințe proprii).
+```
+
+## Tool chaining: înlănțuirea tool-urilor
+
+Puterea reală a tool use apare când mai multe tools sunt înlănțuite — output-ul unuia devine input pentru altul.
+
+**Exemplu de scenariu cu tool chaining:**
+
+```
+Utilizator: "Cât ar costa să investesc 1000 EUR în acțiuni Apple astăzi și ce ar fi valoarea dacă cresc cu 15%?"
+
+Modelul execută:
+1. search_web("prețul acțiunii Apple astăzi USD") → $185.23
+2. search_web("cursul EUR/USD astăzi") → 1.085
+3. calculate("1000 * 1.085") → 1085 USD
+4. calculate("1085 / 185.23") → 5.86 acțiuni
+5. calculate("1085 * 1.15") → 1247.75 USD
+6. calculate("1247.75 / 1.085") → 1149.77 EUR
+```
+
+Fiecare pas folosește rezultatul celui anterior. Modelul orchestrează această secvență autonom, fără ca utilizatorul să specifice pașii individuali.
+
+## Tools comune în producție
+
+**Web search:** Accesul la informații actualizate. Esențial pentru date care se schimbă frecvent.
+
+**Code interpreter / calculator:** Execuția de cod Python sau evaluarea expresiilor matematice. Elimină erorile de calcul.
+
+**Database query:** Interogarea bazelor de date în limbaj natural. Transformă "câți clienți noi am în Q1?" într-un SELECT executat real.
+
+**File operations:** Citirea și scrierea de fișiere. Util pentru procesarea de documente.
+
+**Calendar și email:** Verificarea disponibilității, programarea întâlnirilor, trimiterea de emailuri.
+
+**External APIs:** Orice API poate deveni un tool — tracking colete, date meteo, informații financiare, SMS-uri.
+
+## Când NU să folosești tools
+
+Tool use nu este întotdeauna necesar sau util. Apelurile la tools au un cost (timp, bani, complexitate). Câteva situații în care tools sunt inutile:
+
+- Întrebări factuale stabile care există în datele de antrenament ("când a fost fondată România?")
+- Calcule simple pe care modelul le poate face corect din memorie
+- Sarcini creative și de raționament pure care nu necesită date externe
+- Situații unde latența suplimentară (timp de execuție) nu este acceptabilă
+
+Regula practică: folosește un tool dacă și numai dacă există un risc real ca modelul să greșească sau să nu aibă informația fără el.
+
+## Construirea de prompts care conștientizează tools
+
+Când lucrezi cu un sistem cu tool use ca utilizator final (nu ca developer), poți formula prompturi care ghidează modelul spre utilizarea sau evitarea tools:
+
+**Forțarea utilizării unui tool:**
+```
+Caută pe internet prețul curent al apartamentelor în Cluj-Napoca și pe baza acelor date reale răspunde la întrebarea mea.
+```
+
+**Descurajarea unui tool inutil:**
+```
+Fără a accesa internetul, pe baza cunoștințelor tale, explică cum funcționează algoritmul de sortare QuickSort.
+```
+
+**Specificarea ordinii de utilizare:**
+```
+Mai întâi calculează suma totală, apoi convertește în EUR folosind cursul actual de pe internet, și în final compară cu bugetul meu de 5000 RON.
+```
+
+## Concluzie
+
+Tool use și function calling transformă modelele de limbaj din sisteme izolate de generare text în orchestratori capabili să interacționeze cu lumea reală. Înțelegerea mecanismului — cum se definesc tools, cum modelul decide să le folosească, cum se înlănțuie — îți permite să construiești sisteme mai capabile și să scrii prompts mai eficiente. Elementul cheie rămâne descripția tool-ului: cu cât mai precis definești când și cum un tool trebuie folosit, cu atât mai inteligent va fi comportamentul modelului.

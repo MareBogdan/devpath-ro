@@ -1,0 +1,122 @@
+---
+title: "Context Window"
+module: 4
+moduleTitle: "Language Models și ChatGPT"
+type: theory
+order: 18
+---
+
+## Context Window — ce este, de ce are limite, cum îl folosești eficient
+
+Dacă ai vorbit vreodată cu un chatbot AI și ai observat că "uită" lucruri menționate la începutul conversației, sau că nu poate procesa documente prea lungi dintr-o dată, tocmai ai întâlnit limitele **ferestrei de context**. Hai să înțelegem ce e, de ce există și cum să lucrezi cu ea eficient.
+
+---
+
+### Analogia cu memoria de lucru
+
+Imaginează-ți că ești la un curs intensiv de 8 ore. La final, îți dai seama că ții minte cu claritate ce s-a predat în ultimele 2 ore, mai vag ce s-a predat dimineața, și aproape deloc detaliile de la prima oră.
+
+Creierul uman are o "memorie de lucru" limitată — cantitatea de informație activă pe care o poate procesa simultan. Restul trece în memorie pe termen lung (dacă repeți și e important) sau se uită.
+
+Language Models au un echivalent: **fereastra de context**. Este tot textul pe care modelul îl "vede" simultan — conversația ta, documentele pe care le-ai trimis, instrucțiunile speciale. Modelul poate "ține minte" și procesa orice apare în această fereastră. Ce e în afara ferestrei — nu există pentru el.
+
+---
+
+### Cum se măsoară fereastra de context
+
+Imaginează-ți că ai un castron de supă cu o anumită capacitate. Poți pune 500ml de supă. Nu mai mult. Dacă adaugi lichid nou, trebuie să elimini altceva.
+
+Fereastra de context se măsoară în **tokens** (din Lecția 17 — aproximativ 4 caractere pe token în engleză, 3 în română). Un token ≈ o bucată de cuvânt.
+
+GPT-3.5 (ChatGPT de bază original) = 4.096 tokens ≈ 3.000 de cuvinte ≈ 10 pagini A4.
+
+GPT-4 Turbo = 128.000 tokens ≈ 100.000 de cuvinte ≈ un roman mic.
+
+Claude (Anthropic) = 200.000 tokens ≈ 150.000 de cuvinte ≈ un roman mediu.
+
+Tendința e clară: ferestrele de context cresc an de an.
+
+---
+
+### Ce intră în fereastra de context
+
+Imaginează-ți că fereastra e o farfurie cu o capacitate fixă. Pe ea trebuie să încapă mai multe lucruri simultan.
+
+**System prompt** — instrucțiunile speciale care definesc comportamentul modelului. "Ești un asistent util. Răspunzi în română. Ești prietenos." Acestea ocupă o porțiune din fereastră.
+
+**Istoricul conversației** — tot ce ai scris tu și tot ce a răspuns modelul până acum. Pe măsură ce conversația crește, ocupă tot mai mult spațiu.
+
+**Documentele sau contextul adăugat** — dacă trimiți un document pentru analiză sau un cod pentru revizuire, ocupă spațiu.
+
+**Răspunsul curent** — chiar răspunsul pe care modelul îl generează acum ocupă spațiu în fereastră.
+
+Când suma tuturor acestor componente depășește limita, ceva trebuie eliminat. De obicei, istoricul mai vechi al conversației se "taie".
+
+---
+
+### De ce există această limită — nu e o alegere, e o constrângere
+
+Imaginează-ți că mecanismul de Atenție din Transformers (Lecția 16) trebuie să compare fiecare cuvânt cu fiecare alt cuvânt din fereastră. Dacă ai 1.000 de tokens, faci 1.000 × 1.000 = 1 milion de comparații. Dacă ai 10.000 de tokens, faci 10.000 × 10.000 = 100 de milioane de comparații. Dacă ai 100.000 de tokens — 10 miliarde de comparații.
+
+Costul de calcul crește **pătratic** cu dimensiunea ferestrei. Dublezi fereastra → de 4 ori mai mult calcul. Triplezi → de 9 ori mai mult.
+
+Acesta e motivul fundamental al limitei: costul de calcul și memoria hardware. Pe măsură ce GPU-urile devin mai puternice și algoritmii mai eficienți, limita crește.
+
+---
+
+### Cum să folosești fereastra de context eficient
+
+Imaginează-ți că ai un colaborator care poate ține minte tot ce îi spui, dar doar din ultimele 2 ore. Cum lucrezi eficient cu el?
+
+**Pune contextul important la început și la final.** Studiile arată că modelele "acordă mai multă atenție" începutului și finalului ferestrei de context. Informațiile din mijloc se pot "pierde" ușor — un fenomen numit "lost in the middle".
+
+**Rezumă conversațiile lungi.** Dacă ai o conversație de 2 ore și vrei să continui a doua zi, rezumă punctele cheie. "Ieri am discutat și am ajuns la concluzia că... Acum vreau să continuăm cu..." Asta "comprimă" informația importantă.
+
+**Elimină contextul irelevant.** Nu mai trimiți un document de 50 de pagini dacă ai nevoie de informații din 2 paragrafe. Extrage ce e relevant. Ești mai eficient și modelul se concentrează mai bine.
+
+**Folosește prompturi clare și concise.** Fiecare cuvânt din prompt-ul tău ocupă spațiu în fereastră. Prompturile lungi și verbose lasă mai puțin spațiu pentru răspuns.
+
+---
+
+### Viitorul ferestrelor de context
+
+Imaginează-ți că azi poți vedea 200 de metri în fiecare direcție. Cu o lunetă mai bună, poți vedea 2 km. Cu un satelit, poți vedea toată planeta.
+
+Ferestrele de context cresc rapid. De la 4.000 de tokens în 2020 la 200.000+ în 2024. Unele cercetări experimentale ating milioane de tokens.
+
+Dar chiar și cu ferestre uriașe, există întrebarea: modelul chiar "înțelege" tot ce e în fereastră, sau ignoră eficient o parte? Cercetările arată că performanța scade pe informațiile din mijlocul ferestrelor foarte mari.
+
+Alternativa la ferestrele mari: RAG (Retrieval-Augmented Generation) — modelul nu ține tot documentul în fereastră, ci caută dinamic ce secțiuni sunt relevante pentru fiecare întrebare și le "injectează" în context. E un subiect al Lecției 26.
+
+---
+
+### Recapitulare
+
+Fereastra de context e tot textul pe care un Language Model îl poate "vedea" simultan, măsurată în tokens. Limitele actuale: 4.000–200.000 tokens, în funcție de model. Toate componentele (system prompt, istoricul conversației, documente, răspuns) ocupă spațiu. Limita există din cauza costului de calcul pătratic al Attention. Poți lucra eficient: pune contextul important la început/final, rezumă conversațiile lungi, elimină contextul irelevant. Tendința: ferestre tot mai mari, dar cu diminuarea atenției în zona de mijloc.
+
+---
+
+```flashcards
+[
+  {
+    "front": "Ce este fereastra de context a unui Language Model?",
+    "back": "Cantitatea totală de text (în tokens) pe care modelul o poate procesa simultan — conversația, documentele, instrucțiunile și răspunsul curent."
+  },
+  {
+    "front": "De ce există limite ale ferestrei de context?",
+    "back": "Costul de calcul al mecanismului de Atenție crește pătratic cu dimensiunea ferestrei. Dublezi fereastra → de 4 ori mai mult calcul."
+  },
+  {
+    "front": "Ce este fenomenul 'lost in the middle'?",
+    "back": "Modelele acordă mai multă atenție informațiilor de la început și final al ferestrei. Informațiile din mijloc pot fi procesate mai slab."
+  },
+  {
+    "front": "Cum rezumi o conversație lungă pentru a economisi tokens?",
+    "back": "Ceri modelului să rezume conversația, sau rezumi tu punctele cheie, și începi o conversație nouă cu rezumatul ca context."
+  },
+  {
+    "front": "Ce este RAG și cum rezolvă limitele ferestrei de context?",
+    "back": "Retrieval-Augmented Generation — modelul caută dinamic ce secțiuni din documente sunt relevante și le 'injectează' în context, fără a ține tot documentul în fereastră."
+  }
+]
+```

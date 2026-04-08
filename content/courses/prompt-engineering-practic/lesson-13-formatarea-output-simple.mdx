@@ -1,0 +1,62 @@
+---
+title: "Formatarea Output-ului"
+module: 3
+type: theory
+order: 13
+---
+
+# Formatarea Output-ului — Mod Simplu
+
+## Problema răspunsului nestructurat
+
+Imaginează-ți că trimiți o scrisoare unui birou și ceri informații despre produsul X. Primești un răspuns de 3 pagini, narativ, fără titluri, fără liste, cu informația îngropată undeva la mijloc.
+
+Tehnic corect. Practic inutil.
+
+Asta se întâmplă când nu specifici formatul răspunsului de la un AI.
+
+## Analogia formularului
+
+Gândește-te la un formular administrativ. Când completezi un formular, dai informații structurate: câmp pentru nume, câmp pentru adresă, câmp pentru CNP. Nu scrii un eseu despre viața ta.
+
+**Formatarea output-ului = a-i da AI-ului un formular de completat în loc să-l lași să scrie un eseu.**
+
+## Exemple concrete
+
+Fără instrucțiuni de format, AI-ul scrie liber:
+> "Produsul analizat are mai multe aspecte pozitive, printre care calitatea materialelor și prețul competitiv. Totuși, există și câteva limitări..."
+
+Cu instrucțiuni de format, primești structura dorită:
+> Analizează produsul și returnează:
+> - Puncte forte: (lista)
+> - Puncte slabe: (lista)
+> - Scor general: (1-10)
+> - Recomandare: (da/nu + 1 propoziție)
+
+## Tipuri de formate utile
+
+**JSON** — pentru aplicații care procesează automat datele
+
+**Tabel** — pentru comparații
+
+**Lista numerotată** — pentru pași secvențiali
+
+**Bullet points** — pentru caracteristici sau opțiuni
+
+**Paragraf scurt** — pentru rezumate sau recomandări
+
+## Controlul lungimii
+
+La fel de important ca formatul este lungimea:
+
+- "Maxim 3 propoziții" — pentru răspunsuri rapide
+- "Minim 300 de cuvinte" — pentru explicații detaliate
+- "Exact 5 bullet points" — pentru consistență
+
+AI-urile tind să fie verbose. Dacă nu specifici, primești mai mult decât ai nevoie.
+
+## Regula practică
+
+Înainte să trimiți un prompt, întreabă-te: "Cum arată răspunsul perfect?" Descrie acel format în prompt.
+
+Cu cât ești mai specific cu formatul, cu atât răspunsul va fi mai util și mai ușor de folosit.

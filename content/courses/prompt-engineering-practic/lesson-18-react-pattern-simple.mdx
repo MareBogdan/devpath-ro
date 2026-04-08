@@ -1,0 +1,63 @@
+---
+title: "ReAct Pattern"
+module: 4
+type: theory
+order: 18
+---
+
+# ReAct Pattern — Mod Simplu
+
+## AI-ul care face lucruri, nu doar vorbește
+
+Toate tehnicile de prompting discutate până acum îmbunătățesc cum **gândește** AI-ul. ReAct merge mai departe: îmbunătățește cum AI-ul **acționează** în lume.
+
+## Analogia asistentului personal
+
+Imaginează-ți un asistent personal cu două versiuni:
+
+**Varianta 1 (fără ReAct):** Știe doar ce a citit în cărți. Dacă îl întrebi "Cât costă un bilet de avion București-Paris mâine?", îți spune: "Nu știu exact, prețurile variază."
+
+**Varianta 2 (cu ReAct):** Are și acces la internet. Procesul lui:
+1. *Gândesc*: trebuie să verific prețuri actuale la zbor.
+2. *Acțiune*: caut pe site-ul companiei aeriene zborul pentru mâine.
+3. *Observ*: găsesc prețuri între 200-450 EUR.
+4. *Gândesc*: am informația, pot răspunde complet.
+5. *Răspuns*: "Cel mai ieftin zbor disponibil mâine costă 214 EUR..."
+
+## Gândire + Acțiune + Observație
+
+Asta este ReAct, pe scurt: un ciclu de trei pași care se repetă până la răspunsul final:
+
+- **Gând (Thought)**: ce îmi trebuie pentru a rezolva asta?
+- **Acțiune (Action)**: execut o operație în lumea reală
+- **Observație (Observation)**: văd rezultatul acțiunii
+
+Ciclul se repetă până AI-ul are tot ce îi trebuie.
+
+## De ce este asta important?
+
+Înainte de ReAct și sisteme similare, AI-ul era limitat la cunoașterea din training (care are o dată de expirare). Cu ReAct, AI-ul poate:
+- Accesa informații în timp real
+- Face calcule complexe fără să "numere mental"
+- Interacționa cu sisteme externe
+
+## Exemplu vizual
+
+    Întrebare: "Câte minute durează să ajung cu trenul din Cluj în Brașov?"
+
+    GÂND: Am nevoie de orarul pentru ruta Cluj-Brașov
+    ACȚIUNE: Caut orarul trenurilor
+    OBSERVAȚIE: Trenul face Cluj-Brașov în 4h 23min
+
+    GÂND: Am informația. 4h 23min = 263 minute.
+    RĂSPUNS FINAL: Trenul Cluj-Brașov durează aproximativ 263 minute.
+
+## ReAct = fundația agenților AI
+
+Dacă ai auzit de "AI agents" sau "AI care face treburi singur", ReAct este mecanismul din spatele lor. Acești agenți gândesc, acționează, observă rezultatele, și continuă în bucle până finalizează o sarcină complexă.
+
+## Concluzie
+
+ReAct = AI care gândește și acționează în lume, nu doar răspunde din memorie.
+
+Este diferența dintre un consilier care știe teoria și unul care poate și executa.

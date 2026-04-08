@@ -1,0 +1,152 @@
+---
+title: "Chain of Thought"
+module: 2
+type: theory
+order: 7
+---
+
+# Chain of Thought (Lanț de Gândire)
+
+Imaginează-ți că îi dai unui angajat un calcul complex de rezolvat și îi spui: "Dă-mi răspunsul direct, fără să arăți calculele." Riscul de eroare este ridicat. Dar dacă îi spui "Arată-mi fiecare pas al calculului" — verifici mai ușor, angajatul gândește mai clar și erorile sunt mult mai rare.
+
+**Chain of Thought (CoT)** funcționează pe același principiu aplicat modelelor de limbaj. Tehnica constă în a ghida modelul să-și "arate" raționamentul pas cu pas înainte de a da răspunsul final, în loc să sară direct la concluzie.
+
+## De ce funcționează Chain of Thought?
+
+Cercetătorii de la Google Brain au demonstrat în 2022 că LLM-urile produc răspunsuri semnificativ mai bune la probleme complexe atunci când sunt ghidate să raționeze explicit, pas cu pas.
+
+Explicația intuitivă: modelul generează token cu token. Fiecare token produs devine parte din contextul pentru tokenii următori. Dacă modelul "calculează" intermediar, tokenul următor (care este răspunsul) are un context mai bogat și mai corect.
+
+**Fără CoT:**
+```
+Un magazin vinde 15 produse la 45 lei bucata și 8 produse la 120 lei bucata.
+Are o reducere de 10% pentru comenzi peste 500 lei. Cât plătește clientul?
+```
+
+Model fără CoT: poate face erori de calcul sau poate omite reducerea.
+
+**Cu CoT:**
+```
+Un magazin vinde 15 produse la 45 lei bucata și 8 produse la 120 lei bucata.
+Are o reducere de 10% pentru comenzi peste 500 lei. Cât plătește clientul?
+
+Gândește pas cu pas:
+```
+
+Model cu CoT: calculează 15×45=675, 8×120=960, total=1635, verifică dacă >500 lei (da), aplică 10% reducere = 1635×0.9 = 1471.5 lei.
+
+## Cum triggeri Chain of Thought
+
+Există mai multe modalități, de la simplă la complexă:
+
+**1. Fraza magică: "Gândește pas cu pas"**
+
+Cel mai simplu trigger, documentat de Google Research ca extrem de eficient:
+
+```
+Problema: O firmă are 3 echipe: A (5 persoane), B (8 persoane), C (4 persoane).
+Fiecare persoană lucrează 8h/zi. Proiectul necesită 640 de ore-om.
+Câte zile durează dacă toate echipele lucrează simultan?
+
+Gândește pas cu pas înainte de a da răspunsul final.
+```
+
+**2. Zero-shot CoT explicit**
+
+Structurezi cererea să includă raționamentul:
+
+```
+Analizează dacă această strategie de pricing este bună și explică raționamentul:
+Produs: curs online de 30 de ore
+Costuri producție: 5.000 lei (one-time)
+Prețul concurenței: 200-350 lei
+Prețul propus: 89 lei cu acces permanent
+
+Pasul 1: Analizează poziționarea față de concurență
+Pasul 2: Evaluează sustenabilitatea financiară
+Pasul 3: Identifică riscurile
+Pasul 4: Dă recomandarea finală cu justificare
+```
+
+**3. Few-shot CoT**
+
+Combini few-shot cu Chain of Thought — arăți modelului nu doar input-output, ci și raționamentul:
+
+```
+Evaluat dacă un client este potrivit pentru planul Premium.
+
+Client 1: "Am 150 de utilizatori, procesăm 10.000 tranzacții/lună, avem nevoie de API."
+Raționament: 150 utilizatori depășesc limita planului Standard (50). Volumul tranzacțiilor e mare. API-ul e disponibil doar la Premium.
+Decizie: Premium — se potrivește
+
+Client 2: "Suntem o echipă de 3, folosim platforma pentru proiecte interne."
+Raționament: 3 utilizatori intră în planul Free sau Basic. Fără nevoi enterprise sau API.
+Decizie: Basic — Premium ar fi supradimensionat
+
+Acum evaluează:
+Client: "Am 45 de utilizatori acum dar creștem rapid, vrem să integrăm cu Slack și avem un developer intern."
+Raționament:
+Decizie:
+```
+
+## Când să folosești Chain of Thought
+
+**Probleme care beneficiază cel mai mult de CoT:**
+
+- **Raționament matematic și logic:** calcule complexe, probleme de logică, analize statistice
+- **Analize multi-criteriu:** evaluarea opțiunilor cu mai mulți factori, decizii complexe
+- **Depanare și diagnostic:** găsirea cauzelor unei probleme prin eliminare sistematică
+- **Planificare:** crearea de planuri cu dependențe și constrângeri multiple
+- **Argumente și contra-argumente:** analize echilibrate care necesită perspective multiple
+
+**Când CoT este mai puțin util:**
+
+- Răspunsuri factuale simple: "Care este capitala Franței?"
+- Traduceri directe fără interpretare
+- Generare creativă liberă (povestiri, texte de marketing)
+- Clasificări binare simple
+
+## Variante avansate de CoT
+
+**Self-consistency CoT:** Ceri modelului să rezolve problema pe mai căi diferite și să aleagă răspunsul care apare de mai multe ori:
+
+```
+Rezolvă această problemă pe 3 căi diferite și dă răspunsul care apare de cel puțin 2 ori:
+[problema]
+```
+
+**Structured CoT cu secțiuni predefinite:**
+
+```
+Analizează propunerea de business de mai jos urmând exact această structură:
+1. PUNCTE FORTE (min 3)
+2. RISCURI PRINCIPALE (min 3)
+3. ÎNTREBĂRI FĂRĂ RĂSPUNS (min 2)
+4. RECOMANDARE FINALĂ (Da/Nu/Condiționat) cu justificare de 2 propoziții
+
+Propunere: [textul propunerii]
+```
+
+## Exerciții practice
+
+**Exercițiu 1 — Problema de business:**
+Ia o decizie pe care o ai de luat în acest moment (hiring, preț, strategie, achiziție) și construiește un prompt CoT cu 4-5 pași expliciți de analiză.
+
+**Exercițiu 2 — Debugging logic:**
+Descrie o situație în care ceva nu funcționează cum ar trebui (în muncă sau acasă) și cere modelului să identifice cauza posibilă pas cu pas:
+
+```
+Produsul meu X face Y în loc de Z. Gândește pas cu pas: care sunt cauzele posibile,
+cum le elimin sistematic și care este cel mai probabil diagnostic final?
+```
+
+**Exercițiu 3 — Comparație:**
+Trimite același prompt complex cu și fără "Gândește pas cu pas". Compară calitatea și acuratețea răspunsurilor.
+
+## Concluzie
+
+Chain of Thought este una dintre cele mai puternice tehnici din arsenalul prompt engineering, tocmai pentru că este simplă de aplicat și produce îmbunătățiri dramatice pentru problemele complexe.
+
+Regula de baza: oricând simți că o problemă necesită raționament, analiză sau calcul — adaugă "Gândește pas cu pas" sau structurează explicit pașii de raționament.
+
+**Următoarea lecție:** Role prompting — arta de a obține perspectiva expertului potrivit pentru fiecare situație.

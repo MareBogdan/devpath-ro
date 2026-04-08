@@ -1,0 +1,274 @@
+---
+title: "Ce este un prompt și de ce contează cum îl scrii"
+module: 5
+moduleTitle: "Prompt Engineering"
+type: theory
+order: 20
+---
+
+## Ce este un prompt și de ce contează cum îl scrii
+
+Ai ajuns la cel mai practic modul din curs. Nu mai vorbim de arhitecturi și matematică — vorbim de **cum comunici eficient cu un LLM**.
+
+Un prompt prost → răspuns vag, greșit sau nefolositor.
+Un prompt bun → răspuns precis, structurat și utilizabil direct.
+
+Diferența o face înțelegerea a **ce este un prompt** și **cum procesează modelul instrucțiunile tale**.
+
+---
+
+### Anatomia unui prompt
+
+Un prompt are componente distincte, fiecare cu rolul ei:
+
+```python
+# Structura unui prompt complet
+prompt_anatomy = {
+    "instruction": "Ce trebuie să facă modelul",
+    "context":     "Informații de fundal necesare",
+    "input_data":  "Datele specifice de procesat",
+    "output_format": "Cum vrei să arate răspunsul",
+    "constraints": "Limitări sau constrângeri",
+    "examples":    "Exemple (few-shot)",
+}
+
+# Exemplu concret — prompt slab:
+bad_prompt = "Rezumă textul."
+
+# Exemplu concret — prompt bun:
+good_prompt = """
+Ești un editor de știri cu 10 ani experiență.
+
+Rezumă textul următor în exact 3 propoziții:
+1. Ideea principală
+2. Cel mai important detaliu
+3. Implicația sau concluzia
+
+Text de rezumat:
+{text}
+
+Răspunde DOAR cu cele 3 propoziții, fără introducere sau concluzie.
+"""
+```
+
+---
+
+### De ce contează formularea exactă
+
+Modelele LLM sunt **extrem de sensibile la formulare**. Nu e capriciu — e consecința directă a modului în care funcționează predicția de tokeni:
+
+```python
+import openai
+
+client = openai.OpenAI()
+
+def compare_prompts(base_question: str, variants: list[str]) -> None:
+    """Demonstrează cum formularea schimbă complet răspunsul"""
+
+    for variant in variants:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": variant}],
+            max_tokens=100,
+            temperature=0
+        )
+        print(f"Prompt: '{variant[:50]}...'")
+        print(f"Răspuns: {response.choices[0].message.content}\n")
+
+# Exemplu: aceeași întrebare, formulări diferite
+variants = [
+    "Care e capitala Franței?",
+    "Scrie capitala Franței.",
+    "Completează: Capitala Franței este ___.",
+    "Paris sau Lyon — care este capitala Franței?",
+    "Ești un expert în geografie. Care este capitala Franței? Explică pe scurt de ce.",
+]
+
+compare_prompts("capitala Franței", variants)
+```
+
+---
+
+### Temperatura și parametrii de generare
+
+Promptul nu e singurul factor. **Parametrii de generare** controlează comportamentul modelului:
+
+```python
+client = openai.OpenAI()
+
+def generation_params_demo(prompt: str) -> None:
+    # Temperature = 0: determinist, mereu cel mai probabil răspuns
+    r_deterministic = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.0,      # ← Complet determinist
+        max_tokens=100,
+    )
+
+    # Temperature = 1.5: creativ, variabil, mai puțin precis
+    r_creative = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": prompt}],
+        temperature=1.5,      # ← Creativ/haotic
+        max_tokens=100,
+    )
+
+    # top_p = 0.1: nucleus sampling — alege din top 10% cele mai probabile tokeni
+    r_nucleus = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": prompt}],
+        temperature=1.0,
+        top_p=0.1,            # ← Sampling conservator
+        max_tokens=100,
+    )
+
+    # Ghid practic de temperature:
+    guidelines = {
+        0.0: "Cod, clasificare, Q&A factual — vrei același răspuns mereu",
+        0.3: "Rezumare, traducere — consistentă dar cu variație naturală",
+        0.7: "Chat, asistență generală — echilibru recomandat",
+        1.0: "Brainstorming, creativitate moderată",
+        1.5: "Poezie experimentală, brainstorming divergent",
+    }
+
+    for temp, use_case in guidelines.items():
+        print(f"temperature={temp}: {use_case}")
+```
+
+---
+
+### Rolurile conversației: system, user, assistant
+
+ChatGPT și API-urile moderne structurează conversația în **roluri**:
+
+```python
+# Structura mesajelor în OpenAI Chat API
+messages = [
+    {
+        "role": "system",
+        "content": "Ești un expert în Python cu 15 ani de experiență. Răspunzi concis, cu exemple de cod clare. Nu scrii cod inutil. Răspunzi în română."
+    },
+    {
+        "role": "user",
+        "content": "Cum sortez un dicționar după valori în Python?"
+    },
+    {
+        "role": "assistant",
+        "content": "Folosește sorted() cu key=lambda:\n\nd = {'b': 3, 'a': 1, 'c': 2}\nsorted_d = dict(sorted(d.items(), key=lambda x: x[1]))\n# Rezultat: {'a': 1, 'c': 2, 'b': 3}"
+    },
+    {
+        "role": "user",
+        "content": "Cum fac același lucru descrescător?"
+    }
+    # Modelul vede TOATĂ conversația și răspunde în continuare
+]
+
+response = client.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=messages
+)
+print(response.choices[0].message.content)
+# → sorted_d = dict(sorted(d.items(), key=lambda x: x[1], reverse=True))
+```
+
+**Rolul system:** setează "personalitatea" și constrângerile modelului. Văzut de model la fiecare turn al conversației. Detalii în Lecția 22.
+
+---
+
+### Greșeli comune în scriere prompturi
+
+```python
+# ❌ GREȘEALĂ 1: Prea vag
+bad_1 = "Ajută-mă cu Python."
+# Ce înseamnă "ajută"? Explică? Scrie cod? Depanează?
+
+# ✅ Versiunea bună:
+good_1 = """
+Am o funcție Python care primește o listă de integers și trebuie să returneze
+suma celor pare. Funcția mea e incorectă:
+
+def suma_pare(lst):
+    return sum(x for x in lst if x % 2 == 1)
+
+Identifică bug-ul și explică de ce e greșit. Nu rescrie funcția, doar explică.
+"""
+
+# ❌ GREȘEALĂ 2: Prea mult context irelevant
+bad_2 = """
+Lucrez la o companie de e-commerce din București, fondată în 2019, avem
+20 de angajați, ne ocupăm cu vânzarea de produse electronice...
+[500 cuvinte de context irelevant]
+...Ce query SQL pot folosi pentru a număra comenzile din ultimele 7 zile?
+"""
+# Contextul irelevant "distrage" modelul și consumă context window
+
+# ✅ Versiunea bună:
+good_2 = """
+Tabel orders: id, user_id, created_at (timestamp), status.
+Scrie un query SQL care numără comenzile din ultimele 7 zile.
+"""
+
+# ❌ GREȘEALĂ 3: Output format nespecificat
+bad_3 = "Listează-mi 5 idei de business online."
+# Modelul poate răspunde în orice format
+
+# ✅ Versiunea bună:
+good_3 = """
+Generează 5 idei de business online viabile în România în 2024.
+Format JSON, fiecare idee cu: "titlu", "descriere" (max 2 propoziții),
+"investiție_minimă_eur", "timp_până_la_profit_luni".
+"""
+```
+
+---
+
+### Tokens = Bani: eficiența promptului
+
+```python
+import tiktoken
+
+enc = tiktoken.encoding_for_model("gpt-4o")
+
+def analyze_prompt_cost(prompt: str, model: str = "gpt-4o") -> dict:
+    """
+    Analiza costului unui prompt
+    """
+    tokens = enc.encode(prompt)
+    n_tokens = len(tokens)
+
+    # Prețuri aproximative (mai 2024):
+    prices = {
+        "gpt-4o":       {"input": 5.0,   "output": 15.0},  # $ per 1M tokens
+        "gpt-4o-mini":  {"input": 0.15,  "output": 0.60},
+        "claude-sonnet":{"input": 3.0,   "output": 15.0},
+    }
+
+    price = prices.get(model, {"input": 5.0, "output": 15.0})
+    cost_usd = n_tokens * price["input"] / 1_000_000
+
+    return {
+        "tokens": n_tokens,
+        "words": len(prompt.split()),
+        "cost_usd": cost_usd,
+        "cost_ron": cost_usd * 4.7,  # ~4.7 RON/USD
+    }
+
+# Un prompt de 1000 tokeni:
+# gpt-4o: $0.000005 = 0.023 bani RON
+# La 10.000 apeluri/zi: $0.05/zi = ~0.23 RON/zi
+# La scară (1M apeluri): $5/zi
+
+# Optimizarea prompturilor = economii reale la scară!
+```
+
+---
+
+### Recapitulare
+
+✅ **Anatomia promptului:** instrucție, context, date input, format output, constrângeri, exemple
+✅ **Temperature:** 0 = determinist (cod/factual), 0.7 = echilibrat (chat), 1.5 = creativ
+✅ **Roluri:** system (personalitate/constrângeri), user (mesajul tău), assistant (răspuns anterior)
+✅ **Greșeli comune:** prea vag, context irelevant, output format nespecificat
+✅ **Eficiența tokenilor:** prompturile lungi = costuri mai mari, relevant la scară
+
+**Lecția 21** te duce în tehnicile de bază: zero-shot, few-shot, chain-of-thought — instrumentele de bază ale oricărui prompt engineer.

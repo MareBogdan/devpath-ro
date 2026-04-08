@@ -1,0 +1,162 @@
+---
+title: "Supervised vs Unsupervised Learning"
+module: 2
+moduleTitle: "Machine Learning — Cum Învață Mașinile"
+type: theory
+order: 6
+---
+
+## Supervised vs Unsupervised Learning
+
+Există mai multe moduri prin care un model de ML poate învăța. Cele mai importante două sunt **Supervised Learning** și **Unsupervised Learning**. Înțelegerea diferenței dintre ele este esențială — alegerea greșită poate înseamna luni de muncă pierdute.
+
+---
+
+### Supervised Learning — Învățarea cu Profesor
+
+**Supervised Learning** (Învățare Supervizată) înseamnă că antrenezi modelul pe date **etichetate** — date unde știi deja răspunsul corect.
+
+> Imaginează-ți un profesor care îți corectează temele. La fiecare exemplu, îți spune: "Asta e corect, asta e greșit, asta era spam, asta era normal." Modelul **învață din greșeli** cu ajutorul feedback-ului explicit.
+
+**Format tipic:**
+```
+(Input, Etichetă corectă) → Model → Ajustare internă → Predicții mai bune
+```
+
+**Exemple concrete:**
+
+```python
+# Exemplul 1: Clasificare email
+date_antrenare = [
+    ("Câștigați 1 MILION de euro! Click ACUM!", "spam"),
+    ("Bună, azi avem ședință la ora 14", "ham"),
+    ("Ofertă EXCLUSIVĂ doar pentru tine!", "spam"),
+    ("Raportul trimestrial e atașat", "ham"),
+    # ... mii de exemple
+]
+
+# Exemplul 2: Predicție preț casă
+date_imobiliare = [
+    {"suprafata": 75, "camere": 2, "zona": "central", "pret": 120000},
+    {"suprafata": 120, "camere": 3, "zona": "periferică", "pret": 95000},
+    # ... mii de tranzacții reale
+]
+# Modelul învață: suprafata × X + zona_factor × Y + ... = pret
+```
+
+**Când folosești Supervised Learning:**
+- Știi exact ce vrei să prezici
+- Ai date istorice cu răspunsuri corecte
+- Problema e de tip clasificare sau regresie
+
+---
+
+### Unsupervised Learning — Descoperirea Structurii
+
+**Unsupervised Learning** (Învățare Nesupervizată) înseamnă că antrenezi modelul pe date **fără etichete** — îi dai date brute și îl lași să găsească singur structura ascunsă.
+
+> Imaginează-ți că primești 10.000 de cărți de vizită amestecate și trebuie să le sortezi. Nimeni nu îți spune criteriul. Tu observi singur: unele au logo de companie tech, altele de cabinet medical, altele de restaurant. **Descoperi categorii** fără să fi știut dinainte că ele există.
+
+**Format tipic:**
+```
+(Date fără etichete) → Model → Structuri/grupuri descoperite automat
+```
+
+**Exemplul clasic: Netflix și grupurile de utilizatori**
+
+```python
+# Netflix nu știe dinainte câte "tipuri" de utilizatori are.
+# Aplică clustering pe comportament:
+
+utilizatori = [
+    {"filme_horror": 10, "comedii": 2, "documentare": 0},   # → Grup A: "Horror fan"
+    {"filme_horror": 0, "comedii": 8, "documentare": 7},    # → Grup B: "Casual + educ"
+    {"filme_horror": 0, "comedii": 1, "documentare": 12},   # → Grup C: "Documentarist"
+    # ... milioane de utilizatori
+]
+
+from sklearn.cluster import KMeans
+model = KMeans(n_clusters=5)  # "Găsește 5 grupuri naturale"
+model.fit(utilizatori)
+
+# Output: Netflix descoperă că are 5 tipuri distincte de spectatori
+# Acum poate personaliza recomandările pentru fiecare grup
+```
+
+**Alte aplicații Unsupervised:**
+- **Detectarea anomaliilor:** banca nu știe cum arată o fraudă nouă, dar știe că "e diferit de normal"
+- **Compresie de date:** găsirea dimensiunilor esențiale dintr-un set masiv
+- **Topicele dintr-un corpus:** "ce subiecte apar în aceste 100.000 de articole?"
+
+---
+
+### Al treilea tip: Reinforcement Learning
+
+Există și un al treilea paradigmă importantă:
+
+**Reinforcement Learning** (Învățare prin Recompensă) — modelul **explorează un mediu**, primește **recompense** pentru acțiuni bune și **penalizări** pentru cele rele. Învață prin trial & error.
+
+> Gândește-te la un câine care face dresaj. Nu îi explici teoria șezutului — îi dai un biscuit când face corect și îi spui "nu" când greșește. Câinele optimizează pentru biscuiți.
+
+```
+Exemplu: AlphaGo
+- Nu i s-a explicat teoria jocului Go
+- A jucat milioane de partide contra lui însuși
+- A primit +1 pentru victorie, -1 pentru înfrângere
+- A descoperit singur strategii pe care oamenii nu le-au gândit în 3000 de ani de joc
+```
+
+---
+
+### Comparație rapidă
+
+| Caracteristică | Supervised | Unsupervised | Reinforcement |
+|---|---|---|---|
+| **Date necesare** | Etichete + input | Doar input | Mediu interactiv |
+| **Ce face** | Clasifică / prezice | Grupează / descoperă | Optimizează acțiuni |
+| **Exemplu** | Spam filter | Netflix clusters | AlphaGo, roboți |
+| **Dificultate date** | Mare (etichetarea e scumpă) | Mică | N/A |
+
+---
+
+### Cum alegi ce să folosești?
+
+```
+Ai date etichetate?
+├── DA → Supervised Learning
+│   ├── Vrei o categorie? → Clasificare
+│   └── Vrei un număr? → Regresie
+└── NU
+    ├── Ai un mediu simulat? → Reinforcement Learning
+    └── Vrei să înțelegi structura? → Unsupervised Learning
+```
+
+---
+
+### Semi-Supervised Learning — Lumea reală
+
+În practică, etichetarea datelor este **scumpă și lentă** (medici care analizează imagini, avocați care clasifică documente). Soluția modernă: **Semi-Supervised Learning**.
+
+Combini **puțin date etichetate** cu **mult date needtichetate**:
+
+```
+10.000 de imagini de radiografii → etichetezi manual 500 (pisici + câini)
+                                 → lași modelul să "ghicească" celelalte 9.500
+                                 → corectezi 100 mai, re-antrenezi...
+
+Rezultat: performanța unui model antrenat pe 5.000 de etichete,
+          la costul etichetării a 500.
+```
+
+Aceasta e strategia folosită de ChatGPT și Claude: inițial antrenate pe text uriaș (unsupervised), rafinate cu feedback uman pe câteva mii de exemple (supervised).
+
+---
+
+### Recapitulare
+
+✅ **Supervised Learning** = date etichetate, model prezice etichete noi
+✅ **Unsupervised Learning** = date brute, model descoperă structura
+✅ **Reinforcement Learning** = agent explorează mediu, optimizează recompense
+✅ **Alegerea** depinde de tipul de date disponibile și de problema de rezolvat
+
+**Lecția 7** intră în detalii: cum se "antrenează" efectiv un model? Ce înseamnă gradient descent, loss function și de ce calculatoarele "greșesc și se corectează" de milioane de ori?

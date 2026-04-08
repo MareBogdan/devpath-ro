@@ -1,0 +1,62 @@
+---
+title: "Self-Consistency"
+module: 4
+type: theory
+order: 17
+---
+
+# Self-Consistency — Mod Simplu
+
+## Problema răspunsului unic
+
+Ți s-a întâmplat vreodată să pui aceeași întrebare unui AI în zile diferite și să primești răspunsuri ușor diferite? Poate chiar contradictorii?
+
+Asta e normal — AI-ul nu este un calculator cu răspuns unic fix. Există variabilitate. Și Self-Consistency transformă tocmai această variabilitate într-o metodă de a obține răspunsuri mai de încredere.
+
+## Analogia juriului
+
+Când un tribunal trebuie să decidă un verdict complicat, nu lasă decizia pe un singur jurat. Sunt 12 jurați, fiecare ascultând aceleași dovezi, deliberând independent. Verdictul final este cel cu majoritate.
+
+**Self-Consistency = juriul pentru AI.**
+
+Pui aceeași întrebare de mai multe ori (cu puțină variație aleatorie). Colectezi răspunsurile. Câștigă răspunsul cel mai frecvent.
+
+## Cum arată practic?
+
+Întrebare: "Câți angajați are firma XYZ dacă are 5 departamente, fiecare cu 8 oameni, plus 3 manageri?"
+
+Rulare 1: 43 de angajați (calcul corect)
+Rulare 2: 43 de angajați (calcul corect)
+Rulare 3: 45 de angajați (eroare mică)
+Rulare 4: 43 de angajați (calcul corect)
+Rulare 5: 43 de angajați (calcul corect)
+
+Votul majoritar: **43** — răspuns final.
+
+Dacă am fi luat doar rularea 3, am fi greșit. Prin 5 rulări, eroarea izolată nu câștigă.
+
+## Când are sens?
+
+Merită efortul (și costul suplimentar) când:
+- Răspunsul greșit costă mult (decizie de business, calcul financiar)
+- Problema implică mai mulți pași de raționament unde erorile se pot acumula
+- Vrei confidență ridicată, nu aproximare
+
+Nu merită pentru:
+- Întrebări cu răspuns simplu
+- Conținut creativ unde nu există un "corect"
+- Situații unde viteza primează
+
+## Varianta economică: auto-verificarea
+
+Dacă nu vrei să faci 5 apeluri API, există o variantă mai simplă:
+
+> "Răspunde la întrebare, apoi verifică-ți calculele. Dacă găsești erori, corectează și prezintă răspunsul final."
+
+Nu e identic cu Self-Consistency, dar prinde multe erori cu un singur apel în plus.
+
+## Concluzie
+
+Self-Consistency = nu te baza pe un singur răspuns. Cere mai multe, alege majoritarul.
+
+Simplu de aplicat. Eficient pentru probleme de raționament. Costă mai mult, dar crește fiabilitatea.

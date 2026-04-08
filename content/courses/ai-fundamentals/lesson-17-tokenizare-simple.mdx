@@ -1,0 +1,110 @@
+---
+title: "Tokenizare"
+module: 4
+moduleTitle: "Language Models și ChatGPT"
+type: theory
+order: 17
+---
+
+## Tokenizare — cum "vede" AI-ul textul, de ce contează
+
+Înainte ca un Language Model să poată procesa textul tău, trebuie să îl transforme în ceva cu care poate lucra — numere. Procesul prin care se face această transformare se numește **tokenizare**. Pare un detaliu tehnic, dar înțelegerea lui îți va explica multe comportamente curioase ale AI-ului.
+
+---
+
+### AI-ul nu vede litere. Vede bucăți de cuvânt.
+
+Imaginează-ți că ai un dicționar special cu 50.000 de intrări. Dar în loc să fie cuvinte întregi, conține combinații de litere de diferite lungimi — unele sunt cuvinte comune întregi ("casă", "merge"), altele sunt prefixe frecvente ("ne-", "re-"), altele sunt terminații comune ("-ând", "-ului"), și câteva sunt litere individuale.
+
+Tokenizarea împarte textul tău în "bucăți" (tokens) folosind acest dicționar și atribuie un număr fiecărei bucăți.
+
+Cuvintele comune primesc propriul token: "și" = token 400, "este" = token 287.
+
+Cuvintele mai rare se descompun: "extraordinar" = "extra" (token 1203) + "ordin" (token 892) + "ar" (token 45).
+
+Cuvintele cu totul noi — nume proprii, termeni specializați, cuvinte inventate — se descompun în litere sau grupuri mici de litere.
+
+---
+
+### De ce nu se folosesc pur și simplu litere sau cuvinte?
+
+Imaginează-ți că îți dai seama că în română există sute de mii de cuvinte diferite, și pentru fiecare ai vrea un token. Dicționarul ar fi imens. Mai mult, pentru fiecare cuvânt în formă inflectată diferită ("casă", "casei", "case", "caselor") ai vrea un token separat — vocabularul explodează.
+
+Alternativ, dacă folosești litera cu litera — "c", "a", "s", "ă" — obții un "vocabular" de doar câteva zeci de semne. Dar acum modelul trebuie să învețe relațiile dintre mult mai mulți pași pentru a înțelege un cuvânt.
+
+Tokenizarea la nivel de sub-cuvânt e compromisul perfect: vocabular rezonabil ca mărime (50.000-100.000 de tokens), acoperire completă a oricărui text (oricine poate fi descompus în bucăți), eficiență în procesare.
+
+---
+
+### De ce AI-ul are probleme cu matematica simplă — legătura cu tokenizarea
+
+Imaginează-ți că ai de numărat câte litere are cuvântul "extraordinar". Pentru tine e simplu: numeri literele una câte una. Dar dacă AI-ul vede "extraordinar" nu ca 13 litere, ci ca 3 tokens ("extra", "ordin", "ar") — numărătoarea devine confuză. Modelul "vede" 3 bucăți, nu 13 litere.
+
+Asta explică de ce modelele de limbaj fac greșeli ciudate la numărarea literelor sau la rimă (care necesită să "audă" sunetele individuale, nu bucățile de token).
+
+Sau de ce calculele matematice cu numere mari pot fi instabile: numărul "93847" poate fi tokenizat ca "93" + "847" sau ca "938" + "47" sau ca o singură bucată — în funcție de tokenizator. Modelul trebuie să înțeleagă valoarea numerică, dar vede fragmente arbitrare.
+
+---
+
+### Contextul limitat — tokenurile și fereastra de context
+
+Imaginează-ți că poți ține minte doar ultimele 10 pagini dintr-un roman lung. Dacă citești de la pagina 1 la 10 — ții minte totul. Dacă continui la pagina 11, uiți pagina 1. La pagina 20, ai uitat paginile 1-10. Dacă ceva important s-a întâmplat la pagina 5 și e relevant abia la pagina 50 — ghiniont, l-ai uitat.
+
+Language Models au o "fereastră de context" — numărul maxim de tokens pe care îl pot "ține în minte" simultan. ChatGPT de bază a pornit cu 4.096 de tokens (cam 3.000 de cuvinte). Versiunile avansate azi au 100.000-200.000 de tokens sau mai mult.
+
+Când o conversație depășește această fereastră, modelul "uită" ce s-a spus la început. De aceea, în conversații foarte lungi, ChatGPT poate părea că "uită" context din start.
+
+---
+
+### De ce tokenizarea afectează costul
+
+Imaginează-ți că un serviciu de traducere te taxează per cuvânt tradus. Cu cât mai multe cuvinte, cu atât mai scump.
+
+API-urile de Language Model te taxează per token procesat. Un token = aproximativ 4 caractere în engleză, sau cam 3 caractere în română (limbile cu cuvinte mai lungi au densitate de tokens diferită).
+
+Un email scurt de 100 de cuvinte → aproximativ 130-150 de tokens. Un document de 10 pagini → poate 2.000-3.000 de tokens. Un roman → sute de mii de tokens.
+
+Înțelegând tokenizarea, poți să scrii prompt-uri mai eficiente, să înțelegi de ce unele cereri costă mai mult decât altele și să optimizezi cum interacționezi cu AI-ul.
+
+---
+
+### Tokenizarea și limbile rare
+
+Imaginează-ți că tokenizatorul a fost "antrenat" pe miliarde de cuvinte în engleză și mai puține în română. Cuvintele comune în engleză au tokens dedicați — procesate eficient. Cuvintele rare în română s-ar putea descompune în bucăți mici — procesate mai ineficient.
+
+Asta e o realitate a modelelor de limbaj: performanța e mai bună în limbile cu mai multă reprezentare în datele de antrenare. Engleza domină. Limbile europene majore sunt bine reprezentate. Limbile cu mai puțini vorbitori sau cu mai puțin conținut online sunt mai slab reprezentate.
+
+E un domeniu activ de cercetare — cum să faci modelele mai eficiente și mai bune pentru toate limbile.
+
+---
+
+### Recapitulare
+
+Tokenizarea transformă textul în numere prin împărțirea în "bucăți" (tokens) dintr-un vocabular de 50.000-100.000 de intrări. Tokens pot fi cuvinte întregi, prefixe, terminații sau litere individuale. Compromisul sub-cuvânt oferă vocabular rezonabil și acoperire completă. Tokenizarea explică de ce AI-ul are probleme cu numărarea literelor, rimele și calculele matematice complexe. Fereastra de context limitează câte tokens poate "ține minte" modelul simultan. API-urile de LLM taxează per token — înțelegând asta optimizezi costurile.
+
+---
+
+```flashcards
+[
+  {
+    "front": "Ce este tokenizarea?",
+    "back": "Procesul de transformare a textului în numere prin împărțirea în 'bucăți' (tokens) dintr-un vocabular fix, fiecare primind un index numeric."
+  },
+  {
+    "front": "De ce se folosesc tokens la nivel de sub-cuvânt și nu litere sau cuvinte întregi?",
+    "back": "Compromis optimal: vocabular rezonabil ca mărime, acoperire completă a oricărui text, eficiență în procesare."
+  },
+  {
+    "front": "De ce AI-ul face greșeli la numărarea literelor?",
+    "back": "Modelul vede tokens (bucăți de cuvânt), nu litere individuale. 'Extraordinar' poate fi 3 tokens, nu 13 litere."
+  },
+  {
+    "front": "Ce este fereastra de context?",
+    "back": "Numărul maxim de tokens pe care un Language Model îl poate procesa simultan. Când conversația depășește această limită, modelul 'uită' conținutul vechi."
+  },
+  {
+    "front": "Cum afectează tokenizarea costul folosirii unui API de LLM?",
+    "back": "API-urile taxează per token procesat. Un token ≈ 4 caractere în engleză, ≈ 3 în română. Mai mult text = mai mulți tokens = cost mai mare."
+  }
+]
+```

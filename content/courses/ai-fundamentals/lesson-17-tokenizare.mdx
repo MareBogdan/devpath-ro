@@ -1,0 +1,246 @@
+---
+title: "Tokenizare — cum vede AI-ul textul"
+module: 4
+moduleTitle: "Language Models și Transformers"
+type: theory
+order: 17
+---
+
+## Tokenizare — cum descompune AI-ul textul în bucăți
+
+Știi că LLM-urile prezice "tokenul următor", nu "cuvântul următor". Ce este exact un token și de ce contează asta?
+
+Tokenizarea este pasul fundamental care transformă text brut (pe care îl înțelegem noi) în numere (pe care le înțelege modelul). Înțelegerea tokenizării explică de ce ChatGPT uneori "numără greșit literele", de ce codul Python este mai "ieftin" decât poezia chineză, și de ce unele prompturi consumă mai multe credite.
+
+---
+
+### De ce nu tokeni = cuvinte?
+
+Opțiunile naïve nu funcționează:
+
+**Varianta 1: Caracter cu caracter**
+```
+"Bună ziua" → ['B','u','n','ă',' ','z','i','u','a']
+```
+Problemă: secvențe enorm de lungi, modelul trebuie să "construiască" cuvintele din litere — ineficient și greu de antrenat.
+
+**Varianta 2: Cuvânt cu cuvânt**
+```
+"Bună ziua" → ['Bună', 'ziua']
+```
+Problemă: vocabular uriaș (milioane de cuvinte, conjugări, forme), cuvinte rare sau noi sunt "necunoscute".
+
+**Soluția: Byte Pair Encoding (BPE)** — subword tokenization, un compromis inteligent.
+
+---
+
+### Byte Pair Encoding (BPE)
+
+BPE construiește vocabularul printr-un algoritm iterativ:
+
+```python
+# BPE algoritm — idee de bază
+# Pas 1: Pornești cu caractere individuale
+# Vocabular inițial: {a, b, c, d, ..., ă, â, î, ș, ț, ...}
+
+# Pas 2: Găsești cea mai frecventă pereche de tokeni adiacenți
+# Corpus: ["b u n ă", "b u n ă t a t e", "z i u a", ...]
+# Cea mai frecventă pereche: ("b", "u") → merge → "bu"
+
+# Pas 3: Adaugi perechea la vocabular și o aplici în corpus
+# Vocabular: {a, b, c, ..., bu}
+
+# Pas 4: Repetă de 50.000 ori
+# Rezultat: subword-uri frecvente devin tokeni proprii
+
+# Exemple de tokenizare finală:
+tokenization_examples = {
+    "antrenament":  ["antr", "en", "ament"],     # 3 tokeni
+    "extraordinar": ["extra", "ordin", "ar"],     # 3 tokeni
+    "GitHub":       ["Git", "Hub"],              # 2 tokeni
+    "AI":           ["AI"],                      # 1 token (frecvent!)
+    "bună":         ["bun", "ă"],               # 2 tokeni
+    "running":      ["run", "ning"],             # 2 tokeni
+    "unhappy":      ["un", "happy"],             # 2 tokeni (prefix separat)
+}
+```
+
+---
+
+### Tokenizarea în practică cu tiktoken
+
+OpenAI folosește `tiktoken`, o implementare BPE extrem de rapidă:
+
+```python
+import tiktoken
+
+# Selectează encodingul pentru GPT-4
+enc = tiktoken.encoding_for_model("gpt-4")
+
+# Tokenizează text simplu
+text1 = "Bună ziua! Cum te cheamă?"
+tokens1 = enc.encode(text1)
+print(f"Text: '{text1}'")
+print(f"Număr tokeni: {len(tokens1)}")
+# Număr tokeni: ~12
+
+# Tokenizează cod Python
+code = "def fibonacci(n):\n    if n <= 1: return n"
+tokens_code = enc.encode(code)
+print(f"\nCod Python ({len(code)} caractere):")
+print(f"Număr tokeni: {len(tokens_code)}")
+# Python keywords = tokeni eficienți (frecvenți în date de antrenare)
+
+# Tokenizează chineză
+chinese = "你好世界"  # "Hello World" în chineză
+tokens_zh = enc.encode(chinese)
+print(f"\nChineză '{chinese}' ({len(chinese)} caractere):")
+print(f"Număr tokeni: {len(tokens_zh)}")
+# Caracterele chineze sunt mai rare → mai mulți tokeni pe caracter
+# Adesea 2-3 tokeni per caracter chinezesc
+
+# Decode: tokeni → text
+decoded = enc.decode(tokens1)
+print(f"\nDecoded: '{decoded}'")  # → textul original
+
+# Vizualizare tokeni individuali
+print("\nTokeni individuali:")
+for token_id in tokens1:
+    token_text = enc.decode([token_id])
+    print(f"  {token_id:>6} → '{token_text}'")
+```
+
+---
+
+### Tokeni speciali
+
+Fiecare model definește tokeni speciali cu roluri rezervate:
+
+```python
+special_tokens = {
+    # GPT-style (decoder-only)
+    "<|endoftext|>": 50256,  # Separator între documente din corpus
+    "<|fim_prefix|>": 50281, # Fill-in-the-middle: prefix
+    "<|fim_middle|>": 50282, # Fill-in-the-middle: mijloc
+    "<|fim_suffix|>": 50283, # Fill-in-the-middle: suffix
+
+    # BERT-style (encoder)
+    "[CLS]": 101,  # Classification token (început de secvență)
+    "[SEP]": 102,  # Separator (între două propoziții)
+    "[PAD]": 0,    # Padding (egalizare lungime batch)
+    "[UNK]": 100,  # Unknown token
+    "[MASK]": 103, # Token mascat (pentru preantrenare BERT)
+
+    # Chat format (OpenAI)
+    "<|im_start|>": ...,  # Start mesaj (system/user/assistant)
+    "<|im_end|>":   ...,  # End mesaj
+}
+
+# Cum arată un prompt în realitate pentru model:
+chat_prompt_tokenized = """
+<|im_start|>system
+Ești un asistent util care răspunde în română.<|im_end|>
+<|im_start|>user
+Care este capitala Franței?<|im_end|>
+<|im_start|>assistant
+"""
+# Modelul "vede" asta ca o secvență de tokeni, inclusiv tokenii speciali
+```
+
+---
+
+### De ce AI-ul "numără greșit"
+
+Acum poți înțelege un comportament aparent bizar:
+
+```python
+import tiktoken
+enc = tiktoken.encoding_for_model("gpt-4")
+
+# De ce ChatGPT numără greșit literele:
+word = "strawberry"
+tokens = enc.encode(word)
+decoded_tokens = [enc.decode([t]) for t in tokens]
+print(f"'{word}' → tokeni: {decoded_tokens}")
+# Posibil output: ['st', 'raw', 'berry'] sau ['straw', 'berry']
+
+# AI-ul "vede" tokeni, nu litere individuale!
+# Dacă e întrebat "câte litere 'r' are cuvântul strawberry?"
+# Trebuie să raționeze PRIN tokeni
+# → Dacă tokenul e 'straw', știe că există 'r' undeva în el
+# → Dar nu "vede" că sunt 3 'r'-uri total fără să raționeze explicit
+
+# Soluție prin prompt engineering:
+# "Scrie fiecare literă a cuvântului 'strawberry' pe un rând nou,
+#  apoi numără de câte ori apare litera 'r'"
+# → forțezi modelul să proceseze explicit fiecare caracter
+
+# Alte implicații:
+# "HELLO" ≠ "hello" în număr de tokeni uneori
+# "ChatGPT" poate fi 1 sau 2 tokeni
+# Spațiile de la început de cuvânt devin parte din token: " hello" ≠ "hello"
+```
+
+---
+
+### Context Window și Tokeni
+
+Context Window (Lecția 18) se măsoară în **tokeni**, nu cuvinte:
+
+```python
+# Regula de deget:
+# ~1.3 tokeni per cuvânt în engleză
+# ~1.5-2 tokeni per cuvânt în română (diacritice pot adăuga tokeni)
+
+def estimate_tokens_romanian(text):
+    """Estimare rapidă pentru texte românești"""
+    words = len(text.split())
+    chars = len(text)
+    # Heuristică: ~4 caractere per token pentru română
+    return max(words * 1.6, chars / 4)
+
+# Costuri API se calculează per token:
+cost_per_1m_tokens = {
+    "gpt-4o-input":          5.00,   # USD per 1M tokens
+    "gpt-4o-output":        15.00,
+    "gpt-4o-mini-input":     0.15,
+    "gpt-4o-mini-output":    0.60,
+    "claude-3-5-sonnet-in":  3.00,
+    "claude-3-5-sonnet-out": 15.00,
+    "llama-3.1-405b-in":     5.00,   # via API providers
+}
+
+# Exemplu: un articol de 1000 cuvinte în română ≈ 1600 tokeni
+# Cost input GPT-4o: 1600 / 1_000_000 * 5 = $0.000008 = 0.08 bani
+```
+
+---
+
+### Vocabularul unui LLM modern
+
+```python
+vocab_sizes = {
+    "GPT-2":        50_257,
+    "GPT-3/4":      100_277,   # cl100k_base encoding
+    "Llama 2":       32_000,
+    "Llama 3":      128_256,   # Mult mai mare, mai bun pentru limbi non-engleze
+    "Gemma":        256_128,
+    "Mistral":       32_000,
+}
+
+# Un vocabular mai mare = tokeni mai eficienți pentru limbi non-engleze
+# Llama 3 cu 128k vocab tokenizează română mult mai bine decât Llama 2 cu 32k
+# → mai puțini tokeni per propoziție → context window folosit mai eficient
+```
+
+---
+
+### Recapitulare
+
+✅ **Token ≠ Cuvânt:** tokenul este o unitate sub-cuvânt determinată de BPE
+✅ **BPE:** merge iterativ perechile cele mai frecvente din corpus → vocabular eficient
+✅ **tiktoken:** librăria OpenAI pentru tokenizare rapidă (cl100k_base pentru GPT-4)
+✅ **Tokeni speciali:** [CLS], [SEP], \<EOS\> — markeri structurali pentru model
+✅ **De ce numără greșit:** AI-ul operează pe tokeni, nu litere — tokenizarea "fragmentează" cuvintele
+
+**Lecția 18** închide Modulul 4 cu conceptul de Context Window — cât de mult "ține minte" un LLM și ce se întâmplă când depășești limita.

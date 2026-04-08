@@ -1,0 +1,106 @@
+---
+title: "Context Window Management"
+module: 3
+type: theory
+order: 12
+---
+
+# Context Window Management
+
+Una dintre cele mai importante limitări tehnice ale modelelor de limbaj — și una dintre cele mai puțin înțelese de utilizatorii obișnuiți — este **fereastra de context** (context window). Înțelegerea și gestionarea eficientă a acesteia poate face diferența dintre o aplicație AI funcțională și una care eșuează în mod misterios.
+
+## Ce este fereastra de context?
+
+Fereastra de context reprezintă cantitatea maximă de text pe care un model o poate "vedea" simultan la un moment dat. Gândește-te la ea ca la memoria de lucru a modelului: tot ce este în fereastră este "prezent" și poate influența răspunsul; tot ce este în afara ferestrei este complet ignorat.
+
+Limitele actuale ale modelelor populare:
+
+- **GPT-4o**: 128.000 tokeni (~96.000 cuvinte)
+- **Claude 3.5 Sonnet**: 200.000 tokeni (~150.000 cuvinte)
+- **Gemini 1.5 Pro**: 1.000.000 tokeni (~750.000 cuvinte)
+- **GPT-3.5 Turbo**: 16.000 tokeni (~12.000 cuvinte)
+
+Un **token** reprezintă aproximativ 0.75 cuvinte în engleză sau 0.6-0.7 cuvinte în română (din cauza cuvintelor mai lungi și a diacriticelor).
+
+## Ce se află în fereastra de context?
+
+Fereastra de context conține tot:
+
+1. **System prompt-ul** — instrucțiunile de bază ale aplicației
+2. **Istoricul conversației** — toate mesajele anterioare (user + assistant)
+3. **Documentele sau datele injectate** — context adițional furnizat la runtime
+4. **Răspunsul curent în construcție** — modelul "vede" și ce generează
+
+Aceasta înseamnă că o conversație lungă sau documente mari consumă rapid din capacitate.
+
+## Problemele ce apar când fereastra se umple
+
+### Trunchierea
+Când depășești limita, modelul pur și simplu ignoră mesajele mai vechi. Poate uita instrucțiuni date la începutul conversației sau informații furnizate anterior.
+
+### Degradarea calității
+Chiar înainte de limita maximă, modelele tind să acorde mai puțină atenție informațiilor din mijlocul contextului (fenomen numit "lost in the middle"). Informațiile de la început și de la sfârșit sunt reținute mai bine.
+
+### Costuri crescute
+Tokenii costă bani. O fereastră de context plină = cheltuieli mari per request.
+
+## Strategii de management al contextului
+
+### 1. Summarization (Rezumare)
+Când istoricul conversației devine lung, înlocuiește mesajele vechi cu un rezumat:
+
+    Sistem: La fiecare 10 schimburi de mesaje, rezumă conversația anterioară
+    într-un paragraf și continuă cu rezumatul în loc de istoricul complet.
+
+### 2. Sliding Window (Fereastră glisantă)
+Păstrează doar ultimele N mesaje în context, eliminând cele mai vechi.
+
+### 3. Retrieval Augmented Generation (RAG)
+În loc să injectezi toate documentele în context, stochează-le într-o bază de date vectorială și recuperează doar bucățile relevante pentru fiecare interogare.
+
+### 4. Chunking strategic
+Împarte documentele mari în bucăți mai mici și procesează-le secvențial sau în paralel, consolidând rezultatele la final.
+
+### 5. Compresie și filtrare
+Înainte de a trimite context la model, filtrează informațiile irelevante.
+
+## Calcularea consumului de tokeni
+
+Este important să estimezi consumul înainte de producție:
+
+- 1 pagină A4 text ≈ 500-700 tokeni
+- 1000 linii de cod Python ≈ 2000-4000 tokeni
+- Un email mediu ≈ 200-400 tokeni
+
+Instrumente utile pentru estimare:
+- **tiktoken** (Python library de OpenAI) — numără tokenii exact pentru modelele GPT
+- **Anthropic Token Counter** — pentru modelele Claude
+- Regulă simplă: număr de cuvinte × 1.3 ≈ număr de tokeni
+
+## Contextul și memoria pe termen lung
+
+O limitare fundamentală a LLM-urilor este că nu au memorie persistentă între sesiuni. Fereastra de context este resetată la fiecare conversație nouă. Soluții pentru memoria pe termen lung:
+
+- **Stochezi rezumatele** conversațiilor anterioare în baza de date și le injectezi la începutul sesiunilor noi
+- **Profiluri de utilizator** cu preferințe și context relevant, actualizate după fiecare sesiune
+- **Vector stores** cu "amintiri" semantice ale utilizatorului
+
+## Exemplu practic: optimizarea unui chatbot de suport
+
+Scenariul: chatbot de suport pentru un produs software, cu documentație de 200 de pagini.
+
+**Abordare greșită:** Injectezi toată documentația în system prompt la fiecare conversație.
+- 200 pagini × 600 tokeni = 120.000 tokeni per request
+- Cost ridicat, performanță slabă
+
+**Abordare corectă:**
+1. Indexezi documentația în vector store (Pinecone, Supabase pgvector, etc.)
+2. La fiecare mesaj al utilizatorului, cauți cele mai relevante 3-5 secțiuni
+3. Injectezi doar acele secțiuni în context (2.000-5.000 tokeni)
+4. Cost redus cu 95%, performanță mai bună (context relevant, nu diluat)
+
+## Concluzie
+
+Gestionarea ferestrei de context nu este o problemă de "mai târziu" — este o decizie arhitecturală fundamentală pe care trebuie să o iei de la început. Modelele cu ferestre mari de context nu elimină necesitatea unui management inteligent: costurile, latența și calitatea răspunsurilor sunt toate afectate de cât de eficient folosești spațiul disponibil.
+
+Regula de aur: **pune în context doar ce este relevant pentru răspunsul curent**.

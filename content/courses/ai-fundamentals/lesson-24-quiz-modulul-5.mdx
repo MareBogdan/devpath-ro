@@ -1,0 +1,68 @@
+---
+title: "QUIZ — Modulul 5"
+module: 5
+moduleTitle: "Prompt Engineering"
+type: quiz
+order: 24
+questions:
+  - question: "Care componentă a unui prompt crește semnificativ precizia și consistența output-ului?"
+    options:
+      - "Instrucția principală — fără ea modelul nu știe ce să facă"
+      - "Datele de input — modelul poate funcționa fără date"
+      - "Formatul de output specificat — ghidează modelul să structureze răspunsul predictibil"
+      - "Limba în care scrii — modelul detectează automat"
+    correct: 2
+    explanation: "Specificarea formatului de output (ex: 'Răspunde ca JSON cu câmpurile: titlu, descriere, preț') transformă output-ul arbitrar în output parseabil programatic. Fără specificarea formatului, modelul alege un format care poate varia la fiecare rulare. Instrucția și datele sunt obligatorii; formatul output-ului este opțional dar extrem de valoros pentru aplicații reale."
+
+  - question: "Ce valoare de temperature trebuie să folosești pentru generare de cod sau clasificare unde vrei comportament determinist?"
+    options:
+      - "temperature = 2.0 — pentru maximum de creativitate"
+      - "temperature = 0.0 — greedy decoding, mereu tokenul cu probabilitate maximă"
+      - "temperature = 0.7 — echilibrul perfect pentru orice task"
+      - "temperature = -1.0 — pentru a dezactiva sampling complet"
+    correct: 1
+    explanation: "temperature=0.0 produce greedy decoding: la fiecare pas se alege tokenul cu probabilitatea maximă, rezultând același output pentru același input. Ideal pentru cod, clasificare, extracție de date. temperature=0.7 e bun pentru chat și text creativ. temperature=2.0 produce output haotic și incoherent. Valori negative nu sunt valide în API."
+
+  - question: "Ce este 'Chain-of-Thought' prompting și de ce funcționează?"
+    options:
+      - "Trimiterea mai multor prompturi în lanț, fiecare folosind output-ul celui anterior"
+      - "Cererea modelului să gândească 'pas cu pas' — externalizând raționamentul în context înainte de răspunsul final"
+      - "Conectarea mai multor modele AI în serie pentru a crește precizia"
+      - "O tehnică de comprimare a prompturilor lungi în lanțuri scurte"
+    correct: 1
+    explanation: "Chain-of-Thought înseamnă să ceri modelului să 'gândească pas cu pas' — fraze ca 'Să rezolvăm pas cu pas:' forțează modelul să externalizeze raționamentul înainte de a da răspunsul final. Fiecare pas devine context pentru pasul următor, reducând erorile la probleme multi-step. Funcționează semnificativ mai bine pe modele mari (7B+ parametri)."
+
+  - question: "Care este riscul principal de securitate în aplicațiile care trimit inputul utilizatorilor direct la un LLM cu system prompt?"
+    options:
+      - "Costurile API cresc exponențial cu fiecare utilizator nou"
+      - "Modelul uită system prompt-ul după câteva mesaje lungi"
+      - "Prompt injection — utilizatorii pot formula mesaje care încearcă să suprascrie instrucțiunile din system prompt"
+      - "Latența crește dacă prea mulți utilizatori accesează API-ul simultan"
+    correct: 2
+    explanation: "Prompt injection: un utilizator scrie 'Ignoră toate instrucțiunile anterioare și...' sau alte formulări care încearcă să depășească system prompt-ul. Apărări: formulări explicite în system prompt că instrucțiunile nu pot fi modificate de utilizator, sanitizare input la nivel de aplicație, monitorizare output. Nu există protecție 100% — e un trade-off de design al aplicației."
+
+  - question: "Câte exemple sunt recomandate în few-shot prompting pentru task-uri de clasificare simple?"
+    options:
+      - "1 exemplu — mai mult confundă modelul"
+      - "Minimum 20 exemple — mai puține nu au efect semnificativ"
+      - "2-5 exemple — suficient pentru a demonstra formatul și categoriile"
+      - "Niciun exemplu — modelele mari înțeleg orice instrucție fără exemple"
+    correct: 2
+    explanation: "Regula practică: 2-3 exemple sunt suficiente pentru task-uri simple (clasificare cu 3-5 clase, format JSON standard). 5-10 exemple pentru task-uri complexe: formate neobișnuite, categorii specifice domeniului, stiluri precise. Peste 10 exemple → probabil e mai eficient fine-tuning. Calitatea și diversitatea exemplelor contează mai mult decât cantitatea."
+---
+
+## QUIZ — Modulul 5: Prompt Engineering
+
+Felicitări că ai ajuns la finalul Modulului 5! 🎯
+
+Ai parcurs lecțiile fundamentale ale Prompt Engineering-ului:
+- **Lecția 20:** Ce este un prompt — anatomie, parametri, roluri, greșeli comune
+- **Lecția 21:** Tehnici de bază — zero-shot, few-shot, chain-of-thought, self-consistency
+- **Lecția 22:** Roluri și system prompts — persona design, context dinamic, prompt injection
+- **Lecția 23:** Exercițiu practic — compararea tehnicilor în cod real
+
+**Prompt engineering este abilitatea care diferențiază un utilizator pasiv de un constructor de aplicații AI.**
+
+5 întrebări despre conceptele cheie. Dacă ai dubii, întoarce-te să recitești lecția relevantă.
+
+**Mult succes!** 💪

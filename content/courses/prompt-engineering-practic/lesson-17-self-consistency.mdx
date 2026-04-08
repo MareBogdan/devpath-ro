@@ -1,0 +1,114 @@
+---
+title: "Self-Consistency"
+module: 4
+type: theory
+order: 17
+---
+
+# Self-Consistency în Prompting
+
+Una dintre limitările fundamentale ale modelelor de limbaj este că, dată temperatura mai mare de 0, nu produc întotdeauna același răspuns la aceeași întrebare. **Self-Consistency** transformă această variabilitate într-un avantaj strategic.
+
+## Principiul de bază
+
+Self-Consistency este o tehnică de prompting bazată pe un principiu simplu împrumutat din statistică: **dacă întrebi aceeași întrebare de mai multe ori și obții răspunsuri care converg spre același rezultat, acel rezultat este mai probabil corect**.
+
+Algoritmul:
+1. Formulează un prompt (de obicei cu Chain-of-Thought)
+2. Generează N răspunsuri cu temperature > 0 (variație)
+3. Extrage răspunsul final din fiecare generare
+4. Aplică "majority voting" — alege răspunsul cu cele mai multe apariții
+
+Este echivalentul unui comitet de experți: în loc să asculți un singur expert, asculți 10 și mergi cu opinia majoritară.
+
+## Exemplu practic: raționament matematic
+
+Prompt (cu Chain-of-Thought, rulat de 5 ori cu temperature=0.7):
+
+    Dacă un tren pleacă din București la 08:00 cu viteza de 120 km/h
+    și altul pleacă din Cluj la 09:30 cu viteza de 100 km/h,
+    iar distanța dintre orașe este 480 km, la ce oră se întâlnesc?
+    Gândește-te pas cu pas.
+
+Rezultatele celor 5 rulări:
+- Rulare 1: 11:20 (cu calcul corect)
+- Rulare 2: 11:20 (cu calcul corect)
+- Rulare 3: 11:45 (eroare de calcul)
+- Rulare 4: 11:20 (cu calcul corect)
+- Rulare 5: 11:20 (cu calcul corect)
+
+Majority voting: **11:20** (4 din 5 răspunsuri) — răspunsul final.
+
+## Implementare în cod (pseudo-cod)
+
+    async function selfConsistentAnswer(prompt, n = 5, temperature = 0.7) {
+      const responses = [];
+      for (let i = 0; i < n; i++) {
+        const response = await callLLM({ prompt, temperature });
+        responses.push(extractFinalAnswer(response));
+      }
+
+      // Majority voting
+      const counts = {};
+      for (const r of responses) {
+        counts[r] = (counts[r] || 0) + 1;
+      }
+      return Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
+    }
+
+## Când este Self-Consistency mai eficientă?
+
+**Funcționează bine pentru:**
+- Probleme de raționament matematic sau logic
+- Întrebări cu răspuns unic corect verificabil
+- Clasificare (când există categorii clare)
+- Raționament cu mai mulți pași unde erorile se pot acumula
+
+**Mai puțin utilă pentru:**
+- Sarcini creative (nu există un răspuns "corect")
+- Generare de text liber
+- Probleme unde toate răspunsurile sunt la fel de valide
+
+## Self-Consistency vs Temperatură 0
+
+O întrebare legitimă: de ce nu setezi pur și simplu temperature=0 pentru consistență?
+
+Temperature=0 elimină variabilitatea, dar nu elimina **erorile sistematice**. Dacă modelul are o concepție greșită sau un bias, va repeta acea eroare cu consecvență.
+
+Self-Consistency cu temperature>0 poate depăși erorile sistematice ocazionale — diferitele "căi de raționament" pot ajunge la răspunsuri corecte chiar dacă unele dau eroare.
+
+## Compromisuri practice
+
+**Cost**: N generări = N × cost per generare. 5 rulări costă de 5 ori mai mult.
+
+**Latență**: Poți rula în paralel pentru a minimiza latența, dar tot ai overhead.
+
+**Regula de business**: folosește Self-Consistency doar pentru sarcini unde costul erorii este ridicat sau acuratețea este critic mai importantă decât costul.
+
+## Varianta simplificată: "Verifică-ți răspunsul"
+
+O formă ușoară de Self-Consistency fără multiple apeluri API:
+
+    [Prompt pentru problemă]
+
+    Generează răspunsul inițial.
+
+    Acum verifică-ți răspunsul: identifică orice erori sau inconsistențe.
+
+    Dacă ai găsit erori, corectează și prezintă răspunsul final.
+
+Aceasta nu este Self-Consistency adevărată, dar prinde multe erori la o fracțiune din cost.
+
+## Aplicații avansate
+
+### Ensemble de prompturi diferite
+
+    Varianta A: "Rezolvă problema de matematică direct."
+    Varianta B: "Rezolvă problema de matematică pas cu pas, verificând fiecare calcul."
+    Varianta C: "Rezolvă problema de matematică estimând mai întâi ordinul de mărime."
+
+Dacă toate trei converg, ai un răspuns cu mare confidență.
+
+## Concluzie
+
+Self-Consistency este o tehnică de "asigurare a calității" pentru output-urile AI. Nu îmbunătățește modelul, îmbunătățește fiabilitatea folosirii lui. Ca în orice proces de inginerie: redundanța și voting-ul majoritar sunt instrumente dovedite pentru sisteme mai de încredere.

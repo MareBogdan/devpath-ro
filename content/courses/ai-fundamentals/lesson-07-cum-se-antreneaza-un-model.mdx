@@ -1,0 +1,235 @@
+---
+title: "Cum se antrenează un model ML"
+module: 2
+moduleTitle: "Machine Learning — Cum Învață Mașinile"
+type: theory
+order: 7
+---
+
+## Cum se antrenează un model ML
+
+Ai înțeles CE este Machine Learning și CÂND îl folosești. Acum vine întrebarea care face diferența dintre un utilizator pasiv și un practician real:
+
+**Cum funcționează efectiv procesul de antrenare?**
+
+Răspunsul implică câteva concepte matematice, dar te promit că le vom face intuitive cu analogii simple.
+
+---
+
+### Procesul de antrenare — Imaginea de ansamblu
+
+Antrenarea unui model ML este, în esență, un proces de **eroare → corecție → repetare**:
+
+```
+Date de antrenare
+      ↓
+Modelul face o predicție (inițial aleatorie)
+      ↓
+Calculăm cât de greșită e predicția (Loss Function)
+      ↓
+Ajustăm parametrii modelului pentru a reduce greșeala (Optimizer)
+      ↓
+Repetăm de mii/milioane de ori
+      ↓
+Model antrenat care face predicții bune
+```
+
+---
+
+### Analogia cu archeria
+
+Imaginează-ți un arcaș la prima lecție, legat la ochi:
+
+1. **Trage prima săgeată** — nimeri departe de țintă
+2. **Un antrenor îi spune distanța:** "Ești cu 40cm la dreapta și 20cm sus"
+3. **Arcașul ajustează** unghiul arcului
+4. **Trage a doua săgeată** — 30cm dreapta, 15cm sus
+5. **Repetă de 10.000 de ori** — ajunge să nimerească centrul orbește
+
+Fiecare componentă a antrenării ML are echivalentul său:
+
+| Archerie | Machine Learning |
+|---|---|
+| Arcașul | Modelul (rețeaua neuronală) |
+| Săgeata | Predicția |
+| Distanța față de centru | **Loss / Cost function** |
+| Ajustarea unghiului | **Optimizer (Gradient Descent)** |
+| 10.000 de trageri | **Epoci de antrenare** |
+
+---
+
+### Loss Function — Cât de greșit ești?
+
+**Loss function** (funcția de pierdere) măsoară cât de departe e predicția modelului față de răspunsul corect.
+
+Cu cât Loss-ul e mai mic, cu atât modelul e mai bun. Scopul antrenării este să **minimizezi loss-ul**.
+
+```python
+# Exemplu simplu: predicție preț casă
+# Modelul zice: 150.000 €
+# Realitatea: 120.000 €
+# Eroare: 30.000 €
+
+# Mean Squared Error (MSE) — loss function comună pentru regresie:
+def mse_loss(predictii, valori_reale):
+    erori = [(p - r) ** 2 for p, r in zip(predictii, valori_reale)]
+    return sum(erori) / len(erori)
+
+# Exemplu:
+predictii   = [150000, 95000, 210000]
+valori_reale = [120000, 100000, 200000]
+
+loss = mse_loss(predictii, valori_reale)
+# loss = ((30000)² + (5000)² + (10000)²) / 3 = ~308.000.000
+# Scopul antrenării: face acest număr cât mai mic posibil
+```
+
+---
+
+### Gradient Descent — Coborârea pe Munte
+
+**Gradient Descent** (Coborârea Gradientului) este algoritmul prin care modelul **se îndreaptă spre minimul loss-ului**.
+
+Imaginează-ți că ești pe un munte, în ceață completă, cu ochii închiși. Vrei să ajungi la vale. Strategia ta:
+
+> La fiecare pas, simte cu piciorul în ce direcție se înclină terenul și fă un pas în direcția descendent.
+
+Asta e exact Gradient Descent:
+
+```
+- Calculează "panta" (gradientul) loss-ului față de parametrii modelului
+- Fă un pas "în josul pantei" — modifică parametrii puțin în direcția care reduce loss-ul
+- Repetă până când ești la "vale" (loss minim)
+```
+
+**Learning Rate — cât de mare e pasul?**
+
+```python
+# Pseudocod Gradient Descent:
+parametri = initializare_aleatorie()
+
+for epoca in range(1000):
+    predictii = model.predict(date_antrenare)
+    loss = mse_loss(predictii, etichete_corecte)
+
+    gradient = calculeaza_gradient(loss, parametri)
+
+    # Learning rate: 0.01 = pași mici (siguri dar lenți)
+    #                0.1  = pași mari (rapid dar poate rata minimul)
+    parametri = parametri - learning_rate * gradient
+
+# La final: parametri minimizează loss-ul → model bun
+```
+
+**Learning rate prea mare:**
+```
+🏃 Faci pași uriași → sari peste minim → ricoșezi înapoi → nu convergi niciodată
+```
+
+**Learning rate prea mic:**
+```
+🐢 Faci pași microscopici → durează luni să antrenezi → impractical
+```
+
+**Learning rate optim:**
+```
+✅ Convergi smooth și rapid spre minimum
+```
+
+---
+
+### Epoci, Batch-uri și Iterații
+
+Trei termeni pe care îi vei vedea în orice cod de ML:
+
+**Epoch (Epocă):** O trecere completă prin toate datele de antrenare.
+```
+1 epocă = modelul a văzut fiecare exemplu o dată
+Antrenare tipică: 10 → 1000 epoci, în funcție de problemă
+```
+
+**Batch:** Un subset de date procesat odată.
+```python
+# Nu procesezi 1.000.000 de exemple odată (nu încap în memorie!)
+# Le procesezi în "batch-uri":
+
+toate_datele = 1_000_000  # exemple
+batch_size   = 32          # procesate simultan
+
+# Rezultat: 31.250 de iterații per epocă
+iteratii_per_epoca = toate_datele / batch_size
+```
+
+**Mini-batch Gradient Descent** — standardul modern:
+```
+- Nu calculezi gradientul pe un singur exemplu (prea lent, zgomote)
+- Nu calculezi gradientul pe tot dataset-ul (nu încape în memorie)
+- Calculezi pe un batch de 32/64/128 exemple → echilibru perfect
+```
+
+---
+
+### Training Loop complet — cod real
+
+```python
+import torch
+import torch.nn as nn
+
+model = nn.Linear(2, 1)         # Model simplu: 2 input-uri, 1 output
+optimizer = torch.optim.SGD(model.parameters(), lr=0.01)
+loss_fn = nn.MSELoss()
+
+# Training loop
+for epoca in range(100):
+    for batch_x, batch_y in data_loader:  # Iterăm batch cu batch
+
+        # 1. Forward pass: predicția modelului
+        predictii = model(batch_x)
+
+        # 2. Calculăm loss-ul
+        loss = loss_fn(predictii, batch_y)
+
+        # 3. Backward pass: calculăm gradienții (backpropagation)
+        optimizer.zero_grad()  # Resetăm gradienții anteriori
+        loss.backward()        # Calculăm gradienții față de loss
+
+        # 4. Update: ajustăm parametrii
+        optimizer.step()
+
+    print(f"Epoca {epoca}: Loss = {loss.item():.4f}")
+
+# Output tipic:
+# Epoca 0: Loss = 2.3451
+# Epoca 10: Loss = 0.8234
+# Epoca 50: Loss = 0.1021
+# Epoca 99: Loss = 0.0087  ← model bun!
+```
+
+---
+
+### Setul de antrenare vs. setul de validare vs. setul de test
+
+O regulă fundamentală pe care orice practicant ML trebuie să o respecte:
+
+```
+Dataset total (100%)
+├── Training set (70%)   → Modelul VEDE aceste date
+├── Validation set (15%) → Verificăm performanța ÎN TIMPUL antrenării
+└── Test set (15%)       → Verificăm performanța FINALĂ (o singură dată!)
+```
+
+**De ce această separare?**
+
+Dacă antrenezi și testezi pe aceleași date, e ca și cum dai elevului rezolvările înainte de examen. Modelul va "memora" răspunsurile, nu va înțelege conceptele. (Asta se numește **overfitting** — subiectul Lecției 8!)
+
+---
+
+### Recapitulare
+
+✅ **Training loop:** predicție → loss → gradient → update → repetă
+✅ **Loss function:** măsoară cât de greșit e modelul (vrem să o minimizăm)
+✅ **Gradient descent:** algoritmul de "coborâre spre minim"
+✅ **Learning rate:** mărimea pașilor — crucial să fie calibrată corect
+✅ **Epoci/Batch-uri:** modul în care datele sunt procesate eficient
+
+**Lecția 8** te ia direct la problema care îi chinuiește pe toți practicienii: **Overfitting și Underfitting** — când modelul "memorează" în loc să "înțeleagă".

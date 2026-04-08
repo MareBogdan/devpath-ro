@@ -1,0 +1,73 @@
+---
+title: "Role Prompting"
+module: 2
+type: theory
+order: 8
+---
+
+# Role Prompting
+
+Dacă ai o durere de genunchi, nu suni la un prieten random să îți dea sfaturi. Suni la un ortoped.
+
+Dacă ai o problemă fiscală, nu întrebi vecinul. Mergi la un contabil.
+
+Dacă vrei să fii mai convingător în emailuri, nu ceri părerea tuturor — ceri feedback de la cineva cu experiență în comunicare.
+
+**Role prompting înseamnă că îi spui modelului AI exact ce specialist să fie atunci când îți răspunde.** În loc să primești un răspuns generic "de la nimeni anume", primești perspectiva unui expert relevant.
+
+## Cum funcționează
+
+Adaugi la începutul prompt-ului o propoziție simplă:
+
+"Ești un [expertul de care am nevoie]."
+
+Și modelul activează cunoașterea relevantă pentru acel domeniu — vocabularul, perspectiva, modul de raționare al unui specialist în acel domeniu.
+
+Fără rol: "Explică-mi ce este un contract de muncă."
+Cu rol: "Ești un avocat specializat în dreptul muncii din România. Explică-mi ce este un contract de muncă pe perioadă determinată și ce trebuie să verific înainte de a-l semna."
+
+Diferența este semnificativă: primul răspuns va fi generic, al doilea va fi specific și practic.
+
+## Exemple din viața de zi cu zi
+
+**Vrei să înțelegi o problemă medicală:**
+"Ești un medic de familie. Explică-mi ce înseamnă o valoare a colesterolului de 240 mg/dL și ce ar trebui să fac?"
+
+**Vrei să negociezi mai bine:**
+"Ești un negociator cu experiență în vânzări B2B. Cum îmi pregătesc argumentele pentru o negociere de preț cu un furnizor nou?"
+
+**Vrei feedback pe munca ta:**
+"Ești un editor de texte cu experiență în comunicare corporativă. Citește emailul meu de mai jos și spune-mi ce ar îmbunătăți claritatea și impactul lui."
+
+**Vrei să iei o decizie importantă:**
+"Ești un consultant financiar care lucrează cu persoane fizice. Explică-mi avantajele și dezavantajele unui credit ipotecar față de un contract de leasing imobiliar."
+
+## De ce funcționează?
+
+Modelele AI au "văzut" în training mii de texte scrise de specialiști din toate domeniile. Avocați, medici, psihologi, ingineri, copywriteri — fiecare cu stilul, vocabularul și perspectiva lor.
+
+Când specifici un rol, îi spui modelului din care parte a cunoașterii sale să răspundă. Nu inventezi un expert — activezi cunoașterea relevantă deja existentă.
+
+## Poți combina cu alte tehnici
+
+Role prompting funcționează și mai bine combinat cu ceea ce am învățat deja:
+
+Role + Format: "Ești un nutritionist. Creează un plan alimentar pentru o săptămână. Format: tabel cu zilele, mic dejun, prânz, cină."
+
+Role + Chain of Thought: "Ești un consultant de strategie. Analizează această idee de business pas cu pas: [ideea ta]."
+
+## Atenție importantă
+
+Role prompting este excelent pentru a înțelege un domeniu, a obține o perspectivă structurată sau a te pregăti pentru o discuție cu un specialist real.
+
+Nu înlocuiește sfatul unui expert real pentru decizii critice de sănătate, juridice sau financiare majore. Folosește-l ca punct de start — nu ca decizie finală.
+
+## Exercițiu
+
+Gândește-te la 3 situații din viața ta de azi sau din această săptămână unde ai nevoie de perspectiva unui specialist. Pentru fiecare, construiește un prompt cu rolul potrivit + întrebarea sau task-ul specific.
+
+## Concluzie
+
+Role prompting este simplu, eficient și imediat aplicabil. O singură propoziție la începutul prompt-ului poate transforma complet calitatea și relevanța răspunsului.
+
+Lecția viitoare: instrucțiunile negative — cum să îi spui modelului ce să nu facă, și de ce contează mai mult decât crezi.

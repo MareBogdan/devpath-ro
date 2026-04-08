@@ -1,0 +1,111 @@
+---
+title: "Tree of Thought"
+module: 4
+type: theory
+order: 16
+---
+
+# Tree of Thought (Arborele de Gândire)
+
+Chain-of-Thought prompting îmbunătățește considerabil raționamentul modelelor. Totuși, are o limitare fundamentală: urmărește un singur "fir" de gândire de la problemă la soluție. Ce se întâmplă când problema necesită explorarea mai multor ipoteze sau când o cale de gândire se dovedește greșită la jumătate?
+
+**Tree of Thought (ToT)** este un framework de prompting care extinde Chain-of-Thought prin permiterea explorării simultane a mai multor căi de raționament, ca ramuri ale unui arbore.
+
+## Conceptul fundamental
+
+Imaginează-ți rezolvarea unui puzzle. Abordarea Chain-of-Thought este lineară: pasul 1 → pasul 2 → pasul 3 → soluție. Dacă la pasul 2 ai făcut o alegere greșită, tot ce urmează este compromis și trebuie să o iei de la capăt.
+
+Tree of Thought generează mai multe "gânduri" la fiecare pas și evaluează care sunt prometătoare înainte de a continua:
+
+    Pas 1: generează 3 abordări posibile → evaluează care sunt viabile
+    Pas 2 (pentru fiecare abordare viabilă): generează 2-3 continuări → evaluează
+    Pas 3: identifică cea mai bună cale și formulează soluția finală
+
+Structura este literalmente un arbore: noduri = stări de raționament, ramuri = gânduri posibile.
+
+## Implementare practică: metoda BFS în prompt
+
+    Rezolvă problema urmând acești pași:
+
+    PASUL 1 — GENERARE: Propune 3 abordări diferite pentru a rezolva problema.
+    Scrie-le ca "Abordarea A:", "Abordarea B:", "Abordarea C:"
+
+    PASUL 2 — EVALUARE: Pentru fiecare abordare, estimează:
+    - Probabilitatea de succes (0-100%)
+    - Dificultatea implementării (scăzut/mediu/ridicat)
+    - Riscuri potențiale
+
+    PASUL 3 — SELECȚIE: Alege cea mai promițătoare abordare și justifică alegerea.
+
+    PASUL 4 — ELABORARE: Dezvoltă complet abordarea selectată pas cu pas.
+
+    Problema: [problema ta]
+
+## Exemplu concret: planificare strategică
+
+    Suntem un startup SaaS B2B cu 50.000 EUR disponibili pentru marketing.
+    Folosind Tree of Thought, analizează opțiunile strategice:
+
+    GÂNDURILE INIȚIALE — generează 4 strategii de marketing distincte.
+
+    EVALUARE — pentru fiecare strategie:
+    - ROI estimat la 6 luni (scăzut/mediu/ridicat)
+    - Timp până la primele rezultate
+    - Riscuri principale
+    - Potrivire cu B2B SaaS
+
+    ELIMINARE — elimină strategiile cu scor slab și justifică.
+
+    RAFINARE — pentru top 2 strategii rămase, dezvoltă planul de execuție.
+
+    DECIZIE FINALĂ — recomandă cea mai bună strategie cu argumentare completă.
+
+## Varianta simplificată: Self-Evaluation Loop
+
+O implementare mai ușoară a conceptului ToT:
+
+    Rezolvă problema urmând procesul:
+
+    1. Propune 3 soluții posibile
+    2. Pentru fiecare soluție, joacă rolul unui critic sever și identifică
+       cel puțin 2 probleme sau limitări
+    3. Pe baza criticilor, îmbunătățește sau elimină soluțiile
+    4. Prezintă soluția finală rafinată
+
+## ToT vs Chain-of-Thought: când folosești ce?
+
+**Chain-of-Thought** este suficient pentru:
+- Probleme cu un singur răspuns corect clar
+- Calcule matematice
+- Raționament logic simplu
+- Probleme cu pași secvențiali clari
+
+**Tree of Thought** este mai potrivit pentru:
+- Probleme deschise cu multiple soluții valide
+- Decizii strategice cu trade-offs
+- Situații unde căile de raționament pot fi "greșite" și necesită backtracking
+- Creative problem-solving
+
+## Limitele ToT
+
+**Costul computațional**: ToT generează mult mai mult text decât CoT. Un prompt ToT poate consuma de 3-5x mai mulți tokeni.
+
+**Latența**: Evident, mai mult text = mai mult timp de așteptare.
+
+**Diminishing returns**: Pentru probleme simple, complexitatea adăugată de ToT nu aduce beneficii. Dacă CoT funcționează bine, nu e nevoie de ToT.
+
+## Implementare automată: ToT cu multiple apeluri API
+
+Un pattern mai avansat este să implementezi ToT la nivel de cod:
+
+    1. Apel API 1: "Generează 5 abordări pentru problema X"
+    2. Apel API 2 (paralel): evaluează fiecare abordare
+    3. Filtru: păstrează top 2 abordări cu scor ridicat
+    4. Apel API 3 (paralel): dezvoltă fiecare abordare prometătoare
+    5. Apel API 4: compară soluțiile finale și alege cea mai bună
+
+Aceasta este deja zona de "LLM orchestration" și agents.
+
+## Concluzie
+
+Tree of Thought transformă procesul de raționament al AI-ului dintr-un drum liniar într-o explorare structurată a spațiului de soluții. Nu este întotdeauna necesar — Chain-of-Thought rezolvă 80% din cazuri. Dar pentru problemele complexe unde prima intuiție poate greși, ToT oferă un mecanism formal pentru a explora, evalua și selecta calea de raționament optimă.

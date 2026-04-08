@@ -1,0 +1,203 @@
+DEVPATH RO — ROADMAP COMPLET
+=============================
+Acest fișier este contextul complet al proiectului DevPath RO.
+Citește-l integral și reține tot pentru a genera prompturi corecte.
+
+=============================
+CE ESTE DEVPATH RO
+=============================
+Platformă web desktop-first de învățare IT/AI pentru studenți români.
+Studenții urmează cursuri structurate cu progres 0-100%, sunt ghidați
+de un AI Coach în română, și își construiesc automat un portofoliu
+public pe măsură ce avansează spre angajare.
+
+=============================
+TECH STACK
+=============================
+Framework:   Next.js 14 (App Router, TypeScript strict)
+Database:    Supabase (PostgreSQL)
+Auth:        Supabase Auth (Google OAuth, GitHub OAuth, Email + parolă)
+UI:          Tailwind CSS + shadcn/ui
+Editor:      Monaco Editor (@monaco-editor/react)
+AI Coach:    OpenAI API (GPT-4o-mini)
+Deploy:      Vercel
+Payments:    Stripe (Free / Pro 10eu/lună / Lifetime 99eu)
+i18n:        next-intl (toggle RO/EN)
+Content:     Fișiere .mdx + next-mdx-remote
+
+=============================
+DATABASE SCHEMA
+=============================
+users           (id, email, name, plan, goal, avatar_url, created_at)
+courses         (id, slug, title, description, difficulty, is_free, order_index)
+lessons         (id, course_id, title, content_md, type, starter_code, solution_code, order_index, video_url)
+user_progress   (id, user_id, lesson_id, completed, score, time_spent, completed_at)
+quiz_questions  (id, lesson_id, question, options jsonb, correct_answer, explanation)
+projects        (id, user_id, course_id, title, description, github_url, completed_at)
+
+=============================
+FOLDER STRUCTURE
+=============================
+devpath-ro/
+├── app/
+│   ├── (auth)/login · register
+│   ├── (dashboard)/
+│   │   ├── dashboard/
+│   │   ├── courses/[courseSlug]/[lessonId]/
+│   │   ├── roadmap/
+│   │   ├── portfolio/[username]/
+│   │   └── interview/
+│   └── api/
+│       ├── ai/chat · explain · generate · interview
+│       ├── courses/
+│       ├── progress/
+│       └── stripe/
+├── components/
+│   ├── ui/                 (shadcn/ui)
+│   ├── course/             (LessonViewer, CodeEditor, ProgressBar, QuizBlock, VideoEmbed)
+│   ├── ai/                 (AICoach, CodeFeedback, InterviewSimulator)
+│   └── layout/             (Navbar, Sidebar, ThemeToggle, LangToggle)
+├── content/
+│   └── courses/
+│       └── ai-fundamentals/     (primul curs — lecțiile .mdx)
+├── lib/                    (supabase.ts, openai.ts, stripe.ts, i18n.ts)
+└── types/index.ts
+
+=============================
+PRIMUL CURS — AI FUNDAMENTALS
+=============================
+Acesta este primul curs din platformă și este despre AI.
+Lecțiile sunt tehnice dar prietenoase — cu analogii care fac
+conceptele să "facă click", nu documentație uscată.
+
+Modulul 1 — Ce este AI
+  Lecția 1: Ce este inteligența artificială — definiție, istoric scurt, unde o vedem azi
+  Lecția 2: Cum "gândește" un calculator — diferența dintre programare clasică și AI
+  Lecția 3: Tipuri de AI — Narrow AI vs General AI, exemple reale
+  Lecția 4: QUIZ — Modulul 1
+
+Modulul 2 — Machine Learning pe înțelesul tuturor
+  Lecția 5: Ce este Machine Learning — analogia cu cum învață un copil
+  Lecția 6: Supervised vs Unsupervised Learning — cu exemple vizuale
+  Lecția 7: Cum se antrenează un model — date, parametri, erori, iterații
+  Lecția 8: Overfitting și Underfitting — de ce un model poate fi "prea deștept"
+  Lecția 9: QUIZ — Modulul 2
+
+Modulul 3 — Neural Networks & Deep Learning
+  Lecția 10: Cum funcționează un neuron artificial — analogia cu creierul uman
+  Lecția 11: Ce este o rețea neuronală — straturi, weights, bias
+  Lecția 12: Deep Learning — de ce "deep" și când e util
+  Lecția 13: Exercițiu practic — vizualizează o rețea neuronală simplă (cod Python)
+  Lecția 14: QUIZ — Modulul 3
+
+Modulul 4 — LLMs și ChatGPT pe înțelesul tuturor
+  Lecția 15: Ce este un Language Model — cum prezice următorul cuvânt
+  Lecția 16: Transformers — arhitectura din spatele GPT, explicată simplu
+  Lecția 17: Tokenizare — cum "vede" AI-ul textul, de ce contează
+  Lecția 18: Context window — ce este, de ce are limite, cum îl folosești eficient
+  Lecția 19: QUIZ — Modulul 4
+
+Modulul 5 — Prompt Engineering
+  Lecția 20: Ce este un prompt și de ce contează cum îl scrii
+  Lecția 21: Tehnici de bază — zero-shot, few-shot, chain of thought
+  Lecția 22: Roluri și sistem prompts — cum ghidezi AI-ul
+  Lecția 23: Exercițiu practic — scrie 5 prompturi și compară rezultatele
+  Lecția 24: QUIZ — Modulul 5
+
+Modulul 6 — AI în practică și viitor
+  Lecția 25: OpenAI API — cum funcționează, ce poți construi
+  Lecția 26: RAG — ce este Retrieval Augmented Generation, de ce e important
+  Lecția 27: AI Agents — ce sunt, cum funcționează, exemple reale
+  Lecția 28: Etica în AI — bias, hallucinations, responsabilitate
+  Lecția 29: Cum te pregătești pentru o piață muncă dominată de AI
+  Lecția 30: PROIECT FINAL — Construiește un mini chatbot cu OpenAI API
+
+=============================
+ETAPELE DE IMPLEMENTARE
+=============================
+
+ETAPA 1 — Fundația proiectului
+- Setup Next.js 14 cu TypeScript, Tailwind, ESLint
+- Configurare Supabase — creare proiect + toate tabelele din schemă
+- Autentificare completă: Google OAuth + GitHub OAuth + Email/parolă
+- Pagini de login și register
+- Redirect după autentificare spre dashboard
+- Protecție rute — userii nelogați nu pot accesa dashboard
+- Variabile de mediu configurate (.env.local)
+
+ETAPA 2 — Layout & Design System
+- Navbar desktop cu logo, navigare, avatar user, logout
+- Sidebar cu lista cursurilor și progresul general
+- Dark/Light mode toggle (tema salvată în localStorage)
+- Buton toggle RO/EN — schimbă toată interfața cu next-intl
+- Pagina de landing (înainte de login) — ce e platforma, CTA
+- Design consistent pe toate paginile
+
+ETAPA 3 — Sistemul de cursuri
+- Pagina cu toate cursurile — carduri cu titlu, descriere, dificultate, progres
+- Pagina individuală per curs — lista modulelor și lecțiilor cu status
+- Vizualizator lecție — conținut Markdown/MDX randat cu syntax highlighting
+- Navigare între lecții — previous/next
+- Progres 0-100% calculat automat per curs și salvat în Supabase
+
+ETAPA 4 — Primul curs complet (AI Fundamentals)
+- Toate cele 30 de lecții scrise în fișiere .mdx
+- Fiecare lecție are teorie + analogii + exemple de cod unde e cazul
+- Quiz-uri la finalul fiecărui modul (4 variante, o singură corectă, explicație)
+- Exercițiile practice cu Monaco Editor pentru lecțiile cu cod Python
+- Proiect final — formular submisie cu link GitHub
+
+ETAPA 5 — AI Coach
+- Chat sidebar pe fiecare lecție — conversație cu GPT-4o-mini
+- AI știe contextul lecției curente și istoricul conversației
+- Buton "Explică eroarea" — userul lipește eroarea, AI explică în română
+- Buton "Generează exercițiu extra" — AI creează exercițiu similar
+- Recomandare automată lecție următoare bazată pe progres
+- Simulator interviu tehnic — întrebări din cursurile terminate
+
+ETAPA 6 — Portofoliu public
+- Pagină publică per user la /portfolio/[username]
+- Afișează cursurile terminate, scorurile, proiectele finale
+- Buton "Copiază link portofoliu" — gata de trimis la angajatori
+- Badge-uri pentru milestone-uri (primul curs terminat, etc.)
+
+ETAPA 7 — Monetizare
+- Pagină de pricing — Free vs Pro vs Lifetime
+- Integrare Stripe — checkout pentru Pro (10eu/lună) și Lifetime (99eu)
+- Restricții conținut pentru userii Free — primele 2 module gratuite
+- Webhook Stripe — upgrade automat plan după plată
+- Pagină de succes după plată
+
+ETAPA 8 — Al doilea curs + Polish
+- Al doilea curs adăugat (Machine Learning sau Structuri de Date)
+- Optimizare SEO — meta tags, Open Graph per pagină
+- Loading states și error states pe toate paginile
+- Responsive complet — mobile după ce desktop e perfect
+- Deploy pe Vercel + domeniu custom
+
+=============================
+CURSURILE VIITOARE (după MVP)
+=============================
+- Machine Learning practic (Python, sklearn, pandas)
+- Structuri de Date & Algoritmi
+- Sisteme de Operare
+- Big Data
+- Web Semantic
+- Programare Web (React + Node.js)
+- Baze de Date (SQL + NoSQL)
+- Design Patterns
+- Build with AI (OpenAI API, LangChain, Agents)
+
+=============================
+MONETIZARE
+=============================
+FREE:     2 module gratuite din orice curs, 5 întrebări AI Coach/zi
+PRO:      10eu/lună — toate cursurile, AI Coach nelimitat, interview prep
+LIFETIME: 99eu o singură dată — tot ce include Pro pe viață
+
+=============================
+STATUS IMPLEMENTARE
+=============================
+[Acest fișier se actualizează după fiecare rezumat detaliat primit de la Claude Code]
+
+Ultima actualizare: START — nimic implementat încă

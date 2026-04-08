@@ -1,0 +1,57 @@
+---
+title: "QUIZ — Modulul 4: Prompting Avansat"
+module: 4
+type: quiz
+order: 20
+questions:
+  - question: "Care este principala diferență dintre Chain-of-Thought și Tree of Thought?"
+    options:
+      - "Chain-of-Thought este mai rapid și mai ieftin, deci mereu preferabil"
+      - "Tree of Thought explorează mai multe căi de raționament simultan și le evaluează, spre deosebire de un singur fir liniar"
+      - "Tree of Thought funcționează doar pentru probleme matematice"
+      - "Chain-of-Thought necesită mai mulți tokeni decât Tree of Thought"
+    correct: 1
+    explanation: "Tree of Thought generează mai multe 'ramuri' de gândire la fiecare pas, le evaluează, și continuă cu cele mai promițătoare — ca un labirint unde poți explora mai multe drumuri în paralel. Chain-of-Thought urmează un singur fir liniar de la problemă la soluție. ToT este mai puternic dar și mai costisitor."
+
+  - question: "Ce este Self-Consistency și cum funcționează?"
+    options:
+      - "Modelul verifică dacă răspunsul său este consistent cu propriile instrucțiuni interne"
+      - "Se generează același prompt de N ori, se colectează N răspunsuri, și se alege cel mai frecvent prin majority voting"
+      - "Modelul repetă răspunsul de mai multe ori până când este sigur de acuratețe"
+      - "Se folosesc N modele AI diferite care votează pentru cel mai bun răspuns"
+    correct: 1
+    explanation: "Self-Consistency rulează același prompt de N ori cu temperature > 0, generând variație. Răspunsul final este cel care apare de cele mai multe ori (majority voting). Ca un juriu: fiecare jurat deliberează independent, decizia finală este consensul. Crește acuratețea la probleme complexe cu cost de N × prețul unei generări."
+
+  - question: "ReAct Pattern combină ce două capacități ale unui model AI?"
+    options:
+      - "Raționament intern și memorare pe termen lung"
+      - "Raționament (Thought) și Acțiune (Action) — alternând între gândire și execuția de unelte externe"
+      - "Recuperarea de informații din training și generarea de text nou"
+      - "Antrenamentul continuu și inferența în timp real"
+    correct: 1
+    explanation: "ReAct = Reasoning + Acting. Modelul alternează cicluri de: Thought (raționament despre ce să facă), Action (execuție de unelte: web search, calculator, API), Observation (procesarea rezultatelor). Permite modelelor să interacționeze cu lumea externă și să raționeze pe baza informațiilor actualizate."
+
+  - question: "Ai de construit un sistem care extrage informații dintr-un email, le clasifică, și generează un răspuns personalizat. Care tehnică este cea mai potrivită?"
+    options:
+      - "Self-Consistency — rulezi același prompt de 5 ori pentru mai multă acuratețe"
+      - "Prompt Chaining — pas 1 extragere, pas 2 clasificare, pas 3 generare răspuns"
+      - "Tree of Thought — explorezi multiple variante de răspuns simultan"
+      - "Un singur prompt lung care face toate cele 3 lucruri simultan"
+    correct: 1
+    explanation: "Sarcina are 3 faze distincte cu cerințe diferite: extragerea necesită precizie, clasificarea necesită categorii clare, generarea necesită ton potrivit. Prompt Chaining este ideal — fiecare pas primește ca input output-ul pasului anterior, permițând specializarea și validarea la fiecare etapă."
+---
+
+## QUIZ — Modulul 4: Prompting Avansat
+
+Felicitări că ai ajuns la finalul Modulului 4! Ai descoperit tehnicile avansate care separă practicienii experți de utilizatorii obișnuiți:
+
+- **Lecția 16:** Tree of Thought — explorarea arborescentă a mai multor căi de raționament
+- **Lecția 17:** Self-Consistency — majority voting pentru răspunsuri mai fiabile
+- **Lecția 18:** ReAct Pattern — modelul care poate acționa în lumea reală
+- **Lecția 19:** Prompt Chaining — decompunerea sarcinilor complexe în pași specializați
+
+**Testează-ți cunoștințele!**
+
+Cele 4 întrebări acoperă conceptele cheie ale modulului. Dacă ai dubii la vreo întrebare, întoarce-te la lecția relevantă pentru clarificări.
+
+**Mult succes!**

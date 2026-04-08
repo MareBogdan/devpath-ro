@@ -1,0 +1,371 @@
+---
+title: "PROIECT FINAL — Mini Chatbot cu OpenAI API"
+module: 6
+moduleTitle: "Aplicații AI în Practică"
+type: project
+order: 30
+---
+
+## PROIECT FINAL — Construiește un mini chatbot cu OpenAI API
+
+Acesta este proiectul final al cursului AI Fundamentals. Vei construi un chatbot complet care combină tot ce ai învățat: prompt engineering, system prompts, context window management, streaming și o interfață utilizabilă.
+
+**La finalul acestei lecții vei avea un chatbot funcțional pe care îl poți arăta ca proiect de portofoliu.**
+
+---
+
+### Ce construiești
+
+```
+Mini Chatbot "DevPath Assistant":
+├── System prompt configurat (personalitate + constrângeri)
+├── Memorie conversație (istoricul mesajelor)
+├── Streaming (răspunsuri token cu token)
+├── Context window management (truncare la limită)
+├── Interfață CLI frumoasă cu Rich
+└── Comenzi speciale (/clear, /help, /stats)
+```
+
+---
+
+### Pasul 1: Setup și dependențe
+
+```python
+# Instalare (rulează în terminal):
+# pip install openai python-dotenv rich
+
+# Structura proiectului:
+# chatbot/
+# ├── main.py           ← Punctul de intrare
+# ├── config.py         ← Configurare
+# ├── chat_engine.py    ← Logica chatbot
+# ├── ui.py             ← Interfața CLI
+# └── .env              ← OPENAI_API_KEY (nu pune în git!)
+
+# .env:
+# OPENAI_API_KEY=sk-...
+
+# config.py
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+class Config:
+    OPENAI_API_KEY: str = os.environ["OPENAI_API_KEY"]
+    MODEL: str = "gpt-4o-mini"
+    MAX_TOKENS_RESPONSE: int = 1000
+    MAX_CONTEXT_TOKENS: int = 8000   # Limita istoricului de conversație
+    TEMPERATURE: float = 0.7
+
+    SYSTEM_PROMPT: str = """Ești DevPath Assistant, un asistent AI pentru studenți IT/AI din România.
+
+    PERSONALITATE:
+    - Prietenos, entuziast față de tehnologie
+    - Explici lucrurile clar, cu exemple concrete
+    - Răspunzi ÎNTOTDEAUNA în română
+    - Ești concis dar complet
+
+    DOMENIU:
+    - Python, Machine Learning, AI, Prompt Engineering
+    - Carieră în IT, resurse de learning, sfaturi practice
+    - Ajuți cu debugging și explicații de cod
+
+    LIMITĂRI:
+    - Nu iei decizii medicale, legale sau financiare
+    - Nu generezi conținut dăunător
+    - Dacă nu știi ceva, spui sincer că nu știi
+    """
+```
+
+---
+
+### Pasul 2: Chat Engine cu memorie
+
+```python
+# chat_engine.py
+from openai import OpenAI
+from config import Config
+import tiktoken
+
+class ChatEngine:
+    def __init__(self):
+        self.client = OpenAI(api_key=Config.OPENAI_API_KEY)
+        self.encoder = tiktoken.encoding_for_model(Config.MODEL)
+        self.history: list[dict] = []
+        self.total_tokens_used: int = 0
+
+    def _count_tokens(self, messages: list[dict]) -> int:
+        """Calculează numărul de tokeni pentru o listă de mesaje"""
+        total = 0
+        for message in messages:
+            # ~4 tokeni overhead per mesaj + conținut
+            total += 4 + len(self.encoder.encode(message.get("content", "")))
+        total += 2  # Reply primer
+        return total
+
+    def _trim_history(self) -> list[dict]:
+        """
+        Trunchiază istoricul dacă depășim limita de context.
+        Strategia: păstrează system prompt + ultimele N mesaje.
+        """
+        system_messages = [{"role": "system", "content": Config.SYSTEM_PROMPT}]
+        available_tokens = Config.MAX_CONTEXT_TOKENS - self._count_tokens(system_messages)
+
+        # Adaugă mesaje de la nou la vechi până la limita de tokeni
+        trimmed = []
+        for msg in reversed(self.history):
+            msg_tokens = self._count_tokens([msg])
+            if available_tokens - msg_tokens < 500:  # Rezervă 500 tokeni pentru răspuns
+                break
+            trimmed.insert(0, msg)
+            available_tokens -= msg_tokens
+
+        return system_messages + trimmed
+
+    def chat_stream(self, user_message: str):
+        """
+        Trimite un mesaj și primește răspunsul ca stream.
+        Yield: str (chunks de text pe măsură ce sunt generate)
+        """
+        self.history.append({"role": "user", "content": user_message})
+        messages = self._trim_history()
+
+        stream = self.client.chat.completions.create(
+            model=Config.MODEL,
+            messages=messages,
+            temperature=Config.TEMPERATURE,
+            max_tokens=Config.MAX_TOKENS_RESPONSE,
+            stream=True,
+        )
+
+        full_response = ""
+        usage_info = None
+
+        for chunk in stream:
+            if chunk.choices[0].delta.content is not None:
+                token = chunk.choices[0].delta.content
+                full_response += token
+                yield token
+
+            # Tokeni folosiți (disponibili la ultimul chunk)
+            if hasattr(chunk, 'usage') and chunk.usage:
+                usage_info = chunk.usage
+
+        # Adaugă răspunsul complet în istoric
+        self.history.append({"role": "assistant", "content": full_response})
+        if usage_info:
+            self.total_tokens_used += usage_info.total_tokens
+
+    def clear_history(self):
+        """Resetează conversația (păstrează system prompt)"""
+        self.history = []
+
+    def get_stats(self) -> dict:
+        return {
+            "messages_in_history": len(self.history),
+            "tokens_in_current_context": self._count_tokens(self._trim_history()),
+            "total_tokens_used_session": self.total_tokens_used,
+            "estimated_cost_usd": self.total_tokens_used * 0.15 / 1_000_000,
+        }
+```
+
+---
+
+### Pasul 3: Interfața CLI cu Rich
+
+```python
+# ui.py
+from rich.console import Console
+from rich.panel import Panel
+from rich.text import Text
+from rich.markdown import Markdown
+from rich import print as rprint
+
+console = Console()
+
+def print_welcome():
+    welcome = Panel(
+        "[bold cyan]DevPath Assistant[/bold cyan]\n"
+        "[dim]Chatbot AI pentru studenți IT/AI din România[/dim]\n\n"
+        "Comenzi: [green]/clear[/green] (resetează), "
+        "[green]/stats[/green] (statistici), "
+        "[green]/exit[/green] sau Ctrl+C",
+        title="[bold]Bine ai venit![/bold]",
+        border_style="cyan",
+    )
+    console.print(welcome)
+    console.print()
+
+def print_user_message(message: str):
+    console.print(f"\n[bold blue]Tu:[/bold blue] {message}")
+
+def print_assistant_response_stream(stream_generator):
+    """Afișează răspunsul în timp real, token cu token"""
+    console.print("\n[bold green]Assistant:[/bold green] ", end="")
+    full_response = ""
+
+    for token in stream_generator:
+        print(token, end="", flush=True)
+        full_response += token
+
+    console.print("\n")  # Newline la final
+    return full_response
+
+def print_stats(stats: dict):
+    stats_text = "\n".join([
+        f"Mesaje în conversație: {stats['messages_in_history']}",
+        f"Tokeni în context curent: {stats['tokens_in_current_context']:,}",
+        f"Tokeni total sesiune: {stats['total_tokens_used_session']:,}",
+        f"Cost estimat sesiune: ${stats['estimated_cost_usd']:.6f}",
+    ])
+    console.print(Panel(stats_text, title="[bold]Statistici sesiune[/bold]", border_style="yellow"))
+
+def print_error(message: str):
+    console.print(f"[bold red]Eroare:[/bold red] {message}")
+```
+
+---
+
+### Pasul 4: Main — pune totul împreună
+
+```python
+# main.py
+import sys
+from chat_engine import ChatEngine
+from ui import (
+    print_welcome, print_user_message,
+    print_assistant_response_stream, print_stats, print_error
+)
+from rich.console import Console
+
+console = Console()
+
+def main():
+    engine = ChatEngine()
+    print_welcome()
+
+    while True:
+        try:
+            # Input utilizator
+            user_input = console.input("[bold blue]Tu:[/bold blue] ").strip()
+
+            if not user_input:
+                continue
+
+            # Comenzi speciale
+            if user_input.lower() in ["/exit", "exit", "quit"]:
+                console.print("\n[dim]La revedere! Continuă să construiești! 🚀[/dim]")
+                break
+
+            elif user_input.lower() == "/clear":
+                engine.clear_history()
+                console.print("[dim]Conversație resetată.[/dim]\n")
+                continue
+
+            elif user_input.lower() == "/stats":
+                print_stats(engine.get_stats())
+                continue
+
+            elif user_input.lower() == "/help":
+                console.print("""
+[bold]Comenzi disponibile:[/bold]
+  /clear  — Resetează conversația
+  /stats  — Arată statistici sesiune (tokeni, cost)
+  /help   — Arată acest mesaj
+  /exit   — Ieși din chatbot
+                """)
+                continue
+
+            # Trimite mesajul și afișează răspunsul în stream
+            stream = engine.chat_stream(user_input)
+            print_assistant_response_stream(stream)
+
+        except KeyboardInterrupt:
+            console.print("\n\n[dim]Sesiune întreruptă. La revedere! 🚀[/dim]")
+            break
+        except Exception as e:
+            print_error(f"A apărut o eroare: {str(e)}")
+            console.print("[dim]Încearcă din nou sau scrie /exit pentru a ieși.[/dim]")
+
+if __name__ == "__main__":
+    main()
+```
+
+---
+
+### Pasul 5: Rulează și testează
+
+```python
+# Rulare:
+# python main.py
+
+# Sesiune de test:
+# Tu: Bună! Cine ești?
+# Assistant: Bună! Sunt DevPath Assistant, un asistent AI creat pentru studenții IT/AI
+#            din România. Te pot ajuta cu Python, Machine Learning, AI și carieră în IT.
+#            Cu ce te pot ajuta azi?
+
+# Tu: Explică-mi ce e un decorator în Python
+# Assistant: Un decorator în Python este o funcție care "împachetează" altă funcție,
+#            adăugând funcționalitate fără a modifica codul original...
+
+# Tu: /stats
+# Statistici sesiune:
+#   Mesaje în conversație: 4
+#   Tokeni în context curent: 347
+#   Tokeni total sesiune: 523
+#   Cost estimat sesiune: $0.000079
+```
+
+---
+
+### Extensii opționale (bonus)
+
+```python
+# Dacă ai timp și vrei să mergi mai departe:
+
+extension_ideas = {
+    "1_web_search": {
+        "descriere": "Adaugă tool use pentru căutare pe internet",
+        "librarie": "tavily-python sau serper API",
+        "timp": "2-3 ore",
+    },
+    "2_rag": {
+        "descriere": "Adaugă posibilitatea de a 'chatui cu un PDF'",
+        "librarie": "supabase + openai embeddings",
+        "timp": "1-2 zile",
+    },
+    "3_web_ui": {
+        "descriere": "Interfață web simplă cu Gradio sau Streamlit",
+        "librarie": "gradio sau streamlit",
+        "timp": "3-5 ore",
+    },
+    "4_memory": {
+        "descriere": "Memorie persistentă între sesiuni (salvare în JSON/DB)",
+        "librarie": "json sau sqlite3",
+        "timp": "2-3 ore",
+    },
+}
+```
+
+---
+
+### Felicitări! Ai finalizat AI Fundamentals 🎉
+
+```
+Ce ai construit și înțeles în acest curs:
+
+Modul 1: Fundații AI — ce e AI, cum gândește calculatorul, tipuri de AI
+Modul 2: Machine Learning — cum se antrenează modelele, overfitting, supervised/unsupervised
+Modul 3: Deep Learning — neuroni artificiali, rețele, deep learning
+Modul 4: Language Models — LLM-uri, Transformers, tokenizare, context window
+Modul 5: Prompt Engineering — zero-shot, few-shot, CoT, system prompts
+Modul 6: Aplicații AI — OpenAI API, RAG, Agents, Etică, Carieră
+
+Pasul următor: DevPath Prompt Engineering Practic
+→ 30 de lecții practice cu cazuri de utilizare reale
+→ Construiești 5 aplicații AI complete
+
+Distribuie proiectul pe GitHub și LinkedIn cu hashtag #DevPathRO!
+```

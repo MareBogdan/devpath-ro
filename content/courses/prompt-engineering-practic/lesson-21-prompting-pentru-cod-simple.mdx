@@ -1,0 +1,79 @@
+---
+title: "Prompting pentru Cod"
+module: 5
+type: theory
+order: 21
+---
+
+# Prompting pentru Cod — Mod Simplu
+
+Imaginează-ți că ai un coleg programator extraordinar de experimentat — cineva care știe zeci de limbaje, a văzut mii de proiecte și are răbdare infinită. Nu obosește, nu se plictisește și nu te judecă dacă pui o întrebare "stupidă". Singurul lui punct slab: nu știe nimic despre proiectul tău specific dacă nu îi spui tu.
+
+Acesta este AI-ul ca partener de programare.
+
+## Cum "comanzi" ajutor cu codul
+
+Gândește-te cum comanzi la o cofetărie. Dacă intri și spui "dă-mi ceva dulce", vei primi ce decide cofetarul. Dacă spui "vreau un ecler cu cremă de vanilie, nu prea dulce, fără zahăr pudrat deasupra", primești exact ce vrei.
+
+La fel funcționează și cu prompting-ul pentru cod. Există trei mari situații în care apelezi la AI:
+
+### Situația 1: "Ajută-mă să scriu"
+
+Vrei să creezi ceva nou. Spune-i exact ce îți trebuie, ca și cum ai explica unui coleg:
+
+Exemplu slab: "Scrie o funcție Python care verifică email-uri."
+
+Exemplu bun: "Ești un programator Python experimentat. Scrie o funcție care primește o listă de email-uri și returnează doar cele care au formatul corect (cu @ și un domeniu). Funcția trebuie să funcționeze și când lista e goală. Adaugă un comentariu care explică cum funcționează."
+
+Diferența? Primul exemplu lasă totul la latitudinea AI-ului. Al doilea specifică ce primește funcția, ce returnează, cum se comportă la cazuri speciale și cum vrei să arate codul.
+
+### Situația 2: "Ajută-mă să înțeleg"
+
+Ai găsit cod vechi, primit de la un coleg, sau copiat dintr-un tutorial și nu înțelegi ce face. Poți cere o explicație:
+
+Exemplu: "Explică ce face acest cod pas cu pas, ca și cum aș fi un începător. Spune-mi și de ce autorul a ales această abordare față de o variantă mai simplă." Apoi lipești codul.
+
+AI-ul îți va explica logica, pattern-urile folosite și rațiunea din spatele deciziilor tehnice.
+
+### Situația 3: "Ajută-mă să găsesc problema"
+
+Ai o eroare și nu știi de unde vine. Acesta este momentul cel mai important să fii precis.
+
+Ce să dai AI-ului:
+- Mesajul de eroare exact (copy-paste din terminal sau consolă)
+- Codul unde apare problema
+- Ce ai încercat deja
+
+Exemplu: "Primesc mesajul următor de eroare: [lipești eroarea]. Iată codul [lipești codul]. Ce cauzează problema și cum o rezolv?"
+
+Fără eroarea exactă și fără cod, AI-ul poate doar ghici — iar ghicitul nu rezolvă buguri.
+
+## Sfaturi practice pentru fiecare zi
+
+Când vrei cod nou, gândește-te la aceste patru întrebări înainte să scrii promptul:
+
+Prima întrebare: Ce primește funcția? (numere, text, o listă, nimic)
+
+A doua întrebare: Ce returnează? (un număr, da/nu, o listă modificată)
+
+A treia întrebare: Ce se întâmplă când ceva merge greșit? (input gol, număr negativ, conexiune pierdută)
+
+A patra întrebare: Există restricții? (nu folosi biblioteci externe, să fie rapid, să fie ușor de citit)
+
+Dacă răspunzi la aceste patru întrebări în prompt, vei primi cod util de 9 ori din 10.
+
+## Când AI-ul nu poate ajuta singur
+
+AI-ul nu știe cum arată baza ta de date, ce variabile de configurare ai setat sau cum funcționează restul aplicației tale. Dacă problema ta ține de integrarea cu sistemele tale specifice, trebuie să oferi și acel context.
+
+De exemplu, dacă lucrezi cu o bază de date, menționează structura tabelei relevante. Dacă lucrezi cu un API extern, menționează cum arată răspunsul lui. Cu cât mai mult context relevant dai, cu atât mai precis va fi ajutorul primit.
+
+## Verifică întotdeauna ce primești
+
+Un sfat important, mai ales la început: nu copia cod generat de AI fără să îl citești. Chiar dacă arată corect, poate să conțină erori subtile sau să rezolve o problemă ușor diferită față de ce ai nevoie tu. Gândește-te la el ca la o propunere, nu ca la un răspuns definitiv.
+
+Citește codul, încearcă să înțelegi ce face și testează-l cu cazuri reale. Dacă ceva nu funcționează, întoarce-te la AI cu eroarea specifică — exact ca la Situația 3 de mai sus.
+
+## Concluzie
+
+AI-ul ca partener de programare este cel mai util instrument pe care îl ai la dispoziție dacă îl folosești corect. Cheia este comunicarea clară: spune ce vrei, ce primești ca input, ce aștepți ca output și ce cazuri speciale contează. Cu aceste informații, AI-ul devine nu un generator de cod aleatoriu, ci un coleg de nădejde care te ajută să lucrezi mai repede și să înveți mai eficient.

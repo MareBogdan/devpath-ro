@@ -1,0 +1,121 @@
+---
+title: "Cum se antrenează un model ML"
+module: 2
+moduleTitle: "Machine Learning — Cum Învață Mașinile"
+type: theory
+order: 7
+---
+
+## Cum se antrenează un model ML
+
+Ai înțeles ce este Machine Learning și când îl folosești. Acum vine întrebarea care face diferența dintre cineva care consumă AI și cineva care înțelege AI:
+
+**Cum funcționează efectiv procesul de antrenare?**
+
+Nu vom folosi formule — vom folosi analogii care fac conceptul intuitiv.
+
+---
+
+### Imaginea de ansamblu — eroare, corecție, repetare
+
+Imaginează-ți că vrei să antrenezi un arcaș legat la ochi. El nu poate vedea ținta. Trage o săgeată. Tu îi spui: "Ești cu 40 de centimetri la dreapta și 20 de centimetri mai sus." El ajustează unghiul arcului și trage din nou. "Acum ești cu 25 de centimetri la dreapta și 10 mai sus." Ajustează și trage din nou. Repetă de 10.000 de ori.
+
+La final, arcașul nostru legat la ochi nimerește centrul aproape perfect — nu pentru că a văzut ținta, ci pentru că a primit feedback constant și a ajustat de mii de ori.
+
+Exact asta e antrenarea unui model de Machine Learning. Modelul face predicții greșite, primește feedback despre cât de greșite sunt, ajustează intern, repetă.
+
+---
+
+### Loss Function — "Cât de departe ești de țintă?"
+
+Imaginează-ți că ești antrenorul arcașului. Ai nevoie de un mod precis de a-i comunica cât de greșit e. "Cam greșit" nu e suficient. Trebuie să îi dai un număr: "Ești cu exact 37.5 centimetri de țintă."
+
+**Loss function** (funcția de pierdere) face exact asta pentru un model ML. Compară predicția modelului cu răspunsul corect și produce un număr care arată cât de greșit e modelul.
+
+Dacă modelul zice că o casă costă 150.000 de euro și de fapt costă 120.000 de euro — eroarea e 30.000 de euro. Dacă modelul zice 121.000 — eroarea e doar 1.000 de euro. Cu cât eroarea e mai mică, cu atât mai bun e modelul.
+
+Scopul antrenării e simplu: **minimizează eroarea**.
+
+---
+
+### Gradient Descent — Coborârea pe Munte
+
+Imaginează-ți că ești pierdut pe un munte, în ceață completă, cu ochii închiși. Vrei să ajungi în vale. Nu poți vedea unde e valea. Ce faci?
+
+Simți cu piciorul în ce direcție se înclină pământul sub tine și faci un pas în jos pe pantă. Simți din nou, faci un alt pas în jos. Repeți. Treptat ajungi la vale — nu pentru că ai văzut-o, ci pentru că ai urmat mereu direcția descendent.
+
+**Gradient Descent** (Coborârea Gradientului) face exact asta pentru un model ML. Calculează în ce direcție trebuie ajustați parametrii interni ai modelului pentru ca eroarea să scadă. Face un mic pas în acea direcție. Calculează din nou. Face un alt pas. Repetă de mii de ori.
+
+---
+
+### Learning Rate — Cât de mare e pasul?
+
+Imaginează-ți că coborâți pe muntele din analogie. Poți face pași mici sau pași mari. Care e mai bine?
+
+Dacă faci pași uriași, există riscul să "sari" peste vale și să aterizezi pe versantul celălalt — acum ești din nou sus. Sari înapoi. Ricoșezi de la un versant la altul fără să ajungi niciodată în vale.
+
+Dacă faci pași minusculi, cobori sigur spre vale — dar durează enorm. O eternitate.
+
+Pasul optim e undeva la mijloc: suficient de mare să avansezi repede, suficient de mic să nu sari peste vale.
+
+**Learning rate** este exact mărimea pasului în Machine Learning. Prea mare → modelul ricoșează și nu converge niciodată. Prea mic → modelul converge, dar durează luni de zile. Potrivit → modelul converge rapid și sigur.
+
+---
+
+### Epoci și Loturi — procesarea eficientă a datelor
+
+Imaginează-ți că ești antrenorul unui echip de fotbal care are 1.000 de jucători de evaluat. Nu poți evalua toți 1.000 odată — e prea mult. Îi împarți în grupe de 32. Evaluezi prima grupă, îți ajustezi criteriile de selecție, evaluezi a doua grupă, ajustezi din nou. Când ai parcurs toți 1.000, ai completat o "rundă" de evaluare.
+
+**Lot (batch)** = un subset de date procesat odată.
+**Epocă** = o trecere completă prin toate datele.
+
+De ce nu procesăm tot dataset-ul odată? Pur și simplu nu încape în memorie. Un dataset cu un milion de imagini are zeci de gigabytes de date. Procesând câte 32 de imagini odată, ajungem la același rezultat final, dar cu mult mai puțin consum de memorie.
+
+Antrenarea tipică: 10 până la 1000 de epoci, în funcție de problemă. Cu cât mai multe epoci, cu atât modelul a "văzut" datele de mai multe ori și a avut mai multe oportunități să se îmbunătățească.
+
+---
+
+### Training, Validare, Test — regulile jocului corect
+
+Imaginează-ți că pregătești un elev pentru un examen. Regula de aur: nu îi dai niciodată în avans subiectele exacte de la examen. Dacă ar memoriza subiectele, ar lua note bune la examen, dar nu ar fi demonstrat că înțelege materia.
+
+În Machine Learning, respectăm aceeași regulă. Datele se împart în trei seturi distincte.
+
+**Set de antrenare** — datele pe care modelul le "vede" și din care învață. Echivalentul lecțiilor și exercițiilor pentru elev.
+
+**Set de validare** — datele cu care verificăm progresul modelului *în timpul* antrenării. Echivalentul testelor săptămânale. Modelul nu "învață" din acestea — sunt folosite doar pentru a monitoriza dacă evoluează corect.
+
+**Set de test** — datele pe care le folosim o singură dată, la final, pentru a evalua performanța reală. Echivalentul examenului final. Dacă ai "trișat" și ai verificat performanța pe testul final de mai multe ori, nu mai e un test corect.
+
+---
+
+### Recapitulare
+
+Antrenarea unui model ML = ciclu de eroare → corecție → repetare. Loss function măsoară cât de greșit e modelul — vrem să o minimizăm. Gradient descent este algoritmul care ajustează parametrii în direcția care reduce eroarea. Learning rate controlează cât de mari sunt pașii de ajustare. Epocile și loturile permit procesarea eficientă a datelor mari. Seturile de antrenare, validare și test asigură că evaluăm modelul corect, fără "trișare".
+
+---
+
+```flashcards
+[
+  {
+    "front": "Ce este o loss function?",
+    "back": "O măsură a cât de greșit e modelul — diferența dintre predicție și răspunsul corect. Scopul antrenării e să o minimizăm."
+  },
+  {
+    "front": "Ce este Gradient Descent?",
+    "back": "Algoritmul care ajustează parametrii modelului în direcția care reduce eroarea. Ca și cum cobori un munte pas cu pas, urmând direcția descendentă."
+  },
+  {
+    "front": "Ce se întâmplă dacă learning rate-ul e prea mare?",
+    "back": "Modelul face pași prea mari, sare peste minimul erorii și ricoșează — nu converge niciodată."
+  },
+  {
+    "front": "Ce este o epocă în antrenarea ML?",
+    "back": "O trecere completă prin toate datele de antrenare. Modelele tipice se antrenează pentru 10–1000 de epoci."
+  },
+  {
+    "front": "De ce datele se împart în 3 seturi (train/val/test)?",
+    "back": "Pentru a evalua corect performanța reală. Dacă antrenezi și testezi pe aceleași date, e ca și cum dai elevului subiectele înainte de examen."
+  }
+]
+```

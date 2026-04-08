@@ -1,0 +1,170 @@
+---
+title: "Few-Shot Prompting"
+module: 2
+type: theory
+order: 6
+---
+
+# Few-Shot Prompting
+
+Zero-shot prompting funcționează remarcabil de bine pentru task-uri standard. Dar există situații în care, indiferent cât de precis este prompt-ul, modelul produce output-ul în stilul sau formatul greșit.
+
+Soluția? **Few-shot prompting** — tehnica prin care îi arăți modelului 2-5 exemple ale output-ului dorit înainte de a-i da task-ul real.
+
+Numele vine din aceeași terminologie de machine learning: dacă zero-shot înseamnă zero exemple, few-shot înseamnă câteva exemple (de obicei 2-5).
+
+## Cum funcționează
+
+Structura de bază a unui prompt few-shot:
+
+```
+[Instrucțiunea sau contextul general]
+
+Exemplu 1:
+Input: [exemplu de input]
+Output: [exemplul de output dorit]
+
+Exemplu 2:
+Input: [alt exemplu de input]
+Output: [alt exemplu de output dorit]
+
+Acum procesează:
+Input: [input-ul tău real]
+Output:
+```
+
+Modelul identifică pattern-ul din exemple și aplică același stil, format și logică la input-ul real.
+
+## Când să folosești few-shot în loc de zero-shot
+
+**1. Când ai un format sau stil specific**
+
+Zero-shot:
+```
+Scrie un titlu pentru articolul despre remote work.
+```
+
+Modelul va scrie un titlu generic și competent, dar care nu reflectă stilul tău editorial.
+
+Few-shot:
+```
+Stilul titlurilor noastre: scurt, cu cifre sau întrebări retorice, ușor provocator.
+
+Exemplu 1:
+Subiect: productivitate matinală
+Titlu: "De ce te trezești la 5 AM nu te face mai productiv (și ce funcționează cu adevărat)"
+
+Exemplu 2:
+Subiect: meetinguri ineficiente
+Titlu: "7 minute: tot ce ai nevoie pentru un standup care nu ucide productivitatea"
+
+Acum scrie titlul pentru:
+Subiect: remote work și izolare socială
+Titlu:
+```
+
+**2. Când ai o clasificare cu categorii nestandard**
+
+Zero-shot nu știe că "Verde" înseamnă pentru tine "poate aștepta 72h" și "Roșu" înseamnă "escaladează în 2h":
+
+```
+Clasifică aceste tickete de suport client după prioritate: Roșu (2h), Galben (24h), Verde (72h).
+
+Exemplu 1:
+Ticket: "Nu pot accesa contul meu de 2 ore, am o ședință importantă în 30 minute."
+Prioritate: Roșu
+
+Exemplu 2:
+Ticket: "Aș dori să știu dacă puteți adăuga funcția X în viitor."
+Prioritate: Verde
+
+Exemplu 3:
+Ticket: "Factura din luna trecută pare incorectă cu 20 lei."
+Prioritate: Galben
+
+Acum clasifică:
+Ticket: "Aplicația se închide singură când încerc să export raportul, am deadline azi."
+Prioritate:
+```
+
+**3. Când vrei să reproduci un ton sau voce specifică**
+
+Dacă scrii conținut pentru un brand cu o voce distinctă, câteva exemple din conținutul existent spun mai mult decât orice descriere.
+
+**4. Când procesezi date structurate complex**
+
+```
+Extrage informațiile de contact din textul următor și formatează-le ca JSON.
+
+Exemplu 1:
+Text: "Contactați-o pe Ana Ionescu, director de marketing la TechRO, la ana.ionescu@techro.ro sau 0722.123.456."
+JSON: {"nume": "Ana Ionescu", "functie": "director de marketing", "companie": "TechRO", "email": "ana.ionescu@techro.ro", "telefon": "0722.123.456"}
+
+Exemplu 2:
+Text: "Dl. Mihai Pop, CFO, poate fi contactat la mailing list: cfo@innovate.ro"
+JSON: {"nume": "Mihai Pop", "functie": "CFO", "companie": "innovate.ro", "email": "cfo@innovate.ro", "telefon": null}
+
+Acum procesează:
+Text: "Responsabil tehnic: Cristian Dumitrescu (Softwave SRL) — crisD@softwave.ro, mobil 0740.987.654"
+JSON:
+```
+
+## Câte exemple sunt suficiente?
+
+**1-2 exemple:** Suficiente pentru formate simple sau clasificări clare.
+
+**3-4 exemple:** Recomandate pentru stiluri complexe sau când există variabilitate în input.
+
+**5+ exemple:** Utile pentru task-uri critice unde consistența este esențială. Dar atenție — mai mult de 5-7 exemple rareori îmbunătățesc semnificativ rezultatele și consumă din context window (spațiul limitat al conversației).
+
+**Regula de 3:** Când ești nesigur, începe cu 3 exemple diverse. Dacă output-ul nu este consistent, mai adaugă 1-2.
+
+## Cum să alegi exemplele potrivite
+
+Calitatea exemplelor contează mai mult decât cantitatea.
+
+**Alege exemple diverse** — Acoperă variații ale input-ului pentru a arăta modelului că pattern-ul se aplică în mai multe situații.
+
+**Alege exemple reprezentative** — Exemplele trebuie să fie tipice pentru task-ul pe care îl ceri, nu cazuri extreme sau excepții.
+
+**Menține consistența formatului** — Toate exemplele trebuie să aibă exact același format în secțiunea Output. Inconsistența în exemple creează inconsistență în răspuns.
+
+**Evită exemplele contradictorii** — Dacă într-un exemplu tonul este formal și în altul informal, modelul nu va ști pe care să îl urmeze.
+
+## Few-shot pentru generare creativă
+
+Few-shot nu este util doar pentru clasificări sau extracție de date. Funcționează excelent și pentru generare creativă cu stil specific:
+
+```
+Scriem descrieri de produse în stilul nostru: directe, cu beneficii concrete, fără adjective goale,
+cu o notă de umor subtil. Fără "produs excepțional" sau "calitate deosebită".
+
+Exemplu 1:
+Produs: Căști Bluetooth XM4
+Descriere: "Conectare instantă. Baterie 30h. Noise cancelling care chiar funcționează — nu doar în reclamă. O pereche pentru tot ce auzi azi."
+
+Exemplu 2:
+Produs: Rucsac laptop 15"
+Descriere: "17 compartimente. Rezistent la apă. L-am umplut cu 12kg și curelele nu au cedat. Funcționează."
+
+Acum scrie:
+Produs: Mouse ergonomic wireless
+Descriere:
+```
+
+## Exerciții practice
+
+**Exercițiu 1 — Construiește un prompt few-shot:**
+Ai 3 review-uri de produse din magazinul tău. Construiește un prompt few-shot care să clasifice review-urile noi ca "Pozitiv/Neutru/Negativ + Urgență acțiune (Da/Nu)."
+
+**Exercițiu 2 — Stil editorial:**
+Ai 2-3 emailuri pe care le-ai scris deja clienților. Construiește un prompt few-shot care să genereze emailuri noi în același stil al tău personal.
+
+**Exercițiu 3 — Comparație zero-shot vs. few-shot:**
+Ia un task pe care zero-shot nu l-a rezolvat perfect. Adaugă 2-3 exemple și compară calitatea output-ului.
+
+## Concluzie
+
+Few-shot prompting este tehnica de bază pentru situațiile în care zero-shot nu produce stilul, formatul sau precizia de care ai nevoie. Puterea sa constă în simplitate: în loc să descrii formatul în cuvinte, îl arăți direct.
+
+**Următoarea lecție:** Chain of Thought — cum să ghidezi modelul să gândească pas cu pas pentru probleme complexe.

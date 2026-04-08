@@ -1,0 +1,246 @@
+---
+title: "Ce este o rețea neuronală"
+module: 3
+moduleTitle: "Rețele Neuronale și Deep Learning"
+type: theory
+order: 11
+---
+
+## Ce este o rețea neuronală
+
+Ai înțeles cum funcționează un singur neuron. Acum hai să îi conectăm — și să vedem cum această conexiune creează ceva mult mai puternic decât suma părților.
+
+---
+
+### De la neuron la rețea
+
+O **rețea neuronală** este o colecție de neuroni organizați în **straturi** (layers), unde output-ul unui strat devine input-ul stratului următor.
+
+```
+Input Layer      Hidden Layer(s)     Output Layer
+──────────       ───────────────     ────────────
+  x₁ ──┐
+  x₂ ──┼──→ [Neuron] ──→ [Neuron] ──→ [Neuron] ──→ Output
+  x₃ ──┘        ↑             ↑
+              (Layer 1)    (Layer 2)
+```
+
+**Cele trei tipuri de straturi:**
+- **Input Layer** — primește datele brute (pixeli, cuvinte, numere)
+- **Hidden Layers** — procesează și extrag pattern-uri intermediare
+- **Output Layer** — produce predicția finală
+
+---
+
+### Analogia cu departamentele dintr-o companie
+
+Imaginează-ți că vrei să clasifici o aplicație de angajare:
+
+```
+CV primit (Input)
+    ↓
+Departament HR — strat 1:
+  → Neuron A: "Are diploma potrivită?" (da/nu)
+  → Neuron B: "Are experiența necesară?" (da/nu)
+  → Neuron C: "Vine de la o companie cunoscută?" (0-1)
+    ↓
+Manager tehnic — strat 2:
+  → Neuron D: Combină A + B → "Calificat tehnic?"
+  → Neuron E: Combină B + C → "Senior cu network?"
+    ↓
+Decizie finală — output:
+  → Neuron F: Combină D + E → "Cheamă la interviu?" (0 sau 1)
+```
+
+Fiecare strat **abstractizează** informația la un nivel mai înalt. Straturile adânci nu mai văd datele brute — văd **concepte** extrase de straturile anterioare.
+
+---
+
+### Forward Pass — cum curge informația
+
+Procesul prin care datele trec de la input la output se numește **forward pass** (propagare înainte):
+
+```python
+import numpy as np
+
+def sigmoid(z):
+    return 1 / (1 + np.exp(-z))
+
+def relu(z):
+    return np.maximum(0, z)
+
+# ─────────────────────────────────────────
+# Rețea mică: 2 input → 3 hidden → 1 output
+# ─────────────────────────────────────────
+
+# Ponderile (inițial aleatorii, după antrenare — învățate)
+W1 = np.array([[0.5, 0.2],    # Stratul 1: 3 neuroni × 2 input-uri
+               [0.3, 0.8],
+               [0.9, 0.1]])
+b1 = np.array([0.1, -0.2, 0.3])
+
+W2 = np.array([[0.4, 0.6, 0.2]])  # Stratul 2: 1 neuron × 3 input-uri
+b2 = np.array([0.1])
+
+# Input: temperatura (normalizată) și umiditate
+X = np.array([0.7, 0.4])  # 70% temperatură, 40% umiditate
+
+# Forward pass:
+Z1 = np.dot(W1, X) + b1          # Suma ponderată stratul 1
+A1 = relu(Z1)                     # Activare ReLU
+
+Z2 = np.dot(W2, A1) + b2          # Suma ponderată stratul 2
+A2 = sigmoid(Z2)                  # Activare Sigmoid → probabilitate
+
+print(f"Output (probabilitate ploaie): {A2[0]:.2%}")  # ex: 67.3%
+```
+
+### Experimentează — Forward Pass vizual
+
+Rețeaua de mai jos are exact arhitectura din exemplul de mai sus (2 input → 4 hidden → 4 hidden → 1 output). Setează temperatura și umiditatea, apasă **Run Forward Pass** și urmărește cum informația curge strat cu strat:
+
+```neural-network-viz
+{"layers": [2, 4, 4, 1], "inputLabels": ["temp", "umid"], "outputLabel": "ploaie"}
+```
+
+> **Observă particolele albastre** (ponderi pozitive) și **portocalii** (ponderi negative) care animă fiecare conexiune.
+
+---
+
+### Backpropagation — cum învaț rețeaua
+
+**Backpropagation** (propagarea înapoi a erorii) este algoritmul prin care rețeaua ajustează ponderile după ce a făcut o predicție greșită.
+
+Funcționează în doi pași:
+
+**Pasul 1 — Forward Pass:** calculează predicția și eroarea (loss)
+**Pasul 2 — Backward Pass:** propagă eroarea înapoi, calculând gradienții
+
+```
+Input → [Strat 1] → [Strat 2] → Output → Loss
+                                           ↓
+         Ajustăm W1  ←  Ajustăm W2  ←  Gradient
+```
+
+**Regula lanțului (Chain Rule):**
+Backpropagation folosește regula lanțului din calcul diferențial pentru a calcula cum influențează fiecare pondere din fiecare strat eroarea finală.
+
+```python
+# PyTorch face asta automat cu .backward():
+import torch
+import torch.nn as nn
+
+model = nn.Sequential(
+    nn.Linear(2, 3),    # Strat 1: 2→3
+    nn.ReLU(),
+    nn.Linear(3, 1),    # Strat 2: 3→1
+    nn.Sigmoid()
+)
+
+X = torch.tensor([[0.7, 0.4]])
+y = torch.tensor([[1.0]])  # Răspuns corect: va ploua
+
+optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
+loss_fn = nn.BCELoss()
+
+# Forward pass
+y_pred = model(X)
+loss = loss_fn(y_pred, y)
+
+# Backward pass (backpropagation) — o singură linie!
+optimizer.zero_grad()
+loss.backward()        # PyTorch calculează toți gradienții automat
+optimizer.step()       # Actualizează toate ponderile
+
+print(f"Loss: {loss.item():.4f}")
+```
+
+---
+
+### Universal Approximation Theorem
+
+Există un rezultat matematic fundamental:
+
+> **O rețea neuronală cu cel puțin un strat ascuns și suficienți neuroni poate aproxima ORICE funcție continuă.**
+
+Cu alte cuvinte, teoretic, o rețea neuronală poate modela orice pattern din orice date — dacă are suficienți parametri și date de antrenare.
+
+Practic, asta explică de ce rețelele neuronale sunt atât de versatile: aceeași arhitectură de bază funcționează pentru imagini, text, audio, genomică, fizică...
+
+---
+
+### Hiperparametrii rețelei
+
+Când construiești o rețea, ai control asupra:
+
+```python
+# Câte straturi?
+model = nn.Sequential(
+    nn.Linear(784, 256),  # Strat 1
+    nn.ReLU(),
+    nn.Linear(256, 128),  # Strat 2
+    nn.ReLU(),
+    nn.Linear(128, 10),   # Output: 10 clase (cifre 0-9)
+)
+
+# Acești parametri se numesc HIPERPARAMETRI:
+# - Număr de straturi: 3
+# - Dimensiunea straturilor: 256, 128
+# - Funcțiile de activare: ReLU
+# - Learning rate: 0.001
+# - Batch size: 32
+# - Număr de epoci: 50
+```
+
+**Hiperparametrii** ≠ **Parametrii modelului**
+- **Parametrii** (weights, bias) = se ajustează automat prin antrenare
+- **Hiperparametrii** = tu le alegi manual înainte de antrenare
+
+Alegerea hiperparametrilor potriviți se numește **hyperparameter tuning** — un skill crucial în practică.
+
+---
+
+### Exemplu complet: clasificarea cifrelor scrise de mână (MNIST)
+
+```python
+import torch
+import torch.nn as nn
+from torchvision import datasets, transforms
+
+# MNIST: 70.000 imagini de cifre (0-9), 28×28 pixeli
+
+# Arhitectura rețelei
+class DigitClassifier(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.network = nn.Sequential(
+            nn.Flatten(),           # 28×28 → 784 valori
+            nn.Linear(784, 256),    # Strat 1
+            nn.ReLU(),
+            nn.Dropout(0.2),        # Anti-overfitting
+            nn.Linear(256, 64),     # Strat 2
+            nn.ReLU(),
+            nn.Linear(64, 10),      # Output: 10 clase (0-9)
+        )
+
+    def forward(self, x):
+        return self.network(x)
+
+model = DigitClassifier()
+# Total parametri: 784×256 + 256×64 + 64×10 = ~217.000 parametri
+# Antrenat câteva minute pe CPU → ~98% acuratețe
+```
+
+98% acuratețe pe 70.000 de imagini, antrenat în câteva minute. Aceasta este puterea rețelelor neuronale.
+
+---
+
+### Recapitulare
+
+✅ **Rețea neuronală** = neuroni organizați în straturi (input → hidden → output)
+✅ **Forward pass** = datele curg de la input la output, generând predicția
+✅ **Backpropagation** = eroarea curge înapoi, ajustând ponderile
+✅ **Universal Approximation Theorem** = orice funcție poate fi aproximată
+✅ **Hiperparametrii** = alegerile arhitecturale pe care le controlezi tu
+
+**Lecția 12** te introduce în **Deep Learning** — ce se întâmplă când adaugi MULT mai multe straturi și de ce asta a schimbat totul.

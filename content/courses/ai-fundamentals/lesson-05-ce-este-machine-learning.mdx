@@ -1,0 +1,150 @@
+---
+title: "Ce este Machine Learning?"
+module: 2
+moduleTitle: "Machine Learning — Cum Învață Mașinile"
+type: theory
+order: 5
+---
+
+## Ce este Machine Learning?
+
+Felicitări că ai terminat Modulul 1! 🎉 Acum intrăm în **Modulul 2 — Machine Learning**, piatra de temelie a AI-ului modern.
+
+Dacă Modulul 1 a răspuns la "Ce este AI?", Modulul 2 răspunde la întrebarea mai profundă: **"Cum ajunge un sistem să fie inteligent?"**
+
+---
+
+### De la AI la Machine Learning
+
+Ai văzut în Lecția 1 că AI-ul nu programează reguli manual — în schimb, **descoperă pattern-uri din date**. Dar exact cum face asta?
+
+Răspunsul este **Machine Learning** (Învățare Automată).
+
+> **Machine Learning** este un subdomeniu al AI care dă sistemelor abilitatea de a **învăța și îmbunătăți din experiență** fără a fi programate explicit pentru fiecare situație.
+
+Trei cuvinte cheie: **date, algoritm, predicții**.
+
+```
+Date (input) → Algoritm ML → Model antrenat → Predicții (output)
+```
+
+---
+
+### Analogia cu mersul pe bicicletă
+
+Cea mai bună analogie pentru Machine Learning? **Cum ai învățat să mergi pe bicicletă.**
+
+**Abordarea NON-ML** (imposibilă în practică):
+> Un inginer îți descrie fizic fiecare micro-ajustare: "Dacă te înclini 3° la stânga, rotește ghidonul 2.1° dreapta, distribuie 60% greutate pe pedalele din față..."
+
+Nimeni nu a învățat bicicleta din manual. Este imposibil de descris cu reguli explicite.
+
+**Abordarea ML** (cum funcționează de fapt):
+> Te urci pe bicicletă. Cazi. Creierul tău ajustează. Mergi puțin mai departe. Cazi din nou. Ajustezi din nou. Repetă de sute de ori. Creierul **extrage pattern-ul echilibrului** din experiență directă.
+
+Machine Learning funcționează exact la fel. Îi dai **mii de exemple** (date), le arăți **ce e corect și ce nu** (etichete), și algoritmul **ajustează intern** până când prezice corect.
+
+---
+
+### Programare clasică vs Machine Learning
+
+Vizualizează diferența fundamentală:
+
+```
+Programare clasică:
+─────────────────────────────────────────
+Reguli + Date → Calculator → Output
+
+Machine Learning:
+─────────────────────────────────────────
+Date + Output (dorit) → Calculator → Reguli (model)
+```
+
+**Exemplu concret — detectarea spam-ului:**
+
+```python
+# Programare clasică — tu scrii regulile:
+def este_spam(email):
+    if "câștigat" in email and "milioane" in email:
+        return True
+    if "click ACUM" in email.upper():
+        return True
+    # Spammerii se adaptează și regulile devin inutile în câteva zile...
+    return False
+
+# Machine Learning — modelul descoperă regulile:
+from sklearn.naive_bayes import MultinomialNB
+
+model = MultinomialNB()
+model.fit(emailuri_de_antrenare, etichete)  # ["spam", "nu spam", "spam", ...]
+
+predictie = model.predict([email_nou])
+# Output: ["spam"]  — modelul a găsit singur ce pattern-uri indică spam
+```
+
+---
+
+### Cele trei ingrediente ale ML
+
+Orice sistem de Machine Learning are nevoie de trei lucruri:
+
+**1. Date (Data)**
+Materia primă. Fără date, nu există ML. Calitatea datelor determină calitatea modelului.
+- Poze etichetate (pisică/câine)
+- Emailuri marcate (spam/nu spam)
+- Prețuri istorice ale acțiunilor
+
+**2. Algoritm**
+Rețeta matematică prin care modelul învață. Există zeci de algoritmi: regresia liniară, arborii de decizie, rețelele neuronale, etc.
+
+**3. Putere de calcul**
+Un model simplu rulează pe laptop. Un model ca GPT-4 a necesitat mii de GPU-uri timp de luni de zile.
+
+---
+
+### Tipuri de probleme ML
+
+Machine Learning rezolvă trei tipuri mari de probleme:
+
+| Tip | Ce face | Exemplu |
+|---|---|---|
+| **Clasificare** | Împarte în categorii | Spam sau nu spam? Cancer sau benign? |
+| **Regresie** | Prezice o valoare numerică | Cât va costa această casă? |
+| **Clustering** | Grupează fără etichete | Ce tipuri de clienți avem? |
+| **Generare** | Creează conținut nou | Text, imagini, cod |
+
+---
+
+### De ce Machine Learning acum?
+
+ML există de decenii — algoritmii fundamentali sunt vechi din anii '80-'90. Ce s-a schimbat?
+
+**Cei trei mari acceleratori:**
+
+```
+1. DATE MASIVE (Big Data)
+   → Internetul generează 2.5 quintilioane de bytes de date pe zi
+   → Fără date, algoritmii stau degeaba
+
+2. HARDWARE (GPU-uri)
+   → GPU-urile, concepute pentru gaming, s-au dovedit perfecte pentru ML
+   → O placă RTX de gaming de azi are mai multă putere ML decât un datacenter din 2010
+
+3. ALGORITMI ÎMBUNĂTĂȚIȚI
+   → Rețelele neuronale adânci (Deep Learning) au spart plafoane de performanță
+   → Open source: PyTorch, TensorFlow, Hugging Face au democratizat accesul
+```
+
+Combinația dintre date masive, hardware ieftin și algoritmi open-source a creat **explozia AI** din ultimii ani.
+
+---
+
+### Recapitulare
+
+✅ **Machine Learning** = subdomeniu AI care învață din date, fără reguli explicite
+✅ **Diferența cheie:** în ML, modelul descoperă regulile; tu furnizezi datele
+✅ **Trei ingrediente:** date + algoritm + putere de calcul
+✅ **Tipuri de probleme:** clasificare, regresie, clustering, generare
+✅ **De ce acum:** date masive + GPU-uri + algoritmi open-source
+
+**Lecția 6** te așteaptă cu una dintre cele mai importante distincții din ML: **Supervised vs Unsupervised Learning**. Vei înțelege exact când și de ce folosești fiecare abordare.

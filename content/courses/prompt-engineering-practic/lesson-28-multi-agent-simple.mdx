@@ -1,0 +1,88 @@
+---
+title: "Sisteme Multi-Agent"
+module: 6
+type: exercise
+order: 28
+---
+
+# Sisteme Multi-Agent — Mod Simplu
+
+Când construiești o casă, nu angajezi o singură persoană care să facă tot: să proiecteze, să zidărească, să tragă instalația electrică, să monteze parchetul și să picteze. Angajezi specialiști, fiecare pentru ce știe cel mai bine. Și un arhitect sau un manager de proiect care coordonează totul.
+
+Sistemele multi-agent funcționează exact la fel.
+
+## Povestea echipei de specialiști
+
+Imaginați-vă că trebuie să produci un raport de analiză despre o piață nouă. Ai două variante:
+
+Varianta A: Ceri unui singur asistent să facă tot — să cerceteze, să analizeze și să scrie raportul. Rezultatul va fi decent, dar nu excelent la niciuna dintre aceste trei sarcini.
+
+Varianta B: Ai o echipă mică de specialiști. Cercetătorul adună toate datele relevante. Analistul interpretează datele și identifică pattern-urile. Scriitorul transformă analiza într-un raport clar și profesional. Un editor verifică totul la final.
+
+Rezultatul variantei B este în mod constant mai bun. Nu pentru că fiecare specialist e mai inteligent, ci pentru că fiecare se concentrează pe ceea ce face cel mai bine.
+
+## Cine face ce: orchestratorul și workerii
+
+Într-un sistem multi-agent există două tipuri de roluri:
+
+Orchestratorul este managerul. Primește sarcina mare, o împarte în sub-sarcini, le distribuie specialiștilor, colectează rezultatele și prezintă outputul final. El nu face munca de execuție — coordonează.
+
+Workerii sunt specialiștii. Fiecare primește o sarcină clară și îngustă, o execută și returnează rezultatul. Nu gândesc strategic — fac ce știu cel mai bine.
+
+## Trei scenarii practice
+
+### Scenariul 1: Echipa de creare conținut
+
+Vrei să creezi un articol de blog bun. Un singur AI poate face asta, dar o echipă face mai bine:
+
+Primul agent caută statistici și date recente pe subiect. Al doilea agent creează structura articolului pe baza datelor. Al treilea agent scrie articolul urmând structura. Al patrulea agent verifică, corectează și îmbunătățește textul.
+
+Fiecare face un singur lucru, dar îl face focusat complet pe acel lucru.
+
+### Scenariul 2: Echipa de cercetare
+
+Trebuie să evaluezi dacă intrarea pe o piață nouă are sens. O echipă de agenți poate lucra în paralel:
+
+Un agent cercetează dimensiunea pieței și tendințele. Altul analizează competitorii principali. Al treilea evaluează riscurile regulatorii. Orchestratorul colectează toate trei și produce un raport de decizie.
+
+Dacă ar fi secvențial, ar dura de trei ori mai mult. În paralel, toate trei sunt gata simultan.
+
+### Scenariul 3: Pipeline de customer support
+
+O firmă primește sute de tichete de suport zilnic. Un sistem multi-agent poate:
+
+Primul agent categorizează automat fiecare tichet (technical/billing/general). Al doilea agent evaluează prioritatea (urgent/normal/low). Al treilea agent generează un răspuns sugerat pe baza categoriei și istoricului. Al patrulea agent decide dacă necesită intervenție umană sau poate fi trimis automat.
+
+Rezultatul: echipa umană se ocupă doar de cazurile complexe sau sensibile. Restul sunt gestionate automat cu calitate consistentă.
+
+## Cum să gândești despre împărțirea sarcinilor
+
+Există o regulă simplă pentru a decide când merită un sistem multi-agent: dacă sarcina ta are 3 sau mai mulți pași care necesită tipuri diferite de gândire, un sistem multi-agent va produce un rezultat mai bun.
+
+Cercetarea necesită un tip de gândire. Analiza necesită alt tip. Scrierea necesită alt tip. Verificarea necesită alt tip. Dacă pui toate pe un singur agent, el "compromite" constant între ele. Dacă le separi, fiecare agent poate fi optimizat pentru ce face.
+
+## Exercițiul tău
+
+Aceasta este o lecție de exercițiu — trebuie să gândești activ, nu doar să citești.
+
+Gândiți-vă la o sarcină complexă din viața ta profesională care implică mai mulți pași diferiți — poate redactarea unui raport, evaluarea unui furnizor, organizarea unui eveniment sau lansarea unui produs nou.
+
+Desenează sau descrie pe hârtie (sau pe calculator):
+- Câți "specialiști" ar forma echipa ideală pentru acea sarcină
+- Ce face fiecare în mod specific
+- Cine coordonează și cum colectează rezultatele
+- Ce ar putea merge greșit și cum ai gestiona asta
+
+Nu există un răspuns unic corect. Scopul este să antrenezi gândirea în termeni de sisteme, nu de sarcini izolate.
+
+## Ce să știi despre limitele sistemelor multi-agent
+
+Cu cât mai mulți agenți, cu atât mai mult costă (în tokens și timp). Nu folosi sisteme multi-agent pentru sarcini simple care un singur agent le rezolvă bine.
+
+Coordonarea adaugă complexitate. Dacă un specialist face o greșeală, ea poate afecta toți ceilalți din pipeline. Designul robust prevede ce se întâmplă când ceva eșuează.
+
+Începe simplu. Doi sau trei agenți bine definiți produc mai bune rezultate decât zece agenți cu roluri neclare.
+
+## Concluzie
+
+Sistemele multi-agent aplică în domeniul AI un principiu vechi și dovedit: specializarea și colaborarea produc rezultate mai bune decât generalistul care face totul singur. Gândind în echipe de agenți cu roluri clare, poți aborda sarcini complexe care depășesc capacitățile unui singur model — și poți obține output de calitate profesională pentru procese care altfel ar necesita zile de muncă manuală.

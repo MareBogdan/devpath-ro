@@ -1,0 +1,103 @@
+---
+title: "Anatomia unui Prompt Bun"
+module: 1
+type: theory
+order: 2
+---
+
+# Anatomia unui Prompt Bun
+
+Gândește-te la un prompt ca la o rețetă de bucătărie.
+
+O rețetă bună îți spune: ce fel de mâncare faci (obiectivul), ingredientele de care ai nevoie (contextul), pașii de urmat (instrucțiunile) și cum arată farfuria finală (formatul). Dacă omit orice ingrediente sau nu specifici cum trebuie să arate preparatul final, fie va ieși altceva decât ai vrut, fie va trebui să o iei de la capăt.
+
+Exact același lucru se întâmplă cu prompt-urile pentru AI.
+
+## Cele 4 ingrediente ale unui prompt bun
+
+### Ingredientul 1: Rolul
+
+Îi spui modelului **cine să fie** în această conversație.
+
+"Ești un nutriționist cu experiență."
+"Ești un profesor de română pentru clasa a 5-a."
+"Ești un consultant financiar pentru persoane fizice."
+
+**De ce ajută?** Modelul a văzut în training texte scrise de nutriționiști, profesori și consultanți financiari. Când specifici rolul, îl orientezi spre stilul, vocabularul și perspectiva potrivite pentru tine.
+
+Fără rol, modelul răspunde generic. Cu rol, răspunde ca un specialist.
+
+### Ingredientul 2: Contextul
+
+Îi explici **situația ta concretă**. Ce nu poate ghici singur, trebuie să îi spui.
+
+"Am 35 de ani, lucrez de acasă, am o fetiță de 3 ani."
+"Firma mea are 5 angajați și suntem în primul an de activitate."
+"Clienta mea are 60 de ani și nu a mai folosit un smartphone până acum."
+
+**Regulă simplă:** Dacă un prieten bun ar fi în locul modelului, ce informații i-ai da ca să te înțeleagă bine? Acelea intră la context.
+
+### Ingredientul 3: Instrucțiunea
+
+**Ce anume vrei să facă.** Aceasta este inima prompt-ului.
+
+Instrucțiunile bune sunt specifice și folosesc verbe de acțiune clare:
+- "Scrie un email de 150 de cuvinte..."
+- "Listează 5 motive pentru care..."
+- "Compară cele două opțiuni din perspectiva..."
+- "Reformulează acest text pentru o audiență de..."
+
+Instrucțiunile slabe sunt vagi: "ajută-mă cu", "spune-mi ceva despre", "fă ceva pentru".
+
+### Ingredientul 4: Formatul
+
+Îi spui **cum vrei să arate răspunsul**. Dacă nu spui, modelul alege el — și nu ghicește mereu bine.
+
+"Răspunde ca o listă numerotată cu maxim 7 puncte."
+"Scrie un paragraf de 3 propoziții, ton prietenos."
+"Format tabel cu 3 coloane: Avantaj / Dezavantaj / Recomandare."
+"Maxim 100 de cuvinte, fără introduceri sau concluzii."
+
+## Un exemplu complet
+
+Situație: Vrei să ceri o zi liberă șefului tău, dar nu știi cum să formulezi.
+
+**Prompt slab:**
+"Ajută-mă să cer o zi liberă."
+
+**Prompt cu toate 4 ingrediente:**
+"Ești un specialist în comunicare profesională.
+Am un șef destul de formal, relație bună dar profesională.
+Vreau să cer o zi liberă vineri pentru o problemă personală, fără să dau detalii.
+Scrie un mesaj de email de 3 propoziții, ton respectuos și direct."
+
+Diferența de calitate a răspunsului va fi evidentă.
+
+## Poți omite ingrediente?
+
+Da — pentru lucruri simple nu ai nevoie de toate patru:
+
+Dacă ceri o informație simplă, instrucțiunea este suficientă:
+"Care este capitala Australiei?"
+
+Dacă vrei o traducere rapidă, contextul și formatul nu sunt necesare:
+"Traduce în franceză: Bună dimineața."
+
+Dar de fiecare dată când ai nevoie de ceva specific, personalizat sau structurat — folosește toate cele 4 ingrediente.
+
+## Template de salvat
+
+Copiază și salvează-l undeva la îndemână:
+
+"ROL: Ești [expertul de care am nevoie].
+CONTEXT: [Situația mea specifică].
+TASK: [Ce vreau să facă, cu parametri specifici].
+FORMAT: [Cum vreau să arate răspunsul]."
+
+Completează-l înainte de fiecare prompt important și vei vedea imediat diferența în calitatea răspunsurilor.
+
+## Concluzie
+
+Un prompt bun nu este mai lung — este mai complet. Patru ingrediente bine alese îți salvează timp, iterații și frustrare.
+
+Lecția viitoare îți va arăta cele mai frecvente greșeli pe care le fac oamenii când scriu prompt-uri — și cum să le eviți din prima.

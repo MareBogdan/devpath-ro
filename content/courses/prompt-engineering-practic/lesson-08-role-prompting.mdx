@@ -1,0 +1,177 @@
+---
+title: "Role Prompting"
+module: 2
+type: theory
+order: 8
+---
+
+# Role Prompting
+
+Unul dintre cele mai simple și mai eficiente trucuri în prompt engineering este să îi spui modelului nu doar **ce să facă**, ci **cine să fie** atunci când o face.
+
+**Role prompting** (sau persona prompting) înseamnă atribuirea unui rol, expertiză sau personalitate specifică modelului la începutul conversației. Este tehnica prin care transformi un model generalist într-un specialist pentru contextul tău.
+
+## De ce funcționează role prompting?
+
+Modelele de limbaj au absorbit în training texte produse de o gamă extraordinar de largă de specialiști: medici, avocați, profesori, programatori, designeri, copywriteri, ingineri, psihologi. Fiecare profesie are un vocabular, un mod de raționare, un tip de exemple și o perspectivă distincte.
+
+Când specifici un rol, activezi selecția relevantă din această cunoaștere acumulată. Nu "inventezi" un expert — îi spui modelului din care parte a cunoașterii sale să răspundă.
+
+**Fără rol:**
+```
+Ce metode de motivare a angajaților există?
+```
+
+Răspuns: o listă generică copiabilă de pe orice site HR.
+
+**Cu rol:**
+```
+Ești un psiholog organizațional cu 15 ani experiență în companii tech din România.
+Ce metode de motivare a angajaților există pentru o echipă de 8 developeri seniori
+care lucrează remote și au deja salarii competitive?
+```
+
+Răspuns: specific pe nevoile echipelor tech, adaptate la contextul remote, cu focus pe autonomie, mastery și purpose — exact ce funcționează pentru developeri seniori.
+
+## Structuri de rol eficiente
+
+**Structura de bază:**
+```
+Ești [titlul/expertiza].
+```
+
+**Structura cu experiență:**
+```
+Ești un [titlul] cu [X ani] experiență în [domeniu specific].
+```
+
+**Structura cu context suplimentar:**
+```
+Ești [titlul] specializat în [nișa]. Audiența ta sunt [cine sunt].
+Tonul tău este [formal/informal/tehnic/accesibil].
+```
+
+**Structura cu multiple atribute:**
+```
+Ești un consultant de marketing digital care:
+- Are experiență cu startup-uri SaaS B2B
+- Cunoaște piața românească
+- Este pragmatic și orientat spre ROI, nu spre teorie
+- Vorbește direct, fără jargon inutil
+```
+
+## Exemple de roluri utile pe domenii
+
+**Business și management:**
+```
+Ești un consultant McKinsey cu experiență în transformare organizațională.
+```
+
+```
+Ești un CFO cu experiență în startup-uri early-stage din Europa de Est.
+```
+
+**Legal și compliance:**
+```
+Ești un avocat specializat în dreptul muncii din România, familiar cu ultimele modificări ale Codului Muncii.
+```
+
+**Tehnic și IT:**
+```
+Ești un senior software engineer cu 10 ani experiență în sisteme distribuite la scară largă.
+```
+
+```
+Ești un expert în cybersecurity specializat în protecția IMM-urilor.
+```
+
+**Comunicare și marketing:**
+```
+Ești un copywriter specializat în emailuri de vânzare B2B cu rate de conversie ridicate.
+```
+
+**Educație:**
+```
+Ești un profesor de liceu care predă informatică și are un talent special pentru a explica concepte complexe cu analogii din viața de zi cu zi.
+```
+
+**Sănătate (pentru informare, nu sfat medical):**
+```
+Ești un medic de familie din România care explică termeni medicali pacienților fără background medical.
+```
+
+## Role prompting pentru a obține perspective multiple
+
+Una dintre utilizările avansate este să ceri același subiect din mai multe roluri pentru a obține o imagine completă:
+
+```
+Analizează ideea mea de business (marketplace de servicii locale) din trei perspective diferite:
+1. Ca investitor de risc care evaluează potențialul de scalare
+2. Ca potențial utilizator final (freelancer de servicii)
+3. Ca competitor direct care caută puncte slabe
+
+Idee: [descrierea ta]
+```
+
+## Limitele role prompting-ului
+
+**1. Nu înlocuiește expertiza reală pentru decizii critice**
+
+Un avocat AI nu poate oferi consultanță juridică valabilă pentru cazul tău specific. Un medic AI nu înlocuiește diagnosticul unui medic real. Role prompting este excelent pentru a înțelege un domeniu, a obține o primă opinie structurată sau a te pregăti pentru o conversație cu un expert real — nu pentru a lua decizii critice de unul singur.
+
+**2. Cunoașterea modelului are dată de expirare**
+
+Dacă ceri sfaturi juridice, modelul poate să nu cunoască modificările legislative din ultimele luni. Specifică asta: "Bazat pe cunoașterea ta disponibilă, cu mențiunea că legislația se poate fi actualizată."
+
+**3. Rolul trebuie să fie relevant**
+
+Atribuirea unui rol de profesor de matematică pentru a obține sfaturi de marketing nu activează cunoașterea relevantă. Alege roluri specifice domeniului task-ului.
+
+## Combinarea role prompting cu alte tehnici
+
+Role prompting funcționează excelent combinat cu alte tehnici:
+
+**Role + Chain of Thought:**
+```
+Ești un consultant financiar senior.
+Analizează această oportunitate de investiție pas cu pas:
+[detaliile investiției]
+```
+
+**Role + Few-shot:**
+```
+Ești copywriterul nostru intern. Iată 2 texte pe care le-ai scris deja:
+[exemplu 1]
+[exemplu 2]
+Scrie acum în același stil:
+[noul text]
+```
+
+**Role + Format specific:**
+```
+Ești un project manager cu experiență în metodologii agile.
+Creează un plan de proiect pentru [descriere].
+Format: Tabel cu coloanele Sprint / Obiectiv / Deliverables / Durată (zile)
+```
+
+## Exerciții practice
+
+**Exercițiu 1 — Găsește rolul potrivit:**
+Pentru fiecare situație de mai jos, definește rolul optim și construiește prompt-ul complet:
+- Vrei să înțelegi clauze dintr-un contract de chirie
+- Vrei să îți optimizezi CV-ul pentru o poziție de manager de produs
+- Vrei feedback pe o idee de afaceri din perspectiva unui client sceptic
+
+**Exercițiu 2 — Perspective multiple:**
+Alege o decizie importantă pe care o ai de luat și cere analiza din 3 roluri diferite care ar privi problema din unghiuri opuse.
+
+**Exercițiu 3 — Rafinează rolul:**
+Ia un prompt cu rol simplu pe care l-ai folosit recent și adaugă: experiența specifică, contextul pieței, tonul dorit și audiența. Compară calitatea răspunsurilor.
+
+## Concluzie
+
+Role prompting este una dintre tehnicile cu cel mai bun raport efort/impact din prompt engineering. O singură propoziție la începutul conversației poate transforma dramatic relevanța, specificitatea și utilitatea răspunsurilor.
+
+**Regula de aur:** Pentru orice task care beneficiază de o perspectivă expertă — legal, medical, financiar, tehnic, comunicare — începe cu un rol bine definit.
+
+**Următoarea lecție:** Instrucțiunile negative — puterea de a spune modelului ce să NU facă.

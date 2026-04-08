@@ -1,0 +1,110 @@
+---
+title: "OpenAI API — Mod Simplu"
+module: 6
+moduleTitle: "Aplicații AI în Practică"
+type: theory
+order: 25
+---
+
+## OpenAI API — cum îți construiești propriul asistent AI
+
+Imaginează-ți că ChatGPT are un "geamăn" invizibil pe care îl poți angaja direct în propria ta aplicație. Nu mai folosești interfața de pe site — vorbești direct cu "creierul", îl instruiești cum vrei și îl integrezi în orice produs digital construiești. Acesta este **OpenAI API**.
+
+---
+
+### Ce este un API și de ce contează
+
+Imaginează-ți un restaurant cu două intrări. Prima intrare e pentru publicul general — intri, te așezi, un chelner ia comanda ta pe hârtie. A doua intrare e pentru restaurante partenere — trimit comenzi direct la bucătărie, primesc mâncare gata de livrat, fără chelner, fără masă, în câteva secunde.
+
+**API-ul** este a doua intrare. În loc să folosești ChatGPT ca utilizator normal, te conectezi direct la "bucătăria" OpenAI și trimiți comenzi programatic. Primești răspunsuri instantaneu, le poți integra în propria ta aplicație și controlezi totul.
+
+---
+
+### Cum funcționează — fluxul simplu
+
+Imaginează-ți că trimiți o scrisoare la un expert și primești răspuns:
+
+1. **Scrii scrisoarea** (promptul tău) și o trimiți cu o cheie de acces specială (API key)
+2. **OpenAI o primește**, o procesează cu modelul AI
+3. **Primești răspunsul** înapoi în câteva secunde
+
+Cheia API este ca un card de acces la un club privat — dovedește că ai un cont plătit și te autorizează să folosești serviciul.
+
+---
+
+### Streaming — cum funcționează răspunsul în timp real
+
+Imaginează-ți că primești un mesaj text de la un prieten. Ai două opțiuni:
+- **Fără streaming:** primești tot mesajul deodată, după ce l-a scris complet (aștepți 10-15 secunde)
+- **Cu streaming:** vezi literele apărând pe ecran pe măsură ce le tastează (exact ca în ChatGPT)
+
+**Streaming** este modul în care ChatGPT afișează textul token cu token. Fără streaming, utilizatorul ar aștepta 15-30 secunde cu ecranul gol. Cu streaming, răspunsul "curge" imediat — experiența e mult mai plăcută.
+
+---
+
+### Tool Use — AI-ul care poate acționa
+
+Imaginează-ți un consultant care nu știe nimic în afara domeniului lui. Dacă îl întrebi temperatura din București, ridică din umeri. Dar dacă are un telefon la îndemână și poate suna la meteorologie, îți dă răspunsul.
+
+**Tool use** (sau function calling) înseamnă că AI-ul poate "suna" la instrumente externe când are nevoie de informații sau acțiuni:
+- Caută pe internet pentru informații recente
+- Calculează sume și statistici cu precizie matematică
+- Citește fișiere sau baze de date
+- Trimite emailuri sau notificări
+
+AI-ul decide singur când are nevoie de un instrument, îl folosește și continuă conversația cu informațiile obținute.
+
+---
+
+### Embeddings — sensul ca matematică
+
+Imaginează-ți că ai un dicționar magic unde fiecare cuvânt are o adresă numerică în spațiu. Cuvintele cu sens similar stau aproape unele de altele. "Câine" și "cățel" sunt vecini. "Câine" și "pian" sunt departe.
+
+**Embeddings** transformă text în coordonate numerice care "capturează sensul". Cu ele poți:
+- Căuta documente nu prin cuvinte cheie, ci prin sens ("arată-mi toate emailurile despre întârzieri de livrare", chiar dacă nu conțin exact acele cuvinte)
+- Detecta duplicate și parafrazări
+- Organiza automat documente după subiect
+
+Embeddings sunt fundația pentru RAG (Lecția 26) — motorul din spatele chatboților care "știu" conținuturl documentelor tale.
+
+---
+
+### Vision — AI-ul care "vede"
+
+Imaginează-ți că angajezi un expert care, în plus față de orice altceva, poate analiza fotografii. Îi trimiți o poză cu o factură și el extrage sumele, datele și furnizorul. Îi trimiți o diagramă și el o explică în cuvinte.
+
+Modelele Vision pot:
+- Descrie ce se vede într-o imagine
+- Extrage text din screenshot-uri sau fotografii de documente
+- Analiza grafice și diagrame
+- Identifica probleme în fotografii (defecte de produs, erori în cod vizualizat)
+
+---
+
+### Gestionarea erorilor — ce se poate strica
+
+Imaginează-ți că faci un apel telefonic important. Pot apărea: semnal slab (conexiune), linia ocupată (rate limit), număr greșit (eroare). Ca orice comunicare reală, API-urile pot eșua din diverse motive. Un sistem robust trebuie să gestioneze aceste situații elegant — să retransmită dacă e rețea slabă, să aștepte dacă serviciul e ocupat, să raporteze clar dacă ceva merge prost.
+
+---
+
+### Costurile — cât costă să construiești cu AI
+
+Imaginează-ți că plătești electricitatea: cu cât folosești mai mult, cu atât plătești mai mult. API-ul OpenAI funcționează la fel — plătești per "token" (bucată de text) procesat.
+
+Un articol normal de 1000 de cuvinte costă în jur de 0.001-0.005 EUR procesat prin API. La scară mică (hobby, prototip) costurile sunt neglijabile. La scară mare (mii de utilizatori zilnic), necesită optimizare.
+
+---
+
+### Rezumat
+
+OpenAI API este "creierul" AI-ului disponibil direct în aplicațiile tale. Prin el poți trimite mesaje, primi răspunsuri în timp real, conecta AI-ul la instrumente externe, analiza imagini și transforma text în reprezentări numerice. Stăpânirea API-ului este abilitatea de bază pentru oricine vrea să construiască aplicații AI reale.
+
+```flashcards
+[
+  {"front": "Ce este OpenAI API?", "back": "O intrare programatică directă la modelele AI — trimiți instrucțiuni, primești răspunsuri, fără interfața vizuală. Te permite să integrezi AI în propria ta aplicație."},
+  {"front": "Ce este streaming în context AI API?", "back": "Răspunsul apare token cu token pe măsură ce e generat, exact ca în ChatGPT. Alternativa — a aștepta răspunsul complet — produce experiență de utilizator mult mai slabă."},
+  {"front": "Ce este tool use (function calling)?", "back": "AI-ul poate 'apela' instrumente externe (caută web, calculează, citește fișiere) când are nevoie de informații sau acțiuni. Decide singur când să le folosească."},
+  {"front": "Ce sunt embeddings?", "back": "Transformă text în coordonate numerice care capturează sensul. Texte similare ca sens = coordonate apropiate. Fundația pentru căutare semantică și RAG."},
+  {"front": "Cum se calculează costul API-ului OpenAI?", "back": "Per token (bucată de text) procesat. Un articol de 1000 de cuvinte costă câteva fracțiuni de eurocent. La scară mică — neglijabil. La scară mare — necesită optimizare."}
+]
+```

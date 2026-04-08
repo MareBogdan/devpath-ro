@@ -1,0 +1,106 @@
+---
+title: "Agenți AI"
+module: 6
+type: theory
+order: 26
+---
+
+# Agenți AI
+
+Până acum în acest curs, am vorbit despre prompting ca o interacțiune de tip cerere-răspuns: trimiți un prompt, primești un output, gata. Dar AI-ul modern poate face mai mult decât să răspundă la o singură întrebare. Poate planifica, executa pași multipli, utiliza instrumente externe și corecta erori pe parcurs — autonom, fără intervenție umană la fiecare pas.
+
+Aceasta este lumea agenților AI.
+
+## Ce diferențiază un agent de un simplu chatbot
+
+Un chatbot tradițional răspunde la o întrebare. Un agent rezolvă o problemă. Diferența este structurală:
+
+**Chatbot:** "Care este capitala Franței?" → "Paris."
+
+**Agent:** "Cercetează cele mai bune 5 startup-uri din fintech din România în 2024, verifică dacă au pagini LinkedIn actualizate, și pregătește un rezumat cu datele de contact ale fondatorilor." → Agent execută: caută web → verifică LinkedIn → structurează → returnează rezultat.
+
+Elementele care definesc un agent:
+- **Autonomie:** poate lua decizii despre pașii următori fără aprobare umană la fiecare pas
+- **Multi-step:** execută o secvență de acțiuni pentru a atinge un obiectiv
+- **Tool access:** poate utiliza instrumente (căutare web, calculator, cod, API-uri, calendar)
+- **Self-correction:** poate observa că un pas a eșuat și poate încerca o altă abordare
+
+## Arhitectura agenților: Perceive → Plan → Act → Observe → Repeat
+
+Agenții moderni urmează un ciclu cunoscut sub denumirea de ReAct (Reasoning + Acting), pe care l-am menționat în lecția despre tehnici avansate:
+
+**Perceive:** Agentul primește sarcina și contextul disponibil.
+
+**Plan:** Gândește ce pași sunt necesari. "Pentru a răspunde la această întrebare, trebuie mai întâi să caut X, apoi să calculez Y, apoi să compar Z."
+
+**Act:** Execută primul pas — poate chema un tool, poate scrie cod, poate formula o sub-întrebare.
+
+**Observe:** Primește rezultatul acțiunii și îl integrează.
+
+**Repeat:** Decide dacă obiectivul a fost atins sau trebuie mai mulți pași.
+
+Înțelegerea acestui ciclu te ajută să scrii prompt-uri mai bune pentru agenți — pentru că știi ce informații are nevoie la fiecare fază.
+
+## Tipuri de agenți în practică
+
+**Agenți de cercetare:** Caută pe web, sintetizează informații din surse multiple, verifică fapte. Exemple: Perplexity, ChatGPT with browsing.
+
+**Agenți de execuție cod:** Scriu cod, rulează, văd output-ul, corectează, rulează din nou. Exemple: ChatGPT Code Interpreter, Claude cu tool use.
+
+**Agenți de automatizare workflow:** Trimit emailuri, actualizează CRM-uri, creează documente, accesează calendare. Exemple: integrări Make.com, Zapier AI.
+
+**Agenți personali:** Combină multiple capabilități pentru sarcini din viața de zi cu zi — planificarea întâlnirilor, cercetarea, redactarea.
+
+## Cum să promtezi un agent: obiectiv clar + constrângeri + condiție de oprire
+
+Prompting-ul pentru agenți are nevoie de câteva elemente în plus față de prompting-ul standard:
+
+**1. Obiectivul final** (nu procesul, ci rezultatul dorit)
+**2. Constrângerile** (ce NU trebuie să facă, ce surse să evite, ce formate să respecte)
+**3. Tool-urile disponibile** (agentul trebuie să știe cu ce poate lucra)
+**4. Condiția de oprire** (când să considere sarcina finalizată)
+
+```
+Ești un agent de cercetare. Sarcina ta: găsește cele mai recente 5 articole despre 'prompt injection attacks' publicate în 2024. Pentru fiecare articol: titlu, autor, sursă, data publicării și un rezumat de 2 propoziții. Constrângeri: folosește NUMAI surse academice sau publicații tehnice recunoscute (arxiv, Google Scholar, publicații de securitate). Nu include postări de blog fără referințe. Condiție de oprire: când ai toate 5 articole cu toate câmpurile completate, prezintă tabelul final și oprește-te.
+```
+
+**Al doilea exemplu — agent de planificare:**
+
+```
+Ești un asistent de calendar și productivitate. Sarcina: planifică o săptămână de lucru cu 6 ore/zi de muncă concentrată pentru un developer. Constrângeri: fără întâlniri înainte de 10:00, o pauză de 30 minute la prânz, vinerea rezervată pentru code review și documentație, nu programa mai mult de 2 ore consecutive de muncă fără pauză. Prezintă ca tabel cu zilele (Luni-Vineri) și intervalele orare, cu tipul de activitate specificat.
+```
+
+## Obiective SMART pentru agenți
+
+Dacă există o singură regulă pentru prompting-ul agenților, aceasta este: **obiectivele vagi produc bucle infinite**.
+
+Un agent care primește "cercetează piața" poate căuta la infinit — pentru că nu știe când este "gata". Un agent care primește "găsește 3 competitori direcți, cu prețurile lor publice și o caracteristică distinctivă pentru fiecare, format tabel, și oprește-te" știe exact când și-a terminat munca.
+
+Aplică principiile SMART: Specific (ce anume), Measurable (cum știi că e gata), Achievable (în limitele tool-urilor disponibile), Relevant (legat de obiectivul real), Time-bound (constrângeri de volum sau iterații).
+
+## Limitele agenților: ce să știi înainte să te bazezi pe ei
+
+**Looping-ul:** Un agent slab ghidat poate repeta aceleași acțiuni fără să progreseze. Soluția: specifică numărul maxim de pași sau iterații.
+
+**Halucinarea rezultatelor tool-urilor:** Un agent poate "inventa" că a efectuat o căutare web și a găsit anumite informații, chiar dacă nu a executat efectiv tool-ul. Verifică întotdeauna sursele importante.
+
+**Costul:** Fiecare pas al unui agent consumă tokens. Un agent care rulează 20 de pași consumă de 20 de ori mai mulți tokens decât un prompt simplu. Setează limite explicit.
+
+**Determinismul:** Agenții produc rezultate variabile — același prompt poate duce la un traseu diferit de execuție. Pentru sarcini critice, verifică și validează output-ul.
+
+**Acces și permisiuni:** Un agent cu acces la email sau calendar poate face modificări reale. Testează întotdeauna într-un mediu sandbox înainte de a da acces la sisteme de producție.
+
+## Agenți în instrumentele disponibile astăzi
+
+Nu trebuie să construiești agenți de la zero pentru a beneficia de ei:
+
+- **ChatGPT (cu browsing și Code Interpreter):** Poate cerceta și executa cod autonom
+- **Claude (cu tool use):** Poate fi configurat cu tools custom pentru sarcini specifice
+- **Perplexity:** Agent de cercetare cu citări automate
+- **AutoGPT / BabyAGI:** Framework-uri open-source pentru agenți cu obiective pe termen lung
+
+Chiar și fără a construi un agent propriu, înțelegerea modului în care funcționează îți permite să interacționezi mai eficient cu aceste instrumente.
+
+## Concluzie
+
+Agenții AI reprezintă un salt calitativ față de chatbot-urile de tip cerere-răspuns. Diferența cheie, din perspectiva prompting-ului, este că trebuie să gândești în termeni de obiective și constrângeri, nu în termeni de întrebări și răspunsuri. Cu cât mai clar definești ce vrei să obții, cu ce tool-uri, în câți pași și cu ce condiție de oprire, cu atât mai util va fi agentul. Pe măsură ce aceste sisteme devin mai capabile și mai accesibile, abilitatea de a le "orchestra" eficient devine una dintre cele mai valoroase competențe tehnice.

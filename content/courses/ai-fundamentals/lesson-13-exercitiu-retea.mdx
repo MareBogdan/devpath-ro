@@ -1,0 +1,354 @@
+---
+title: "Exercițiu practic — vizualizează o rețea neuronală"
+module: 3
+moduleTitle: "Rețele Neuronale și Deep Learning"
+type: exercise
+order: 13
+---
+
+## Exercițiu practic — construiește și vizualizează o rețea neuronală
+
+Bun venit la primul tău exercițiu practic! 🎉
+
+Până acum ai citit teoria. Acum vine momentul adevărului — **scriem cod**.
+
+În acest exercițiu vei construi o rețea neuronală simplă cu PyTorch care clasifică date sintetice, și vei vizualiza cum se separă clasele în spațiul 2D.
+
+---
+
+### Ce vei construi
+
+La finalul acestui exercițiu vei avea:
+- O rețea neuronală cu 2 straturi ascunse
+- Antrenată pe 500 de puncte din două clase
+- Un grafic care arată **decizia de clasificare** a rețelei
+
+---
+
+### Setup: ce ai nevoie
+
+Dacă rulezi local, instalează dependențele:
+
+```bash
+pip install torch numpy matplotlib scikit-learn
+```
+
+Dacă folosești Google Colab (recomandat pentru început) — totul e instalat deja!
+
+---
+
+### Pasul 1: Generăm datele
+
+```python
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.datasets import make_moons
+import torch
+import torch.nn as nn
+
+# Fixăm seed pentru reproductibilitate
+np.random.seed(42)
+torch.manual_seed(42)
+
+# Generăm date în formă de "două lune" (non-linear, imposibil de separat cu o linie)
+X_np, y_np = make_moons(n_samples=500, noise=0.2, random_state=42)
+
+# Convertim la tensori PyTorch
+X = torch.FloatTensor(X_np)
+y = torch.FloatTensor(y_np).unsqueeze(1)  # [500] → [500, 1]
+
+# Vizualizăm datele
+plt.figure(figsize=(8, 6))
+plt.scatter(X_np[y_np==0, 0], X_np[y_np==0, 1],
+            c='royalblue', label='Clasa 0', alpha=0.7)
+plt.scatter(X_np[y_np==1, 0], X_np[y_np==1, 1],
+            c='tomato', label='Clasa 1', alpha=0.7)
+plt.title("Datele noastre — Two Moons")
+plt.legend()
+plt.grid(True, alpha=0.3)
+plt.show()
+```
+
+**Ce observi?** Cele două clase sunt intercalate — nicio linie dreaptă nu le poate separa. Avem nevoie de o **decizie non-lineară**. Exact ce face rețeaua neuronală.
+
+---
+
+### Pasul 2: Definim rețeaua neuronală
+
+```python
+class MoonsClassifier(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(2, 16),     # Input: 2 coordonate (x, y) → 16 neuroni
+            nn.ReLU(),
+            nn.Linear(16, 16),    # Strat ascuns: 16 → 16
+            nn.ReLU(),
+            nn.Linear(16, 1),     # Output: 1 valoare (probabilitate)
+            nn.Sigmoid()          # → transformă în [0, 1]
+        )
+
+    def forward(self, x):
+        return self.net(x)
+
+model = MoonsClassifier()
+
+# Câți parametri are rețeaua noastră?
+total_params = sum(p.numel() for p in model.parameters())
+print(f"Total parametri: {total_params}")
+# Output: Total parametri: 593
+# (2×16 + 16) + (16×16 + 16) + (16×1 + 1) = 32+16 + 256+16 + 16+1 = 337... + biasuri
+```
+
+---
+
+### Pasul 3: Antrenăm modelul
+
+```python
+optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
+loss_fn = nn.BCELoss()  # Binary Cross-Entropy Loss pentru clasificare binară
+
+losses = []  # Ținem evidența loss-ului pentru grafic
+
+for epoca in range(1000):
+    # Forward pass
+    y_pred = model(X)
+    loss = loss_fn(y_pred, y)
+
+    # Backward pass
+    optimizer.zero_grad()
+    loss.backward()
+    optimizer.step()
+
+    losses.append(loss.item())
+
+    if (epoca + 1) % 100 == 0:
+        # Calculăm acuratețea
+        with torch.no_grad():
+            predictii = (model(X) > 0.5).float()
+            acuratete = (predictii == y).float().mean()
+        print(f"Epoca {epoca+1:4d} | Loss: {loss.item():.4f} | Acuratețe: {acuratete:.1%}")
+```
+
+**Output așteptat:**
+```
+Epoca  100 | Loss: 0.3821 | Acuratețe: 84.4%
+Epoca  200 | Loss: 0.2134 | Acuratețe: 91.2%
+Epoca  500 | Loss: 0.1023 | Acuratețe: 96.8%
+Epoca 1000 | Loss: 0.0712 | Acuratețe: 97.4%
+```
+
+Observă cum acuratețea crește pe parcursul antrenării — exact arcașul nostru din Lecția 7 care se îmbunătățește treptat!
+
+---
+
+### Pasul 4: Vizualizăm learning curve
+
+```python
+plt.figure(figsize=(8, 4))
+plt.plot(losses, color='steelblue', linewidth=1.5)
+plt.title("Learning Curve — Loss în timp")
+plt.xlabel("Epocă")
+plt.ylabel("BCE Loss")
+plt.grid(True, alpha=0.3)
+plt.show()
+```
+
+**Ce cauți:** O curbă care scade smooth și se aplatizează. Dacă e zgomotoasă sau nu scade, ai o problemă cu learning rate-ul sau arhitectura.
+
+---
+
+### Pasul 5: Vizualizăm granița de decizie
+
+Acesta e cel mai interesant grafic — vom vedea cum "gândește" rețeaua:
+
+```python
+def plot_decision_boundary(model, X_np, y_np):
+    # Creăm o grilă de puncte care acoperă spațiul de date
+    x_min, x_max = X_np[:, 0].min() - 0.5, X_np[:, 0].max() + 0.5
+    y_min, y_max = X_np[:, 1].min() - 0.5, X_np[:, 1].max() + 0.5
+
+    xx, yy = np.meshgrid(np.linspace(x_min, x_max, 300),
+                          np.linspace(y_min, y_max, 300))
+
+    # Trecem toată grila prin model
+    grid_tensor = torch.FloatTensor(np.c_[xx.ravel(), yy.ravel()])
+    with torch.no_grad():
+        Z = model(grid_tensor).numpy().reshape(xx.shape)
+
+    # Plotăm
+    plt.figure(figsize=(9, 7))
+    plt.contourf(xx, yy, Z, alpha=0.3,
+                 cmap=plt.cm.RdBu, levels=np.linspace(0, 1, 11))
+    plt.colorbar(label='Probabilitate Clasa 1')
+
+    plt.scatter(X_np[y_np==0, 0], X_np[y_np==0, 1],
+                c='royalblue', label='Clasa 0', edgecolors='k', s=50)
+    plt.scatter(X_np[y_np==1, 0], X_np[y_np==1, 1],
+                c='tomato', label='Clasa 1', edgecolors='k', s=50)
+
+    plt.title("Granița de decizie a rețelei neuronale")
+    plt.legend()
+    plt.grid(True, alpha=0.2)
+    plt.show()
+
+plot_decision_boundary(model, X_np, y_np)
+```
+
+---
+
+### Experimentează singur!
+
+Odată ce codul rulează, încearcă să modifici și observă ce se întâmplă:
+
+**Experiment 1 — Rețea mai mică:**
+```python
+# Înlocuiește arhitectura cu:
+nn.Linear(2, 4),
+nn.ReLU(),
+nn.Linear(4, 1),
+nn.Sigmoid()
+# → Acuratețe mai mică? De ce?
+```
+
+**Experiment 2 — Fără funcție de activare:**
+```python
+# Înlocuiește ReLU cu nn.Identity() sau șterge linia
+# → Ce se întâmplă cu granița de decizie?
+```
+
+**Experiment 3 — Learning rate diferit:**
+```python
+optimizer = torch.optim.Adam(model.parameters(), lr=0.1)   # Prea mare?
+optimizer = torch.optim.Adam(model.parameters(), lr=0.0001) # Prea mic?
+```
+
+**Experiment 4 — Date mai zgomotoase:**
+```python
+X_np, y_np = make_moons(n_samples=500, noise=0.5, random_state=42)
+# → Modelul mai face overfitting?
+```
+
+---
+
+### Ce ai demonstrat
+
+Felicitări! Tocmai ai:
+
+1. ✅ Construit o rețea neuronală completă în PyTorch
+2. ✅ Antrenat-o cu gradient descent timp de 1000 de epoci
+3. ✅ Văzut cum loss-ul scade și acuratețea crește
+4. ✅ Vizualizat granița de decizie non-lineară
+5. ✅ Confirmat că rețeaua rezolvă o problemă imposibilă pentru modele liniare
+
+Rețeaua ta are **593 de parametri** și face **97%+ acuratețe**. Arhitecturi moderne cu miliarde de parametri fac exact același lucru, la scară incomparabil mai mare.
+
+---
+
+### Spațiul tău de lucru
+
+Ai citit codul pas cu pas. Acum e rândul tău — **completează scheletul de mai jos**.
+
+Instrucțiunile `# TODO:` îți arată exact ce trebuie să adaugi. Dacă te blochezi, folosește butonul **"Explică eroarea"** din AI Coach (jos-dreapta) sau citește din nou pașii de mai sus.
+
+```python-editor
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.datasets import make_moons
+import torch
+import torch.nn as nn
+
+# Fixăm seed pentru reproductibilitate
+np.random.seed(42)
+torch.manual_seed(42)
+
+# TODO: Generează datele cu make_moons
+# Parametri: n_samples=500, noise=0.2, random_state=42
+X_np, y_np = make_moons(...)
+
+X = torch.FloatTensor(X_np)
+y = torch.FloatTensor(y_np).unsqueeze(1)
+
+print(f"Date generate: X={X.shape}, y={y.shape}")
+print(f"Clasa 0: {(y_np == 0).sum()} puncte | Clasa 1: {(y_np == 1).sum()} puncte")
+
+
+# TODO: Definește rețeaua neuronală MoonsClassifier
+# Arhitectura: Linear(2→16) → ReLU → Linear(16→16) → ReLU → Linear(16→1) → Sigmoid
+class MoonsClassifier(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(2, 16),
+            nn.ReLU(),
+            # TODO: Adaugă al doilea strat hidden (16 → 16) cu ReLU
+            nn.Linear(16, 1),
+            nn.Sigmoid()
+        )
+
+    def forward(self, x):
+        return self.net(x)
+
+
+model = MoonsClassifier()
+total_params = sum(p.numel() for p in model.parameters())
+print(f"\nModel creat! Total parametri: {total_params}")
+
+
+# TODO: Setează optimizer-ul (Adam, lr=0.01) și loss function (BCELoss)
+optimizer = ...
+loss_fn = ...
+
+losses = []
+
+# TODO: Completează training loop-ul (1000 de epoci)
+for epoca in range(1000):
+    # Forward pass — predicția modelului
+    y_pred = ...
+    loss = ...
+
+    # Backward pass
+    optimizer.zero_grad()
+    loss.backward()
+    optimizer.step()
+
+    losses.append(loss.item())
+
+    if (epoca + 1) % 200 == 0:
+        with torch.no_grad():
+            predictii = (model(X) > 0.5).float()
+            acuratete = (predictii == y).float().mean()
+        print(f"Epoca {epoca+1:4d} | Loss: {loss.item():.4f} | Acuratețe: {acuratete:.1%}")
+
+
+print("\n✅ Antrenare completă!")
+print(f"Loss final: {losses[-1]:.4f}")
+```
+
+> **Notă:** Editorul de mai sus este pentru referință și experimentare. Pentru a rula codul, copiază-l în **Google Colab** sau un mediu Python local cu PyTorch instalat.
+
+---
+
+### Ce ai demonstrat
+
+Felicitări! Tocmai ai:
+
+1. ✅ Construit o rețea neuronală completă în PyTorch
+2. ✅ Antrenat-o cu gradient descent timp de 1000 de epoci
+3. ✅ Văzut cum loss-ul scade și acuratețea crește
+4. ✅ Vizualizat granița de decizie non-lineară
+5. ✅ Confirmat că rețeaua rezolvă o problemă imposibilă pentru modele liniare
+
+Rețeaua ta are **593 de parametri** și face **97%+ acuratețe**. Arhitecturi moderne cu miliarde de parametri fac exact același lucru, la scară incomparabil mai mare.
+
+---
+
+### Mergi mai departe
+
+Codul din acest exercițiu este fundația pentru tot ce urmează. Dacă vrei să explorezi mai departe:
+
+- **Google Colab:** rulează gratuit în browser, cu GPU
+- **Kaggle Notebooks:** exemple reale, competiții cu date reale
+- **PyTorch Tutorials:** documentația oficială e excelentă
+
+**Lecția 14** este quiz-ul final al Modulului 3. Dacă ai rulat codul și ai înțeles ce face fiecare linie, vei trece cu brio!

@@ -1,0 +1,257 @@
+---
+title: "Tehnici de bază — zero-shot, few-shot, chain of thought"
+module: 5
+moduleTitle: "Prompt Engineering"
+type: theory
+order: 21
+---
+
+## Tehnici de bază — zero-shot, few-shot, chain of thought
+
+Există un set de tehnici de prompting care funcționează consistent pe orice LLM modern. Aceste tehnici nu sunt hack-uri — sunt bazate pe înțelegerea modului în care modelele procesează textul.
+
+---
+
+### Zero-Shot Prompting
+
+**Zero-Shot** înseamnă că îi dai modelului o instrucțiune fără niciun exemplu. Modelul se bazează exclusiv pe cunoștințele acumulate în antrenare.
+
+```python
+import openai
+
+client = openai.OpenAI()
+
+# Zero-shot: instrucțiune directă, fără exemple
+zero_shot_prompts = [
+    # Clasificare sentiment
+    """Clasifică sentimentul următorului review ca POZITIV, NEGATIV sau NEUTRU.
+    Review: "Produsul a ajuns repede dar cutia era ușor zdrobită."
+    Sentiment:""",
+
+    # Traducere
+    """Traduce în română formală:
+    "The quarterly results exceeded analyst expectations by 15%."
+    Traducere:""",
+
+    # Extracție
+    """Extrage toate adresele de email din textul următor. Dacă nu există, scrie "Niciuna".
+    Text: "Contact us at support@example.com or sales@company.ro for inquiries."
+    Emails:""",
+]
+
+for prompt in zero_shot_prompts:
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0
+    )
+    print(f"Prompt (primele 50 char): '{prompt[:50]}...'")
+    print(f"Răspuns: {response.choices[0].message.content}\n")
+```
+
+**Când funcționează zero-shot:**
+- Task-uri simple și bine definite
+- Modele mari (GPT-4, Claude 3 Sonnet+)
+- Instrucțiuni clare cu format de output specificat
+
+---
+
+### Few-Shot Prompting
+
+**Few-Shot** include câteva exemple (de obicei 2-5) în prompt pentru a "demonstra" formatul și tipul de răspuns dorit.
+
+```python
+# Few-shot: dai exemple input → output
+few_shot_prompt = """
+Convertește prețurile din dolari în lei (curs: 1 USD = 4.7 RON).
+Format output: "X USD = Y.YY RON"
+
+Exemple:
+Input: 10 USD
+Output: 10 USD = 47.00 RON
+
+Input: 2.50 USD
+Output: 2.50 USD = 11.75 RON
+
+Input: 100 USD
+Output: 100 USD = 470.00 RON
+
+Acum convertește:
+Input: 7.99 USD
+Output:"""
+
+# Few-shot pentru clasificare NER (Named Entity Recognition)
+few_shot_ner = """
+Extrage entitățile numite din text și clasifică-le ca PERSOANĂ, ORGANIZAȚIE, LOC sau DATĂ.
+Format: [ENTITATE: TIP]
+
+Exemplu:
+Text: "Elon Musk a fondat SpaceX în California în 2002."
+Entități: [Elon Musk: PERSOANĂ], [SpaceX: ORGANIZAȚIE], [California: LOC], [2002: DATĂ]
+
+Exemplu:
+Text: "Microsoft a achiziționat Activision Blizzard pentru 68.7 miliarde USD."
+Entități: [Microsoft: ORGANIZAȚIE], [Activision Blizzard: ORGANIZAȚIE]
+
+Acum extrage entitățile din:
+Text: "Andreea Pop de la Google Romania a prezentat proiectul la Cluj în martie 2024."
+Entități:"""
+
+# Few-shot funcționează mai bine decât zero-shot pentru:
+# - Task-uri cu format de output neobișnuit
+# - Clasificări cu categorii specifice domeniului
+# - Stiluri de scriere precise
+
+# Câte exemple?
+# 2-3 exemple: suficient pentru task-uri simple
+# 5-10 exemple: pentru task-uri complexe sau formate deosebite
+# 10+ exemple: mai bine fine-tune modelul
+```
+
+---
+
+### Chain-of-Thought (CoT) Prompting
+
+**Chain-of-Thought** cere modelului să "gândească pas cu pas" înainte de a da răspunsul final. Îmbunătățește semnificativ raționamentul pe probleme complexe.
+
+```python
+# Fără CoT — răspuns direct (deseori greșit la probleme complexe)
+without_cot = """
+Dacă am 3 cutii cu câte 8 mere fiecare, și dau jumătate din mere prietenilor mei
+care au 4 prieteni și fiecare primește același număr, câte mere primește fiecare prieten?
+Răspuns:"""
+
+# Cu CoT — "Let's think step by step"
+with_cot = """
+Dacă am 3 cutii cu câte 8 mere fiecare, și dau jumătate din mere prietenilor mei
+care au 4 prieteni și fiecare primește același număr, câte mere primește fiecare prieten?
+
+Să rezolvăm pas cu pas:
+Pasul 1:"""
+
+# Zero-Shot CoT — fraza "magică"
+zero_shot_cot = """
+Dacă trenul pleacă din București la ora 08:30 cu o viteză medie de 90 km/h
+și trebuie să parcurgă 270 km, la ce oră ajunge la destinație?
+
+Să gândim pas cu pas:"""
+
+# Few-Shot CoT — cele mai bune rezultate
+few_shot_cot = """
+Rezolvă problemele de matematică pas cu pas.
+
+Problemă: Maria are 15 bomboane. Dă 1/3 lui Ion și 2/5 din rest Anei. Câte îi rămân?
+Raționament:
+- Maria are 15 bomboane
+- Dă 1/3 lui Ion: 15 × 1/3 = 5 bomboane
+- Rămân: 15 - 5 = 10 bomboane
+- Dă 2/5 din rest Anei: 10 × 2/5 = 4 bomboane
+- Rămân lui Maria: 10 - 4 = 6 bomboane
+Răspuns: 6 bomboane
+
+Problemă: Un magazin are 120 produse. Vinde 40% luni, 25% din restul marți.
+Câte produse rămân?
+Raționament:"""
+```
+
+**De ce funcționează CoT?**
+1. Forțează modelul să "externalizeze" raționamentul în context
+2. Fiecare pas devine context pentru pasul următor
+3. Erorile pot fi detectate și corectate în mijlocul raționamentului
+4. Modelele mari beneficiază mai mult decât cele mici
+
+---
+
+### Self-Consistency
+
+O extensie a CoT: generezi **multiple lanțuri de raționament** și alegi răspunsul prin votul majorității.
+
+```python
+def self_consistency(problem: str, n_samples: int = 5) -> str:
+    """
+    Self-Consistency: rulează același prompt de N ori cu temperature > 0
+    Agregă răspunsurile prin votul majorității
+    """
+    from collections import Counter
+
+    responses = []
+    for i in range(n_samples):
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{
+                "role": "user",
+                "content": f"{problem}\n\nSă gândim pas cu pas:"
+            }],
+            temperature=0.7,  # Variație controlată între rulări
+            max_tokens=300
+        )
+        responses.append(response.choices[0].message.content)
+
+    # Extrage răspunsul final (simplificat)
+    final_answers = []
+    for r in responses:
+        lines = r.strip().split('\n')
+        final_answers.append(lines[-1])  # Ultima linie = răspunsul
+
+    # Votul majorității
+    answer_counts = Counter(final_answers)
+    most_common_answer = answer_counts.most_common(1)[0][0]
+
+    return f"Răspuns (majoritate din {n_samples} încercări): {most_common_answer}"
+
+# Self-Consistency crește acuratețea cu ~10-15% față de single-pass CoT
+# Dezavantaj: costă de N ori mai mult (N apeluri API)
+# Util pentru: probleme cu risc ridicat, verificare critică
+```
+
+---
+
+### ReAct — Reason + Act
+
+O tehnică avansată care combină raționamentul cu executarea de acțiuni:
+
+```python
+# ReAct pattern (simplificat)
+react_system_prompt = """
+Ai acces la uneltele: search_web, calculate, lookup_database.
+Pentru fiecare pas urmează formatul:
+Thought: [ce gândești despre situație]
+Action: [unealta de folosit și cu ce input]
+Observation: [rezultatul acțiunii]
+... (repetă dacă e necesar)
+Answer: [răspunsul final]
+
+Exemplu:
+Thought: Trebuie să aflu temperatura actuală în București.
+Action: search_web("temperatura actuala Bucuresti")
+Observation: 22°C, parțial noros
+Thought: Am răspunsul necesar.
+Answer: În București sunt actualmente 22°C cu cer parțial noros.
+"""
+
+# ReAct este fundamentul AI Agent-ilor moderni (Lecția 27)
+```
+
+---
+
+### Comparație tehnici
+
+| Tehnică | Tokeni extra | Îmbunătățire | Cazuri de utilizare |
+|---|---|---|---|
+| Zero-Shot | ~0 | baseline | Task-uri simple |
+| Few-Shot (3ex) | +300-500 | +15-25% | Format specific |
+| CoT | +50-100 | +20-40% (math) | Raționament complex |
+| Few-Shot + CoT | +500-1000 | +30-50% | Task-uri dificile |
+| Self-Consistency | ×N cost | +10-15% vs CoT | Precizie critică |
+
+---
+
+### Recapitulare
+
+✅ **Zero-Shot:** instrucțiune directă, fără exemple — funcționează pentru task-uri simple
+✅ **Few-Shot:** 2-10 exemple input→output — demonstrează formatul și stilul dorit
+✅ **Chain-of-Thought:** "pas cu pas" — îmbunătățește dramatic raționamentul matematic și logic
+✅ **Self-Consistency:** N rulări + vot majoritate — mai precis dar mai costisitor
+✅ **ReAct:** reason + act — fundamentul agenților AI cu acces la unelte
+
+**Lecția 22** adaugă un layer crucial: cum folosești rolurile (system prompt) pentru a crea asistenți specializați și a controla comportamentul modelului.

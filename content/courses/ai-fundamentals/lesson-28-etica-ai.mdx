@@ -1,0 +1,249 @@
+---
+title: "Etica în AI — bias, hallucinations, responsabilitate"
+module: 6
+moduleTitle: "Aplicații AI în Practică"
+type: theory
+order: 28
+---
+
+## Etica în AI — bias, hallucinations, responsabilitate
+
+Poți construi sisteme AI puternice. Dar puterea vine cu responsabilitate. Această lecție nu e despre teorie filozofică — e despre probleme reale cu impact real, pe care orice practician trebuie să le cunoască.
+
+---
+
+### Hallucinations — când AI-ul inventează
+
+**Hallucination** = modelul generează informații plauzibile dar false, cu aceeași "încredere" ca informațiile reale.
+
+```python
+# Exemple clasice de hallucinations:
+hallucination_examples = [
+    {
+        "prompt": "Cine a scris cartea 'Suflete de piatră' din 1985?",
+        "bad_response": "Cartea a fost scrisă de Ion Popescu, un autor român ...",
+        "problem": "Cartea poate să nu existe. Modelul a inventat titlu, autor și context.",
+        "fix": "Cere: 'Răspunde doar dacă ești sigur, altfel spune că nu știi.'"
+    },
+    {
+        "prompt": "Ce legi din România reglementează utilizarea dronelor?",
+        "bad_response": "Legea 123/2021 privind utilizarea dronelor stipulează că...",
+        "problem": "Numărul legii poate fi inventat. Referințele legale necesită verificare!",
+        "fix": "Niciodată nu folosi AI pentru informații juridice fără verificare la sursa oficială."
+    },
+]
+
+# Cum reduci hallucinations:
+mitigation_strategies = {
+    "grounding": "RAG — ancorează modelul în documente verificate (Lecția 26)",
+    "cot": "Chain-of-thought — raționamentul explicit reduce erorile logice",
+    "temperature_low": "temperature=0 pentru factual, 0.7 pentru creativ",
+    "ask_uncertainty": "Adaugă: 'Dacă nu ești sigur, spune că nu știi'",
+    "tool_use": "Tool use cu calculator/cod Python pentru matematică precisă",
+}
+```
+
+---
+
+### Bias — prejudecățile din date
+
+**Bias** = modelul produce rezultate sistematic diferite (incorecte sau inechitabile) pentru anumite grupuri.
+
+```python
+bias_types = {
+    "historical_bias": {
+        "description": "Bias din datele istorice reflectate în antrenare",
+        "exemplu": "CV-uri de candidați — dacă în trecut angajatorii preferau bărbați, "
+                  "un model antrenat pe aceste decizii va discrimina femei",
+        "impact": "Discriminare sistematică în hiring, creditare, justiție",
+    },
+    "representation_bias": {
+        "description": "Subreprezentarea unor grupuri în date de antrenare",
+        "exemplu": "Recunoaștere facială: antrenament pe majoritar caucazieni → "
+                  "erori mai mari pentru persoane de culoare (studiu NIST 2019)",
+        "impact": "Sisteme de securitate mai puțin precise pentru unele grupuri",
+    },
+    "language_bias": {
+        "description": "Limbi cu mai puțin corpus de antrenare sunt mai slabe",
+        "exemplu": "GPT-4 în română e mai puțin precis decât în engleză",
+        "impact": "Calitate inegală pentru utilizatori din țări mai mici",
+    },
+    "confirmation_bias": {
+        "description": "Modelul tinde să confirme premisele din prompt",
+        "exemplu": "Dacă întrebi 'De ce X e periculos?', poate genera argumente false",
+        "impact": "Amplificarea dezinformării",
+    },
+}
+
+# Cum detectezi bias:
+def audit_for_bias_demo():
+    """
+    Trimite aceeași cerere cu caracteristici demografice diferite.
+    Analizezi dacă există disparități sistematice în răspunsuri.
+    """
+    test_cases = [
+        {"candidate_name": "Ion Popescu", "gender": "M", "origin": "RO"},
+        {"candidate_name": "Maria Ionescu", "gender": "F", "origin": "RO"},
+        {"candidate_name": "Ahmed Hassan", "gender": "M", "origin": "MENA"},
+        {"candidate_name": "Sarah Johnson", "gender": "F", "origin": "US"},
+    ]
+
+    # Trimite același CV cu nume diferite, compară scorurile primite
+    # Dacă există diferențe sistematice → bias detectat
+    results = {}
+    for case in test_cases:
+        # response = model.evaluate_cv(case)
+        # results[case["candidate_name"]] = response["score"]
+        pass
+
+    return results
+```
+
+---
+
+### Privacy și Confidențialitate
+
+```python
+privacy_risks = {
+    "training_data_memorization": {
+        "description": "LLM-urile pot 'memora' și reproduce date private din antrenare",
+        "risc": "Scurgere de date personale, medicale, financiare",
+        "mitigare": "Nu trimite date sensibile la modele publice",
+    },
+    "prompt_data_leakage": {
+        "description": "Datele din prompt pot fi stocate și folosite pentru antrenare",
+        "exemplu": "ChatGPT (fără opt-out) poate folosi conversațiile pentru antrenare",
+        "mitigare": "Enterprise API (fără antrenare pe date), modele self-hosted",
+    },
+    "inference_attacks": {
+        "description": "Din comportamentul modelului se pot deduce date de antrenare",
+        "mitigare": "Differential privacy în antrenare",
+    },
+}
+
+# Bune practici de privacy:
+best_practices = [
+    "Nu trimite PII (Personally Identifiable Information) la modele publice",
+    "Anonimizează datele înainte de procesare AI",
+    "Folosește OpenAI Enterprise sau Azure OpenAI pentru date confidențiale",
+    "Configurează opt-out din antrenare (OpenAI: settings → data controls)",
+    "Stochează chei API în environment variables, nu în cod",
+]
+```
+
+---
+
+### Deepfakes și Dezinformare
+
+```python
+ai_misuse_categories = {
+    "deepfakes_video": {
+        "tehnologie": "Diffusion models, GANs",
+        "utilizare_rau": "Video fake cu personaje publice (politicieni, celebrități)",
+        "impact": "Dezinformare politică, șantaj, știri false",
+        "detectie": "Watermarking C2PA, detectoare specializate (Hive, deepware.ai)",
+    },
+    "deepfakes_audio": {
+        "tehnologie": "Voice cloning (ElevenLabs, XTTS)",
+        "utilizare_rau": "Escrocherii telefonice ('mama, am nevoie de bani urgent')",
+        "impact": "Fraude financiare, manipulare emoțională",
+        "detectie": "Analiza spectrogramă, inconsistențe de fundal",
+    },
+    "synthetic_text": {
+        "tehnologie": "LLM-uri (ChatGPT, Llama)",
+        "utilizare_rau": "Spam la scară, phishing personalizat, dezinformare",
+        "impact": "Copleșirea sistemelor de moderare, manipulare opinii",
+        "detectie": "Detectoare AI text (GPTZero, Originality.ai) — imperfecte!",
+    },
+}
+
+# Cum te aperi personal:
+defense_personal = [
+    "Verifică sursele primare pentru știri importante",
+    "Fii sceptic față de conținut emoțional extrem sau urgentă artificială",
+    "Verifică metadate și proveniența imaginilor/videoclipurilor",
+    "Sunat înapoi persoanele care cer bani de urgență — verifică identitatea",
+]
+```
+
+---
+
+### EU AI Act — cadrul legal european
+
+```python
+eu_ai_act = {
+    "efectiv_din": "August 2024 (parțial); complet 2026",
+    "scop": "Primul cadru legal comprehensiv pentru AI din lume",
+
+    "categorii_risc": {
+        "inacceptabil_interzis": [
+            "Scoring social generalizat de stat",
+            "Manipulare subliminală",
+            "Recunoaștere facială în timp real în spații publice (cu excepții)",
+        ],
+        "inalt_risc_reglementat": [
+            "AI în educație (evaluare automată a studenților)",
+            "AI în hiring (screening CV-uri automat)",
+            "AI în credit scoring",
+            "AI în sisteme judiciare",
+            "AI în infrastructuri critice",
+        ],
+        "risc_limitat_transparenta": [
+            "Chatbots — trebuie să informezi că e AI",
+            "Deepfakes generate — trebuie marcate ca sintetice",
+        ],
+        "risc_minim_liber": [
+            "Filtre spam",
+            "Sisteme de recomandare produse",
+        ],
+    },
+
+    "amenzi_maxime": {
+        "interzis_neconform": "35 milioane EUR sau 7% din cifra de afaceri globală",
+        "inalt_risc_neconform": "15 milioane EUR sau 3%",
+        "informatii_incorecte": "7.5 milioane EUR sau 1.5%",
+    }
+}
+```
+
+---
+
+### Principii pentru AI Responsabil
+
+```python
+responsible_ai_checklist = [
+    "☐ Am identificat toți utilizatorii și grupurile afectate de sistem?",
+    "☐ Am testat pentru bias pe grupe demografice relevante?",
+    "☐ Utilizatorii știu că interacționează cu AI?",
+    "☐ Există mecanism uman de contestare a deciziilor AI?",
+    "☐ Am obținut consimțământ pentru colectarea și procesarea datelor?",
+    "☐ Datele sensibile sunt protejate adecvat (criptare, access control)?",
+    "☐ Am un plan pentru când sistemul eșuează sau produce output dăunător?",
+    "☐ Am documentat limitele și cazurile în care NU trebuie folosit sistemul?",
+    "☐ Există logging și auditability pentru deciziile luate de AI?",
+    "☐ Sistemul respectă reglementările locale (GDPR, EU AI Act)?",
+]
+
+# Principii internaționale (UNESCO, OECD):
+principles = {
+    "fairness":       "Tratament echitabil, indiferent de caracteristici demografice",
+    "transparency":   "Utilizatorii știu că interacționează cu AI",
+    "accountability": "Există o entitate responsabilă pentru sistemul AI",
+    "privacy":        "Date personale protejate, colectare minimă",
+    "safety":         "Sistemul nu poate cauza daune fizice sau psihologice",
+    "explainability": "Deciziile pot fi explicate — critică în medical/juridic",
+    "robustness":     "Sistemul rezistă la input adversarial și edge cases",
+}
+```
+
+---
+
+### Recapitulare
+
+✅ **Hallucinations:** modele inventează cu aparentă încredere — verifică sursele, folosește RAG
+✅ **Bias:** prejudecăți din date → discriminare sistematică — testează activ pentru disparități
+✅ **Privacy:** nu trimite PII la modele publice — enterprise API pentru date sensibile
+✅ **Deepfakes:** conținut sintetic realist — verifică surse, fii sceptic față de urgențe false
+✅ **EU AI Act:** cadrul legal european — cunoaște categoria de risc a produsului tău
+
+**Lecția 29** te pregătește practic pentru piața muncii: ce skills contează, ce roluri există, cum îți construiești un portofoliu AI.

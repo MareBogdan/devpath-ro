@@ -1,0 +1,345 @@
+---
+title: "OpenAI API — cum funcționează, ce poți construi"
+module: 6
+moduleTitle: "Aplicații AI în Practică"
+type: theory
+order: 25
+---
+
+## OpenAI API — cum funcționează, ce poți construi
+
+Ai învățat teoria. Ai exersat prompt-urile. Acum facem saltul crucial: **construiești aplicații AI reale** cu OpenAI API. Acesta este modulul care te transformă din "utilizator ChatGPT" în "builder AI".
+
+---
+
+### Autentificare și setup
+
+```python
+# Instalare:
+# pip install openai python-dotenv
+
+import os
+from openai import OpenAI
+from dotenv import load_dotenv
+
+load_dotenv()  # Citește .env fișierul
+
+# NICIODATĂ nu hardcoda cheia în cod!
+client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+
+# Structura cheii: sk-proj-... (noile chei) sau sk-... (chei vechi)
+# Generare: platform.openai.com → API Keys → Create new secret key
+# Securitate: adaugă .env în .gitignore!
+```
+
+---
+
+### Chat Completions — endpoint-ul principal
+
+```python
+# Cel mai folosit endpoint: gpt-4o-mini pentru cost-eficiență
+# gpt-4o pentru calitate maximă
+
+# Apel simplu
+def simple_chat(user_message: str) -> str:
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "user", "content": user_message}
+        ]
+    )
+    return response.choices[0].message.content
+
+# Apel complet cu toți parametrii relevanți
+def full_chat(
+    system: str,
+    messages: list,
+    model: str = "gpt-4o-mini",
+    temperature: float = 0.7,
+    max_tokens: int = 1000,
+    n: int = 1,  # câte variante să genereze
+    stop: list = None,  # tokeni de oprire
+) -> dict:
+    all_messages = [{"role": "system", "content": system}] + messages
+
+    response = client.chat.completions.create(
+        model=model,
+        messages=all_messages,
+        temperature=temperature,
+        max_tokens=max_tokens,
+        n=n,
+        stop=stop,
+    )
+
+    return {
+        "content": response.choices[0].message.content,
+        "tokens_used": {
+            "prompt": response.usage.prompt_tokens,
+            "completion": response.usage.completion_tokens,
+            "total": response.usage.total_tokens,
+        },
+        "finish_reason": response.choices[0].finish_reason,
+        # "stop" = răspuns complet, "length" = tăiat la max_tokens
+    }
+
+result = full_chat(
+    system="Ești un expert în Python. Răspunzi concis.",
+    messages=[{"role": "user", "content": "Ce e un decorator?"}]
+)
+print(result["content"])
+print(f"Tokeni folosiți: {result['tokens_used']}")
+```
+
+---
+
+### Streaming — răspuns token cu token
+
+```python
+# Fără streaming: aștepți 3-10 secunde, primești tot odată
+# Cu streaming: primești textul pe măsură ce e generat (UX mult mai bun)
+
+def stream_response(prompt: str) -> None:
+    """Afișează răspunsul token cu token, ca ChatGPT"""
+    stream = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": prompt}],
+        stream=True,  # ← Activează streaming
+    )
+
+    print("Răspuns: ", end="", flush=True)
+    full_response = ""
+    for chunk in stream:
+        if chunk.choices[0].delta.content is not None:
+            token = chunk.choices[0].delta.content
+            print(token, end="", flush=True)
+            full_response += token
+
+    print()  # Newline la final
+    return full_response
+
+stream_response("Explică recursivitatea în 3 propoziții.")
+```
+
+---
+
+### Tool Use (Function Calling)
+
+Permite modelului să "apeleze funcții" din codul tău — fundamentul agenților AI:
+
+```python
+import json
+
+# 1. Definești uneltele disponibile
+tools = [
+    {
+        "type": "function",
+        "function": {
+            "name": "get_weather",
+            "description": "Obține temperatura actuală pentru un oraș",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "city": {
+                        "type": "string",
+                        "description": "Orașul, ex: 'București'"
+                    },
+                    "unit": {
+                        "type": "string",
+                        "enum": ["celsius", "fahrenheit"],
+                        "description": "Unitatea de temperatură"
+                    }
+                },
+                "required": ["city"]
+            }
+        }
+    }
+]
+
+# 2. Implementarea reală a funcției
+def get_weather(city: str, unit: str = "celsius") -> dict:
+    # În realitate: apel la API meteo
+    return {"city": city, "temperature": 22, "unit": unit, "condition": "Însorit"}
+
+# 3. Loop-ul de tool use
+def chat_with_tools(user_message: str) -> str:
+    messages = [{"role": "user", "content": user_message}]
+
+    while True:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=messages,
+            tools=tools,
+            tool_choice="auto"
+        )
+
+        msg = response.choices[0].message
+
+        # Dacă modelul vrea să apeleze o funcție
+        if msg.tool_calls:
+            messages.append(msg)  # Adaugă decizia modelului
+
+            for tool_call in msg.tool_calls:
+                func_name = tool_call.function.name
+                func_args = json.loads(tool_call.function.arguments)
+
+                # Execută funcția
+                if func_name == "get_weather":
+                    result = get_weather(**func_args)
+                else:
+                    result = {"error": f"Funcție necunoscută: {func_name}"}
+
+                # Trimite rezultatul înapoi modelului
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": tool_call.id,
+                    "content": json.dumps(result)
+                })
+        else:
+            # Modelul a terminat — returnează răspunsul final
+            return msg.content
+
+print(chat_with_tools("Care e temperatura în Cluj acum?"))
+```
+
+---
+
+### Embeddings — text ca vectori
+
+```python
+# Embeddings = reprezentare numerică a semnificației textului
+# Texte similare ca sens → vectori apropiați în spațiu
+
+def get_embedding(text: str) -> list[float]:
+    response = client.embeddings.create(
+        model="text-embedding-3-small",  # Cel mai eficient
+        input=text
+    )
+    return response.data[0].embedding  # Vector de 1536 dimensiuni
+
+# Aplicații:
+# 1. Căutare semantică (nu keyword!)
+# 2. Clustering documente similare
+# 3. Fundația pentru RAG (Lecția 26)
+
+import numpy as np
+
+def cosine_similarity(a: list[float], b: list[float]) -> float:
+    """Similitudine cosinus: 1.0 = identic, 0.0 = fără legătură, -1.0 = opus"""
+    a, b = np.array(a), np.array(b)
+    return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
+
+# Exemplu: similitudine semantică
+texts = [
+    "Câinele aleargă în parc.",
+    "Pisica doarme pe canapea.",
+    "Un câine aleargă afară.",  # Similar cu primul!
+]
+
+embeddings = [get_embedding(t) for t in texts]
+
+for i in range(len(texts)):
+    for j in range(i+1, len(texts)):
+        sim = cosine_similarity(embeddings[i], embeddings[j])
+        print(f"'{texts[i][:30]}' vs '{texts[j][:30]}': {sim:.3f}")
+
+# Output:
+# 'Câinele aleargă în parc.' vs 'Pisica doarme pe canapea.': 0.71
+# 'Câinele aleargă în parc.' vs 'Un câine aleargă afară.': 0.94  ← similar!
+```
+
+---
+
+### Vision API — analiza imaginilor
+
+```python
+import base64
+
+def analyze_image_url(image_url: str, question: str) -> str:
+    """Analizează o imagine de la URL"""
+    response = client.chat.completions.create(
+        model="gpt-4o",  # Vision necesită gpt-4o sau gpt-4-turbo
+        messages=[{
+            "role": "user",
+            "content": [
+                {"type": "text", "text": question},
+                {"type": "image_url", "image_url": {"url": image_url}}
+            ]
+        }],
+        max_tokens=300
+    )
+    return response.choices[0].message.content
+
+def analyze_local_image(image_path: str, question: str) -> str:
+    """Analizează o imagine locală (base64)"""
+    with open(image_path, "rb") as f:
+        image_data = base64.b64encode(f.read()).decode("utf-8")
+
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[{
+            "role": "user",
+            "content": [
+                {"type": "text", "text": question},
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"data:image/jpeg;base64,{image_data}",
+                        "detail": "high"  # "low" = mai rapid/ieftin, "high" = detaliat
+                    }
+                }
+            ]
+        }]
+    )
+    return response.choices[0].message.content
+```
+
+---
+
+### Gestionarea erorilor și rate limits
+
+```python
+import time
+from openai import RateLimitError, APIConnectionError, APIStatusError
+
+def robust_api_call(messages: list, max_retries: int = 3) -> str:
+    """Apel API robust cu retry exponential"""
+    for attempt in range(max_retries):
+        try:
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=messages,
+                timeout=30  # 30 secunde timeout
+            )
+            return response.choices[0].message.content
+
+        except RateLimitError as e:
+            if attempt < max_retries - 1:
+                wait_time = 2 ** attempt  # 1s, 2s, 4s
+                print(f"Rate limit atins. Aștept {wait_time}s...")
+                time.sleep(wait_time)
+            else:
+                raise
+
+        except APIConnectionError as e:
+            print(f"Eroare conexiune: {e}. Retry {attempt + 1}/{max_retries}")
+            time.sleep(1)
+
+        except APIStatusError as e:
+            if e.status_code == 400:
+                raise ValueError(f"Bad request: {e.message}")
+            raise  # Re-raise pentru erori neașteptate
+
+    raise Exception("Max retries atinse")
+```
+
+---
+
+### Recapitulare
+
+✅ **Chat Completions:** endpoint-ul principal — model, messages, temperature, max_tokens
+✅ **Streaming:** primești textul token cu token → UX mult mai bun
+✅ **Tool Use:** modelul "apelează funcții" din codul tău → fundația agenților AI
+✅ **Embeddings:** text→vector, pentru căutare semantică și RAG
+✅ **Vision:** analiză imagini cu gpt-4o — URL sau base64
+
+**Lecția 26** intră în detaliu în RAG (Retrieval Augmented Generation) — cum construiești un chatbot care "știe" conținut din propriile tale documente.

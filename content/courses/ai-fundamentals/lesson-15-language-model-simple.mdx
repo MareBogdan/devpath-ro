@@ -1,0 +1,114 @@
+---
+title: "Ce este un Language Model"
+module: 4
+moduleTitle: "Language Models și ChatGPT"
+type: theory
+order: 15
+---
+
+## Ce este un Language Model — cum prezice următorul cuvânt
+
+Bun venit în Modulul 4! Dacă modulele anterioare au explicat cum "gândesc" mașinile în general, acesta se concentrează pe cea mai revoluționară aplicație a AI-ului de azi: modelele de limbaj. ChatGPT, Claude, Gemini — toate sunt language models.
+
+Dar cum funcționează ele, de fapt?
+
+---
+
+### Predicția cuvântului următor — ideea simplă din spatele magiei
+
+Imaginează-ți că joci un joc cu prietenii. Unul spune un fragment de frază: "A fost odată ca niciodată, într-o..." Tu trebuie să ghicești cuvântul următor. Probabil ai spune "pădure" sau "țară" sau "împărăție" — nu "calculator" sau "pizza".
+
+De ce? Pentru că ai citit sute de povești românești. Creierul tău a "memorat" ce cuvinte vin de obicei după ce alte cuvinte în contextul poveștilor.
+
+Un Language Model face exact același lucru — dar la o scară uriașă. A "citit" practic tot internetul: cărți, articole, conversații, cod, știri. A văzut de miliarde de ori ce cuvânt urmează după ce alt cuvânt în ce context.
+
+Când îi scrii ceva, el prezice ce cuvânt urmează — mereu și mereu — până formează un răspuns complet.
+
+---
+
+### De la jucărie la revoluție — cum a evoluat ideea
+
+Imaginează-ți că în 1950, un cercetător construiește un sistem care poate prezice cuvântul următor dintr-un text, dar cu un dicționar de 1.000 de cuvinte și "memorie" de un singur cuvânt anterior. Poate completa texte simple.
+
+Zeci de ani mai târziu, același principiu dar cu un vocabular de 50.000 de cuvinte și memorie de 10 cuvinte anterioare. Textele generate devin mai coerente.
+
+Și mai târziu — acelasi principiu, cu vocabular de 100.000 de cuvinte, memorie de mii de cuvinte anterioare și sute de miliarde de parametri. Deodată, sistemul poate traduce limbi, poate scrie cod, poate explica concepte complexe, poate purta conversații profunde.
+
+Magia nu e în principiu — e în **scala**. Când adaugi suficiente date și suficientă putere de calcul, ceva surprinzător se întâmplă: sistemul care "prezice cuvântul următor" pare că *înțelege*.
+
+---
+
+### Ce știe un Language Model despre tine
+
+Imaginează-ți că angajezi un asistent care a citit 10 milioane de cărți și 500 de milioane de articole în toate limbile, dar nu a trăit niciodată o zi din viața lui. Știe teoretic totul despre cum e să fii îndrăgostit, despre cum să repari o mașină, despre fizica cuantică. Dar nu a simțit niciodată nimic din toate astea.
+
+Acesta e un Language Model. Cunoașterea lui e vastă dar "din hârtie" — a absorbit ce au scris oamenii, nu ce au trăit. De aceea poate scrie un poem emoționant fără să fi simțit vreodată emoție, și poate explica durerea fără să o fi experimentat.
+
+---
+
+### Cum răspunde la întrebările tale
+
+Imaginează-ți că pui o întrebare: "Care e capitala Franței?"
+
+Modelul nu caută în o bază de date. Nu are un index de "capitale ale lumii". El privește întrebarea ta și calculează: "Dat fiind acest text, care e cel mai probabil cuvânt următor? Și urmând aceluia, care e al doilea cel mai probabil? Și tot așa."
+
+Prin miliarde de ajustări în antrenare, s-a "descoperit" că după "Care e capitala Franței?" urmează cel mai probabil "Paris" — pentru că în miliarde de texte din antrenare, propoziții despre capitala Franței erau urmate de "Paris".
+
+Cunoașterea nu e stocată ca o tabelă — e distribuită în miliarde de parametri, ca niște "amintiri" implicite din tot ce a citit.
+
+---
+
+### Limite reale și de ce contează
+
+Imaginează-ți că asistentul tău care a citit 10 milioane de cărți a terminat de citit în 2023 și nu a mai citit nimic de atunci. Dacă îl întrebi despre un eveniment din 2024 — habar nu are.
+
+Aceasta e limita de cunoaștere temporală. Language Models au o dată de "tăiere" — după care nu știu nimic. ChatGPT din 2024 nu știe despre evenimentele din 2025.
+
+Mai sunt și alte limite: inventarea faptelor (halucinații), inconsistența în calcule matematice complexe, incapacitatea de a verifica informațiile în timp real (fără tool-uri speciale) și dificultatea cu raționamentul formal lung.
+
+Cunoașterea acestor limite te ajută să folosești Language Models mult mai eficient — știi când să ai încredere și când să verifici.
+
+---
+
+### De ce Language Models schimbă totul
+
+Imaginează-ți că înainte de căutarea Google, dacă voiai o informație trebuia să mergi la bibliotecă, să cauți în fișiere, să ceri unui bibliotecar. Democratizarea accesului la informație a schimbat lumea.
+
+Language Models democratizează accesul la **expertiza**. Înainte, dacă aveai o întrebare juridică, trebuia să angajezi un avocat. O întrebare medicală — un medic. O problemă de cod — un programator.
+
+Acum poți consulta un sistem care are cunoașterea echivalentă a mii de experți, disponibil 24/7, gratuit sau la cost minimal. Asta e o schimbare fundamentală.
+
+Nu înlocuiește expertul uman — pentru decizii importante, tot vrei un avocat real sau un medic real. Dar democratizează accesul la un prim nivel de expertiză pentru toată lumea.
+
+---
+
+### Recapitulare
+
+Un Language Model este un sistem care prezice cel mai probabil cuvânt următor, antrenat pe cantități uriașe de text. Principiul e simplu — predicția cuvântului următor. La scala necesară, acest principiu produce sisteme care par să înțeleagă. Cunoașterea e distribuită în miliarde de parametri, nu stocată ca o bază de date. Limitele reale: dată de tăiere, halucinații, calcule matematice inconsistente. Language Models democratizează accesul la expertiză — schimbare fundamentală pentru toată lumea.
+
+---
+
+```flashcards
+[
+  {
+    "front": "Care e principiul fundamental din spatele unui Language Model?",
+    "back": "Predicția cuvântului următor. Antrenat pe cantități imense de text, modelul a 'memorat' ce cuvinte urmează după ce alte cuvinte în ce contexte."
+  },
+  {
+    "front": "Cum răspunde un Language Model la întrebări?",
+    "back": "Nu caută într-o bază de date. Calculează iterativ cel mai probabil cuvânt următor, bazat pe tot ce a 'citit' în antrenare."
+  },
+  {
+    "front": "Ce este limita de cunoaștere temporală?",
+    "back": "Language Models au o dată de 'tăiere' după care nu au informații noi. Nu știu despre evenimente recente față de data antrenării."
+  },
+  {
+    "front": "Ce sunt halucinațiile unui Language Model?",
+    "back": "Inventarea de fapte cu mare încredere. Modelul nu 'știe' că inventează — prezice ce urmează plausibil, chiar dacă e incorect."
+  },
+  {
+    "front": "De ce Language Models schimbă accesul la expertiză?",
+    "back": "Democratizează accesul la un prim nivel de expertiză (juridic, medical, tehnic) pentru toată lumea, 24/7, la cost minimal."
+  }
+]
+```

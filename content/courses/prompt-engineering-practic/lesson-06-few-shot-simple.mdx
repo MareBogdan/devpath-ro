@@ -1,0 +1,99 @@
+---
+title: "Few-Shot Prompting"
+module: 2
+type: theory
+order: 6
+---
+
+# Few-Shot Prompting
+
+Gândește-te la modul în care înveți un copil să facă ceva nou.
+
+Poți să îi explici în detaliu cum se face un nod la șiret — sau poți pur și simplu să îi arăți de două ori. Cel mai adesea, a vedea exemple este mai eficient decât orice explicație verbală.
+
+**Few-shot prompting funcționează exact pe același principiu.** În loc să descrii în cuvinte cum vrei să arate răspunsul, arăți 2-3 exemple concrete și modelul înțelege pattern-ul.
+
+## Zero-shot vs. Few-shot — când să alegi ce
+
+**Zero-shot** (fără exemple) funcționează bine când:
+- Task-ul este standard (traducere, rezumat, întrebare directă)
+- Formatul dorit este obișnuit (paragraf, listă numerotată)
+- Nu ai un stil specific pe care vrei să îl reproduci
+
+**Few-shot** (cu exemple) este mai bun când:
+- Vrei un stil, ton sau format specific care nu se explică ușor în cuvinte
+- Ai categorii nestandard de clasificare
+- Vrei consistență în mai multe răspunsuri similare
+- Zero-shot nu produce exact ce ai nevoie
+
+## Structura simplă a unui prompt few-shot
+
+```
+Iată ce vreau să obțin:
+
+Exemplu 1:
+Input: [ceva de procesat]
+Output: [cum vrei să arate rezultatul]
+
+Exemplu 2:
+Input: [alt ceva de procesat]
+Output: [cum arată rezultatul]
+
+Acum procesează:
+Input: [ce vrei tu de fapt]
+Output:
+```
+
+## Exemple din viața reală
+
+**Vrei să scrii descrieri de produse în stilul tău:**
+
+```
+Scriem descrieri scurte, directe, fără adjective goale. Maxim 2 propoziții.
+
+Exemplu 1:
+Produs: Termos 500ml
+Descriere: "Menține temperatura 12h. Capac ermetig, fără scurgeri — testat în rucsac."
+
+Exemplu 2:
+Produs: Carnet note
+Descriere: "160 de pagini. Hârtie care nu lasă cerneala să treacă. Coperta rezistă."
+
+Acum scrie pentru:
+Produs: Lampă de birou LED
+Descriere:
+```
+
+**Vrei să clasifici emailuri în funcție de urgența lor:**
+
+```
+Clasifică emailurile ca: Urgent (răspuns azi), Normal (răspunde în 48h), Poate Aștepta (săptămâna aceasta).
+
+Exemplu 1:
+Email: "Clientul A sună repetat, nu poate accesa contul și are prezentare mâine."
+Clasificare: Urgent
+
+Exemplu 2:
+Email: "Newsletter de la un partener despre evenimentul lor din luna viitoare."
+Clasificare: Poate Aștepta
+
+Acum clasifică:
+Email: "Furnizorul nostru a modificat prețurile, noua listă de prețuri e atașată."
+Clasificare:
+```
+
+## Câte exemple ai nevoie?
+
+De obicei 2-3 exemple sunt suficiente. Mai mult de 5 rareori schimbă semnificativ rezultatul și lungesc prompt-ul inutil.
+
+Dacă cu 2 exemple modelul tot nu înțelege pattern-ul, mai adaugă 1-2 și asigură-te că exemplele sunt diverse (acoperă variații ale situației).
+
+## Sfat practic
+
+Cele mai bune exemple pentru few-shot sunt din munca ta reală — emailuri pe care le-ai scris, texte pe care le-ai aprobat, clasificări pe care le-ai făcut. Acestea conțin automat stilul tău și cerințele specifice ale contextului tău.
+
+## Concluzie
+
+Few-shot prompting este tehnica pe care o folosești când zero-shot nu produce exact ce ai nevoie. Simplu, eficient, fără magie tehnică — doar câteva exemple bine alese.
+
+Lecția viitoare introduce o tehnică puternică pentru probleme complexe: Chain of Thought — cum să ghidezi modelul să gândească pas cu pas.

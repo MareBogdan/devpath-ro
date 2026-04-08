@@ -1,0 +1,248 @@
+---
+title: "Exercițiu practic — scrie 5 prompturi și compară rezultatele"
+module: 5
+moduleTitle: "Prompt Engineering"
+type: exercise
+order: 23
+---
+
+## Exercițiu practic — scrie 5 prompturi și compară rezultatele
+
+Teoria e clară: zero-shot, few-shot, chain-of-thought, system prompts. Acum vine partea care contează — **practica**. Scrie cod real, trimite apeluri API reale, compară rezultate reale.
+
+---
+
+### Setup: instalare și configurare
+
+Înainte să începi, ai nevoie de o cheie API OpenAI sau Groq (gratuit cu modele Llama).
+
+```python
+# Instalare (rulează în terminal):
+# pip install openai python-dotenv
+
+import os
+from openai import OpenAI
+
+# Variantă 1: OpenAI (necesită cont cu credit)
+client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+MODEL = "gpt-4o-mini"
+
+# Variantă 2: Groq (gratuit, modele Llama)
+# pip install groq
+# from groq import Groq
+# client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
+# MODEL = "llama-3.1-8b-instant"
+
+def ask(prompt: str, system: str = None, temperature: float = 0.7) -> str:
+    """Helper simplu pentru apeluri API"""
+    messages = []
+    if system:
+        messages.append({"role": "system", "content": system})
+    messages.append({"role": "user", "content": prompt})
+
+    response = client.chat.completions.create(
+        model=MODEL,
+        messages=messages,
+        temperature=temperature,
+        max_tokens=500
+    )
+    return response.choices[0].message.content
+```
+
+---
+
+### Exercițiul 1: Zero-Shot vs Few-Shot
+
+**Task:** Clasificare de tonalitate pentru review-uri de produse (POZITIV / NEGATIV / NEUTRU)
+
+```python
+reviews = [
+    "Bateria ține 2 zile! Mult mai bine decât mă așteptam.",
+    "Nici nu a funcționat din cutie. Total dezamăgit.",
+    "Produsul a ajuns în termen. Nimic special.",
+    "Materialul e ok dar mai scump decât ar merita.",
+    "Absolut fantastic, l-am recomandat deja la 5 prieteni!",
+]
+
+# PROMPT A: Zero-Shot simplu
+def zero_shot_classify(review: str) -> str:
+    return ask(
+        f"Clasifică sentimentul: POZITIV, NEGATIV sau NEUTRU.\nReview: {review}\nSentiment:",
+        temperature=0
+    )
+
+# PROMPT B: Zero-Shot cu instrucțiuni detaliate
+def zero_shot_detailed(review: str) -> str:
+    return ask(
+        f"""Ești un analist de sentiment. Clasifică review-ul ca:
+- POZITIV: dacă clientul e mulțumit sau laudă produsul
+- NEGATIV: dacă clientul e nemulțumit sau critică produsul
+- NEUTRU: dacă nu exprimă o opinie clară sau e mixt
+
+Review: "{review}"
+Răspunde DOAR cu un cuvânt: POZITIV, NEGATIV sau NEUTRU.""",
+        temperature=0
+    )
+
+# PROMPT C: Few-Shot cu 3 exemple
+def few_shot_classify(review: str) -> str:
+    return ask(
+        f"""Clasifică sentimentul review-urilor ca POZITIV, NEGATIV sau NEUTRU.
+
+Review: "Calitate excelentă, livrare rapidă!"
+Sentiment: POZITIV
+
+Review: "S-a stricat după 2 zile. Nu recomand."
+Sentiment: NEGATIV
+
+Review: "Produs standard, fără surprize."
+Sentiment: NEUTRU
+
+Review: "{review}"
+Sentiment:""",
+        temperature=0
+    )
+
+# COMPARĂ REZULTATELE:
+print(f"{'Review':<45} {'A':>8} {'B':>8} {'C':>8}")
+print("=" * 72)
+for review in reviews:
+    a = zero_shot_classify(review)
+    b = zero_shot_detailed(review)
+    c = few_shot_classify(review)
+    print(f"{review[:45]:<45} {a.strip():>8} {b.strip():>8} {c.strip():>8}")
+```
+
+---
+
+### Exercițiul 2: Chain-of-Thought pentru raționament
+
+**Task:** Probleme de logică matematică
+
+```python
+problems = [
+    "Ana are 24 de ore pe zi. Doarme 8h, lucrează 9h, mănâncă 1.5h, face sport 1h. Câte ore libere are?",
+    "Un magazin scade prețul de la 150 RON cu 20%, apoi crește prețul redus cu 10%. Care e prețul final?",
+    "Dacă 5 mașini produc 5 unități în 5 minute, câte unități produc 100 de mașini în 100 de minute?",
+]
+
+def no_cot(problem: str) -> str:
+    return ask(problem + "\nRăspuns:", temperature=0)
+
+def with_cot(problem: str) -> str:
+    return ask(problem + "\n\nSă rezolvăm pas cu pas:", temperature=0)
+
+def few_shot_cot(problem: str) -> str:
+    return ask(f"""Rezolvă problemele pas cu pas.
+
+Problemă: Dacă am 3 mere și cumpăr de 4 ori mai multe, câte am în total?
+Raționament:
+- Pornesc cu 3 mere
+- Cumpăr de 4 ori mai multe decât am: 3 × 4 = 12 mere noi
+- Total: 3 + 12 = 15 mere
+Răspuns: 15 mere
+
+Problemă: {problem}
+Raționament:""", temperature=0)
+
+for prob in problems:
+    print(f"\nProblemă: {prob}")
+    print(f"  Fără CoT:    {no_cot(prob)}")
+    print(f"  Cu CoT:      {with_cot(prob)[:120]}...")
+    print(f"  FS + CoT:    {few_shot_cot(prob)[:120]}...")
+```
+
+---
+
+### Exercițiul 3: System Prompt — schimbarea personalității
+
+**Task:** Explică același concept în stiluri diferite
+
+```python
+concept = "Ce este un algoritm?"
+
+system_prompts = {
+    "copil_6_ani": "Explici concepte complexe unui copil de 6 ani. Folosești analogii cu jocuri. Max 3 propoziții.",
+    "student_facultate": "Ești profesor universitar de informatică. Explici riguros cu terminologie precisă.",
+    "manager_business": "Explici concepte tehnice unui manager. Zero jargon. Focus pe valoare practică.",
+}
+
+for persona, system in system_prompts.items():
+    response = ask(concept, system=system, temperature=0.7)
+    print(f"\n[{persona.upper()}]:")
+    print(response)
+    print("-" * 40)
+```
+
+---
+
+### Exercițiul 4: Format de output structurat
+
+**Task:** Extracție de informații din text liber → JSON
+
+```python
+import json
+
+texts = [
+    "Angajăm senior developer Python la TechCorp București, salariu 5000-7000 EUR net, remote posibil, 5+ ani experiență.",
+    "Ofertă job: Junior Frontend (React), Iași, 2000-3000 RON, student sau absolvent, full-time birou.",
+]
+
+def extract_json(text: str) -> dict:
+    response = ask(
+        f"""Extrage informațiile despre job ca JSON valid.
+Schema: {{"titlu": string, "locatie": string, "salariu_min": number|null,
+"salariu_max": number|null, "valuta": "EUR"|"RON", "remote": boolean, "nivel": "junior"|"mid"|"senior"}}
+
+Text: {text}
+JSON:""",
+        temperature=0
+    )
+    try:
+        return json.loads(response)
+    except json.JSONDecodeError:
+        return {"error": "Parse failed", "raw": response[:100]}
+
+for text in texts:
+    print(f"\nText: {text[:60]}...")
+    result = extract_json(text)
+    print(f"JSON: {json.dumps(result, ensure_ascii=False, indent=2)}")
+```
+
+---
+
+### Exercițiul 5: Îmbunătățire iterativă a unui prompt
+
+**Task:** Generare de funcție Python — 3 versiuni de prompt
+
+```python
+# Versiunea 1: Vag
+v1 = "Scrie cod Python care sortează o listă."
+
+# Versiunea 2: Mai specific
+v2 = "Scrie o funcție Python care sortează o listă de dicționare după o cheie specificată."
+
+# Versiunea 3: Cu specificații complete
+v3 = """Scrie o funcție Python cu:
+- Numele: sort_by_key(lst, key, reverse=False)
+- Parametri cu type hints
+- Gestionează KeyError (returnează lista nemodificată)
+- Docstring în română
+- 2 exemple de utilizare în comentarii
+Fără importuri inutile, fără bloc __main__."""
+
+for i, prompt in enumerate([v1, v2, v3], 1):
+    print(f"\n[VERSIUNEA {i}]: {prompt[:60]}...")
+    print(ask(prompt, temperature=0))
+    print("-" * 40)
+```
+
+---
+
+### Recap exercițiu
+
+✅ Zero-shot vs Few-shot: few-shot produce format mai consistent
+✅ Chain-of-Thought: esențial pentru raționament matematic
+✅ System prompt: schimbă dramatic stilul și audiența targetată
+✅ Format structurat: JSON specificat → output parseabil programatic
+✅ Iterare prompt: fiecare versiune mai specifică → output mai bun și predictibil

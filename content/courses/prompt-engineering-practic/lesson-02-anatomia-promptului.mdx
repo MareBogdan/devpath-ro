@@ -1,0 +1,164 @@
+---
+title: "Anatomia unui Prompt Bun"
+module: 1
+type: theory
+order: 2
+---
+
+# Anatomia unui Prompt Bun
+
+Un arhitect nu desenează o clădire la întâmplare. El urmează un proces: fundație, structură, instalații, finisaje. Fiecare element are un rol precis și ordinea contează.
+
+La fel stau lucrurile cu prompt-urile. Un prompt eficient nu este o propoziție aruncată la întâmplare — este o structură cu componente bine definite, fiecare cu rolul ei în ghidarea modelului spre răspunsul dorit.
+
+## Cele 4 componente ale unui prompt
+
+Cercetătorii de la OpenAI și Google au documentat că prompt-urile performante conțin, de regulă, patru componente:
+
+### 1. Rolul (Persona)
+
+Definești **cine este** modelul în contextul task-ului tău. Aceasta activează pattern-uri specifice din cunoașterea modelului și calibrează tonul, vocabularul și perspectiva.
+
+```
+Ești un avocat specializat în dreptul muncii din România.
+```
+
+```
+Ești un copywriter cu 10 ani experiență în e-commerce.
+```
+
+```
+Ești un profesor de matematică pentru clasele 5-8.
+```
+
+**De ce funcționează?** Modelul a văzut în training mii de texte scrise de avocați, copywriteri și profesori. Când specifici rolul, activezi acele pattern-uri și ajustezi automat stilul, precizia și perspectiva răspunsului.
+
+### 2. Contextul
+
+Furnizezi **informațiile de fundal** de care modelul are nevoie dar pe care nu le poate ghici singur: situația ta specifică, audiența, constrângerile, istoricul relevant.
+
+```
+Context: Am un magazin online de produse bio cu 500 de clienți activi.
+Rata de deschidere a emailurilor mele este de 18% (sub media industriei de 25%).
+Trimit newsletter săptămânal, de obicei joi dimineață.
+```
+
+**Regulă de aur:** Tot ce știi și modelul nu știe, dar ar trebui să știe pentru a răspunde bine — acolo intră contextul.
+
+### 3. Instrucțiunea (Task-ul)
+
+**Ce vrei exact să facă** modelul. Aceasta este inima prompt-ului. Folosește verbe de acțiune clare și fii specific în parametri.
+
+Slab: "Ajută-mă cu emailurile mele."
+
+Bun: "Scrie 3 variante de subject line pentru newsletter-ul de joi. Fiecare să fie sub 50 de caractere, să creeze curiozitate fără clickbait, și să fie relevant pentru produse bio de primăvară."
+
+**Verbe utile pentru instrucțiuni:** listează, compară, analizează, creează, reformulează, rezumă, evaluează, explică, traduce, optimizează, generează, structurează.
+
+### 4. Formatul output-ului
+
+Specifici **cum vrei să arate răspunsul**: structura, lungimea, stilul, limbajul.
+
+```
+Format: Tabel cu 3 coloane (Avantaj / Dezavantaj / Scor 1-10).
+Maxim 5 rânduri. Scurt, fără explicații suplimentare.
+```
+
+```
+Format: Email formal de business. Introducere 1 propoziție,
+corp 2 paragrafe de câte 3 propoziții, closing 1 propoziție.
+Ton profesional, nu excesiv de formal.
+```
+
+## Un prompt complet — exemplu pas cu pas
+
+Să construim un prompt complet pentru o situație reală:
+
+**Situație:** Ești manager și trebuie să dai un feedback dificil unui angajat care întârzie frecvent la ședințe.
+
+**Fără structură:**
+
+```
+Ajută-mă să îi spun unui angajat că întârzie prea mult.
+```
+
+**Cu toate cele 4 componente:**
+
+```
+ROL: Ești un coach de leadership specializat în comunicare managerială non-violentă.
+
+CONTEXT: Sunt manager de echipă de 8 persoane. Un angajat talentat tehnic întârzie
+la 70% din ședințe, câte 5-15 minute. Am evitat să discutăm direct până acum.
+Vreau să rezolv situația fără să îi afectez motivația sau relația de lucru.
+
+TASK: Scrie un script pentru o conversație directă de 5 minute în care adresez
+problema, explic impactul, cer perspective și agreăm un plan de îmbunătățire.
+
+FORMAT: Structurat în 4 secțiuni: Deschidere, Problema + Impact, Dialog deschis,
+Concluzie + acord. Fiecare secțiune: 2-3 propoziții model + note de ton în italice.
+```
+
+Diferența de calitate a răspunsului este dramatică.
+
+## Ordinea componentelor
+
+Nu există o ordine obligatorie, dar o secvență care funcționează bine este:
+
+1. **ROL** (prima) — setează perspectiva pentru tot ce urmează
+2. **CONTEXT** — oferă informațiile de fundal
+3. **TASK** — instrucțiunea principală
+4. **FORMAT** (ultima) — specifică output-ul dorit
+
+## Template universal
+
+Salvează-ți acest template și adaptează-l la orice situație:
+
+```
+ROL: Ești [rolul/expertiza dorită].
+
+CONTEXT: [Situația ta specifică, audiența, constrângerile relevante].
+
+TASK: [Verbul de acțiune + ce anume + parametri specifici].
+
+FORMAT: [Structura, lungimea, stilul, tonul răspunsului].
+```
+
+## Când poți omite componente?
+
+**Poți omite Rolul** când task-ul este simplu și nu necesită expertiză specifică:
+
+```
+Traduce în engleză: "Bună dimineața, ce mai faci?"
+```
+
+**Poți omite Contextul** când situația este auto-explicativă din instrucțiune:
+
+```
+Listează capitalele tuturor țărilor din Uniunea Europeană.
+```
+
+**Nu omite niciodată Instrucțiunea** — aceasta este esența prompt-ului.
+
+**Poți omite Formatul** pentru răspunsuri conversaționale simple, dar specifică-l oricând ai nevoie de structură, lungime sau stil precis.
+
+## Exerciții practice
+
+**Exercițiu 1 — Construiește de la zero:**
+Alege una din situațiile de mai jos și construiește un prompt cu toate 4 componente:
+- Vrei ajutor pentru a negocia o mărire de salariu
+- Trebuie să scrii o reclamație la o firmă de curierat
+- Vrei să explici unui prieten de 60 de ani ce este un NFT
+
+**Exercițiu 2 — Disecă un prompt real:**
+Ia ultimul prompt pe care l-ai trimis unui model AI. Identifică ce componente lipsesc și adaugă-le. Compară calitatea răspunsului.
+
+**Exercițiu 3 — Template rapid:**
+Creează un template personalizat pentru cele mai frecvente 3 tipuri de task-uri pe care le faci cu AI. Salvează-le undeva accesibil — vei economisi timp de fiecare dată.
+
+## Concluzie
+
+Anatomia unui prompt nu este o regulă rigidă — este un framework. Odată ce înțelegi rolul fiecărei componente, poți adapta, comprima sau extinde după nevoie.
+
+Practicienii experți ajung să scrie prompt-uri excelente și fără să gândească explicit la fiecare componentă — structura devine intuitivă. Dar pentru a ajunge acolo, trebuie să o practici conștient mai întâi.
+
+**Următoarea lecție:** Cele mai frecvente greșeli de prompting — și cum să le eviți.

@@ -1,0 +1,149 @@
+---
+title: "Zero-Shot Prompting"
+module: 1
+type: theory
+order: 4
+---
+
+# Zero-Shot Prompting
+
+Zero-shot prompting este cea mai simplă și, paradoxal, cea mai des subutilizată tehnică de prompting. Ideea este directă: **dai o instrucțiune fără niciun exemplu** și te aștepți ca modelul să execute corect.
+
+Termenul "zero-shot" vine din machine learning: un model zero-shot poate performa un task fără să fi văzut exemple specifice ale acelui task în training. Pentru LLM-uri moderne, aceasta este norma — nu excepția.
+
+## Cum funcționează zero-shot?
+
+Modelele de limbaj mari au văzut în training o cantitate imensă de text care include instrucțiuni și răspunsuri corespunzătoare. Această expunere le permite să generalizeze și să execute task-uri noi fără să li se arate exemple specifice.
+
+Când trimiți un prompt zero-shot precum:
+
+```
+Clasifică sentimentul acestui review ca Pozitiv, Negativ sau Neutru:
+"Produsul a ajuns în 2 zile, ambalajul era intact, dar calitatea materialului e sub așteptări."
+```
+
+Modelul nu a văzut neapărat acest review exact, dar a văzut mii de exemple de clasificare sentiment și poate aplica acel pattern imediat.
+
+## Când funcționează excelent zero-shot?
+
+**1. Task-uri de clasificare și categorisire:**
+```
+Clasifică aceste cheltuieli în categorii: Alimentație, Transport, Utilități, Divertisment, Altele.
+1. Factura Enel - 180 lei
+2. Carrefour - 320 lei
+3. Uber - 45 lei
+4. Netflix - 35 lei
+5. Medicamente - 85 lei
+```
+
+**2. Transformări de text (traducere, rezumare, reformulare):**
+```
+Rezumă textul următor în maxim 3 propoziții, menținând ideile principale:
+[text de rezumat]
+```
+
+**3. Extracție de informații:**
+```
+Extrage din textul următor: numele persoanei, funcția, compania și emailul de contact.
+[text cu informații]
+```
+
+**4. Răspunsuri la întrebări factuale clare:**
+```
+Care sunt cele mai recente 5 președinte ale SUA în ordine inversă?
+```
+
+**5. Generare simplă de conținut cu format specificat:**
+```
+Scrie 5 subject lines pentru un newsletter despre productivitate. Fiecare pe un rând.
+Sub 60 de caractere. Ton profesional dar accesibil.
+```
+
+## Tehnici de îmbunătățire zero-shot
+
+Chiar fără exemple, poți îmbunătăți dramatic calitatea unui prompt zero-shot prin:
+
+**Adăugarea unui rol:**
+```
+Ești un expert în cybersecurity cu 15 ani experiență.
+Explică ce este un atac de tip phishing pentru angajații unei bănci care nu au background tehnic.
+```
+
+**Specificarea publicului țintă:**
+```
+Explică ce este inflația pentru un elev de clasa a 8-a din România, fără termeni economici complecși.
+```
+
+**Folosirea instrucțiunilor meta (cum să răspundă):**
+```
+Răspunde concis. Fii direct. Evită introducerile lungi. Folosește exemple concrete.
+Explică diferența dintre SQL și NoSQL.
+```
+
+**Adăugarea constrângerilor:**
+```
+Sugerează 3 cărți despre psihologie comportamentală.
+Constrângeri: disponibile în traducere română, publicate după 2010, accesibile non-specialiștilor.
+```
+
+## Limitele zero-shot
+
+Zero-shot nu funcționează bine în toate situațiile:
+
+**1. Task-uri care necesită un stil sau format foarte specific:**
+Dacă vrei ca modelul să scrie în stilul tău personal, în stilul brand-ului tău sau să urmeze un template specific, ai nevoie de exemple (few-shot — lecția 6).
+
+**2. Sarcini complexe cu multiple constrângeri:**
+Când ai 10+ constrângeri specifice, probabilitatea ca modelul să le respecte pe toate scade semnificativ. Uneori e mai eficient să dai 1-2 exemple decât să listezi 15 constrângeri.
+
+**3. Clasificări cu categorii nestandardizate:**
+```
+Clasifică aceste interacțiuni client ca: Urgentă-Frustrare-Escaladare, Neutru-Informațional,
+Pozitiv-Fidelizare-Potențial sau Negativ-Risc-Churn.
+```
+Cu categorii atât de specifice, un exemplu pentru fiecare categorie va produce rezultate mult mai bune.
+
+**4. Reproducerea unui format complex:**
+Dacă vrei să reproduci structura exactă a unui raport intern sau a unui template specific, copierea unui exemplu (few-shot) este mai eficientă decât descrierea detaliată a formatului.
+
+## Zero-shot vs. alte tehnici — când să alegi ce
+
+| Situație | Tehnică recomandată |
+|---|---|
+| Task simplu și standard | Zero-shot |
+| Format sau stil specific | Few-shot (cu 2-3 exemple) |
+| Raționament complex | Chain of Thought |
+| Expertiză de nișă | Role prompting |
+| Output cu structură complexă | Zero-shot cu format detaliat sau few-shot |
+
+## Exerciții practice
+
+**Exercițiu 1 — Testează limitele:**
+Trimite același task cu două prompt-uri: unul zero-shot simplu și unul zero-shot îmbunătățit (cu rol + public + constrângeri). Compară rezultatele.
+
+Task: "Explică ce este un contract de muncă pe perioadă determinată."
+
+Versiunea simplă:
+```
+Ce este un contract de muncă pe perioadă determinată?
+```
+
+Versiunea îmbunătățită:
+```
+Ești un avocat specializat în dreptul muncii din România.
+Explică ce este un contract de muncă pe perioadă determinată pentru un tânăr de 22 ani
+care primește primul său job.
+Accent pe: drepturi, riscuri și ce să verifice înainte de a semna.
+Format: 4 puncte numerotate, fiecare de maxim 2 propoziții.
+```
+
+**Exercițiu 2 — Construiește un prompt zero-shot complet:**
+Alege un task din munca ta de zi cu zi și construiește un prompt zero-shot cu: rol, audiență, instrucțiune clară, constrângeri, format.
+
+## Concluzie
+
+Zero-shot prompting este fundamentul oricărei interacțiuni eficiente cu AI. Modelele moderne sunt remarcabil de capabile să execute task-uri diverse fără exemple — dacă instrucțiunea este clară, specifică și bine structurată.
+
+Când zero-shot nu este suficient — de obicei pentru stiluri specifice sau formate complexe — avansezi la few-shot prompting, subiectul Modulului 2.
+
+**Ai completat Modulul 1!** Înainte să avansezi, testează-ți cunoștințele la quiz-ul următor.
