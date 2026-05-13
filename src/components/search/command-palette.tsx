@@ -35,6 +35,9 @@ const lessonTypeLabels: Record<string, string> = {
   quiz: "Quiz",
   exercise: "Exercițiu",
   project: "Proiect",
+  lesson: "Teorie",
+  lab: "Exercițiu",
+  boss: "Proiect",
 };
 
 const lessonTypeColors: Record<string, string> = {
@@ -42,6 +45,9 @@ const lessonTypeColors: Record<string, string> = {
   quiz: "bg-purple-500/15 text-purple-400",
   exercise: "bg-orange-500/15 text-orange-400",
   project: "bg-green-500/15 text-green-400",
+  lesson: "bg-blue-500/15 text-blue-400",
+  lab: "bg-orange-500/15 text-orange-400",
+  boss: "bg-green-500/15 text-green-400",
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────

@@ -44,8 +44,6 @@ interface LessonPageClientProps {
   isCompleted: boolean;
   nextLessonId: string | null;
   contentMd: string;
-  contentSimpleMd: string | null;
-  learningMode: "simple" | "technical";
   lessonType: string;
   lessonOrder?: number;
   gateQuestions: GateQuestion[];
@@ -64,8 +62,6 @@ export function LessonPageClient({
   isCompleted,
   nextLessonId,
   contentMd,
-  contentSimpleMd,
-  learningMode,
   lessonType,
   lessonOrder,
   gateQuestions,
@@ -96,7 +92,7 @@ export function LessonPageClient({
   const [minigame, setMinigame] = useState<{ gameType: MinigameType } | null>(null);
   const [postGameNextId, setPostGameNextId] = useState<string | null>(null);
 
-  const isTheory = lessonType === "theory";
+  const isTheory = lessonType === "theory" || lessonType === "lesson";
   const effectiveReadingComplete = isTheory ? hasReachedEnd : true;
   const effectiveGateComplete = isTheory ? gateComplete : true;
 
@@ -132,8 +128,6 @@ export function LessonPageClient({
 
       <LessonContent
         content={contentMd}
-        contentSimpleMd={contentSimpleMd}
-        learningMode={learningMode}
         lessonType={lessonType}
         lessonOrder={lessonOrder}
       />
@@ -169,7 +163,6 @@ export function LessonPageClient({
 
       <LessonFeedback
         lessonId={lessonId}
-        learningMode={learningMode}
         show={lessonCompleted}
         alreadySubmitted={feedbackAlreadySubmitted}
       />

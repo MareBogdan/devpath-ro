@@ -7,6 +7,11 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import type { Course } from "@/types";
 import { CertificateDownloadButton } from "@/components/course/certificate-download-button";
+import {
+  getDifficultyColor,
+  getDifficultyLabel,
+  type DifficultyColor,
+} from "@/lib/difficulty";
 
 interface CourseCardProps {
   course: Course;
@@ -14,25 +19,19 @@ interface CourseCardProps {
   totalLessons: number;
 }
 
-const difficultyStyles: Record<string, string> = {
-  beginner:
+const difficultyStyles: Record<DifficultyColor, string> = {
+  green:
     "bg-green-100 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-400 dark:border-green-900",
-  intermediate:
+  yellow:
     "bg-yellow-100 text-yellow-700 border-yellow-200 dark:bg-yellow-950 dark:text-yellow-400 dark:border-yellow-900",
-  advanced:
+  red:
     "bg-red-100 text-red-700 border-red-200 dark:bg-red-950 dark:text-red-400 dark:border-red-900",
 };
 
-const difficultyIconColor: Record<string, string> = {
-  beginner: "bg-green-100 dark:bg-green-950 text-green-600 dark:text-green-400",
-  intermediate: "bg-yellow-100 dark:bg-yellow-950 text-yellow-600 dark:text-yellow-400",
-  advanced: "bg-red-100 dark:bg-red-950 text-red-600 dark:text-red-400",
-};
-
-const difficultyLabels: Record<string, string> = {
-  beginner: "Începător",
-  intermediate: "Intermediar",
-  advanced: "Avansat",
+const difficultyIconColor: Record<DifficultyColor, string> = {
+  green: "bg-green-100 dark:bg-green-950 text-green-600 dark:text-green-400",
+  yellow: "bg-yellow-100 dark:bg-yellow-950 text-yellow-600 dark:text-yellow-400",
+  red: "bg-red-100 dark:bg-red-950 text-red-600 dark:text-red-400",
 };
 
 export function CourseCard({
@@ -77,7 +76,7 @@ export function CourseCard({
               "p-3 rounded-xl",
               isCompleted
                 ? "bg-green-100 dark:bg-green-950 text-green-600 dark:text-green-400"
-                : difficultyIconColor[course.difficulty]
+                : difficultyIconColor[getDifficultyColor(course.difficulty)]
             )}
           >
             {isCompleted ? (
@@ -98,10 +97,10 @@ export function CourseCard({
             <span
               className={cn(
                 "text-xs font-medium border rounded-full px-2.5 py-0.5",
-                difficultyStyles[course.difficulty]
+                difficultyStyles[getDifficultyColor(course.difficulty)]
               )}
             >
-              {difficultyLabels[course.difficulty] ?? course.difficulty}
+              {getDifficultyLabel(course.difficulty)}
             </span>
           </div>
         </div>

@@ -21,12 +21,19 @@ export interface Course {
   slug: string;
   title: string;
   description: string;
-  difficulty: "beginner" | "intermediate" | "advanced";
+  difficulty: number;
   is_free: boolean;
   order_index: number;
 }
 
-export type LessonType = "theory" | "quiz" | "exercise" | "project";
+export type LessonType =
+  | "theory"
+  | "quiz"
+  | "exercise"
+  | "project"
+  | "lesson"
+  | "lab"
+  | "boss";
 
 export interface Lesson {
   id: string;
@@ -38,6 +45,8 @@ export interface Lesson {
   solution_code: string | null;
   order_index: number;
   video_url: string | null;
+  is_published: boolean;
+  module_index: number | null;
 }
 
 export interface UserProgress {

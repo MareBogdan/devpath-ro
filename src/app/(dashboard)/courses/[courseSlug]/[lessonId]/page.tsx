@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
@@ -12,7 +13,6 @@ import {
   Clock,
 } from "lucide-react";
 import { LessonPageClient } from "@/components/course/lesson-page-client";
-import { ModeToggle } from "@/components/course/mode-toggle";
 import { BookmarkButton } from "@/components/course/bookmark-button";
 import { QuizSection } from "@/components/course/quiz-section";
 import { AICoachChat } from "@/components/course/ai-coach-chat";
@@ -31,6 +31,9 @@ const lessonTypeIcon: Record<string, React.ElementType> = {
   quiz: HelpCircle,
   exercise: Wrench,
   project: FolderOpen,
+  lesson: FileText,
+  lab: Wrench,
+  boss: FolderOpen,
 };
 
 const lessonTypeBg: Record<string, string> = {
@@ -38,6 +41,9 @@ const lessonTypeBg: Record<string, string> = {
   quiz: "bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-400",
   exercise: "bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-400",
   project: "bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-400",
+  lesson: "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400",
+  lab: "bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-400",
+  boss: "bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-400",
 };
 
 const lessonTypeLabels: Record<string, string> = {
@@ -45,6 +51,9 @@ const lessonTypeLabels: Record<string, string> = {
   quiz: "Quiz",
   exercise: "Exercițiu",
   project: "Proiect",
+  lesson: "Teorie",
+  lab: "Exercițiu",
+  boss: "Proiect",
 };
 
 interface GateQuestion {
@@ -96,7 +105,7 @@ export default async function LessonPage({ params }: PageProps) {
   const nextLesson =
     currentIndex < lessons.length - 1 ? lessons[currentIndex + 1] : null;
 
-  // Fetch user's completion status + learning mode
+  // Fetch user's completion status + level
   const [progressResult, userProfileResult] = await Promise.all([
     user
       ? supabase
@@ -109,28 +118,29 @@ export default async function LessonPage({ params }: PageProps) {
     user
       ? supabase
           .from("users")
-          .select("learning_mode, level")
+          .select("level")
           .eq("id", user.id)
           .single()
       : Promise.resolve({ data: null }),
   ]);
 
   const isCompleted = progressResult.data?.completed ?? false;
-  const learningMode: "simple" | "technical" =
-    (userProfileResult.data?.learning_mode as "simple" | "technical") ??
-    "simple";
   const userLevel: number = (userProfileResult.data?.level as number | null | undefined) ?? 1;
 
-  // Fetch gate questions (theory lessons only)
-  const { data: gateQuestionsRaw } =
-    lesson.type === "theory"
-      ? await supabase
-          .from("lesson_gate_questions")
-          .select("id, question, options, correct_answer, explanation")
-          .eq("lesson_id", lessonId)
-          .in("mode", [learningMode, "both"])
-          .order("display_order")
-      : { data: [] };
+  const isTheoryLike = lesson.type === "theory" || lesson.type === "lesson";
+  const isExerciseLike = lesson.type === "exercise" || lesson.type === "lab";
+  const isProjectLike = lesson.type === "project" || lesson.type === "boss";
+
+  // Fetch gate questions (theory-like lessons only)
+  // Dual-mode retired: load technical + both-mode questions, skip simple-only.
+  const { data: gateQuestionsRaw } = isTheoryLike
+    ? await supabase
+        .from("lesson_gate_questions")
+        .select("id, question, options, correct_answer, explanation")
+        .eq("lesson_id", lessonId)
+        .in("mode", ["technical", "both"])
+        .order("display_order")
+    : { data: [] };
 
   const gateQuestions = (gateQuestionsRaw ?? []) as GateQuestion[];
 
@@ -163,9 +173,9 @@ export default async function LessonPage({ params }: PageProps) {
   const avatarUrl =
     (user?.user_metadata?.avatar_url as string | null | undefined) ?? null;
 
-  // Fetch existing project submission (project lessons only)
+  // Fetch existing project submission (project-like lessons only)
   const { data: existingProject } =
-    lesson.type === "project" && user
+    isProjectLike && user
       ? await supabase
           .from("projects")
           .select("id")
@@ -184,18 +194,12 @@ export default async function LessonPage({ params }: PageProps) {
           .order("id")
       : { data: [] };
 
-  // Reading time estimate
-  const wpm = learningMode === "simple" ? 150 : 100;
-  const contentForWordCount =
-    learningMode === "simple" && lesson.content_simple_md
-      ? lesson.content_simple_md
-      : lesson.content_md;
-  const readingTime =
-    lesson.type === "theory"
-      ? Math.max(1, Math.ceil(contentForWordCount.split(/\s+/).length / wpm))
-      : lesson.type === "quiz"
-      ? 5
-      : 15;
+  // Reading time estimate (technical wpm)
+  const readingTime = isTheoryLike
+    ? Math.max(1, Math.ceil(lesson.content_md.split(/\s+/).length / 100))
+    : lesson.type === "quiz"
+    ? 5
+    : 15;
 
   const TypeIcon = lessonTypeIcon[lesson.type] ?? FileText;
   const typeBg = lessonTypeBg[lesson.type] ?? lessonTypeBg.theory;
@@ -208,7 +212,7 @@ export default async function LessonPage({ params }: PageProps) {
           {/* ← Back to course + breadcrumb */}
           <nav className="flex items-center gap-1.5 text-sm text-muted-foreground min-w-0">
             <Link
-              href={`/courses/${courseSlug}`}
+              href={`/courses?c=${courseSlug}`}
               className="inline-flex items-center gap-1 shrink-0 font-medium text-muted-foreground hover:text-foreground transition"
             >
               <ChevronLeft className="h-3.5 w-3.5" />
@@ -235,7 +239,7 @@ export default async function LessonPage({ params }: PageProps) {
               <TypeIcon className="h-3 w-3" />
               {lessonTypeLabels[lesson.type] ?? lesson.type}
             </span>
-            {lesson.type === "theory" && (
+            {isTheoryLike && (
               <span className="hidden sm:inline-flex items-center gap-1 text-xs text-muted-foreground">
                 <Clock className="h-3 w-3" />~{readingTime} min
               </span>
@@ -252,12 +256,6 @@ export default async function LessonPage({ params }: PageProps) {
                 initialBookmarked={!!bookmark}
               />
             )}
-            {lesson.type === "theory" && (
-              <ModeToggle
-                currentMode={learningMode}
-                hasSimpleContent={!!lesson.content_simple_md}
-              />
-            )}
           </div>
         </div>
       </div>
@@ -269,16 +267,14 @@ export default async function LessonPage({ params }: PageProps) {
             {lesson.title}
           </h1>
 
-          {/* Theory lessons: client wrapper handles content + gate + complete */}
-          {lesson.type === "theory" && user && (
+          {/* Theory-like lessons: client wrapper handles content + gate + complete */}
+          {isTheoryLike && user && (
             <LessonPageClient
               lessonId={lessonId}
               courseSlug={courseSlug}
               isCompleted={isCompleted}
               nextLessonId={nextLesson?.id ?? null}
               contentMd={lesson.content_md}
-              contentSimpleMd={lesson.content_simple_md ?? null}
-              learningMode={learningMode}
               lessonType={lesson.type}
               lessonOrder={lesson.order_index}
               gateQuestions={gateQuestions}
@@ -306,16 +302,14 @@ export default async function LessonPage({ params }: PageProps) {
             />
           )}
 
-          {/* Exercise / Project lessons: show content + complete button */}
-          {(lesson.type === "exercise" || lesson.type === "project") && user && (
+          {/* Exercise / Project lessons (incl. lab/boss): show content + complete button */}
+          {(isExerciseLike || isProjectLike) && user && (
             <LessonPageClient
               lessonId={lessonId}
               courseSlug={courseSlug}
               isCompleted={isCompleted}
               nextLessonId={nextLesson?.id ?? null}
               contentMd={lesson.content_md}
-              contentSimpleMd={null}
-              learningMode={learningMode}
               lessonType={lesson.type}
               lessonOrder={lesson.order_index}
               gateQuestions={[]}
@@ -327,8 +321,8 @@ export default async function LessonPage({ params }: PageProps) {
             />
           )}
 
-          {/* Project submission form */}
-          {lesson.type === "project" && user && (
+          {/* Project submission form (project + boss) */}
+          {isProjectLike && user && (
             <ProjectSubmissionForm
               courseId={course.id}
               existingProjectId={existingProject?.id ?? null}
@@ -341,11 +335,13 @@ export default async function LessonPage({ params }: PageProps) {
       {user && (
         <div className="px-6 pb-8">
           <div className="max-w-3xl mx-auto">
-            <LessonComments
-              lessonId={lessonId}
-              userLevel={userLevel}
-              userId={user.id}
-            />
+            <Suspense fallback={<div className="h-32 rounded-xl bg-muted/40 animate-pulse" />}>
+              <LessonComments
+                lessonId={lessonId}
+                userLevel={userLevel}
+                userId={user.id}
+              />
+            </Suspense>
           </div>
         </div>
       )}
@@ -384,7 +380,7 @@ export default async function LessonPage({ params }: PageProps) {
               </Link>
             ) : (
               <Link
-                href={`/courses/${courseSlug}`}
+                href={`/courses?c=${courseSlug}`}
                 className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition"
               >
                 <ChevronLeft className="h-4 w-4" />

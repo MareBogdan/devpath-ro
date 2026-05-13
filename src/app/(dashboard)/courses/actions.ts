@@ -89,18 +89,15 @@ export async function markLessonComplete(
 
   if (error) return { ...EMPTY_RESULT, error: error.message };
 
-  // Fetch user data (learning_mode + streak data)
+  // Fetch user data (streak data)
   const { data: userData } = await supabase
     .from("users")
-    .select("last_active, streak_count, learning_mode")
+    .select("last_active, streak_count")
     .eq("id", user.id)
     .single();
 
   // ─── Lesson XP ────────────────────────────────────────────────────────────
-  const xpEventType: XPEventType =
-    userData?.learning_mode === "technical"
-      ? "lesson_complete_technical"
-      : "lesson_complete_simple";
+  const xpEventType: XPEventType = "lesson_complete";
 
   const xpResult = await awardXP(user.id, xpEventType).catch(() => null);
 
@@ -203,32 +200,10 @@ export async function markLessonComplete(
   };
 }
 
-// ─── Update Learning Mode ─────────────────────────────────────────────────────
-
-export async function updateLearningMode(
-  mode: "simple" | "technical"
-): Promise<{ error?: string }> {
-  const supabase = createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { error: "Unauthorized" };
-
-  const { error } = await supabase
-    .from("users")
-    .update({ learning_mode: mode })
-    .eq("id", user.id);
-
-  if (error) return { error: error.message };
-
-  revalidatePath("/courses", "layout");
-  return {};
-}
-
 // ─── Award Gate XP ────────────────────────────────────────────────────────────
 
 export async function awardGateXP(
-  questionId: string,
+  _questionId: string,
   lessonId: string
 ): Promise<void> {
   const supabase = createSupabaseServerClient();
@@ -261,8 +236,6 @@ export async function awardGateXP(
     xp_amount: 5,
   });
 
-  // Silence unused variable
-  void questionId;
 }
 
 // ─── Toggle Bookmark ──────────────────────────────────────────────────────────
@@ -299,8 +272,7 @@ export async function toggleBookmark(
 export async function submitLessonFeedback(
   lessonId: string,
   rating: "clear" | "hard",
-  timeSpentSeconds: number,
-  learningMode: string
+  timeSpentSeconds: number
 ): Promise<{ error?: string }> {
   const supabase = createSupabaseServerClient();
   const {
@@ -314,7 +286,6 @@ export async function submitLessonFeedback(
       lesson_id: lessonId,
       rating,
       time_spent_seconds: timeSpentSeconds,
-      learning_mode: learningMode,
     },
     { onConflict: "user_id,lesson_id" }
   );
@@ -560,6 +531,25 @@ export interface SeedResult {
 export async function seedDatabase(): Promise<SeedResult> {
   const supabase = createSupabaseServerClient();
 
+  // Server-side admin guard — UI check alone is insufficient
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { success: false, message: "Neautorizat." };
+
+  const { data: callerProfile } = await supabase
+    .from("users")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  if (callerProfile?.role !== "admin") {
+    return {
+      success: false,
+      message: "Acces interzis — doar administratorii pot efectua această acțiune.",
+    };
+  }
+
   // Check if already seeded
   const { data: existing } = await supabase
     .from("courses")
@@ -579,7 +569,7 @@ export async function seedDatabase(): Promise<SeedResult> {
       title: "AI Fundamentals",
       description:
         "Înțelege inteligența artificială de la zero. De la definiții și istoric, la Machine Learning, Neural Networks și LLM-uri — totul explicat cu analogii clare și exemple practice în română.",
-      difficulty: "beginner",
+      difficulty: 2.0,
       is_free: true,
       order_index: 1,
     })

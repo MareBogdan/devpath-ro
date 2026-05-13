@@ -4,6 +4,11 @@ import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import type { Course } from "@/types";
+import {
+  getDifficultyColor,
+  getDifficultyLabel,
+  type DifficultyColor,
+} from "@/lib/difficulty";
 interface CourseWithProgress extends Course {
   completedLessons: number;
   totalLessons: number;
@@ -15,19 +20,13 @@ interface SidebarProps {
   totalLessons: number;
 }
 
-const difficultyColor: Record<string, string> = {
-  beginner:
+const difficultyColor: Record<DifficultyColor, string> = {
+  green:
     "bg-green-100 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-400 dark:border-green-900",
-  intermediate:
+  yellow:
     "bg-yellow-100 text-yellow-700 border-yellow-200 dark:bg-yellow-950 dark:text-yellow-400 dark:border-yellow-900",
-  advanced:
+  red:
     "bg-red-100 text-red-700 border-red-200 dark:bg-red-950 dark:text-red-400 dark:border-red-900",
-};
-
-const difficultyLabels: Record<string, string> = {
-  beginner: "Începător",
-  intermediate: "Intermediar",
-  advanced: "Avansat",
 };
 
 export function Sidebar({
@@ -137,10 +136,10 @@ export function Sidebar({
                         <span
                           className={cn(
                             "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium",
-                            difficultyColor[course.difficulty]
+                            difficultyColor[getDifficultyColor(course.difficulty)]
                           )}
                         >
-                          {difficultyLabels[course.difficulty] ?? course.difficulty}
+                          {getDifficultyLabel(course.difficulty)}
                         </span>
                       </div>
                       {!isLocked && (
