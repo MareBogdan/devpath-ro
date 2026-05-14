@@ -8,6 +8,7 @@ import type { CourseSelectorOption } from "@/components/course/course-selector";
 import type { RawLesson } from "@/lib/course-map";
 import { SeedButton } from "@/components/course/seed-button";
 import { SyncButton } from "@/components/course/sync-button";
+import { SyncAllCoursesButton } from "@/components/course/sync-all-button";
 import { SyncPromptEngineeringButton } from "@/components/course/sync-prompt-engineering-button";
 import { ResetProgressButton } from "@/components/course/reset-progress-button";
 
@@ -199,7 +200,32 @@ export default async function CoursesPage({ searchParams }: CoursesPageProps) {
               <div className="mt-4 p-4 rounded-lg bg-muted/50 border border-border space-y-6">
                 <div>
                   <p className="text-sm font-medium text-foreground mb-1">
-                    Sincronizare conținut MDX → Supabase
+                    Sincronizare toate cursurile (curriculum nou)
+                  </p>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    Scanează fiecare subdirector din{" "}
+                    <code className="text-xs bg-muted px-1 py-0.5 rounded">
+                      content/courses/
+                    </code>
+                    , îl potrivește cu un{" "}
+                    <code className="text-xs bg-muted px-1 py-0.5 rounded">
+                      courses.slug
+                    </code>{" "}
+                    și pentru fiecare fișier .mdx scrie{" "}
+                    <code className="text-xs bg-muted px-1 py-0.5 rounded">
+                      content_md
+                    </code>{" "}
+                    + setează{" "}
+                    <code className="text-xs bg-muted px-1 py-0.5 rounded">
+                      is_published = true
+                    </code>
+                    . Cursurile legacy sunt ignorate.
+                  </p>
+                  <SyncAllCoursesButton />
+                </div>
+                <div className="border-t border-border pt-4">
+                  <p className="text-sm font-medium text-foreground mb-1">
+                    Sincronizare legacy: AI Fundamentals
                   </p>
                   <p className="text-xs text-muted-foreground mb-3">
                     Citește fișierele din{" "}
@@ -212,7 +238,7 @@ export default async function CoursesPage({ searchParams }: CoursesPageProps) {
                 </div>
                 <div className="border-t border-border pt-4">
                   <p className="text-sm font-medium text-foreground mb-1">
-                    Sincronizare Prompt Engineering Practic
+                    Sincronizare legacy: Prompt Engineering Practic
                   </p>
                   <p className="text-xs text-muted-foreground mb-3">
                     Citește fișierele din{" "}
