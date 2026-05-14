@@ -11,6 +11,9 @@ import {
   FolderOpen,
   CheckCircle2,
   Clock,
+  FlaskConical,
+  Trophy,
+  Lock,
 } from "lucide-react";
 import { LessonPageClient } from "@/components/course/lesson-page-client";
 import { BookmarkButton } from "@/components/course/bookmark-button";
@@ -32,8 +35,8 @@ const lessonTypeIcon: Record<string, React.ElementType> = {
   exercise: Wrench,
   project: FolderOpen,
   lesson: FileText,
-  lab: Wrench,
-  boss: FolderOpen,
+  lab: FlaskConical,
+  boss: Trophy,
 };
 
 const lessonTypeBg: Record<string, string> = {
@@ -41,9 +44,10 @@ const lessonTypeBg: Record<string, string> = {
   quiz: "bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-400",
   exercise: "bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-400",
   project: "bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-400",
-  lesson: "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400",
-  lab: "bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-400",
-  boss: "bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-400",
+  // New curriculum types: lesson = neutral, lab = blue, boss = gold/amber
+  lesson: "bg-muted text-muted-foreground",
+  lab: "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400",
+  boss: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400",
 };
 
 const lessonTypeLabels: Record<string, string> = {
@@ -51,9 +55,9 @@ const lessonTypeLabels: Record<string, string> = {
   quiz: "Quiz",
   exercise: "Exercițiu",
   project: "Proiect",
-  lesson: "Teorie",
-  lab: "Exercițiu",
-  boss: "Proiect",
+  lesson: "Lecție",
+  lab: "Lab",
+  boss: "Boss Fight",
 };
 
 interface GateQuestion {
@@ -130,6 +134,10 @@ export default async function LessonPage({ params }: PageProps) {
   const isTheoryLike = lesson.type === "theory" || lesson.type === "lesson";
   const isExerciseLike = lesson.type === "exercise" || lesson.type === "lab";
   const isProjectLike = lesson.type === "project" || lesson.type === "boss";
+
+  // Coming-soon: lesson row seeded but content not yet written/published.
+  const isComingSoon =
+    lesson.is_published === false && (lesson.content_md ?? "").trim() === "";
 
   // Fetch gate questions (theory-like lessons only)
   // Dual-mode retired: load technical + both-mode questions, skip simple-only.
@@ -267,72 +275,89 @@ export default async function LessonPage({ params }: PageProps) {
             {lesson.title}
           </h1>
 
-          {/* Theory-like lessons: client wrapper handles content + gate + complete */}
-          {isTheoryLike && user && (
-            <LessonPageClient
-              lessonId={lessonId}
-              courseSlug={courseSlug}
-              isCompleted={isCompleted}
-              nextLessonId={nextLesson?.id ?? null}
-              contentMd={lesson.content_md}
-              lessonType={lesson.type}
-              lessonOrder={lesson.order_index}
-              gateQuestions={gateQuestions}
-              userId={user.id}
-              displayName={displayName}
-              avatarUrl={avatarUrl}
-              lessonTitle={lesson.title}
-              feedbackAlreadySubmitted={!!existingFeedback}
-            />
-          )}
+          {isComingSoon ? (
+            /* Coming-soon placeholder — calm, neutral state, not an error */
+            <div className="mt-4 rounded-2xl border border-border bg-muted/30 px-6 py-16 text-center">
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                <Lock className="h-5 w-5 text-muted-foreground" />
+              </div>
+              <p className="text-base font-medium text-foreground">
+                Această lecție va fi disponibilă în curând.
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Lucrăm la conținutul acestei lecții. Revino în curând.
+              </p>
+            </div>
+          ) : (
+            <>
+              {/* Theory-like lessons: client wrapper handles content + gate + complete */}
+              {isTheoryLike && user && (
+                <LessonPageClient
+                  lessonId={lessonId}
+                  courseSlug={courseSlug}
+                  isCompleted={isCompleted}
+                  nextLessonId={nextLesson?.id ?? null}
+                  contentMd={lesson.content_md}
+                  lessonType={lesson.type}
+                  lessonOrder={lesson.order_index}
+                  gateQuestions={gateQuestions}
+                  userId={user.id}
+                  displayName={displayName}
+                  avatarUrl={avatarUrl}
+                  lessonTitle={lesson.title}
+                  feedbackAlreadySubmitted={!!existingFeedback}
+                />
+              )}
 
-          {/* Quiz lessons: rendered by QuizSection (includes adaptive AI practice) */}
-          {lesson.type === "quiz" && (
-            <QuizSection
-              lessonId={lessonId}
-              courseSlug={courseSlug}
-              questions={(quizQuestions ?? []) as {
-                id: string;
-                question: string;
-                options: string[];
-                correct_answer: number;
-                explanation: string;
-              }[]}
-              isCompleted={isCompleted}
-            />
-          )}
+              {/* Quiz lessons: rendered by QuizSection (includes adaptive AI practice) */}
+              {lesson.type === "quiz" && (
+                <QuizSection
+                  lessonId={lessonId}
+                  courseSlug={courseSlug}
+                  questions={(quizQuestions ?? []) as {
+                    id: string;
+                    question: string;
+                    options: string[];
+                    correct_answer: number;
+                    explanation: string;
+                  }[]}
+                  isCompleted={isCompleted}
+                />
+              )}
 
-          {/* Exercise / Project lessons (incl. lab/boss): show content + complete button */}
-          {(isExerciseLike || isProjectLike) && user && (
-            <LessonPageClient
-              lessonId={lessonId}
-              courseSlug={courseSlug}
-              isCompleted={isCompleted}
-              nextLessonId={nextLesson?.id ?? null}
-              contentMd={lesson.content_md}
-              lessonType={lesson.type}
-              lessonOrder={lesson.order_index}
-              gateQuestions={[]}
-              userId={user.id}
-              displayName={displayName}
-              avatarUrl={avatarUrl}
-              lessonTitle={lesson.title}
-              feedbackAlreadySubmitted={!!existingFeedback}
-            />
-          )}
+              {/* Exercise / Project lessons (incl. lab/boss): show content + complete button */}
+              {(isExerciseLike || isProjectLike) && user && (
+                <LessonPageClient
+                  lessonId={lessonId}
+                  courseSlug={courseSlug}
+                  isCompleted={isCompleted}
+                  nextLessonId={nextLesson?.id ?? null}
+                  contentMd={lesson.content_md}
+                  lessonType={lesson.type}
+                  lessonOrder={lesson.order_index}
+                  gateQuestions={[]}
+                  userId={user.id}
+                  displayName={displayName}
+                  avatarUrl={avatarUrl}
+                  lessonTitle={lesson.title}
+                  feedbackAlreadySubmitted={!!existingFeedback}
+                />
+              )}
 
-          {/* Project submission form (project + boss) */}
-          {isProjectLike && user && (
-            <ProjectSubmissionForm
-              courseId={course.id}
-              existingProjectId={existingProject?.id ?? null}
-            />
+              {/* Project submission form (project + boss) */}
+              {isProjectLike && user && (
+                <ProjectSubmissionForm
+                  courseId={course.id}
+                  existingProjectId={existingProject?.id ?? null}
+                />
+              )}
+            </>
           )}
         </div>
       </div>
 
-      {/* Lesson comments */}
-      {user && (
+      {/* Lesson comments — hidden for coming-soon lessons */}
+      {user && !isComingSoon && (
         <div className="px-6 pb-8">
           <div className="max-w-3xl mx-auto">
             <Suspense fallback={<div className="h-32 rounded-xl bg-muted/40 animate-pulse" />}>
@@ -353,13 +378,15 @@ export default async function LessonPage({ params }: PageProps) {
         nextLessonId={nextLesson?.id ?? null}
       />
 
-      {/* AI Coach floating chat */}
-      <AICoachChat
-        lessonTitle={lesson.title}
-        lessonContent={lesson.content_md}
-        lessonId={lessonId}
-        isExercise={lesson.type === "exercise"}
-      />
+      {/* AI Coach floating chat — hidden for coming-soon lessons */}
+      {!isComingSoon && (
+        <AICoachChat
+          lessonTitle={lesson.title}
+          lessonContent={lesson.content_md}
+          lessonId={lessonId}
+          isExercise={lesson.type === "exercise"}
+        />
+      )}
 
       {/* Sticky bottom — prev/next navigation only */}
       <div className="sticky bottom-0 border-t border-border bg-background/95 backdrop-blur px-6 py-4">

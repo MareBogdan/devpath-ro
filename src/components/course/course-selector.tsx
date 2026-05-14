@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { CheckCircle2, Sparkles, BookOpen } from "lucide-react";
+import { CheckCircle2, Sparkles, BookOpen, Clock } from "lucide-react";
 import { MeshGradientCard, slugToGradientColors } from "@/components/ui/mesh-gradient-card";
 import { AnimatedProgressRing } from "@/components/ui/animated-progress-ring";
 import { DifficultyBadge } from "@/components/ui/difficulty-badge";
@@ -15,6 +15,8 @@ export interface CourseSelectorOption {
   difficulty: number;
   totalLessons: number;
   completedLessons: number;
+  /** Lessons with is_published = true. 0 → course shows an "În curând" badge. */
+  publishedLessons: number;
 }
 
 interface CourseSelectorProps {
@@ -130,10 +132,17 @@ export function CourseSelector({ courses, selectedId, onSelect }: CourseSelector
                     {course.description}
                   </p>
                   <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                    <span className="inline-flex items-center gap-1">
-                      <BookOpen className="h-3 w-3" />
-                      {course.completedLessons}/{course.totalLessons} lecții
-                    </span>
+                    {course.publishedLessons === 0 ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 font-medium text-amber-700 dark:bg-amber-950 dark:text-amber-400">
+                        <Clock className="h-3 w-3" />
+                        În curând
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1">
+                        <BookOpen className="h-3 w-3" />
+                        {course.completedLessons}/{course.totalLessons} lecții
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>

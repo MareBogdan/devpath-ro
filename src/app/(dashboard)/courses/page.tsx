@@ -41,7 +41,7 @@ export default async function CoursesPage({ searchParams }: CoursesPageProps) {
       .order("order_index"),
     supabase
       .from("lessons")
-      .select("id, title, type, course_id, order_index")
+      .select("id, title, type, course_id, order_index, is_published")
       .order("order_index"),
     supabase
       .from("user_progress")
@@ -82,6 +82,9 @@ export default async function CoursesPage({ searchParams }: CoursesPageProps) {
     const completedCount = courseLessons.filter((l) =>
       completedSet.has(l.id)
     ).length;
+    const publishedCount = allLessons.filter(
+      (l) => l.course_id === c.id && l.is_published === true
+    ).length;
     return {
       id: c.id as string,
       slug: c.slug as string,
@@ -90,6 +93,7 @@ export default async function CoursesPage({ searchParams }: CoursesPageProps) {
       difficulty: (c.difficulty as number | null) ?? 2.0,
       totalLessons: courseLessons.length,
       completedLessons: completedCount,
+      publishedLessons: publishedCount,
     };
   });
 

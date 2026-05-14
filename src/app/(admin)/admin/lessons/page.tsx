@@ -1,5 +1,14 @@
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { FileText, HelpCircle, Wrench, FolderOpen, ThumbsUp, ThumbsDown } from "lucide-react";
+import {
+  FileText,
+  HelpCircle,
+  Wrench,
+  FolderOpen,
+  FlaskConical,
+  Trophy,
+  ThumbsUp,
+  ThumbsDown,
+} from "lucide-react";
 
 const TYPE_ICON: Record<string, React.ElementType> = {
   theory: FileText,
@@ -7,8 +16,8 @@ const TYPE_ICON: Record<string, React.ElementType> = {
   exercise: Wrench,
   project: FolderOpen,
   lesson: FileText,
-  lab: Wrench,
-  boss: FolderOpen,
+  lab: FlaskConical,
+  boss: Trophy,
 };
 
 const TYPE_LABEL: Record<string, string> = {
@@ -16,9 +25,9 @@ const TYPE_LABEL: Record<string, string> = {
   quiz: "Quiz",
   exercise: "Exercițiu",
   project: "Proiect",
-  lesson: "Teorie",
-  lab: "Exercițiu",
-  boss: "Proiect",
+  lesson: "Lecție",
+  lab: "Lab",
+  boss: "Boss Fight",
 };
 
 const TYPE_COLOR: Record<string, string> = {
@@ -26,9 +35,9 @@ const TYPE_COLOR: Record<string, string> = {
   quiz: "bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-400",
   exercise: "bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-400",
   project: "bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-400",
-  lesson: "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400",
-  lab: "bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-400",
-  boss: "bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-400",
+  lesson: "bg-muted text-muted-foreground",
+  lab: "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400",
+  boss: "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400",
 };
 
 function percent(n: number, total: number): string {
