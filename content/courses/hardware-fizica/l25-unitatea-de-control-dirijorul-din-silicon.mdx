@@ -1,0 +1,115 @@
+---
+title: "Unitatea de Control: Dirijorul din silicon"
+order: 25
+type: lesson
+module_index: 1
+duration: 12
+difficulty: 3
+---
+
+În august 2023, mii de utilizatori raportau că procesoarele Intel Core i9-13900K și 14900K se degradau fizic — siliciul se ardea literalmente în socket. Cauza? Nu temperatura. Nu overclocking-ul. Unitatea de Control trimitea comenzi de tensiune prea mari direct spre nuclee, forțând tranzistorii să lucreze în afara parametrilor de proiectare. Intel a rezolvat problema fără să înlocuiască niciun procesor — a trimis o actualizare software. Un patch de câteva kilobytes a modificat logica fundamentală a hardware-ului din fabrică. Procesorul și-a rescris propriile instrucțiuni.
+
+Asta face Unitatea de Control: orchestrează tot ce există în CPU. Și uneori, chiar ea devine problema.
+
+---
+
+Până acum am construit ALU-ul care adună și scade, registrele care stochează rezultatele, flip-flop-urile care sincronizează totul cu ceasul. Dar cine le spune acestora ce să facă? Cine decide că acum ALU-ul adună și nu scade? Cine mută datele din R1 pe magistrala internă exact în ciclul 4 și nu în ciclul 3?
+
+Unitatea de Control. Nu procesează date. Nu face calcule. Emite semnale electrice la momentul exact pentru a comanda fiecare componentă din CPU. Este diferența dintre un depozit plin de unelte și un muncitor care știe în ce ordine să le folosească.
+
+---
+
+## Două filosofii de design
+
+Există două moduri fundamentale de a construi o Unitate de Control: **hardwired** (cablată fix) sau **microprogramată**.
+
+**Hardwired** înseamnă logică pură — porți AND, OR, flip-flop-uri și PLA-uri conectate fizic pentru fiecare instrucțiune. Rapid? Extrem de rapid — semnalele se propagă la viteza fizicii semiconductorilor. Flexibil? Deloc. Vrei să adaugi o instrucțiune nouă? Reproiectezi circuitul. Redesenezi siliciul. Retrimiti la fabricație. Arhitecturile RISC iubesc acest model tocmai din cauza simplității — instrucțiuni puține, fixe, executate într-un singur ciclu de ceas.
+
+**Microprogramată** funcționează diferit. Instrucțiunile mașinii nu sunt decodate direct în semnale hardware — sunt traduse în micro-instrucțiuni stocate într-o memorie internă (control store sau ROM). Când CPU-ul vede un opcode, acesta devine o adresă într-un ROM intern care conține secvența exactă de micro-operații necesare. Puțin mai lent față de hardwired? Da. Dar poți implementa un ISA complex — cum e x86 cu sutele lui de instrucțiuni — fără să dublezi suprafața de siliciu. Vrei să repari un bug în logica de execuție? Rescrii microcodul.
+
+| | **Hardwired** | **Microprogramată** |
+|---|---|---|
+| Viteză | Maximă — logică directă | Ceva mai lentă — lookup în ROM |
+| Flexibilitate | Zero — redesign complet pentru orice schimbare | Ridicată — patch prin actualizare microcod |
+| ISA potrivit | RISC (ARM, RISC-V) | CISC (x86, x86-64) |
+| Implementare | Porți logice, PLA, FSM | Micro-instrucțiuni în control store |
+
+Procesoarele moderne folosesc hibrid: instrucțiunile simple sunt hardwired pentru viteză maximă, cele complexe invocă motorul de microprogramare.
+
+## Maurice Wilkes și calculatorul din calculator (1951)
+
+Ideea microprogramării nu a apărut din inginerie corporatistă. A apărut dintr-o frustrare academică.
+
+Maurice Wilkes construise EDSAC la Cambridge — primul calculator cu program stocat care a rulat calcule reale pe 6 mai 1949: tabele de pătrate și numere prime. Funcționa. Dar Wilkes se uita la labirintul de fire din Unitatea de Control și vedea o catastrofă imposibil de întreținut. Fiecare instrucțiune nouă necesita recablare fizică. Nu exista sistemă.
+
+În 1951, după o vizită la MIT Whirlwind, Wilkes a avut realizarea: Unitatea de Control poate fi ea însăși un calculator în miniatură. Dacă stochezi semnalele de control ca date într-o memorie, poți "programa" hardware-ul la fel cum programezi software-ul. A publicat ideea în același an — o matrice de diode cu două niveluri, unde al doilea nivel controla fluxul micro-operațiilor condițional, inclusiv salturi și ramificări.
+
+Teoria a trebuit să aștepte memoria rapidă și ieftină. În 1958, **EDSAC 2** a devenit primul calculator cu Unitate de Control microprogramată — ROM din miez magnetic, 1.024 pași de microprogramare, decodor de instrucțiuni de 128 pași. IBM a văzut potențialul: familia **IBM 360 din 1964**, proiectată de Gene Amdahl, a folosit microprogramarea pentru compatibilitate software între generații întregi de mainframe-uri diferite. Același cod mașină rula pe hardware-uri complet diferite.
+
+## Intel 4004: 2.300 de tranzistori, hardwired (1971)
+
+Când Federico Faggin, Marcian Hoff și Stan Mazor au proiectat primul microprocesor pe un singur chip, bugetul de tranzistori era de 2.300. Nu exista loc pentru un control store. 4004 era strict hardwired: 46 de instrucțiuni, decodate printr-un PLA de 31×16 elemente, sincronizat cu un ceas bifazic la 740–750 kHz, ambalat în 16 pini DIP.
+
+<FactBox>
+Intel 4004 costa $60 la lansare în noiembrie 1971. Comisionat de firma japoneză Busicom pentru calculatoare de birou, a demonstrat că logica programabilă de uz general putea înlocui circuitele dedicate — deschizând era microprocesoarelor.
+</FactBox>
+
+Tehnologia cheie care a făcut posibil 4004 a fost **Silicon Gate Technology** inventată de Faggin: porți din siliciu policristalin auto-aliniate, dublând densitatea de tranzistori și crescând viteza de 5× față de metodele anterioare cu aluminiu.
+
+## Intel 8086: 512 micro-instrucțiuni, 21 biți (1978)
+
+Șapte ani mai târziu, densitatea de siliciu permitea ambițiile mai mari. **8086** — strămoșul direct al oricărui CPU x86 de astăzi — folosea un motor microprogramat cu un ROM de control stocând **512 micro-instrucțiuni, fiecare de 21 biți**, aranjate fizic într-un array de 128×84 celule.
+
+Inginerii au reutilizat inteligent același micro-rutine: INCREMENT și DECREMENT foloseau același cod, cu un bit extern care comuta ALU-ul între adunare și scădere bazat pe opcode. O instrucțiune simplă necesita 2 micro-instrucțiuni; un string copy complex — 8. Adresa de start a fiecărui micro-rutin era derivată din opcode prin două ROM-uri auxiliare: un Group Decode ROM și un Translation ROM.
+
+Reverse engineering-ul modern al die-ului 8086 a descoperit opcode-uri nedocumentate, inclusiv **D6h (SALC — Set AL to Carry)**, vizibil doar în microcodul intern. Siliciul ascundea instrucțiuni pe care nimeni nu le anunțase oficial.
+
+## Fetch-Decode-Execute: secvența exactă
+
+Indiferent de arhitectură, orice CPU execută instrucțiuni prin aceeași secvență fundamentală. Luăm ca exemplu instrucțiunea `ADD R1, R2`:
+
+**Fetch (T₀–T₂):**
+- **T₀:** UC emite `PC_out` + `MAR_in` → adresa din Program Counter se copiază în Memory Address Register
+- **T₁:** UC emite `MemRead` + `PC_inc` → memoria trimite instrucțiunea pe magistrală; PC avansează la PC+4
+- **T₂:** UC emite `MDR_out` + `IR_in` → instrucțiunea ajunge în Instruction Register
+
+**Decode:** Decoder-ul izolează opcode-ul din IR și identifică operanzii. Într-un procesor microprogramat, opcode-ul devine adresa de start în control ROM.
+
+**Execute:**
+- **T₃:** `R1_out` + `Temp1_in` → primul operand intră în buffer-ul ALU (RTL: T₁←R1)
+- **T₄:** `R2_out` + `Temp2_in` + `ALU_Op=ADD` → al doilea operand; ALU primește comanda de adunare (T₂←R2)
+- **T₅:** `ALU_out` + `RegWrite` → rezultatul se scrie înapoi în R1 (R1←T₁+T₂)
+
+Fiecare semnal de control este un bit fizic pe magistrala de control. Când UC emite `ALU_Op=ADD`, aceasta înseamnă literalmente că un fir specific din CPU devine HIGH.
+
+<CosmoHint emotion="thinking">
+Observi că la T₁ UC face două lucruri simultan: citește din memorie ȘI incrementează PC. Nu e magie — e design deliberat pentru a ascunde latența memoriei în spatele altor operații utile. Procesoarele moderne duc această tehnică la extrem: pipelines adânci de 10–20 stagii, fiecare suprapunând etape din instrucțiuni diferite.
+</CosmoHint>
+
+## Apple M1 Firestorm: 8 instrucțiuni pe ciclu
+
+Modelul Fetch-Decode-Execute e frumos pedagogic. Procesoarele reale l-au abandonat complet.
+
+**Apple M1 Firestorm** are o Unitate de Control care decodează **8 instrucțiuni simultan per ciclu de ceas** — dublu față de procesoarele x86 contemporane. Instrucțiunile decodate nu se execută în ordine; intră în Reservation Stations și se execută de îndată ce operanzii lor sunt disponibili, indiferent de poziția lor în program. Dacă instrucțiunea 3 așteaptă un cache miss, instrucțiunile 5, 6 și 7 pot executa imediat.
+
+Ca să previi conflictele de date, UC folosește un **Register Alias Table (RAT)** care mapează registrele arhitecturale (ce vede programatorul) la sute de registre fizice interne. Un **Reorder Buffer (ROB)** urmărește toate instrucțiunile în zbor și garantează că rezultatele se "retrag" în ordinea originală, chiar dacă s-au executat haotic.
+
+M1 are 326 de intrări în schedulere distribuite pe 14 porturi de execuție — șase pentru ALU integer, patru pentru NEON SIMD, plus load/store și AMX. Când schedulerele se umplu din cauza unui cache miss, back-pressure blochează Map Unit-ul, care blochează decodarea. Performance counter-ul `MAP_STALL_DISPATCH` numără exact acele cicluri pierdute.
+
+<CosmoHint emotion="surprised">
+x86 are un handicap structural față de ARM: instrucțiunile au lungime variabilă de la 1 la 15 bytes. CPU-ul nu știe unde se termină o instrucțiune fără să o decodeze pe cea anterioară. Intel și AMD rezolvă asta în două etape: mai întâi, **length decoders** paralele scanează speculativ un bloc de 16–32 bytes pentru a stabili granițele instrucțiunilor; abia după ce limitele sunt cunoscute, un număr fix de decodere complete (tipic 4–6) traduc instrucțiunile în μops. Costul acestui dans în două acte: suprafață semnificativă de siliciu și consum ridicat, atenuate parțial de **μop cache** — instrucțiunile deja traduse se stochează și permit oprirea decoderelor costisitoare în bucle repetitive.
+</CosmoHint>
+
+---
+
+## Microcodul se poate rescrie
+
+Revenind la procesoarele Intel degradate. Procesoarele moderne Intel au două tipuri de memorie de microcod: **MSROM** (read-only, fabricat în siliciu, 7.936 triads pe arhitectura Goldmont) și **MSRAM** (writable, 128 triads, cu 64 de "hook points" configurabile). Când BIOS-ul scrie un patch prin registrul `IA32_BIOS_UPDT_TRIG`, match registers redirecționează execuția de la adresa buggy din MSROM spre patch-ul din MSRAM.
+
+Patch-ul pentru i9-13900K/14900K a modificat algoritmul de request de tensiune. Același mecanism a mitigat **Spectre și Meltdown în 2018** — vulnerabilități care exploatau execuția speculativă — fără să înlocuiască niciun procesor fizic. Microcodul e semnat RSA și criptat RC4: nu poți injecta cod arbitrar, dar CPU-ul tău rulează astăzi, cu probabilitate ridicată, cod care nu exista când a ieșit din fabrică.
+
+Siliciul pare permanent. Nu chiar.
+
+---
+
+ALU-ul calculează. Registrele stochează. Ceasul sincronizează. Unitatea de Control face ca toate astea să aibă sens — emițând semnalele corecte, în ordinea corectă, la ciclul exact. De la 46 de instrucțiuni hardwired pe 2.300 de tranzistori în 1971, la un dispatcher speculativ care reordonează 8 instrucțiuni simultan în 2021. Același principiu, scală incomprehensibil diferită.

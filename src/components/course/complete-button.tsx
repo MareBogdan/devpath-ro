@@ -69,7 +69,10 @@ export function CompleteButton({
     if (nextLessonId) {
       router.push(`/courses/${courseSlug}/${nextLessonId}`);
     } else {
-      router.push(`/courses/${courseSlug}`);
+      // Last lesson in the course — go back to the course map with this
+      // course pre-selected (avoids the /courses/[slug] → /courses?c=<slug>
+      // redirect hop introduced in 1.5b).
+      router.push(`/courses?c=${courseSlug}`);
     }
   }
 

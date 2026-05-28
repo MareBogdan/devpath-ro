@@ -1,0 +1,380 @@
+---
+title: "Semiconductorii — de la nisip la siliciu"
+order: 6
+type: lesson
+module_index: 1
+duration: 12
+difficulty: 3
+---
+
+## Totul pornește de la o fisură accidentală
+
+23 februarie 1940. Bell Laboratories, New Jersey.
+
+Russell Ohl examina lingouri de siliciu pentru detectoare radar.
+Unul dintre ele se răcise greșit în cuptor — o fisură neagră îl tăia în două.
+
+Ohl îl conectă la voltmetru și îndreaptă accidental o lanternă spre fisură.
+Acul sare la 0,5 volți.
+
+Fără baterie. Fără sursă externă. Doar lumină pe o piatră.
+
+Ohl nu știa ce văzuse. Dar tocmai inventase prima joncțiune p-n din lume —
+și, odată cu ea, dioda, celula solară și fundația tranzistorului.
+Șapte ani mai târziu, Bardeen, Brattain și Shockley construiau primul tranzistor
+pe baza principiilor descoperite în acel lingou defect.
+
+---
+
+## Ce s-a schimbat față de lecția trecută
+
+În C1L5 ai văzut că digitalul funcționează prin comutare între două stări.
+Un tranzistor deschis e un "1". Un tranzistor închis e un "0".
+
+Primele calculatoare comutau aceste stări cu relee electromecanice —
+niște întrerupătoare cu arc și contact metalic fizic.
+ENIAC din 1945 folosea 17.468 de tuburi vidate în loc de relee.
+Ambele variante: zgomotoase, lente, care se ardeau constant.
+
+Întrebarea inginerilor din anii '40 era simplă și urgentă:
+cum faci un comutator fără nicio piesă în mișcare?
+Răspunsul era în siliciu — dacă cineva putea să îl controleze.
+
+Dar siliciul pur nu se poate controla.
+Are prea puțini purtători, prea instabili, prea sensibili la temperatură.
+Soluția era să îl "stricați" în mod deliberat și precis.
+
+Asta înseamnă dopaj. Și asta explică tot ce urmează.
+
+---
+
+## Miezul
+
+### Siliciul pur — izolator aproape perfect
+
+Siliciul e elementul 14 din tabelul periodic.
+Are 4 electroni pe stratul exterior — nici prea mulți, nici prea puțini.
+
+În stare solidă, fiecare atom de siliciu se leagă de alți 4 vecini,
+formând o rețea tetraedrică perfectă — identică cu structura diamantului.
+Fiecare electron de valență e blocat într-o legătură covalentă.
+
+La zero absolut: niciun electron liber. Izolator perfect.
+
+Dar la temperatura camerei (300K), agitația termică rupe câteva legături.
+Un electron scapă în banda de conducție. Lasă în urmă o "vacanță" — un **gol**.
+
+<FactBox>
+  Într-un centimetru cub de siliciu pur la 300K există exact 9,65 × 10⁹ electroni liberi.
+  Același volum de cupru conține 8,47 × 10²² electroni liberi.
+  Cuprul are de 8 trilioane de ori mai mulți purtători — în același volum.
+  Siliciul pur e inutil pentru electronice fără intervenție.
+</FactBox>
+
+Golul nu e un simplu spațiu gol.
+E tratat ca o particulă reală cu sarcină pozitivă (+q).
+Când un electron vecin sare să umple vacanța, golul se "mișcă" în direcție opusă.
+Golurile conduc curent la fel ca electronii — dar în sens invers.
+
+Electronii liberi din siliciu pur nu supraviețuiesc la infinit.
+Întâlnesc un gol și se recombină — legătura se reface, purtătorii dispar.
+Timpul mediu de viață al unui purtător: **între 1 µs și 1 ms**,
+în funcție de puritatea cristalului.
+
+---
+
+### Dopajul — controlul precis al conductivității
+
+Siliciul pur e prea puțin conductiv pentru a fi util.
+Soluția: introduci intenționat atomi străini în rețea.
+
+**Dopaj tip N — electroni în exces**
+
+Adaugi atomi din Grupa V: fosfor (P), arsenic (As) sau antimoniu (Sb).
+Fosforul are 5 electroni de valență.
+4 intră în legăturile covalente cu vecinii de siliciu.
+Al 5-lea rămâne fără partener.
+
+Nivelul energetic al acestui electron excedentar e la doar **0,045 eV**
+sub banda de conducție.
+Energia termică la 300K (0,026 eV) e aproape suficientă —
+coada distribuției Maxwell-Boltzmann asigură că aproape 100%
+din acești electroni suplimentari ajung în banda de conducție.
+
+Atomul de fosfor devine ion pozitiv fix în rețea.
+Electronul devine purtător liber.
+Materialul se numește **semiconductor de tip N** — dominat de electroni.
+
+**Dopaj tip P — goluri în exces**
+
+Adaugi atomi din Grupa III: bor (B), galiu sau indiu.
+Borul are 3 electroni de valență.
+Nu poate forma a 4-a legătură covalentă — rămâne o vacanță permanentă.
+
+Nivelul energetic acceptor e la **0,045 eV** deasupra benzii de valență.
+Electronii vecini cad în această vacanță cu ajutorul agitației termice.
+Borul devine ion negativ fix. Un gol liber apare în rețea.
+Materialul se numește **semiconductor de tip P** — dominat de goluri.
+
+{/* TABLE: Concentrații de dopaj — n⁻/p⁻, n/p, n⁺/p⁺ — cu aplicații */}
+
+<FactBox>
+  Densitatea atomilor de siliciu în cristal: 5 × 10²² atomi/cm³.
+  Dopaj mediu: 10¹⁶ atomi dopanți/cm³.
+  Asta înseamnă un atom de fosfor sau bor la fiecare 5 milioane de atomi de siliciu.
+  O "contaminare" de 0,00002% care crește conductivitatea de zeci de milioane de ori.
+</FactBox>
+
+**Fosfor vs. Arsenic — de ce contează diferența**
+
+Ambii donează un electron. Ambii au nivel energetic la 0,045 eV.
+Dar fosforul difuzează rapid prin siliciu la temperaturi înalte —
+coeficient de difuzie ~10⁻¹³ cm²/s la 1100°C.
+
+Arsenicul are o masă atomică mai mare și o rază mai mare (1,19 Å).
+Se mișcă mult mai greu prin rețea.
+La nodurile de 7nm și 3nm, unde marginile regiunilor Sursă/Drenă
+trebuie definite la precizie de câțiva atomi —
+arsenicul e singurul care poate menține un profil de dopaj abbrupt.
+Fosforul ar "curge" și ar distruge controlul electrostatic al tranzistorului.
+
+---
+
+### Joncțiunea p-n — nașterea barierei
+
+Pune siliciu tip N lângă siliciu tip P în același cristal.
+Aceasta e joncțiunea p-n — cea mai simplă structură asimetrică din electronice.
+
+Ce se întâmplă în prima microsecundă?
+
+**Difuzia:** Electronii din N "văd" spațiul liber din P și difuzează peste graniță.
+Golurile din P difuzează în N. E termodinamică pură — particule care se răspândesc
+din zona cu concentrație mare spre zona cu concentrație mică.
+
+**Ionii rămân în urmă:** Când un electron pleacă din N, atomul de fosfor din care a venit
+rămâne cu un proton în plus — devine ion pozitiv fix, blocat în rețea.
+Același lucru pe cealaltă parte: atomii de bor devin ioni negativi fixi.
+
+Se formează o **zonă de dezertare** — o fâșie golită complet de purtători liberi,
+flancată de ioni pozitivi în N și ioni negativi în P.
+
+{/* ANIMATION: formarea zonei de dezertare — difuzie → ioni expuși → câmp electric intern */}
+
+**Câmpul electric intern:** Cei doi pereți de ioni cu sarcini opuse
+creează un câmp electric de la N spre P.
+Orice electron care mai încearcă să difuzeze e respins înapoi.
+
+Echilibrul e atins când curentul de difuzie = curentul de drift.
+Fluxul net devine zero. Curentul nu trece spontan.
+
+**Bariera de potențial (V_bi):**
+
+Câmpul electric intern creează o diferență de potențial fixă — tensiunea de barieră.
+Formula exactă:
+
+{/* TABLE: Formula Vbi cu parametrii — NA, ND, ni, kT/q */}
+
+Pentru dopaje tipice între 10¹⁵ și 10¹⁷ cm⁻³, rezultatul e invariabil:
+**0,6–0,7 V** — bariera pe care orice purtător trebuie s-o depășească
+pentru a traversa joncțiunea.
+
+<CosmoHint emotion="curious">
+  Dacă pui sondele unui voltmetru pe o diodă izolată pe masă, măsori 0 V.
+  Bariera de 0,7 V există — dar interfețele metal-semiconductor de la sonde
+  creează bariere opuse care se anulează perfect.
+  Energia e acolo. Nu o poți extrage gratuit.
+</CosmoHint>
+
+Lățimea zonei de dezertare: **zeci de nm până la câțiva µm**,
+invers proporțională cu concentrația de dopaj.
+Cu cât dopajul e mai masiv, cu atât zona e mai îngustă și mai concentrată.
+
+Un detaliu important pentru fabricația cipurilor:
+zona de dezertare nu e simetrică dacă dopajele sunt diferite.
+Dacă o parte e masiv dopată (n⁺) și cealaltă ușor dopată (p⁻),
+zona de dezertare pătrunde adânc în partea slab dopată (sute de nm)
+și aproape deloc în partea puternic dopată (câțiva nm).
+
+Inginerii exploatează această asimetrie deliberat —
+pentru varactori (condensatoare cu capacitate variabilă prin tensiune)
+și pentru controlul precis al adâncimii joncțiunilor în tranzistoarele moderne.
+
+---
+
+### Dioda — supapa electronică
+
+O joncțiune p-n cu contacte metalice pe capete devine o **diodă**.
+Lasă curentul să treacă într-o direcție. Îl blochează în cealaltă.
+
+**Polarizare directă (Forward Bias):**
+
+Conectezi plus la P, minus la N.
+Câmpul extern se opune câmpului intern — bariera scade.
+La ~0,6–0,7 V aplicat, bariera e practic eliminată.
+Electronii invadează P, golurile invadează N.
+Curentul explodează exponențial.
+
+Ecuația Shockley descrie acest comportament exact:
+
+{/* TABLE: Ecuația diodei — ID = Is(e^(qV/nkT) - 1) cu parametrii */}
+
+**Polarizare inversă (Reverse Bias):**
+
+Conectezi plus la N, minus la P.
+Câmpul extern se adaugă la cel intern — zona de dezertare se lărgește.
+Purtătorii majoritari sunt trași spre capete. Frontiera e deșertică.
+
+Dar nu complet zero.
+
+Agitația termică rupe continuu perechi electron-gol chiar în zona de dezertare.
+Câmpul enorm le separă instant — electronul fuge spre N, golul spre P.
+Rezultă **curentul de saturație inversă (Is)**: 10⁻¹² A (1 picoamper).
+
+<FactBox>
+  Un picoamper pare neglijabil. Dar hai să traducem:
+  I = 10⁻¹² C/s, sarcina unui electron = 1,6 × 10⁻¹⁹ C.
+  10⁻¹² ÷ 1,6 × 10⁻¹⁹ = 6.250.000 electroni pe secundă.
+  Chiar și "blocată" complet, dioda pierde 6 milioane de electroni în fiecare secundă.
+  Termodinamica nu ia pauze.
+</FactBox>
+
+**Tensiunea de breakdown:**
+
+Dacă crești tensiunea inversă suficient, bariera cedează.
+
+*Zener* — la diode masiv dopate (n⁺/p⁺): zona de dezertare e atât de subțire
+că câmpul electric atinge milioane de V/cm și smulge electroni prin efect tunel.
+Se întâmplă la tensiuni mici și predictibile: 1,8 V, 3,3 V, 5 V.
+Exploatat în regulatoare de tensiune din anii 1960.
+
+*Avalanșă* — la diode mai puțin dopate: purtătorii sunt accelerați violent,
+lovesc atomi, generează noi perechi, care sunt accelerate, lovesc alți atomi.
+Multiplicare exponențială. 50 V până la 1000 V.
+
+---
+
+### De ce siliciul nu poate face LED
+
+Orice diodă în polarizare directă recombină electroni cu goluri.
+Diferența de energie trebuie radiată — ca foton de lumină, teoretic.
+
+Dar siliciul are **indirect band gap**.
+
+{/* ANIMATION: diagrama E-k — siliciu indirect vs. GaN direct */}
+
+Într-un semiconductor cu band gap direct (GaN, GaAs),
+electronul și golul sunt la aceeași coordonată de impuls (k=0).
+Tranziția e simplă: electron cade, foton iese.
+
+În siliciu, cel mai jos punct al benzii de conducție și cel mai înalt al benzii de valență
+sunt decalate pe axa impulsului.
+Pentru a se recombina, electronul trebuie să-și modifice simultan energia ȘI impulsul.
+Asta necesită intervenția unui fonon — o vibrație cuantică a rețelei —
+cu exact cantitatea de impuls necesară, în exact același moment.
+
+Probabilitatea acestei triple coincidențe e minusculă.
+Peste 99,9% din recombinări produc căldură, nu lumină.
+
+De aceea LED-urile se fac din:
+- **GaN** (3,4 eV) — lumină albastră/albă
+- **GaAs** (1,42 eV) — infraroșu/roșu
+- **GaAsP** (variabil) — primul LED vizibil al lui Holonyak, 9 octombrie 1962
+
+Un "laser de siliciu pur" rămâne imposibil fizic — Sfântul Graal al fotonicii.
+
+**De ce GaAs nu a câștigat competiția cu siliciul**
+
+GaAs conduce electronii de ~6 ori mai repede decât siliciul.
+Teoretic, procesoare de GaAs ar fi mult mai rapide.
+
+Dar siliciul are un avantaj chimic decisiv: se oxidează natural.
+Pui o plachetă de siliciu la câteva sute de grade cu vapori de apă —
+se formează un strat perfect omogen de **dioxid de siliciu (SiO₂)**.
+Izolator excelent, stabil termic, fără sarcini captive la interfață.
+Acesta e dielectricul din poarta fiecărui tranzistor MOSFET.
+
+GaAs nu poate face asta.
+Oxidul de galiu e poros, instabil, plin de defecte.
+Niciun strat izolant comparabil cu SiO₂ nu a putut fi crescut pe GaAs.
+Fără izolator de poartă de calitate — nu există tranzistor MOSFET viabil.
+
+Siliciul mai lent a câștigat. Nu din lipsă de alternativă —
+ci pentru că putea să-și construiască propriul izolator.
+
+---
+
+### Câți atomi sunt într-un tranzistor de 3nm?
+
+Un tranzistor Gate-All-Around (GAA) din generația de 3nm
+are dimensiunile canalului activ de aproximativ:
+12 nm × 15 nm × 5 nm = 900 nm³ = 9 × 10⁻¹⁹ cm³.
+
+Dopaj tipic al canalului: 10¹⁸ atomi/cm³.
+
+9 × 10⁻¹⁹ cm³ × 10¹⁸ atomi/cm³ = **0,9 atomi de dopant**.
+
+<FactBox>
+  Un tranzistor de 3nm conține, în medie statistică, mai puțin de 1 atom de dopant.
+  Un tranzistor poate prinde 0 atomi. Cel de lângă poate prinde 3.
+  Tensiunea de prag variază de la tranzistor la tranzistor din această cauză.
+  Acest efect — Random Dopant Fluctuation — e inamicul numărul 1 al scalării sub 5nm.
+  Procesoarele moderne nu pot fi proiectate fără simulare stochastică a acestei variații.
+</FactBox>
+
+Zona de dezertare a unei joncțiuni p-n mediu dopate: 100–300 nm.
+Lungimea canalului unui tranzistor de 3nm: 10–20 nm.
+
+Zona de dezertare e de **10–30 ori mai mare** decât canalul.
+Regiunile Sursă și Drenă se "văd" reciproc prin canal —
+și interferează electric. Tranzistorul pierde controlul.
+
+Asta e motivul pentru care arhitectura planară tradițională a murit.
+FinFET și GAA învelesc canalul din toate părțile
+pentru a menține controlul electrostatic când geometria devine imposibilă.
+
+<CosmoHint emotion="surprised">
+  Celula solară din panoul de pe acoperișul vecinului
+  e aceeași joncțiune p-n descoperită accidental de Ohl în 1940.
+  Singura diferență: în loc de baterie externă, fotonii solare generează
+  perechile electron-gol și câmpul intern al joncțiunii le separă.
+  Limita fizică maximă de eficiență pentru siliciu: 33,7% — limita Shockley-Queisser.
+  Panourile comerciale ating 20–24%.
+  Restul devine căldură — din principiu fizic, nu din lipsă de inginerie.
+</CosmoHint>
+
+---
+
+## Reveal
+
+Acum înțelegi de ce siliciul dopat e fundamentul civilizației digitale.
+
+Pur, siliciul e aproape inutil — prea puțini purtători, prea instabili.
+Dopat cu un atom la 5 milioane, devine precis controlabil.
+Pus față în față cu dopajul opus, formează o barieră de 0,7 V
+care lasă curentul să treacă doar într-o direcție.
+
+Această asimetrie — curent da, curent nu — e totul.
+
+Din ea derivă dioda, celula solară, senzorul de imagine al camerei tale,
+LED-ul de pe tastatura laptopului și, cel mai important,
+componenta care urmează.
+
+Ai nevoie de o barieră care să nu se deschidă sau închidă spontan —
+ci la comandă. Controlată de un semnal extern.
+
+Ai nevoie de un al treilea terminal. O poartă.
+
+---
+
+## Ce urmează
+
+Joncțiunea p-n are două terminale: anod și catod.
+Lasă curentul sau îl blochează — dar decizia e fixată de polarizare.
+
+Tranzistorul adaugă un al treilea terminal: **poarta**.
+Un semnal mic aplicat pe poartă controlează un curent mare între Sursă și Drenă.
+Nu prin contact direct — prin câmp electric, prin izolator.
+
+19 miliarde de astfel de porți pe un cip Apple M-series.
+Fiecare comutând de miliarde de ori pe secundă.
+Fiecare bazată pe aceeași fizică pe care tocmai ai învățat-o.

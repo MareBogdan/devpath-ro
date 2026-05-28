@@ -30,8 +30,24 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Protected routes: redirect to login if not authenticated
-  const isProtectedRoute = request.nextUrl.pathname.startsWith("/dashboard");
+  // Protected routes: redirect to login if not authenticated.
+  // Covers every route in the (dashboard) route group.
+  const PROTECTED_PREFIXES = [
+    "/dashboard",
+    "/courses",
+    "/interview",
+    "/roadmap",
+    "/profile",
+    "/settings",
+    "/leaderboard",
+    "/flashcards",
+    "/glossar",
+    "/portfolio",
+    "/onboarding",
+  ];
+  const isProtectedRoute = PROTECTED_PREFIXES.some((prefix) =>
+    request.nextUrl.pathname.startsWith(prefix)
+  );
   if (isProtectedRoute && !user) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";

@@ -34,7 +34,9 @@ export function LessonKeyboardNav({
         if (prevLessonId) {
           router.push(`/courses/${courseSlug}/${prevLessonId}`);
         } else {
-          router.push(`/courses/${courseSlug}`);
+          // First lesson — Alt+← goes back to the course map with this
+          // course pre-selected.
+          router.push(`/courses?c=${courseSlug}`);
         }
       }
     }

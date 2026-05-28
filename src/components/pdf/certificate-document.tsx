@@ -12,7 +12,6 @@ const BLUE = "#2563eb";
 const DARK = "#1e293b";
 const MUTED = "#64748b";
 const LIGHT = "#f1f5f9";
-const GOLD = "#ca8a04";
 
 const styles = StyleSheet.create({
   page: {

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { LayoutDashboard, PartyPopper } from "lucide-react";
-import { PixelMascot } from "@/components/mascot/pixel-mascot";
+import { CosmoMascot } from "@/components/mascot/cosmo-mascot";
 
 export const metadata: Metadata = {
   title: "Plată reușită",
@@ -14,7 +14,7 @@ export default function PricingSuccessPage() {
       <div className="max-w-md w-full text-center">
         {/* Mascot */}
         <div className="flex justify-center mb-6">
-          <PixelMascot emotion="excited" size={100} withSparks />
+          <CosmoMascot emotion="celebrating" size={100} />
         </div>
 
         {/* Icon */}

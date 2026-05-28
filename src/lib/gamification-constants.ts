@@ -3,8 +3,7 @@
 
 export type XPEventType =
   | "onboarding_complete"
-  | "lesson_complete_simple"
-  | "lesson_complete_technical"
+  | "lesson_complete"
   | "gate_first_try"
   | "quiz_perfect"
   | "quiz_good"
@@ -22,8 +21,7 @@ export type XPEventType =
 
 export const XP_VALUES: Record<XPEventType, number> = {
   onboarding_complete: 50,
-  lesson_complete_simple: 10,
-  lesson_complete_technical: 15,
+  lesson_complete: 15,
   gate_first_try: 5,
   quiz_perfect: 25,
   quiz_good: 10,
@@ -41,6 +39,20 @@ export const XP_VALUES: Record<XPEventType, number> = {
 };
 
 // ─── Level System ─────────────────────────────────────────────────────────────
+
+// XP required to REACH each level (cumulative)
+export const LEVEL_THRESHOLDS: Record<number, number> = {
+  1: 0,
+  2: 200,
+  3: 250,
+  4: 500,
+  5: 1000,
+  6: 1750,
+  7: 2750,
+  8: 4000,
+  9: 5500,
+  10: 7500,
+};
 
 export const LEVEL_NAMES: Record<number, string> = {
   1: "Curios",
@@ -88,7 +100,6 @@ export type BadgeTrigger =
   | { event: "lesson_complete"; lessonType: string; courseId: string; moduleIndex: number; completedAt: Date }
   | { event: "quiz_complete"; score: number; courseId: string }
   | { event: "streak_update"; streakCount: number }
-  | { event: "mode_change"; newMode: "simple" | "technical" }
   | { event: "project_submit" }
   | { event: "referral_complete"; referralCount: number }
   | { event: "flashcard_session"; cardCount: number }

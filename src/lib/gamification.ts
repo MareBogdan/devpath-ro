@@ -194,9 +194,6 @@ export async function checkAndAwardBadges(
     if (streakCount === 100) await tryAward("legenda");
   }
 
-  if (trigger.event === "mode_change" && trigger.newMode === "technical") {
-    await tryAward("programator_in_formare");
-  }
 
   if (trigger.event === "project_submit") {
     await tryAward("constructor");

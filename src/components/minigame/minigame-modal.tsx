@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { X, Gamepad2 } from "lucide-react";
 import type { MinigameType } from "@/app/(dashboard)/courses/actions";
 import { recordMinigameSession } from "@/app/(dashboard)/courses/actions";
-import { PixelMascot } from "@/components/mascot/pixel-mascot";
+import { CosmoMascot } from "@/components/mascot/cosmo-mascot";
 import { MinigameResultScreen } from "./minigame-result-screen";
 import { GameSortConcepts } from "./game-sort-concepts";
 import { GameFillBlank } from "./game-fill-blank";
@@ -99,7 +99,7 @@ export function MinigameModal({ gameType, lessonId, onClose }: MinigameModalProp
                   transition={{ duration: 0.2 }}
                   className="flex flex-col items-center gap-5 py-4 text-center"
                 >
-                  <PixelMascot emotion="excited" size={90} withSparks />
+                  <CosmoMascot emotion="excited" size={90} />
                   <div>
                     <h2 className="text-xl font-bold">Mini-joc deblocat!</h2>
                     <p className="text-muted-foreground text-sm mt-1">

@@ -6,11 +6,20 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 // nodejs runtime — web-push uses Node.js crypto APIs
 export const runtime = "nodejs";
 
+// Guard: fail fast if VAPID keys are missing — prevents silent push failures
+const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
+if (!vapidPublicKey || !vapidPrivateKey) {
+  throw new Error(
+    "[api/push/send] Missing VAPID keys. Set NEXT_PUBLIC_VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY in environment variables."
+  );
+}
+
 // Configure web-push with VAPID keys once per cold start
 webpush.setVapidDetails(
   process.env.VAPID_SUBJECT ?? "mailto:contact@devpath.ro",
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "",
-  process.env.VAPID_PRIVATE_KEY ?? ""
+  vapidPublicKey,
+  vapidPrivateKey
 );
 
 const payloadSchema = z.object({

@@ -125,8 +125,9 @@ export async function signUpWithEmail(
           }
         }
       }
-    } catch {
+    } catch (err) {
       // Referral errors must never block registration
+      console.error("[auth/referral] Referral tracking failed (non-blocking):", err);
     }
 
     // Clear the cookie regardless of outcome

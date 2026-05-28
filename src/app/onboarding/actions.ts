@@ -2,10 +2,8 @@
 
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import {
-  computeLearningMode,
-  computeSkillLevel,
-} from "@/lib/onboarding-mapping";
+import { awardXP } from "@/lib/gamification";
+import { computeSkillLevel } from "@/lib/onboarding-mapping";
 import type {
   ProfileType,
   LearningGoal,
@@ -39,12 +37,6 @@ export async function completeOnboarding(
   } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
 
-  const learningMode = computeLearningMode(
-    input.profileType,
-    input.hasCodedBefore,
-    input.usedChatGPT,
-    input.knowsAPI
-  );
   const skillLevel = computeSkillLevel(input.hasCodedBefore, input.knowsAPI);
 
   // Generate unique referral code (retry once on collision)
@@ -56,7 +48,6 @@ export async function completeOnboarding(
       profile_type: input.profileType,
       learning_goal: input.learningGoal,
       skill_level: skillLevel,
-      learning_mode: learningMode,
       daily_goal_minutes: input.dailyGoalMinutes,
       referral_code: referralCode,
     })
@@ -74,7 +65,8 @@ export async function completeOnboarding(
     throw new Error(updateError.message);
   }
 
-  // TODO (Phase 3): awardXP(user.id, "onboarding_complete", 50)
+  // Award 50 XP for completing onboarding (graceful failure)
+  await awardXP(user.id, "onboarding_complete").catch(() => null);
 
   // Check if referred — award XP to both users (Phase 3 wires the XP side)
   const { data: profile } = await supabase

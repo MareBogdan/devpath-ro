@@ -1,8 +1,16 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
-import { UserCircle, Users, ExternalLink, Share2 } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { CopyButton } from "@/components/profile/copy-button";
+import { ProfileHero } from "@/components/profile/profile-hero";
+import { ProfileStatsRow } from "@/components/profile/profile-stats-row";
+import { ProfileEditCard } from "@/components/profile/profile-edit-card";
+import { BadgeShowcase, type BadgeRow } from "@/components/profile/badge-showcase";
+import {
+  CertificatesSection,
+  type CertificateRow,
+} from "@/components/profile/certificates-section";
+import { ReferralSection } from "@/components/profile/referral-section";
+import { PortfolioLinkCard } from "@/components/profile/portfolio-link-card";
+import { ActivityHeatmapCard } from "@/components/profile/activity-heatmap-card";
 
 export default async function ProfilePage() {
   const supabase = createSupabaseServerClient();
@@ -11,139 +19,173 @@ export default async function ProfilePage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: profile } = await supabase
-    .from("users")
-    .select("name, email, referral_code, xp_points, level, streak_count, avatar_url")
-    .eq("id", user.id)
-    .single();
+  // ─── Parallel fetches ─────────────────────────────────────────────────────
+  const [
+    profileResult,
+    referralCountResult,
+    allBadgesResult,
+    userBadgesResult,
+    certificatesResult,
+    completedProgressResult,
+    totalLessonsResult,
+  ] = await Promise.all([
+    supabase
+      .from("users")
+      .select(
+        "name, email, referral_code, xp_points, level, streak_count, avatar_url, daily_goal_minutes"
+      )
+      .eq("id", user.id)
+      .single(),
+    supabase
+      .from("referral_events")
+      .select("id", { count: "exact", head: true })
+      .eq("referrer_id", user.id),
+    supabase
+      .from("badges")
+      .select("slug, name, icon, description"),
+    supabase
+      .from("user_badges")
+      .select("badge_id, earned_at, badges(slug)")
+      .eq("user_id", user.id),
+    supabase
+      .from("certificates")
+      .select("id, code, issued_at, courses(slug, title)")
+      .eq("user_id", user.id)
+      .order("issued_at", { ascending: false }),
+    supabase
+      .from("user_progress")
+      .select("completed_at")
+      .eq("user_id", user.id)
+      .eq("completed", true),
+    supabase
+      .from("lessons")
+      .select("id", { count: "exact", head: true }),
+  ]);
 
-  const { count: referralCount } = await supabase
-    .from("referral_events")
-    .select("id", { count: "exact", head: true })
-    .eq("referrer_id", user.id);
+  const profile = profileResult.data;
+  const referralCount = referralCountResult.count ?? 0;
+  const allBadges = allBadgesResult.data ?? [];
+  const userBadgesRaw = userBadgesResult.data ?? [];
+  const certificatesRaw = certificatesResult.data ?? [];
+  const completedProgress = completedProgressResult.data ?? [];
+  const totalLessons = totalLessonsResult.count ?? 0;
 
+  // ─── Derived data ─────────────────────────────────────────────────────────
   const referralCode = profile?.referral_code ?? "";
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://devpath.ro";
   const referralLink = `${siteUrl}/join?ref=${referralCode}`;
-  const portfolioUsername = referralCode || (user.email?.split("@")[0] ?? "");
+  const portfolioUsername = referralCode || (user.email?.split("@")[0] ?? "user");
   const portfolioLink = `${siteUrl}/u/${portfolioUsername}`;
-  const displayName = profile?.name ?? user.email?.split("@")[0] ?? "Student";
+  const displayName =
+    profile?.name ?? user.email?.split("@")[0] ?? "Student";
+  const email = (profile?.email as string | null) ?? user.email ?? "";
+
+  const xpPoints = (profile?.xp_points as number | null) ?? 0;
+  const level = (profile?.level as number | null) ?? 1;
+  const streakCount = (profile?.streak_count as number | null) ?? 0;
+  const dailyGoal = ((profile?.daily_goal_minutes as number | null) ?? 15) as
+    | 0
+    | 5
+    | 15
+    | 30;
+
+  // Build badges list (earned + locked)
+  const earnedSlugs = new Set<string>();
+  const earnedAtMap = new Map<string, string>();
+  for (const ub of userBadgesRaw) {
+    const badgeRel = ub.badges as unknown;
+    const badge = (Array.isArray(badgeRel) ? badgeRel[0] : badgeRel) as
+      | { slug: string }
+      | null
+      | undefined;
+    if (badge?.slug) {
+      earnedSlugs.add(badge.slug);
+      earnedAtMap.set(badge.slug, (ub.earned_at as string | null) ?? "");
+    }
+  }
+
+  const badges: BadgeRow[] = allBadges.map((b) => ({
+    slug: b.slug as string,
+    name: b.name as string,
+    icon: (b.icon as string | null) ?? "🏅",
+    description: (b.description as string | null) ?? null,
+    earned: earnedSlugs.has(b.slug as string),
+    earnedAt: earnedAtMap.get(b.slug as string) ?? null,
+  }));
+
+  // Certificates
+  const certificates: CertificateRow[] = certificatesRaw.flatMap((row) => {
+    const courseRel = row.courses as unknown;
+    const course = (Array.isArray(courseRel) ? courseRel[0] : courseRel) as
+      | { slug: string; title: string }
+      | null
+      | undefined;
+    if (!course) return [];
+    return [
+      {
+        id: row.id as string,
+        courseSlug: course.slug,
+        courseTitle: course.title,
+        issuedAt: row.issued_at as string,
+        code: row.code as string,
+      },
+    ];
+  });
+
+  // Completion timestamps for activity heatmap
+  const completionDates = completedProgress
+    .map((p) => p.completed_at as string | null)
+    .filter((d): d is string => Boolean(d));
 
   return (
-    <div className="max-w-2xl mx-auto px-6 py-10 space-y-8">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Profilul meu</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Invită prieteni și distribuie-ți progresul.
-        </p>
-      </div>
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 space-y-8">
+      {/* Hero — avatar + level + XP progress */}
+      <ProfileHero
+        name={displayName}
+        email={email}
+        avatarUrl={(profile?.avatar_url as string | null) ?? null}
+        level={level}
+        xpPoints={xpPoints}
+        streakCount={streakCount}
+      />
 
-      {/* Profile card */}
-      <div className="rounded-2xl border border-border bg-card p-6 flex items-center gap-4">
-        <div className="w-14 h-14 rounded-full bg-primary/10 text-primary text-xl font-bold flex items-center justify-center shrink-0 overflow-hidden">
-          {profile?.avatar_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={profile.avatar_url}
-              alt={displayName}
-              className="w-full h-full rounded-full object-cover"
-            />
-          ) : (
-            displayName.charAt(0).toUpperCase()
-          )}
+      {/* Stats row */}
+      <ProfileStatsRow
+        totalXP={xpPoints}
+        streakCount={streakCount}
+        badgesEarned={earnedSlugs.size}
+        totalBadges={badges.length}
+        lessonsCompleted={completionDates.length}
+        totalLessons={totalLessons}
+      />
+
+      {/* Edit profile (collapsible) */}
+      <ProfileEditCard
+        initialName={displayName}
+        initialAvatarUrl={(profile?.avatar_url as string | null) ?? null}
+        initialDailyGoal={dailyGoal}
+      />
+
+      {/* Activity heatmap */}
+      <ActivityHeatmapCard completionDates={completionDates} />
+
+      {/* Two-column layout on desktop: badges (left, wide) + referral + portfolio (right) */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-6">
+          <BadgeShowcase badges={badges} />
+          <CertificatesSection certificates={certificates} />
         </div>
-        <div>
-          <p className="font-semibold text-foreground">{displayName}</p>
-          <p className="text-sm text-muted-foreground">{user.email}</p>
-          <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-            <span>Nivel {profile?.level ?? 1}</span>
-            <span>·</span>
-            <span>{(profile?.xp_points ?? 0).toLocaleString("ro-RO")} XP</span>
-            <span>·</span>
-            <span>{profile?.streak_count ?? 0} zile streak</span>
-          </div>
+        <div className="space-y-6">
+          <ReferralSection
+            referralCode={referralCode}
+            referralLink={referralLink}
+            referralCount={referralCount}
+          />
+          <PortfolioLinkCard
+            username={portfolioUsername}
+            portfolioLink={portfolioLink}
+          />
         </div>
-      </div>
-
-      {/* Referral section */}
-      <div className="rounded-2xl border border-border bg-card p-6 space-y-5">
-        <div className="flex items-center gap-2">
-          <Users className="h-4 w-4 text-primary" />
-          <h2 className="text-sm font-semibold text-foreground">
-            Invită prieteni
-          </h2>
-        </div>
-
-        <p className="text-sm text-muted-foreground">
-          Tu și prietenul tău primiți fiecare{" "}
-          <strong className="text-foreground">40 XP</strong> când se
-          înregistrează cu link-ul tău. La 1 invitat câștigi badge-ul{" "}
-          <strong className="text-foreground">Ambasador 🤝</strong>, la 3
-          câștigi <strong className="text-foreground">Recrutorul 🌐</strong>.
-        </p>
-
-        {/* Referral count */}
-        <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1.5 text-sm">
-          <Users className="h-3.5 w-3.5 text-primary" />
-          <span className="font-medium text-primary">
-            {referralCount ?? 0}{" "}
-            {(referralCount ?? 0) === 1
-              ? "prieten invitat"
-              : "prieteni invitați"}
-          </span>
-        </div>
-
-        {/* Referral link */}
-        <div>
-          <p className="text-xs font-medium text-muted-foreground mb-1.5">
-            Link-ul tău de invitație
-          </p>
-          {referralCode ? (
-            <CopyButton value={referralLink} />
-          ) : (
-            <p className="text-sm text-muted-foreground italic">
-              Finalizează onboarding-ul pentru a genera codul tău de invitație.
-            </p>
-          )}
-        </div>
-      </div>
-
-      {/* Portfolio link */}
-      <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
-        <div className="flex items-center gap-2">
-          <UserCircle className="h-4 w-4 text-primary" />
-          <h2 className="text-sm font-semibold text-foreground">
-            Profilul meu public
-          </h2>
-        </div>
-
-        <p className="text-sm text-muted-foreground">
-          Pagina ta de portfolio este publică — o poți distribui oricui fără
-          autentificare.
-        </p>
-
-        <div className="flex flex-col gap-3">
-          <CopyButton value={portfolioLink} />
-          <Link
-            href={`/u/${portfolioUsername}`}
-            className="inline-flex w-fit items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-accent transition-colors"
-          >
-            <ExternalLink className="h-3.5 w-3.5" />
-            Deschide profilul
-          </Link>
-        </div>
-      </div>
-
-      {/* Share hint */}
-      <div className="flex items-start gap-3 rounded-xl bg-muted/40 border border-border px-4 py-3">
-        <Share2 className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
-        <p className="text-xs text-muted-foreground">
-          Distribuie-ți profilul pe LinkedIn sau oricui vrei să îi arăți
-          progresul tău. Butonul{" "}
-          <strong className="text-foreground">Distribuie profilul</strong> se
-          află pe pagina ta de portfolio.
-        </p>
       </div>
     </div>
   );

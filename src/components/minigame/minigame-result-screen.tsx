@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import { Trophy, Star, Zap } from "lucide-react";
-import { PixelMascot } from "@/components/mascot/pixel-mascot";
+import { CosmoMascot } from "@/components/mascot/cosmo-mascot";
 import { cn } from "@/lib/utils";
 
 interface MinigameResultScreenProps {
@@ -27,10 +27,9 @@ export function MinigameResultScreen({
       transition={{ type: "spring", stiffness: 280, damping: 22 }}
       className="flex flex-col items-center gap-6 py-6 text-center"
     >
-      <PixelMascot
-        emotion={isPerfect ? "excited" : passed ? "proud" : "thinking"}
+      <CosmoMascot
+        emotion={isPerfect ? "celebrating" : passed ? "celebrating" : "encouraging"}
         size={100}
-        withSparks={isPerfect}
       />
 
       <div>

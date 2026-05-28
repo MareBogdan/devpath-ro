@@ -2,10 +2,23 @@
 
 import { useState, useTransition } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { CheckCircle2, Zap, BookOpen, ChevronRight } from "lucide-react";
+import { CheckCircle2, Zap, BookOpen, ChevronRight, CalendarClock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { updateFlashcardProgress } from "@/app/(dashboard)/flashcards/actions";
+import { computeSM2 } from "@/lib/flashcard-sm2";
 import type { ReviewCard } from "@/app/(dashboard)/flashcards/page";
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function nextReviewLabel(intervalDays: number): string {
+  if (intervalDays <= 1) return "Următoarea revizuire: mâine";
+  if (intervalDays === 2) return "Următoarea revizuire: peste 2 zile";
+  if (intervalDays < 7) return `Următoarea revizuire: peste ${intervalDays} zile`;
+  if (intervalDays < 14) return `Următoarea revizuire: peste o săptămână`;
+  if (intervalDays < 30) return `Următoarea revizuire: peste ${Math.round(intervalDays / 7)} săptămâni`;
+  if (intervalDays < 365) return `Următoarea revizuire: peste ${Math.round(intervalDays / 30)} luni`;
+  return `Următoarea revizuire: peste un an`;
+}
 
 // ─── Quality labels ───────────────────────────────────────────────────────────
 
@@ -23,7 +36,7 @@ interface FlashcardReviewProps {
 }
 
 export function FlashcardReview({ cards: initialCards }: FlashcardReviewProps) {
-  const [queue, setQueue] = useState<ReviewCard[]>(initialCards);
+  const queue = initialCards;
   const [currentIndex, setCurrentIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
   const [reviewed, setReviewed] = useState(0);  // total reviewed this session
@@ -159,14 +172,14 @@ export function FlashcardReview({ cards: initialCards }: FlashcardReviewProps) {
           style={{ perspective: 1000 }}
         >
           <motion.div
-            className="relative min-h-[200px]"
+            className="relative min-h-[220px]"
             animate={{ rotateY: flipped ? 180 : 0 }}
-            transition={{ duration: 0.45, type: "spring", stiffness: 180, damping: 20 }}
+            transition={{ type: "spring", stiffness: 220, damping: 18, mass: 0.9 }}
             style={{ transformStyle: "preserve-3d" }}
           >
             {/* Front */}
             <div
-              className="absolute inset-0 flex flex-col items-center justify-center rounded-2xl border-2 border-border bg-card px-8 text-center shadow-sm"
+              className="absolute inset-0 flex flex-col items-center justify-center rounded-2xl border-2 border-border bg-card px-8 py-6 text-center shadow-sm"
               style={{ backfaceVisibility: "hidden" }}
             >
               <p className="text-xl font-bold text-foreground">{current.front_text}</p>
@@ -179,10 +192,28 @@ export function FlashcardReview({ cards: initialCards }: FlashcardReviewProps) {
 
             {/* Back */}
             <div
-              className="absolute inset-0 flex flex-col items-center justify-center rounded-2xl border-2 border-primary/40 bg-primary/5 px-8 text-center shadow-sm"
+              className="absolute inset-0 flex flex-col items-center justify-center rounded-2xl border-2 border-aurora-primary-500/40 bg-aurora-primary-500/5 px-8 py-6 text-center shadow-sm"
               style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)" }}
             >
               <p className="text-base text-foreground/90 leading-relaxed">{current.back_text}</p>
+
+              {/* SM-2 next-review hint — what happens if the user rates "Bine" */}
+              {flipped && (() => {
+                const preview = computeSM2(
+                  {
+                    easeFactor: current.easeFactor,
+                    intervalDays: current.intervalDays,
+                    repetitions: current.repetitions,
+                  },
+                  4
+                );
+                return (
+                  <span className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-[11px] font-medium text-muted-foreground">
+                    <CalendarClock className="h-3 w-3" />
+                    {nextReviewLabel(preview.intervalDays)}
+                  </span>
+                );
+              })()}
             </div>
           </motion.div>
         </motion.div>

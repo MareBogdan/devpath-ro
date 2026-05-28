@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "DB update failed" }, { status: 500 });
       }
 
-      console.log(`[stripe/webhook] Plan activated: userId=${userId} plan=${planType}`);
+      console.info(`[stripe/webhook] Plan activated: userId=${userId} plan=${planType}`);
       break;
     }
 
@@ -87,7 +87,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "DB update failed" }, { status: 500 });
       }
 
-      console.log(`[stripe/webhook] Subscription cancelled: customerId=${customerId}`);
+      console.info(`[stripe/webhook] Subscription cancelled: customerId=${customerId}`);
       break;
     }
 

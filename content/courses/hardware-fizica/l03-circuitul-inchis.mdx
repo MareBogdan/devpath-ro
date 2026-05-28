@@ -1,0 +1,220 @@
+---
+title: "Circuitul închis"
+order: 3
+type: lesson
+module_index: 1
+duration: 12
+difficulty: 2
+---
+
+Pui un fir de cupru la o baterie. La celălalt capăt — nimic. Electronii nu curg, lumina
+nu apare, motorul nu pornește.
+
+Dacă firul are 2 milimetri lungime, circuitul a decis asta în **~10 picosecunde** — timpul
+în care unda electromagnetică a bateriei ajunge la capătul liber și semnalul de blocare
+se întoarce. Nu milisecunde. Nu microsecunde. Picosecunde.
+
+Întrebarea nu e de ce electronii nu curg. Întrebarea e cum știe circuitul atât de repede
+că e deschis — și ce se schimbă fizic în momentul în care îl închizi.
+
+---
+
+Lecția anterioară a lăsat o întrebare deschisă: "Pune un fir la o baterie fără să
+închizi circuitul. Nu se întâmplă nimic. De ce?" Motivul e mai adânc decât o regulă
+arbitrară. E un mecanism de feedback electrostatic care operează la viteze de picosecunde.
+
+Odată înțeles, explică de ce bateria funcționează, de ce curentul e identic în orice
+punct al circuitului și de ce un LED are polaritate iar un rezistor nu. Pregătește și
+terenul pentru C1L4 — de ce materialul din care e făcut conductorul contează la fel de
+mult ca forma circuitului.
+
+---
+
+## 20 martie 1800 — ziua în care circuitul a devenit posibil
+
+Înainte de această dată, electricitatea putea fi studiată doar în salve scurte.
+Butelia de Leyden descărca o singură scânteie violentă, instantanee — un scurtcircuit
+natural care se consuma în fracțiuni de secundă. Fulgerul: același fenomen, la scară
+mai mare. Mașinile electrostatice ale vremii produceau tensiuni mari, dar niciun flux
+continuu de sarcină.
+
+Nimeni nu crease vreodată un circuit care să rămână stabil.
+
+Alessandro Volta a schimbat asta cu un dispozitiv surprinzător de simplu: 20-30 de
+discuri alternante de zinc și cupru, separate de carton îmbibat în saramură. Fiecare
+pereche producea ~0,76V. Stivuite: 15-23V de curent continuu stabil, menținut atât timp
+cât existau reactanți chimici.
+
+La câteva luni de la publicare, alți cercetători au realizat prima electroliză a apei —
+ceva imposibil cu mașinile electrostatice ale vremii, care nu puteau menține curentul
+suficient de mult. Telegraful, becul, motorul electric — toate au devenit posibile din
+acel moment.
+
+<FactBox>
+  **Prima linie telegrafică comercială: 24 mai 1844.** Samuel Morse, 70,8 km între
+  Washington D.C. și Baltimore. Un singur fir aerian de cupru, pământul ca retur.
+  Primul mesaj: "What hath God wrought." Releele electromagnetice amplificau semnalul
+  la fiecare câțiva kilometri — primul sistem de regenerare a semnalului din istorie.
+</FactBox>
+
+---
+
+## Bateria — nu un rezervor de electroni, ci o pompă electrochimică
+
+O baterie nu stochează electroni. Nu există un rezervor de particule negative care se
+golește treptat.
+
+O baterie e o **pompă electrochimică** — menține o diferență de potențial constantă prin
+reacții chimice continue la cei doi electrozi. Într-o baterie alcalină AA standard:
+
+**La anod (borna negativă — oxidare):**
+`Zn + 2OH⁻ → ZnO + H₂O + 2e⁻`
+Zincul cedează electroni în circuitul extern.
+
+**La catod (borna pozitivă — reducere):**
+`2MnO₂ + H₂O + 2e⁻ → Mn₂O₃ + 2OH⁻`
+Dioxidul de mangan acceptă electronii care revin din circuit.
+
+Reacția globală produce exact **1,5V** — valoare determinată de natura chimică a
+materialelor, nu de mărimea bateriei. O baterie AA și una D produc aceeași tensiune.
+Diferă doar câți reactanți conțin — deci cât durează.
+
+Când circuitul e deschis: reacția chimică se oprește singură. Electronii acumulați la
+anod creează o barieră electrostatică care blochează transferul. Bateria stă în
+așteptare fără să se descarce semnificativ.
+
+Când circuitul e închis: electronii curg prin fir, bariera scade, reacția reîncepe
+imediat pentru a restabili 1,5V. Bateria nu trimite electroni — îi pompează continuu
+atât timp cât există reactanți chimici.
+
+<CosmoHint emotion="thinking">
+  Ionii din electrolit se mișcă în direcție opusă electronilor din fir. Ionii OH⁻
+  migrează de la catod spre anod prin electrolit, completând circuitul intern. Fără
+  această mișcare ionică, circuitul extern s-ar opri — chiar dacă firul e intact.
+</CosmoHint>
+
+---
+
+## Ce se întâmplă la capătul firului tăiat
+
+Conectezi un fir de cupru la borna pozitivă a bateriei. Celălalt capăt — liber în aer.
+
+Câmpul electric al bateriei pornește imediat o undă de presiune prin gazul de electroni
+din fir. Electronii se deplasează ușor spre capăt. Dar la capătul liber nu au unde să
+meargă — aerul e izolator. Electronii se opresc și se înghesuie.
+
+Acum se întâmplă ceva important: acești electroni se **resping reciproc.** Fiecare
+poartă sarcină negativă. Înghesuiți la capătul firului, forța de respingere Coulomb
+crește rapid. Presiunea lor combinate trimite un semnal înapoi prin toată coloana de
+electroni din fir — ca un val invers de presiune.
+
+Electronii din spatele lor primesc mesajul: nu mai mergeți înainte. Valul se propagă
+spre baterie cu aceeași viteză cu care câmpul electric a venit inițial — aproape
+viteza luminii. Când valul ajunge la sursă, sistemul atinge echilibrul. Câmpul net
+în interiorul firului devine zero. Totul se oprește.
+
+<FactBox>
+  **Rigiditatea dielectrică a aerului uscat: ~30.000 V per centimetru.** Ca să treacă
+  printr-un gol de aer de 1 cm, electronii au nevoie de cel puțin 30.000V. La
+  tensiunile circuitelor casnice, aerul e un izolator perfect. Electronii nu scurg
+  nicăieri — se blochează la capăt și anulează câmpul prin respingere reciprocă.
+</FactBox>
+
+---
+
+## De ce curentul e identic în orice punct al circuitului
+
+O neînțelegere frecventă: curentul se "consumă" pe parcurs. Becul strălucește mai slab
+după rezistor, pentru că o parte din curent "rămâne acolo."
+
+**Fals.** Curentul e identic în orice punct al unui circuit serie.
+
+La nivel atomic: electronii nu dispar în rezistor. Trec prin el, cedând energie rețelei
+atomice sub formă de căldură, și continuă. Dacă curentul ar fi diferit în două puncte
+ale firului, s-ar acumula sarcini nete între ele. Acumularea asta ar crea imediat un
+câmp electric local care ar uniformiza fluxul — instantaneu.
+
+**Ce se consumă e energia, nu sarcina.**
+
+Gândește-te la electronul care parcurge circuitul complet. Pleacă din pompă cu
+**1,5 volți** de "presiune energetică." Trece prin rezistor, se lovește de atomii
+rețelei, cedează energie sub formă de căldură. Iese din rezistor cu **0 volți.**
+Intră înapoi în baterie, unde pompa îl "reîncarcă" la 1,5V pentru un nou ciclu.
+
+Voltajul măsoară câtă energie cară fiecare electron. Curentul măsoară câți electroni
+trec pe secundă. Sunt două lucruri complet diferite — unul se consumă pe parcurs,
+celălalt nu.
+
+Kirchhoff a formalizat asta în 1845: suma curenților într-un nod e zero, suma
+tensiunilor într-un circuit închis e zero. Nu reguli arbitrare — consecințele directe
+ale conservării sarcinii și energiei.
+
+---
+
+## Scurtcircuit vs LED — aceeași baterie, rezultate opuse
+
+<LabBox>
+  **Experiment instant — aceeași baterie, două scenarii.**
+
+  **Scurtcircuit:** conectezi direct cei doi poli cu un fir subțire de cupru. Rezistența
+  externă: aproape 0Ω. Toată tensiunea cade pe rezistența internă a bateriei (~0,15Ω).
+  **Curent: ~10 amperi. Putere disipată intern: 15 wați** — concentrați în volumul
+  bateriei. Firul se încinge imediat. Bateria se deformează sau explodează.
+
+  **LED + rezistor 100Ω:** **Curent: 15 miliamperi. Putere disipată intern: 0,000034
+  wați.** LED-ul se aprinde calm. Bateria rămâne rece.
+
+  Aceeași baterie, aceeași tensiune. Rezistența externă controlează rata de transfer
+  a energiei. Scurtcircuitul nu e "prea mult curent de la baterie" — e absența oricărei
+  rezistențe care să îl limiteze.
+</LabBox>
+
+---
+
+## LED vs rezistor — de ce unul are polaritate și celălalt nu
+
+Un rezistor e o autostradă dreaptă pentru electroni — aceeași rezistență în ambele
+direcții. Conectezi rezistorul invers: același efect.
+
+Un LED are un punct de control cu sens unic. Conectat corect — poarta e deschisă,
+electronii trec, emit lumină. Conectat invers — câmpul bateriei închide poarta
+definitiv. Zero curent, zero lumină.
+
+Cum funcționează exact acel punct de control intern? Asta presupune să înțelegi ce e
+un semiconductor și cum se dopează. Lecția 6 explică mecanismul complet. Deocamdată,
+reține comportamentul: rezistorul nu are direcție, LED-ul are.
+
+---
+
+## TNT vs bateria AA — surpriza energiei controlate
+
+O baterie AA stochează ~11 kilojouli de energie. TNT stochează **4184 kilojouli per
+kilogram.** Bateria cântărește 23 de grame.
+
+**TNT stochează de 8,75 ori mai multă energie per kilogram decât o baterie AA.**
+
+Și totuși bateria alimentează un LED timp de 150 de ore. TNT — microsecunde.
+
+Diferența nu e în cantitatea de energie. E în **rata de eliberare.** Circuitul închis
+controlează exact cât de repede energia chimică devine curent electric. Modifici
+rezistența externă — modifici rata. De la 15 wați în scurtcircuit, la 0,000034 wați
+cu LED-ul. Același principiu la scară continentală:
+
+Linia UHVDC Changji-Guquan din China transportă **12.000 megawați pe 3.284 km**
+la ±1.100.000 volți, cu pierderi de doar 1,5% per 1.000 km.
+
+<CosmoHint emotion="excited">
+  Întoarce un LED invers în circuit — nu se aprinde. Acel "punct de control cu sens
+  unic" e construit din siliciu dopat, nu din metal obișnuit. Lecția 6 arată exact
+  cum. Înainte, lecția 4 răspunde la o întrebare mai fundamentală: de ce cuprul lasă
+  electronii să treacă liber, iar plasticul nu?
+</CosmoHint>
+
+---
+
+Circuitul închis e condiția necesară pentru orice. Fără el, respingerea electronilor
+blocați la capătul firului oprește totul în picosecunde. Cu el, reacțiile chimice
+pompează electroni continuu, fiecare electron cară 1,5V de energie de la pompă la
+consumator și se întoarce cu 0V pentru un nou ciclu.
+
+Ce face ca un material să permită acest ciclu și altul să îl blocheze complet?

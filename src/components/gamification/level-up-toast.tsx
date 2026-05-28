@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { PixelMascot } from "@/components/mascot/pixel-mascot";
+import { CosmoMascot } from "@/components/mascot/cosmo-mascot";
 
 interface LevelUpToastProps {
   show: boolean;
@@ -28,7 +28,7 @@ export function LevelUpToast({
           transition={{ type: "spring", stiffness: 260, damping: 20 }}
           className="fixed bottom-6 right-6 z-50 flex items-center gap-4 rounded-2xl bg-card border border-primary/40 shadow-xl px-5 py-4 max-w-sm"
         >
-          <PixelMascot emotion="proud" size={56} />
+          <CosmoMascot emotion="celebrating" size={56} />
           <div>
             <p className="text-xs font-medium text-primary uppercase tracking-wide">
               Level {newLevel} atins!

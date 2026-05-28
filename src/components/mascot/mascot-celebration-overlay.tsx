@@ -3,7 +3,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useEffect } from "react";
 import confetti from "canvas-confetti";
-import { PixelMascot } from "./pixel-mascot";
+import { CosmoMascot } from "./cosmo-mascot";
 import type { AwardedBadge } from "@/lib/gamification-constants";
 import { LEVEL_UNLOCK_TEXT } from "@/lib/gamification-constants";
 
@@ -52,7 +52,10 @@ export function MascotCelebrationOverlay({
             className="flex flex-col items-center gap-4 select-none"
             onClick={(e) => e.stopPropagation()}
           >
-            <PixelMascot emotion="excited" size={160} withSparks />
+            <CosmoMascot
+              emotion={leveledUp ? "celebrating" : "excited"}
+              size={160}
+            />
 
             <motion.div
               initial={{ opacity: 0, y: 20 }}

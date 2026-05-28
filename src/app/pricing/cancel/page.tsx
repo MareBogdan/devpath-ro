@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { PixelMascot } from "@/components/mascot/pixel-mascot";
+import { CosmoMascot } from "@/components/mascot/cosmo-mascot";
 
 export const metadata: Metadata = {
   title: "Plată anulată",
@@ -14,7 +14,7 @@ export default function PricingCancelPage() {
       <div className="max-w-md w-full text-center">
         {/* Mascot */}
         <div className="flex justify-center mb-6">
-          <PixelMascot emotion="sad" size={100} />
+          <CosmoMascot emotion="encouraging" size={100} />
         </div>
 
         <h1 className="text-3xl font-bold text-foreground mb-3">

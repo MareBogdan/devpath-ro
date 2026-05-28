@@ -103,12 +103,6 @@ export function GameTrueFalse({ onComplete }: MinigameProps) {
       setShowFeedback(false);
       if (current + 1 >= STATEMENTS.length) {
         setDone(true);
-        // Calculate score and emit
-        const correctCount = answers.filter((a, i) => {
-          const ans = i === current ? value : a;
-          return ans === STATEMENTS[i].answer;
-        }).length;
-        // Count the current answer too
         const actualCorrect = answers.reduce((acc, a, i) => {
           if (i === current) return acc + (value === STATEMENTS[i].answer ? 1 : 0);
           return acc + (a === STATEMENTS[i].answer ? 1 : 0);

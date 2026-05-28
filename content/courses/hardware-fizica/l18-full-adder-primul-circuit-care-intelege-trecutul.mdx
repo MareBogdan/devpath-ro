@@ -1,0 +1,157 @@
+---
+title: "Full-Adder — primul circuit care înțelege trecutul"
+order: 18
+type: lesson
+module_index: 1
+duration: 14
+difficulty: 2
+---
+
+# Full-Adder — primul circuit care înțelege trecutul
+
+## HOOK
+
+Aduni 255 + 1. Simplu.
+
+În binar: `11111111` + `00000001`.
+
+Primul bit: 1+1 = sumă 0, carry 1. Până aici merge. Dar carry-ul ăsta trebuie să ajungă la bitul următor — care are deja doi operanzi care îl așteaptă. Trei semnale. Half-Adder are doar două intrări.
+
+Carry-ul n-are unde să meargă. Calculul se oprește. 255+1 dă 0.
+
+Asta e exact limita Half-Adder-ului — nu calculează greșit, ci nu poate să *continue*. E ca o linie de domino cu un gol între prima și a doua piesă: reacția moare la primul pas.
+
+Full-Adder adaugă o singură intrare în plus: `Cin`. Atât. Și dintr-odată, adunarea devine infinit scalabilă.
+
+## CONTEXT
+
+Half-Adder adună doi biți și produce Sum + Carry. Funcționează perfect — pentru bitul cel mai puțin semnificativ.
+
+La orice altă poziție, există trei semnale de procesat: bitul din operandul A, bitul din operandul B, și carry-ul venit de la poziția anterioară.
+
+Full-Adder acceptă exact aceste trei semnale. Produce tot două ieșiri: Sum și Cout. Diferența e că acum carry-ul din stânga *intră* în calcul, nu e ignorat.
+
+Asta e tot. O intrare în plus. Dar acea intrare transformă un circuit izolat într-un lanț infinit.
+
+## MIEZUL
+
+### Ecuațiile — paritate și majoritate
+
+Full-Adder are trei intrări: A, B, Cin. Expresiile booleene exacte:
+
+```
+Sum   = A XOR B XOR Cin
+Cout  = (A AND B) OR (Cin AND (A XOR B))
+```
+
+Intuiția din spatele lor e elegantă.
+
+**Sum e un detector de paritate.** Ieșirea e 1 dacă un număr *impar* de intrări sunt 1 — adică exact 1 din 3, sau toate 3. Primul XOR verifică dacă A și B diferă. Al doilea XOR introduce Cin și finalizează verificarea de paritate pe toate cele trei semnale.
+
+**Cout e o poartă de majoritate.** Ieșirea e 1 dacă *cel puțin două* din trei intrări sunt 1. Expresia are doi termeni:
+- `A AND B` — dacă ambii operanzi principali sunt 1, carry-ul se *generează* indiferent de Cin
+- `Cin AND (A XOR B)` — dacă exact unul din A, B e 1, carry-ul se *propagă* din Cin
+
+Acești doi termeni — Generate și Propagate — revin în fiecare arhitectură de sumator rapid din industrie. Nu sunt concepte avansate, sunt chiar ecuațiile de mai sus, generalizate.
+
+{/* TABLE */}
+
+| A | B | Cin | Sum | Cout |
+|---|---|-----|-----|------|
+| 0 | 0 | 0 | 0 | 0 |
+| 0 | 0 | 1 | 1 | 0 |
+| 0 | 1 | 0 | 1 | 0 |
+| 0 | 1 | 1 | 0 | 1 |
+| 1 | 0 | 0 | 1 | 0 |
+| 1 | 0 | 1 | 0 | 1 |
+| 1 | 1 | 0 | 0 | 1 |
+| 1 | 1 | 1 | 1 | 1 |
+
+### Tranzistoare — cât costă fizic
+
+Full-Adder nativ în CMOS static: **28 de tranzistoare**. Standard industrial, simetric, robust.
+
+Full-Adder din NAND-uri pure: **9 porți NAND = 36 tranzistoare**. Plătești universalitatea NAND cu 8 tranzistoare extra.
+
+Poți construi un Full-Adder din două Half-Adder-e și o poartă OR:
+- Half-Adder 1 procesează A și B → sumă intermediară + carry intermediar
+- Half-Adder 2 procesează suma intermediară și Cin → Sum final + carry secundar
+- OR combină cele două carry-uri → Cout
+
+Elegant pe hârtie. Costul: 2×18 + 6 = **42 tranzistoare** — cu 50% mai mult decât implementarea nativă. Textbookurile îl arată, fabricile nu îl folosesc.
+
+<FactBox>
+Calea critică dintr-un Full-Adder — de la Cin la Cout — traversează doar 2 niveluri de porți. Asta e tot ce separă o adunare de următoarea într-un lanț. Două porți. Și totuși, în 1971, această întârziere de două porți înmulțită cu 4 biți dicta viteza maximă a primului microprocesor comercial din lume.
+</FactBox>
+
+### Intel 4004 și zidul de viteză al carry-ului
+
+Primul microprocesor pe un singur cip, Intel 4004, lansat în noiembrie 1971: 2.300 de tranzistoare, proces de 10 micrometri, 740 kHz. În interiorul ALU-ului său se afla un **4-bit ripple-carry adder** — patru Full-Adder-e înlănțuite.
+
+Carry-ul ieșit din FA0 intra în FA1, ieșit din FA1 intra în FA2, și tot așa. Suma finală nu era validă până când carry-ul nu ajungea la ultimul bit.
+
+Formula exactă pentru întârzierea unui n-bit ripple-carry adder: **2n + 1 niveluri de porți**. Pentru 4 biți: 9 niveluri. Pentru 64 de biți: 129 niveluri.
+
+La un proces modern cu delay de 100 picosecunde per poartă, un 64-bit ripple-carry adder ar limita procesorul la **77 MHz**. Ca să depășești 1 GHz, trebuie să abandonezi complet arhitectura ripple.
+
+{/* ANIMATION */}
+
+<CosmoHint emotion="surprised">
+Charles Babbage a identificat problema carry-propagation în 1830 — pe roți mecanice. A proiectat un mecanism pe care l-a numit „anticipating carriage" — carry-lookahead implementat mecanic, cu un secol înainte de tranzistori. Problema care limitează procesoarele de azi la GHz a fost rezolvată conceptual de un om cu roți și pinioane.
+</CosmoHint>
+
+### Manchester Carry Chain — carry-ul care sare peste logică
+
+În 1959, Tom Kilburn și echipa de la Universitatea Manchester au inventat o soluție fizic elegantă: **Manchester Carry Chain**.
+
+Ideea: în loc să treci carry-ul prin porți logice grele, pui un singur fir continuu pentru semnal, cu tranzistoare tip pass-transistor intercalate. Dacă un bit nici nu generează nici nu absoarbe carry-ul (condiția Propagate), tranzistorul se închide și carry-ul *sare* direct peste blocul logic, parcurgând doar rezistența unui fir de cupru.
+
+Efectul: întârzierea unui lanț de carry cade de la O(n) niveluri de porți la delay-ul RC al unui fir — ordin de magnitudine mai rapid.
+
+Manchester Carry Chain a apărut în ALU-ul Intel 8086 (1978) și în DEC Alpha 21064 (1992). E prezentă, în variante moderne, și în procesoarele de azi.
+
+### Pentium 4 și ALU-ul la 6 GHz
+
+La începutul anilor 2000, Intel voia să treacă de 3 GHz cu arhitectura NetBurst. Problema: adunările pe 32 și 64 de biți aveau un lanț de carry prea lung pentru pipeline-ul agresiv.
+
+Soluția: **double-pumped ALU**. Intel a decuplat fizic unitățile aritmetice de ceasul principal și le-a rulat la **de două ori frecvența core-ului**. Un procesor la 3 GHz avea ALU-urile interne la **6 GHz**.
+
+Nu au redus latența carry-ului — au redus timpul disponibil per ciclu la jumătate, forțând carry-ul să se rezolve mai repede prin brute force de frecvență.
+
+Era inginerie de urgență, nu eleganță. Dar a funcționat.
+
+### Scădere, înmulțire, comparație — totul e Full-Adder
+
+**Scăderea** nu necesită un circuit separat. Trucul two's complement: pentru a calcula A−B, inversezi toți biții lui B și forțezi Cin=1 la primul Full-Adder. Inversarea + adunarea de 1 (prin Cin) execută complementul față de 2 în același ciclu în care se face adunarea. Zero circuite extra. Același lanț de Full-Adder-e.
+
+**Comparația** (A>B, A==B) e o scădere fantomă. ALU-ul execută A−B fără să stocheze rezultatul. Dacă bitul de semn e 1, A\<B. Dacă toți biții de sumă sunt 0 (verificat cu un NOR gigantic), A==B.
+
+**Înmulțirea** e unde Full-Adder-ul devine cu adevărat spectaculos.
+
+Dacă înmulțești două numere de 64 de biți, generezi o matrice de 4.096 de produse parțiale. Să le aduni secvențial ar fi dezastruos. Soluția inventată de C.S. Wallace în 1964: **Wallace Tree**.
+
+Ideea centrală: Full-Adder e un „compressor 3:2" — primește 3 biți de aceeași greutate, produce 2 biți. Nu așteaptă propagarea carry-ului orizontal, comprimă coloane de biți *vertical*, în paralel.
+
+Un Wallace Tree grupează cei 4.096 de biți în coloane și îi trece prin straturi succesive de Full-Adder-e. Fiecare strat reduce numărul de rânduri cu factorul 3/2. Întârzierea scade de la O(n) la **O(log₁.₅ n)** — logaritmică.
+
+La final rămân exact două rânduri. Acestea intră într-un sumator rapid și produc produsul final de 128 de biți.
+
+<CosmoHint emotion="thinking">
+Un Wallace Tree pentru 64×64 biți necesită aproximativ **3.968 de Full-Adder-e** rulând în paralel. Acesta e motivul pentru care primele microprocesoare nu aveau unitate de înmulțire hardware — un multiplier ocupa mai mult siliciu decât tot restul ALU-ului.
+</CosmoHint>
+
+## REVEAL
+
+Half-Adder știe să calculeze. Full-Adder știe să *continue*.
+
+Diferența e o singură intrare — Cin — care transformă un circuit izolat într-un lanț scalabil. Cu ea, poți construi sumatoare de orice dimensiune. Fără ea, ești blocat la un singur bit.
+
+De la George Stibitz pe masa de bucătărie în 1937, la Manchester Carry Chain în 1959, la double-pumped ALU la 6 GHz în 2002, la Wallace Tree cu 4.000 de Full-Adder-e în paralel în fiecare GPU modern — fiecare salt de performanță din istoria calculatoarelor a fost, în esență, o nouă metodă de a propaga mai rapid carry-ul dintr-un Full-Adder în următorul.
+
+Fizica adunării binare nu s-a schimbat din 1937. Doar viteza cu care electronii traversează doi biți de logică.
+
+## ÎNCHEIERE
+
+Acum știi cum adună un procesor numere de orice dimensiune.
+
+Lecția următoare: **Multiplexorul** — primul circuit care *alege* între semnale, nu le combină. Dacă Full-Adder e aritmetica, Multiplexorul e selecția. Împreună formează nucleul oricărui ALU real.

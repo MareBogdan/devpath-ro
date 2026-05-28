@@ -1,52 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-
-// The Web Speech API is not fully typed in all TypeScript DOM lib versions.
-// Declare the minimal surface we need so this compiles on any tsconfig target.
-interface SpeechRecognitionResultItem {
-  readonly transcript: string;
-  readonly confidence: number;
-}
-interface SpeechRecognitionResult {
-  readonly isFinal: boolean;
-  readonly length: number;
-  item(index: number): SpeechRecognitionResultItem;
-  [index: number]: SpeechRecognitionResultItem;
-}
-interface SpeechRecognitionResultList {
-  readonly length: number;
-  item(index: number): SpeechRecognitionResult;
-  [index: number]: SpeechRecognitionResult;
-}
-interface SpeechRecognitionEvent extends Event {
-  readonly resultIndex: number;
-  readonly results: SpeechRecognitionResultList;
-}
-interface SpeechRecognitionErrorEvent extends Event {
-  readonly error: string;
-}
-interface SpeechRecognitionInstance extends EventTarget {
-  continuous: boolean;
-  interimResults: boolean;
-  lang: string;
-  maxAlternatives: number;
-  onresult: ((e: SpeechRecognitionEvent) => void) | null;
-  onerror: ((e: SpeechRecognitionErrorEvent) => void) | null;
-  onend: (() => void) | null;
-  start(): void;
-  stop(): void;
-  abort(): void;
-}
-interface SpeechRecognitionCtor {
-  new(): SpeechRecognitionInstance;
-}
-declare global {
-  interface Window {
-    SpeechRecognition?: SpeechRecognitionCtor;
-    webkitSpeechRecognition?: SpeechRecognitionCtor;
-  }
-}
+import { useCallback, useRef, useState } from "react";
 
 export interface UseSpeechRecognitionReturn {
   isSupported: boolean;
@@ -57,87 +11,121 @@ export interface UseSpeechRecognitionReturn {
   resetTranscript: () => void;
 }
 
+/**
+ * Records audio via MediaRecorder, sends to /api/ai/stt (OpenAI Whisper),
+ * and returns the transcribed text.
+ *
+ * Replaces the previous Web Speech API implementation which was unreliable
+ * on desktop Chrome (onresult never fired).
+ */
 export function useSpeechRecognition(): UseSpeechRecognitionReturn {
-  const [isSupported, setIsSupported] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState("");
-  const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
 
-  useEffect(() => {
-    // Resolve vendor-prefixed constructor (Safari uses webkitSpeechRecognition)
-    const Ctor =
-      typeof window !== "undefined"
-        ? (window.SpeechRecognition ?? window.webkitSpeechRecognition ?? null)
-        : null;
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const streamRef = useRef<MediaStream | null>(null);
 
-    if (!Ctor) return; // browser does not support Speech API
+  // MediaRecorder is available in all modern browsers
+  const isSupported =
+    typeof window !== "undefined" && typeof MediaRecorder !== "undefined";
 
-    setIsSupported(true);
+  const startListening = useCallback(async () => {
+    if (isListening) return;
 
-    const recognition = new Ctor();
-    recognition.continuous = false; // single utterance per push-to-talk press
-    recognition.interimResults = true; // stream transcript while speaking
-    recognition.lang = "ro-RO";
-    recognition.maxAlternatives = 1;
-
-    recognition.onresult = (e: SpeechRecognitionEvent) => {
-      let interimText = "";
-      let finalText = "";
-
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const chunk = e.results[i][0].transcript;
-        if (e.results[i].isFinal) {
-          finalText += chunk;
-        } else {
-          interimText += chunk;
-        }
-      }
-
-      // Prefer final result; fall back to streaming interim so the input
-      // field updates live while the user speaks
-      setTranscript(finalText || interimText);
-    };
-
-    recognition.onerror = (e: SpeechRecognitionErrorEvent) => {
-      // "aborted" fires when we call recognition.stop() ourselves — ignore it
-      if (e.error !== "aborted") {
-        console.warn("[useSpeechRecognition] error:", e.error);
-      }
-      setIsListening(false);
-    };
-
-    recognition.onend = () => {
-      setIsListening(false);
-    };
-
-    recognitionRef.current = recognition;
-
-    return () => {
-      recognition.abort();
-      recognitionRef.current = null;
-    };
-  }, []);
-
-  const startListening = useCallback(() => {
-    const rec = recognitionRef.current;
-    if (!rec || isListening) return;
-    setTranscript("");
-    setIsListening(true);
     try {
-      rec.start();
-    } catch {
-      // Throws if already started — safe to ignore
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+
+      // Prefer webm/opus, fall back to whatever the browser supports
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+        ? "audio/webm;codecs=opus"
+        : MediaRecorder.isTypeSupported("audio/webm")
+          ? "audio/webm"
+          : "";
+
+      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+      chunksRef.current = [];
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          chunksRef.current.push(e.data);
+        }
+      };
+
+      recorder.onstop = async () => {
+        // Release microphone
+        streamRef.current?.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
+
+        const blob = new Blob(chunksRef.current, {
+          type: mimeType || "audio/webm",
+        });
+        chunksRef.current = [];
+
+        console.log("[VOICE] recorded blob size:", blob.size, "bytes");
+        if (blob.size < 1000) {
+          // Too short / empty recording
+          console.log("[VOICE] recording too short (" + blob.size + " bytes), skipping STT");
+          setIsListening(false);
+          return;
+        }
+
+        // Send to Whisper endpoint
+        setTranscript("Se transcrie...");
+        try {
+          const formData = new FormData();
+          formData.append("audio", blob, "audio.webm");
+
+          const res = await fetch("/api/ai/stt", {
+            method: "POST",
+            body: formData,
+          });
+
+          if (!res.ok) {
+            const err = await res.text();
+            console.error("[VOICE] STT error:", res.status, err);
+            setTranscript("");
+            setIsListening(false);
+            return;
+          }
+
+          const data = (await res.json()) as { text: string };
+          const text = data.text?.trim() ?? "";
+          console.log("[VOICE] STT result:", text);
+          setTranscript(text);
+        } catch (err) {
+          console.error("[VOICE] STT fetch error:", err);
+          setTranscript("");
+        }
+        setIsListening(false);
+      };
+
+      recorder.onerror = () => {
+        console.error("[VOICE] MediaRecorder error");
+        streamRef.current?.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
+        setIsListening(false);
+      };
+
+      mediaRecorderRef.current = recorder;
+      recorder.start();
+      setTranscript("");
+      setIsListening(true);
+      console.log("[VOICE] recording started");
+    } catch (err) {
+      console.error("[VOICE] getUserMedia failed:", err);
       setIsListening(false);
     }
   }, [isListening]);
 
   const stopListening = useCallback(() => {
-    const rec = recognitionRef.current;
-    if (!rec || !isListening) return;
-    // stop() (not abort()) allows the engine to return a final result
-    // before onend fires and sets isListening → false
-    rec.stop();
-  }, [isListening]);
+    const recorder = mediaRecorderRef.current;
+    if (!recorder || recorder.state !== "recording") return;
+    console.log("[VOICE] stopping recording...");
+    recorder.stop();
+    // isListening will be set to false in recorder.onstop after STT completes
+  }, []);
 
   const resetTranscript = useCallback(() => setTranscript(""), []);
 

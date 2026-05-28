@@ -95,7 +95,8 @@ export function GameWritePrompt({ onComplete }: MinigameProps) {
 
         setResult({ score: aiScore, feedback: parsed.feedback });
         setTimeout(() => onComplete(finalScore, aiScore >= 9), 2000);
-      } catch {
+      } catch (err) {
+        console.error("[game-write-prompt] AI evaluation failed:", err);
         setError("Nu am putut evalua promptul. Încearcă din nou.");
       }
     });

@@ -2,7 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 import { LessonContent } from "@/components/course/lesson-content";
+import type { MDXRemoteSerializeResult } from "next-mdx-remote";
 import { LessonGate } from "@/components/course/lesson-gate";
 import { CompleteButton } from "@/components/course/complete-button";
 import { LessonFeedback } from "@/components/course/lesson-feedback";
@@ -43,7 +46,8 @@ interface LessonPageClientProps {
   courseSlug: string;
   isCompleted: boolean;
   nextLessonId: string | null;
-  contentMd: string;
+  nextLessonTitle: string | null;
+  mdxSource: MDXRemoteSerializeResult;
   lessonType: string;
   lessonOrder?: number;
   gateQuestions: GateQuestion[];
@@ -61,7 +65,8 @@ export function LessonPageClient({
   courseSlug,
   isCompleted,
   nextLessonId,
-  contentMd,
+  nextLessonTitle,
+  mdxSource,
   lessonType,
   lessonOrder,
   gateQuestions,
@@ -113,11 +118,14 @@ export function LessonPageClient({
       badges: result.newBadges,
       nextLessonId: result.nextLessonId,
     });
-    // Minigame trigger (shown after celebration is dismissed)
-    if (result.minigameReady && result.gameType) {
-      setMinigame({ gameType: result.gameType });
-      setPostGameNextId(result.nextLessonId);
-    }
+    // TODO: re-enable after new minigame system is built
+    // Minigame trigger (shown after celebration is dismissed).
+    // Disabled: the 6 old minigames are AI/ML-themed and do not fit
+    // Course 1 (Hardware & Fizică). 5 new Course 1 components are pending.
+    // if (result.minigameReady && result.gameType) {
+    //   setMinigame({ gameType: result.gameType });
+    //   setPostGameNextId(result.nextLessonId);
+    // }
     // Push permission — fires once, after first lesson complete, never on page load
     requestPermissionAfterComplete();
   }
@@ -127,7 +135,7 @@ export function LessonPageClient({
       <ReadingProgressBar />
 
       <LessonContent
-        content={contentMd}
+        mdxSource={mdxSource}
         lessonType={lessonType}
         lessonOrder={lessonOrder}
       />
@@ -166,6 +174,24 @@ export function LessonPageClient({
         show={lessonCompleted}
         alreadySubmitted={feedbackAlreadySubmitted}
       />
+
+      {/* Next-lesson CTA card — replaces the footer "next" link */}
+      {nextLessonId && (
+        <Link
+          href={`/courses/${courseSlug}/${nextLessonId}`}
+          className="group mt-8 flex items-center gap-4 rounded-xl border border-[#6C5CE7]/30 bg-[#6C5CE7]/[0.06] p-5 transition-all duration-200 hover:border-[#6C5CE7] hover:bg-[#6C5CE7]/[0.1] hover:shadow-[0_0_16px_2px_rgba(108,92,231,0.35)]"
+        >
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-semibold uppercase tracking-wide text-[#A78BFA]">
+              Lecția următoare
+            </p>
+            <p className="mt-0.5 truncate text-base font-semibold text-foreground">
+              {nextLessonTitle ?? "Continuă"}
+            </p>
+          </div>
+          <ArrowRight className="h-5 w-5 shrink-0 text-[#6C5CE7] transition-transform duration-200 group-hover:translate-x-1" />
+        </Link>
+      )}
 
       {/* ─── Celebration layer ──────────────────────────────────────────── */}
       <MascotCelebrationOverlay

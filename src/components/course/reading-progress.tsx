@@ -38,7 +38,7 @@ interface ReadingProgressBarProps {
 }
 
 export function ReadingProgressBar({
-  accentColor = "#6366f1",
+  accentColor = "#6C5CE7",
 }: ReadingProgressBarProps) {
   const { progress } = useReadingProgress();
   const springProgress = useSpring(progress, { stiffness: 200, damping: 30 });
@@ -46,8 +46,12 @@ export function ReadingProgressBar({
 
   return (
     <motion.div
-      className="fixed top-0 left-0 right-0 z-[100] h-[3px] origin-left"
-      style={{ scaleX, backgroundColor: accentColor }}
+      className="fixed top-0 left-0 right-0 z-[9999] h-[4px] origin-left"
+      style={{
+        scaleX,
+        backgroundColor: accentColor,
+        boxShadow: "0 0 8px 2px rgba(108,92,231,0.6)",
+      }}
     />
   );
 }

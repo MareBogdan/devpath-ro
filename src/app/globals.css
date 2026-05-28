@@ -4,48 +4,80 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* ── Aurora Design System — Light mode ── */
+    /* Warm lavender-white backgrounds — not flat white */
+    --aurora-bg-deepest: #F3F0FD;
+    --aurora-bg-card: #FFFFFF;
+    --aurora-bg-elevated: #EAE5FB;
+    --aurora-bg-interactive: rgba(108, 92, 231, 0.09);
+    --aurora-border-subtle: #E2DCF7;
+    --aurora-border-medium: #C8BEE8;
+    --aurora-border-strong: rgba(108, 92, 231, 0.32);
+    --aurora-text-primary: #12102A;
+    --aurora-text-secondary: #584D78;
+    --aurora-text-tertiary: #7E72A0;
+
+    /* Light mode card shadow system */
+    --aurora-shadow-sm: 0 1px 3px rgba(108,92,231,0.08), 0 1px 2px rgba(0,0,0,0.04);
+    --aurora-shadow-md: 0 4px 12px rgba(108,92,231,0.10), 0 2px 4px rgba(0,0,0,0.05);
+    --aurora-shadow-lg: 0 8px 24px rgba(108,92,231,0.12), 0 4px 8px rgba(0,0,0,0.06);
+    --aurora-shadow-glow: 0 0 0 1px rgba(108,92,231,0.15), 0 4px 16px rgba(108,92,231,0.15);
+
+    /* shadcn tokens — aligned to Aurora violet (not blue!) */
+    --background: 252 60% 97%;
+    --foreground: 252 45% 10%;
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 252 45% 10%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --popover-foreground: 252 45% 10%;
+    --primary: 251 74% 63%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 252 30% 92%;
+    --secondary-foreground: 252 40% 18%;
+    --muted: 252 25% 91%;
+    --muted-foreground: 252 18% 44%;
+    --accent: 252 30% 90%;
+    --accent-foreground: 252 40% 18%;
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 252 22% 87%;
+    --input: 252 22% 87%;
+    --ring: 251 74% 63%;
     --radius: 0.625rem;
   }
 
   .dark {
+    /* ── Aurora Design System — Dark mode (DEFAULT experience) ── */
+    --aurora-bg-deepest: #0F0B1E;
+    --aurora-bg-card: #1A1A2E;
+    --aurora-bg-elevated: #16213E;
+    --aurora-bg-interactive: rgba(108, 92, 231, 0.08);
+    --aurora-border-subtle: rgba(108, 92, 231, 0.10);
+    --aurora-border-medium: rgba(108, 92, 231, 0.15);
+    --aurora-border-strong: rgba(108, 92, 231, 0.25);
+    --aurora-text-primary: #E8E4F0;
+    --aurora-text-secondary: #8B7FA8;
+    --aurora-text-tertiary: #6B5F85;
+
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
     --card: 222.2 84% 4.9%;
     --card-foreground: 210 40% 98%;
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
+    --primary: 251 74% 63%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 251 25% 18%;
     --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
+    --muted: 251 22% 16%;
+    --muted-foreground: 251 15% 60%;
+    --accent: 251 22% 18%;
     --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
+    --destructive: 0 62.8% 45%;
     --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 48%;
+    --border: 251 20% 20%;
+    --input: 251 20% 20%;
+    --ring: 251 74% 63%;
   }
 }
 
@@ -63,11 +95,754 @@
   }
 }
 
+/* Aurora: override body background to deep surface (both modes) */
+body {
+  background-color: var(--aurora-bg-deepest);
+}
+
+/* Light mode elevation system — cards above the tinted background */
+:root .aurora-card-elevated {
+  background: var(--aurora-bg-card);
+  box-shadow: var(--aurora-shadow-sm);
+}
+
+:root .aurora-card-raised {
+  background: var(--aurora-bg-card);
+  box-shadow: var(--aurora-shadow-md);
+}
+
+:root .aurora-card-floating {
+  background: var(--aurora-bg-card);
+  box-shadow: var(--aurora-shadow-lg);
+}
+
 /* Smooth color/border transitions for dark-mode toggle.
    Only color properties — does NOT affect transforms or opacity,
    so framer-motion and Tailwind animate work without interference. */
 *, *::before, *::after {
-  transition-property: background-color, border-color, color, fill, stroke;
-  transition-duration: 150ms;
+  transition-property: background-color, border-color, color, fill, stroke, box-shadow;
+  transition-duration: 200ms;
   transition-timing-function: ease;
+}
+
+/* Hero floating particles */
+@keyframes float-up {
+  0% { transform: translateY(0); opacity: 0; }
+  10% { opacity: 0.3; }
+  90% { opacity: 0.1; }
+  100% { transform: translateY(-600px); opacity: 0; }
+}
+
+.animate-float-up {
+  animation: float-up linear infinite;
+}
+
+/* ── Aurora background animations ── */
+
+@keyframes aurora-drift-1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(30px, -20px) scale(1.05); }
+  66% { transform: translate(-20px, 15px) scale(0.95); }
+}
+
+@keyframes aurora-drift-2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(-25px, 25px) scale(0.95); }
+  66% { transform: translate(20px, -15px) scale(1.05); }
+}
+
+.aurora-blob-1 {
+  position: absolute;
+  width: 500px;
+  height: 500px;
+  border-radius: 50%;
+  filter: blur(100px);
+  pointer-events: none;
+  will-change: transform;
+  animation: aurora-drift-1 20s ease-in-out infinite;
+}
+
+.aurora-blob-2 {
+  position: absolute;
+  width: 400px;
+  height: 400px;
+  border-radius: 50%;
+  filter: blur(100px);
+  pointer-events: none;
+  will-change: transform;
+  animation: aurora-drift-2 25s ease-in-out infinite;
+}
+
+/* Constellation dot grid drift (hero only) */
+@keyframes constellation-drift {
+  0%, 100% { background-position: 0 0; }
+  50% { background-position: 20px 20px; }
+}
+
+.constellation-dots {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: radial-gradient(circle, rgba(108, 92, 231, 0.35) 1px, transparent 1px);
+  background-size: 24px 24px;
+  opacity: 0.08;
+  animation: constellation-drift 30s ease-in-out infinite;
+  will-change: background-position;
+}
+
+/* ── MagicUI keyframes (standard CSS, Tailwind v3 compatible) ── */
+
+@keyframes gradient {
+  to {
+    background-position: var(--bg-size, 300%) 0;
+  }
+}
+
+@keyframes shine {
+  0% { background-position: 0% 0%; }
+  50% { background-position: 100% 100%; }
+  100% { background-position: 0% 0%; }
+}
+
+@keyframes meteor {
+  0% { transform: rotate(var(--angle)) translateX(0); opacity: 1; }
+  70% { opacity: 1; }
+  100% { transform: rotate(var(--angle)) translateX(-500px); opacity: 0; }
+}
+
+/* ── Ambient depth animations ── */
+
+@keyframes pulse-glow {
+  0%, 100% { transform: scale(1); opacity: 0.1; }
+  50% { transform: scale(1.6); opacity: 0.25; }
+}
+
+@keyframes crown-shimmer {
+  0% { opacity: 0.3; transform: scale(1) rotate(0deg); }
+  50% { opacity: 0.7; transform: scale(1.2) rotate(10deg); }
+  100% { opacity: 0.3; transform: scale(1) rotate(0deg); }
+}
+
+@keyframes avatar-ring-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Side decoration animations */
+@keyframes orb-pulse {
+  0%, 100% { opacity: 0.15; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(1.2); }
+}
+
+@keyframes orb-line-flow {
+  0% { opacity: 0.05; }
+  50% { opacity: 0.2; }
+  100% { opacity: 0.05; }
+}
+
+@keyframes ring-rotate {
+  0% { transform: translate(-50%, -50%) rotate(0deg); }
+  100% { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+/* ── New shared animation keyframes ── */
+
+@keyframes count-up-shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+@keyframes status-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.6; }
+  50% { transform: scale(1.5); opacity: 0; }
+}
+
+@keyframes sparkle-pop {
+  0% { transform: scale(0) rotate(0deg); opacity: 1; }
+  100% { transform: scale(1.5) rotate(180deg); opacity: 0; }
+}
+
+@keyframes float-gentle {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes reward-slide-in {
+  0% { transform: translateY(-100%) scale(0.9); opacity: 0; }
+  60% { transform: translateY(4px) scale(1.02); opacity: 1; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+@keyframes reward-slide-out {
+  0% { transform: translateY(0) scale(1); opacity: 1; }
+  100% { transform: translateY(-80%) scale(0.9); opacity: 0; }
+}
+
+@keyframes path-flow {
+  0% { stroke-dashoffset: 20; }
+  100% { stroke-dashoffset: 0; }
+}
+
+@keyframes shimmer-sweep {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* Utility classes */
+.animate-float-gentle {
+  animation: float-gentle 3s ease-in-out infinite;
+}
+
+.animate-status-pulse {
+  animation: status-pulse 2s ease-out infinite;
+}
+
+.animate-path-flow {
+  animation: path-flow 0.5s linear infinite;
+}
+
+.shimmer-loading {
+  background: linear-gradient(
+    90deg,
+    hsl(var(--muted)) 25%,
+    hsl(var(--muted-foreground) / 0.15) 50%,
+    hsl(var(--muted)) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer-sweep 1.5s ease-in-out infinite;
+}
+
+/* Glass morphism utilities */
+.glass-dark {
+  background: rgba(26, 26, 46, 0.7);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid rgba(108, 92, 231, 0.15);
+}
+
+.glass-light {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  border: 1px solid rgba(108, 92, 231, 0.12);
+  box-shadow: var(--aurora-shadow-md, 0 4px 12px rgba(108,92,231,0.10));
+}
+
+/* Aurora gradient text — dark mode (vibrant light colors) */
+.aurora-gradient-text {
+  background: linear-gradient(135deg, #6C5CE7 0%, #00CEC9 50%, #A29BFE 100%);
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: gradient 6s ease infinite;
+}
+
+/* Light mode: darker saturated endpoints for legibility */
+:root:not(.dark) .aurora-gradient-text {
+  background: linear-gradient(135deg, #4834d4 0%, #00857c 50%, #5b4fcc 100%);
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: gradient 6s ease infinite;
+}
+
+/* Glow effects */
+.aurora-glow-primary {
+  box-shadow: 0 0 20px rgba(108, 92, 231, 0.35), 0 0 40px rgba(108, 92, 231, 0.15);
+}
+
+.aurora-glow-gold {
+  box-shadow: 0 0 20px rgba(253, 203, 110, 0.4), 0 0 40px rgba(253, 203, 110, 0.2);
+}
+
+.aurora-glow-accent {
+  box-shadow: 0 0 20px rgba(0, 206, 201, 0.35), 0 0 40px rgba(0, 206, 201, 0.15);
+}
+
+/* Reduced motion: disable all non-essential animations */
+@media (prefers-reduced-motion: reduce) {
+  .animate-float-gentle,
+  .animate-float-up,
+  .animate-status-pulse,
+  .animate-path-flow,
+  .aurora-blob-1,
+  .aurora-blob-2,
+  .constellation-dots {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* ── Custom scrollbar ─────────────────────────────────────────────────────── */
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: 9999px;
+}
+
+/* Dark mode scrollbar */
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(108, 92, 231, 0.25);
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(108, 92, 231, 0.45);
+}
+
+/* Light mode scrollbar */
+:root:not(.dark) ::-webkit-scrollbar-thumb {
+  background: rgba(108, 92, 231, 0.18);
+}
+:root:not(.dark) ::-webkit-scrollbar-thumb:hover {
+  background: rgba(108, 92, 231, 0.35);
+}
+
+/* Firefox scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(108, 92, 231, 0.25) transparent;
+}
+
+/* ── Light mode geometric background pattern ──────────────────────────────── */
+
+:root:not(.dark) body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image:
+    radial-gradient(circle, rgba(108, 92, 231, 0.07) 1px, transparent 1px);
+  background-size: 28px 28px;
+  opacity: 1;
+}
+
+/* ── Light mode card elevation system (strong multi-layer shadows) ─────────── */
+
+:root:not(.dark) .aurora-card-elevated {
+  background: #FFFFFF;
+  box-shadow:
+    0 1px 2px rgba(0,0,0,0.03),
+    0 4px 8px rgba(0,0,0,0.04),
+    0 12px 24px rgba(0,0,0,0.05),
+    0 0 0 1px rgba(0,0,0,0.04);
+}
+
+:root:not(.dark) .aurora-card-raised {
+  background: #FFFFFF;
+  box-shadow:
+    0 2px 4px rgba(0,0,0,0.04),
+    0 8px 16px rgba(0,0,0,0.06),
+    0 20px 40px rgba(0,0,0,0.06),
+    0 0 0 1px rgba(0,0,0,0.05);
+}
+
+:root:not(.dark) .aurora-card-floating {
+  background: #FFFFFF;
+  box-shadow:
+    0 4px 8px rgba(0,0,0,0.05),
+    0 16px 32px rgba(0,0,0,0.08),
+    0 32px 64px rgba(0,0,0,0.07),
+    0 0 0 1px rgba(0,0,0,0.05);
+}
+
+/* ── Light mode stat card accents ────────────────────────────────────────── */
+
+.aurora-stat-accent-primary  { border-top: 3px solid #6C5CE7; }
+.aurora-stat-accent-gold     { border-top: 3px solid #FDCB6E; }
+.aurora-stat-accent-accent   { border-top: 3px solid #00CEC9; }
+.aurora-stat-accent-streak   { border-top: 3px solid #FF6B6B; }
+.aurora-stat-accent-success  { border-top: 3px solid #00b894; }
+.aurora-stat-accent-muted    { border-top: 3px solid hsl(var(--border)); }
+
+/* ── Light mode input fields ─────────────────────────────────────────────── */
+
+:root:not(.dark) input,
+:root:not(.dark) textarea,
+:root:not(.dark) select {
+  border-color: rgba(0, 0, 0, 0.12) !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+:root:not(.dark) input:focus,
+:root:not(.dark) textarea:focus,
+:root:not(.dark) select:focus {
+  border-color: rgba(108, 92, 231, 0.6) !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04), 0 0 0 3px rgba(108, 92, 231, 0.15);
+  outline: none;
+}
+
+/* ── Nav active pill — light mode ────────────────────────────────────────── */
+
+.aurora-nav-active-pill {
+  background: rgba(108, 92, 231, 0.10);
+  border-radius: 9999px;
+}
+
+:root:not(.dark) .aurora-nav-active-pill {
+  background: rgba(108, 92, 231, 0.12);
+}
+
+/* ── Badge icon colored background ──────────────────────────────────────── */
+
+.aurora-badge-icon-bg {
+  position: relative;
+}
+
+.aurora-badge-icon-bg::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.08;
+  pointer-events: none;
+}
+
+/* ── Holographic shine animation ─────────────────────────────────────────── */
+
+@keyframes holo-shine {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+/* ── Fire particle animation ─────────────────────────────────────────────── */
+
+@keyframes fire-float {
+  0% { transform: translateY(0) scale(1); opacity: 0.9; }
+  100% { transform: translateY(-28px) scale(0.4); opacity: 0; }
+}
+
+.animate-fire-float {
+  animation: fire-float 0.9s ease-out infinite;
+}
+
+/* ── Typewriter cursor blink ─────────────────────────────────────────────── */
+
+@keyframes blink-cursor {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* ── Radar ping animation ─────────────────────────────────────────────────── */
+
+@keyframes radar-ping {
+  0% { transform: scale(1); opacity: 0.5; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+
+.animate-radar-ping {
+  animation: radar-ping 3s ease-out infinite;
+}
+
+/* ── White flash (level up) ──────────────────────────────────────────────── */
+
+@keyframes level-up-flash {
+  0% { opacity: 0; }
+  20% { opacity: 0.08; }
+  100% { opacity: 0; }
+}
+
+.animate-levelup-flash {
+  animation: level-up-flash 0.4s ease-out forwards;
+}
+
+/* ── Star twinkle ─────────────────────────────────────────────────────────── */
+
+@keyframes star-twinkle {
+  0%, 100% { opacity: 0.15; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.4); }
+}
+
+/* ── Orbit ring spin ──────────────────────────────────────────────────────── */
+
+@keyframes orbit-cw {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+@keyframes orbit-ccw {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(-360deg); }
+}
+
+/* ── Current node breathing ───────────────────────────────────────────────── */
+
+@keyframes node-breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+.animate-node-breathe {
+  animation: node-breathe 2s ease-in-out infinite;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   LIGHT MODE — Comprehensive premium polish
+   Every card, nav element, heading, and interactive surface must look as
+   good as dark mode. All rules scoped to :root:not(.dark) or use
+   light-mode-safe selectors so dark mode is never affected.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Universal card depth ─────────────────────────────────────────────────
+   Every bg-aurora-bg-card element (all dashboard cards) gets multi-layer
+   shadow + ring in light mode. Dark mode already has glass + glow borders. */
+:root:not(.dark) [class*="bg-aurora-bg-card"] {
+  box-shadow:
+    0 1px 2px rgba(108, 92, 231, 0.05),
+    0 4px 12px rgba(0, 0, 0, 0.07),
+    0 0 0 1px rgba(0, 0, 0, 0.028);
+}
+
+/* ── Profile section colored-background cards ─────────────────────────── */
+:root:not(.dark) [class*="bg-aurora-primary-500/5"],
+:root:not(.dark) [class*="bg-aurora-gold-500/5"],
+:root:not(.dark) [class*="bg-aurora-accent-500/5"],
+:root:not(.dark) [class*="bg-red-500/5"] {
+  box-shadow:
+    0 1px 3px rgba(108, 92, 231, 0.08),
+    0 4px 10px rgba(0, 0, 0, 0.06),
+    0 0 0 1px rgba(108, 92, 231, 0.06);
+}
+
+/* ── Navbar: backdrop blur + visible shadow in light mode ─────────────── */
+:root:not(.dark) header.sticky {
+  background-color: rgba(243, 240, 253, 0.94) !important;
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  border-bottom-color: rgba(108, 92, 231, 0.14) !important;
+  box-shadow:
+    0 1px 0 rgba(108, 92, 231, 0.10),
+    0 4px 16px rgba(108, 92, 231, 0.07);
+}
+
+/* ── Bottom nav: opaque white pill + strong shadow in light mode ──────── */
+:root:not(.dark) nav[aria-label="Navigare principală"] {
+  background: rgba(255, 255, 255, 0.96) !important;
+  border-color: rgba(108, 92, 231, 0.22) !important;
+  box-shadow:
+    0 0 0 1px rgba(108, 92, 231, 0.12),
+    0 4px 20px rgba(108, 92, 231, 0.16),
+    0 8px 40px rgba(0, 0, 0, 0.10) !important;
+}
+
+/* Active nav tab: use deeper, legible violet in light mode */
+:root:not(.dark) nav[aria-label="Navigare principală"] .text-aurora-primary-300 {
+  color: #5040C8 !important;
+  font-weight: 600;
+}
+
+/* Active indicator dot: larger + stronger glow in light mode */
+:root:not(.dark) nav[aria-label="Navigare principală"] .h-1.w-1.rounded-full {
+  width: 6px !important;
+  height: 6px !important;
+  background-color: #6C5CE7 !important;
+  box-shadow: 0 0 8px 3px rgba(108, 92, 231, 0.55) !important;
+}
+
+/* ── Progress bar tracks: more visible in light mode ─────────────────── */
+/* Targets h-2, h-2.5, h-1.5 progress track containers */
+:root:not(.dark) .bg-aurora-border-subtle.rounded-full,
+:root:not(.dark) .h-1\.5.flex-1.rounded-full.bg-aurora-border-subtle {
+  background-color: rgba(108, 92, 231, 0.12) !important;
+}
+
+/* ── Weekly streak dots: visible border on empty days ────────────────── */
+:root:not(.dark) .border-aurora-text-tertiary\/50 {
+  border-color: rgba(108, 92, 231, 0.28) !important;
+}
+
+/* ── Badge icon circles: lifted + tinted in light mode ───────────────── */
+:root:not(.dark) .rounded-full.bg-aurora-bg-deepest.border.border-aurora-border-medium {
+  background-color: #F0ECFF !important;
+  border-color: rgba(108, 92, 231, 0.22) !important;
+  box-shadow:
+    0 2px 8px rgba(108, 92, 231, 0.14),
+    0 0 0 1px rgba(108, 92, 231, 0.09);
+}
+
+/* ── AnimatedGradientText headings: darken in light mode ─────────────── */
+/* The .animate-gradient class is used exclusively by AnimatedGradientText.
+   filter: brightness darkens the gradient text so it pops on white/lavender. */
+:root:not(.dark) h2 .animate-gradient,
+:root:not(.dark) h1 .animate-gradient {
+  filter: brightness(0.62) saturate(1.4);
+}
+
+/* ── Primary-300 text: deeper violet in light mode globally ──────────── */
+/* aurora-primary-300 is a light lavender — fine on dark, low-contrast on white.
+   Override to the mid-violet (#6C5CE7) for legibility everywhere. */
+:root:not(.dark) .text-aurora-primary-300 {
+  color: #5B4FD9 !important;
+}
+
+/* ── Community early-adopter banner: richer tint ─────────────────────── */
+:root:not(.dark) .bg-aurora-accent-500\/10.border-aurora-accent-500\/25 {
+  background: linear-gradient(135deg,
+    rgba(0, 206, 201, 0.09) 0%,
+    rgba(108, 92, 231, 0.07) 100%) !important;
+  border-color: rgba(0, 206, 201, 0.32) !important;
+  box-shadow: 0 2px 12px rgba(0, 206, 201, 0.10);
+}
+
+/* ── Difficulty / category badges: stronger contrast in light mode ────── */
+:root:not(.dark) .bg-green-500\/15 { background-color: rgba(22, 163, 74, 0.12) !important; }
+:root:not(.dark) .text-green-400   { color: #16a34a !important; }
+:root:not(.dark) .bg-yellow-500\/15 { background-color: rgba(202, 138, 4, 0.12) !important; }
+:root:not(.dark) .text-yellow-400  { color: #b45309 !important; }
+:root:not(.dark) .bg-red-500\/15   { background-color: rgba(220, 38, 38, 0.12) !important; }
+:root:not(.dark) .text-red-400     { color: #dc2626 !important; }
+
+/* ── Three.js side decoration canvases: boost visibility in light mode ─ */
+/* canvas.aurora-side-canvas gets a CSS filter to darken/saturate the
+   transparent WebGL wireframes so they're legible on the light background. */
+:root:not(.dark) canvas.aurora-side-canvas {
+  filter: brightness(0.48) saturate(2.2) contrast(1.15);
+  -webkit-mask-image: linear-gradient(to right, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.42) 55%, transparent 100%);
+  mask-image: linear-gradient(to right, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.42) 55%, transparent 100%);
+}
+:root:not(.dark) canvas.aurora-side-canvas-right {
+  filter: brightness(0.48) saturate(2.2) contrast(1.15);
+  -webkit-mask-image: linear-gradient(to left, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.42) 55%, transparent 100%);
+  mask-image: linear-gradient(to left, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.42) 55%, transparent 100%);
+}
+
+/* ── Streak-at-risk + continue chip: deeper colors in light mode ──────── */
+:root:not(.dark) .text-aurora-streak-500 { color: #d63031 !important; }
+:root:not(.dark) .bg-aurora-streak-500\/10 { background-color: rgba(214, 48, 49, 0.09) !important; }
+:root:not(.dark) .border-aurora-streak-500\/25 { border-color: rgba(214, 48, 49, 0.25) !important; }
+
+/* ── Gold text: deeper amber in light mode for contrast ──────────────── */
+:root:not(.dark) .text-aurora-gold-500 { color: #b8860b !important; }
+:root:not(.dark) .bg-aurora-gold-500\/15 { background-color: rgba(184, 134, 11, 0.12) !important; }
+:root:not(.dark) .bg-aurora-gold-500\/10 { background-color: rgba(184, 134, 11, 0.10) !important; }
+
+/* ── Teal accent: deeper in light mode ───────────────────────────────── */
+:root:not(.dark) .text-aurora-accent-500 { color: #008b87 !important; }
+:root:not(.dark) .bg-aurora-accent-500\/10 { background-color: rgba(0, 139, 135, 0.09) !important; }
+:root:not(.dark) .bg-aurora-accent-500\/15 { background-color: rgba(0, 139, 135, 0.12) !important; }
+
+/* ── Muted foreground: ensure adequate contrast ───────────────────────── */
+:root:not(.dark) .text-aurora-text-tertiary { color: #5c5075 !important; }
+:root:not(.dark) .text-aurora-text-secondary { color: #483d6b !important; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   SERPENTINE PATH — light & dark mode enhancements
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* Glow path: in light mode the semi-transparent SVG blur washes out on white.
+   Add CSS drop-shadow filters to make it visible without touching the SVG. */
+:root:not(.dark) .sp-glow-path {
+  filter:
+    drop-shadow(0 0 16px rgba(108, 92, 231, 0.55))
+    drop-shadow(0 0 8px rgba(0, 206, 201, 0.38));
+}
+
+/* Stars are invisible on light backgrounds — hide the group. */
+:root:not(.dark) .ambient-stars-group {
+  display: none;
+}
+
+/* Light floating shapes should only appear in light mode. */
+.dark .ambient-light-shapes {
+  display: none;
+}
+
+/* ── Game Map node animations ─────────────────────────────────────────────── */
+
+/* Lesson current — soft breathing pulse (CSS only, not framer-motion) */
+/* [2a] Scale increased from 1.06 to 1.08 */
+@keyframes sp-lesson-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+.sp-lesson-pulse {
+  animation: sp-lesson-pulse 2s ease-in-out infinite;
+}
+
+/* Checkpoint current — rotating conic gradient ring */
+@keyframes sp-cp-ring-rotate {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+.sp-cp-ring {
+  animation: sp-cp-ring-rotate 6s linear infinite;
+}
+
+/* ── [2a] Current node glow ring ───────────────────────────────────────────── */
+@keyframes sp-lesson-glow {
+  0%, 100% { box-shadow: 0 0 0 0 var(--sp-glow-color, rgba(139,92,246,0.4)); }
+  50% { box-shadow: 0 0 0 10px var(--sp-glow-color, rgba(139,92,246,0)); }
+}
+.sp-lesson-glow {
+  animation: sp-lesson-glow 2s ease-in-out infinite;
+}
+
+/* ── [6b] "You are here" bouncing arrow ──────────────────────────────────── */
+@keyframes sp-arrow-float {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50% { transform: translateX(-50%) translateY(-4px); }
+}
+.sp-arrow-float {
+  animation: sp-arrow-float 2s ease-in-out infinite;
+}
+
+/* ── [6d] Node completion micro-animation ────────────────────────────────── */
+@keyframes sp-complete-flash {
+  0% { transform: scale(1); filter: brightness(1); }
+  20% { transform: scale(1.3); filter: brightness(1.8); }
+  50% { transform: scale(1.05); filter: brightness(1.1); }
+  100% { transform: scale(1); filter: brightness(1); }
+}
+.sp-just-completed {
+  animation: sp-complete-flash 0.6s ease-out !important;
+}
+
+/* [6d] Completion burst particles */
+@keyframes sp-burst {
+  0% { transform: translate(-50%, -50%) translate(0, 0) scale(1); opacity: 1; }
+  100% { transform: translate(-50%, -50%) translate(var(--burst-x), var(--burst-y)) scale(0); opacity: 0; }
+}
+.sp-burst-particle {
+  animation: sp-burst 0.6s ease-out forwards;
+}
+
+/* ── [7a] Checkpoint unlock animation ────────────────────────────────────── */
+@keyframes sp-unlock-flash {
+  0% { transform: scale(0.8); }
+  25% { transform: scale(1.15); }
+  50% { transform: scale(0.97); }
+  100% { transform: scale(1); }
+}
+.sp-just-unlocked {
+  animation: sp-unlock-flash 0.8s ease-out !important;
+}
+
+/* [7a] Shockwave ring on checkpoint unlock */
+@keyframes sp-shockwave {
+  0% { transform: scale(1); opacity: 0.7; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+.sp-shockwave-ring {
+  animation: sp-shockwave 0.6s ease-out forwards;
+}
+
+/* ── [3b] Light mode path glow visibility ────────────────────────────────── */
+:root:not(.dark) .sp-path-glow {
+  opacity: 0.22 !important;
+}
+
+/* ── [3c] Dark mode zone background opacity reduction ────────────────────── */
+/* Zone gradients use 0.18 center opacity (for light mode). Dark mode reduces. */
+.dark .sp-zone-group {
+  opacity: 0.72;
 }

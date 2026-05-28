@@ -1,18 +1,9 @@
 // ─── Course Map Helpers ───────────────────────────────────────────────────────
-// Maps Supabase lesson rows + user progress into LessonNode[] for SerpentinePath.
-//
-// Module structure (both AI Fundamentals and Prompt Engineering Practic share
-// this shape — 30 lessons, 5 quizzes + 1 final project = 6 natural checkpoints):
-//
-//   Module 1: lessons 1-4   (3 theory + quiz)
-//   Module 2: lessons 5-9   (4 theory + quiz)
-//   Module 3: lessons 10-14 (3 theory + 1 exercise + quiz)
-//   Module 4: lessons 15-19 (4 theory + quiz)
-//   Module 5: lessons 20-24 (3 theory + 1 exercise + quiz)
-//   Module 6: lessons 25-30 (5 theory + final project)
-//
-// Quiz lessons + project lessons are rendered as checkpoint nodes (gold stars).
-// Theory + exercise lessons are rendered as standard lesson nodes.
+// Aggregates every Supabase course + its lessons into ONE continuous
+// LessonNode[] for the unified 12-course SerpentinePath. Each course is one
+// "world": its lessons are chunked into fixed-size modules, all share that
+// course's single color, and form a contiguous, atmospherically-tinted section
+// of the path.
 
 import {
   BookOpen,
@@ -40,51 +31,89 @@ export interface RawLesson {
   order_index: number;
 }
 
-const MODULE_PALETTE = [
-  "#6C5CE7", // violet  — module 1
-  "#00CEC9", // teal    — module 2
-  "#3B82F6", // blue    — module 3
-  "#A29BFE", // light violet — module 4
-  "#FDCB6E", // gold    — module 5
-  "#10B981", // emerald — module 6
-];
+export interface RawCourse {
+  id: string;
+  slug: string;
+  title: string;
+}
 
-// ─── Per-course module names ──────────────────────────────────────────────────
+// ─── 12-course palette — spectral sweep violet → gold ─────────────────────────
+//
+// A genuine spectral progression: each hue sits ~19° from its neighbour, so no
+// two adjacent courses look alike and the full path reads as one cohesive
+// rainbow (C1 violet → C12 gold).
+//
+// The originally-suggested palette is replaced: it had a hard duplicate (C2 and
+// C7 were both #8B5CF6) and several warm/cool zigzags (C6 blue between emerald
+// and indigo; C11 purple wedged between pink and gold). Red/pink are omitted on
+// purpose — they sit opposite violet on the colour wheel, so including them
+// would force a hue reversal and break the smooth, single-direction sweep.
+//
+// Index = course position (course 1 → COURSE_PALETTE[0]).
+export const COURSE_PALETTE = [
+  "#6C5CE7", // C1  Hardware & Fizică       — violet
+  "#5C6FEC", // C2  Sisteme de Operare      — indigo
+  "#4A8FE8", // C3  Rețele & Internet       — blue
+  "#2BA8E0", // C4  Python                  — sky
+  "#1FBFC9", // C5  Algoritmi               — cyan
+  "#1ECCA0", // C6  Baze de Date            — teal
+  "#2BCE78", // C7  Matematică pentru AI    — green
+  "#4FCB54", // C8  Machine Learning        — spring green
+  "#84C93C", // C9  Deep Learning           — lime
+  "#AFC52E", // C10 AI Generativ & LLMs     — yellow-lime
+  "#DCBB2A", // C11 Agentic AI & MCP        — amber
+  "#FDCB6E", // C12 AI în Producție         — gold
+] as const;
 
-// Module names — kept short (under ~22 chars) to avoid SerpentinePath
-// zone-label overlap with adjacent lesson labels. Position implies module N.
-export const MODULE_NAMES: Record<string, string[]> = {
-  "ai-fundamentals": [
-    "Bazele AI",
-    "Machine Learning",
-    "Rețele Neuronale",
-    "LLM & Transformers",
-    "Prompt Engineering",
-    "Aplicații & Etică",
-  ],
-  "prompt-engineering-practic": [
-    "Bazele Promptului",
-    "Tehnici Avansate",
-    "System & Format",
-    "Reasoning Patterns",
-    "Domain Prompting",
-    "Agenți & Etică",
-  ],
+/** Course color by 0-based course position, wrapping past 12. */
+export function courseColor(courseIndex: number): string {
+  const n = COURSE_PALETTE.length;
+  return COURSE_PALETTE[((courseIndex % n) + n) % n];
+}
+
+// ─── Course banner keywords ───────────────────────────────────────────────────
+// Short "what you'll learn" keywords per course, shown in the serpentine's
+// floating course banner cards. Sourced verbatim from CURRICULUM-STRUCTURE.md,
+// keyed by course slug.
+export const COURSE_BANNERS: Record<string, string[]> = {
+  "hardware-fizica": ["Electroni", "tranzistori", "CPU", "Assembly"],
+  "sisteme-de-operare": ["Boot", "procese", "memorie", "containere"],
+  "retele-internet": ["TCP/IP", "DNS", "HTTP", "securitate"],
+  "python-inginerie-software": ["Sintaxă", "OOP", "async", "FastAPI"],
+  "algoritmi-structuri-date": ["Big O", "sortare", "grafuri", "DP"],
+  "baze-date-ingineria-datelor": ["SQL", "NoSQL", "Redis", "pgvector"],
+  "matematica-ai": ["Algebră liniară", "calcul", "statistică"],
+  "machine-learning": ["Regresie", "clasificare", "RL", "GPU"],
+  "deep-learning-computer-vision": ["CNN", "Transformers", "ViT", "HuggingFace"],
+  "ai-generativ-llms": ["RAG", "fine-tuning", "Ollama", "Gradio"],
+  "agentic-ai-mcp": ["Tool calling", "LangGraph", "MCP", "A2A"],
+  "ai-in-productie": ["MLOps", "vLLM", "evals", "securitate AI"],
 };
 
-const FALLBACK_MODULE_NAMES = [
-  "Modul 1",
-  "Modul 2",
-  "Modul 3",
-  "Modul 4",
-  "Modul 5",
-  "Modul 6",
-];
+// ─── Course one-line descriptions ─────────────────────────────────────────────
+// Shown on the World Gate cards between courses. Verbatim from the curriculum.
+const COURSE_DESCRIPTIONS: Record<string, string> = {
+  "hardware-fizica": "De la electron la primul tău procesor",
+  "sisteme-de-operare": "Ce se întâmplă când apeși butonul de pornire",
+  "retele-internet": "Cum ajunge un pachet de la tine la Tokyo",
+  "python-inginerie-software": "Codul care face totul să funcționeze",
+  "algoritmi-structuri-date": "Diferența dintre cod care merge și cod care scalează",
+  "baze-date-ingineria-datelor": "De la Excel la pipeline-ul unui model AI",
+  "matematica-ai": "Ecuațiile care stau în spatele inteligenței",
+  "machine-learning": "Primul model care învață din date",
+  "deep-learning-computer-vision": "De la perceptron la arhitecturile care au schimbat lumea",
+  "ai-generativ-llms": "Cum gândește și creează un model de limbaj",
+  "agentic-ai-mcp": "Modele care planifică și acționează singure",
+  "ai-in-productie": "De la experiment la sistem care rulează 24/7",
+};
 
-// ─── Icon assignment by lesson type + position ────────────────────────────────
+// ─── Module cadence ───────────────────────────────────────────────────────────
+// Lessons within a course are chunked into modules of this size; the last node
+// of each chunk becomes a checkpoint. Drives the serpentine's wave turnarounds.
+const MODULE_SIZE = 5;
 
-// Lesson-type icon (used for theory + exercise nodes).
-// We rotate through a small palette by order_index so adjacent nodes look distinct.
+// ─── Icon assignment ──────────────────────────────────────────────────────────
+
 const THEORY_ICON_CYCLE: LucideIcon[] = [
   BookOpen,
   Brain,
@@ -100,15 +129,16 @@ function lessonIcon(type: string, orderIndex: number): LucideIcon {
   if (type === "quiz") return HelpCircle;
   if (type === "exercise" || type === "lab") return Code2;
   if (type === "project" || type === "boss") return Trophy;
-  // theory / lesson — rotate through the palette for visual variety
   return THEORY_ICON_CYCLE[(orderIndex - 1) % THEORY_ICON_CYCLE.length] ?? BookOpen;
 }
 
-// Special icons for the final project / a few thematic checkpoints
-function checkpointIcon(orderIndex: number, lessonType: string, totalLessons: number): LucideIcon {
+function checkpointIcon(
+  orderIndex: number,
+  lessonType: string,
+  totalLessons: number
+): LucideIcon {
   if (lessonType === "project" || lessonType === "boss") return Trophy;
   if (orderIndex === totalLessons) return Trophy;
-  // Vary checkpoint icons slightly
   if (orderIndex >= 25) return Bot;
   if (orderIndex >= 20) return GitBranch;
   if (orderIndex >= 15) return Zap;
@@ -117,116 +147,150 @@ function checkpointIcon(orderIndex: number, lessonType: string, totalLessons: nu
   return Trophy;
 }
 
-// ─── Module index — derived from running checkpoint count ─────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-/**
- * Compute the module index for each lesson by scanning left-to-right and
- * incrementing whenever we PASS a checkpoint (quiz or project).
- *
- * Result for a 30-lesson course with 5 quizzes (at 4, 9, 14, 19, 24) + final
- * project (at 30):
- *   Module 0: lessons 1-4   (ends with quiz)
- *   Module 1: lessons 5-9   (ends with quiz)
- *   Module 2: lessons 10-14 (ends with quiz)
- *   Module 3: lessons 15-19 (ends with quiz)
- *   Module 4: lessons 20-24 (ends with quiz)
- *   Module 5: lessons 25-30 (ends with final project)
- */
-function computeModuleIndices(lessons: RawLesson[]): number[] {
-  const out: number[] = [];
-  let mi = 0;
-  for (const lesson of lessons) {
-    out.push(mi);
-    if (
-      lesson.type === "quiz" ||
-      lesson.type === "project" ||
-      lesson.type === "boss"
-    ) {
-      mi += 1;
-    }
-  }
-  return out;
+export interface CourseSection {
+  courseIndex: number;
+  courseId: string;
+  slug: string;
+  title: string;
+  color: string;
+  /** First node of the course — selector clicks scroll the path here. */
+  firstNodeId: string | null;
 }
 
-// ─── Main mapper ──────────────────────────────────────────────────────────────
-
-export interface BuildNodesInput {
-  courseSlug: string;
-  lessons: RawLesson[];                  // already sorted by order_index ASC
+export interface BuildAllInput {
+  courses: RawCourse[]; // ordered by order_index ASC
+  lessonsByCourse: Record<string, RawLesson[]>;
   completedLessonIds: Set<string>;
 }
 
-export interface BuildNodesResult {
+export interface BuildAllResult {
   nodes: LessonNode[];
-  currentLessonId: string | null;        // first non-completed lesson, or null if course done
+  /** First non-completed lesson across ALL courses, or null when everything is done. */
+  currentLessonId: string | null;
+  /** lessonId → course slug, for building lesson URLs from a node click. */
+  nodeCourseSlug: Record<string, string>;
+  sections: CourseSection[];
   completedCount: number;
   totalCount: number;
 }
 
-export function buildLessonNodes({
-  courseSlug,
-  lessons,
+// ─── Builder ──────────────────────────────────────────────────────────────────
+
+/**
+ * Build one continuous LessonNode[] spanning every course. Courses appear in
+ * order_index order; the first non-completed lesson across all courses is the
+ * single "current" node — everything before it is "completed", everything
+ * after is "locked". Every node carries its course color + course identity so
+ * the serpentine can paint per-course nodes, paths and atmospheric zones.
+ */
+export function buildAllCoursesNodes({
+  courses,
+  lessonsByCourse,
   completedLessonIds,
-}: BuildNodesInput): BuildNodesResult {
-  const sorted = [...lessons].sort((a, b) => a.order_index - b.order_index);
-  const total = sorted.length;
-  const moduleNames = MODULE_NAMES[courseSlug] ?? FALLBACK_MODULE_NAMES;
-  const modIdxByLesson = computeModuleIndices(sorted);
+}: BuildAllInput): BuildAllResult {
+  const nodes: LessonNode[] = [];
+  const nodeCourseSlug: Record<string, string> = {};
+  const sections: CourseSection[] = [];
+  let currentLessonId: string | null = null;
+  let foundCurrent = false;
+  let totalCount = 0;
 
-  // Find the first non-completed lesson — that's "current"
-  const currentIdx = sorted.findIndex((l) => !completedLessonIds.has(l.id));
-  const currentLessonId = currentIdx === -1 ? null : sorted[currentIdx].id;
+  courses.forEach((course, courseIndex) => {
+    const color = courseColor(courseIndex);
+    const bullets = COURSE_BANNERS[course.slug] ?? [];
+    const lessons = [...(lessonsByCourse[course.id] ?? [])].sort(
+      (a, b) => a.order_index - b.order_index
+    );
+    const courseTotal = lessons.length;
+    totalCount += courseTotal;
 
-  const nodes: LessonNode[] = sorted.map((lesson, i) => {
-    const isCompleted = completedLessonIds.has(lesson.id);
-    const isCurrent = lesson.id === currentLessonId;
-    const status: LessonNode["status"] = isCompleted
-      ? "completed"
-      : isCurrent
-      ? "current"
-      : "locked";
+    sections.push({
+      courseIndex,
+      courseId: course.id,
+      slug: course.slug,
+      title: course.title,
+      color,
+      firstNodeId: lessons[0]?.id ?? null,
+    });
 
-    const isCheckpoint =
-      lesson.type === "quiz" ||
-      lesson.type === "project" ||
-      lesson.type === "boss";
-    const moduleIndex = modIdxByLesson[i];
-    const moduleName = moduleNames[moduleIndex] ?? `Modul ${moduleIndex + 1}`;
-    const moduleColor = MODULE_PALETTE[moduleIndex % MODULE_PALETTE.length];
-
-    const icon = isCheckpoint
-      ? checkpointIcon(lesson.order_index, lesson.type, total)
-      : lessonIcon(lesson.type, lesson.order_index);
-
-    // Sublabel — short context. Quizzes show "Quiz" + module info, projects "Final".
-    let sublabel: string;
-    if (lesson.type === "quiz") {
-      sublabel = `Quiz · Modul ${moduleIndex + 1}`;
-    } else if (lesson.type === "project" || lesson.type === "boss") {
-      sublabel = "Proiect Final";
-    } else if (lesson.type === "exercise" || lesson.type === "lab") {
-      sublabel = `Exercițiu · L${lesson.order_index}`;
-    } else {
-      sublabel = `Lecția ${lesson.order_index}/${total}`;
+    // World Gate — a portal card announcing this course, inserted right before
+    // the course's first lesson. EVERY course gets one, including the first, so
+    // a gate is always visible even when only Course 1 is seeded.
+    if (courseTotal > 0) {
+      nodes.push({
+        id: `world-gate-${course.slug}`,
+        type: "world-gate",
+        status: foundCurrent ? "locked" : "completed",
+        label: course.title,
+        moduleColor: color,
+        courseIndex,
+        courseName: course.title,
+        courseBullets: bullets,
+        metadata: {
+          description: COURSE_DESCRIPTIONS[course.slug] ?? "",
+          lessonCount: String(courseTotal),
+        },
+      });
     }
 
-    return {
-      id: lesson.id,
-      type: isCheckpoint ? "checkpoint" : "lesson",
-      status,
-      label: lesson.title,
-      sublabel,
-      moduleIndex,
-      moduleName,
-      moduleColor,
-      icon,
-    };
+    lessons.forEach((lesson, i) => {
+      const isCompleted = completedLessonIds.has(lesson.id);
+      let status: LessonNode["status"];
+      if (isCompleted) {
+        status = "completed";
+      } else if (!foundCurrent) {
+        status = "current";
+        foundCurrent = true;
+        currentLessonId = lesson.id;
+      } else {
+        status = "locked";
+      }
+
+      // Fixed-cadence modules — last node of each chunk (and the final node of
+      // the course) is a checkpoint, so each course renders as a clean snake.
+      const moduleIndex = Math.floor(i / MODULE_SIZE);
+      const isCheckpoint =
+        (i + 1) % MODULE_SIZE === 0 || i === courseTotal - 1;
+
+      const icon = isCheckpoint
+        ? checkpointIcon(lesson.order_index, lesson.type, courseTotal)
+        : lessonIcon(lesson.type, lesson.order_index);
+
+      let sublabel: string;
+      if (isCheckpoint) {
+        sublabel = course.title;
+      } else if (lesson.type === "exercise" || lesson.type === "lab") {
+        sublabel = `Exercițiu · L${lesson.order_index}`;
+      } else {
+        sublabel = `Lecția ${lesson.order_index}/${courseTotal}`;
+      }
+
+      nodes.push({
+        id: lesson.id,
+        type: isCheckpoint ? "checkpoint" : "lesson",
+        status,
+        label: lesson.title,
+        sublabel,
+        moduleIndex,
+        moduleName: `Modul ${moduleIndex + 1}`,
+        moduleColor: color, // single course color drives node + path painting
+        courseIndex,
+        courseName: course.title,
+        courseBullets: bullets,
+        icon,
+      });
+      nodeCourseSlug[lesson.id] = course.slug;
+    });
   });
 
   return {
     nodes,
     currentLessonId,
+    nodeCourseSlug,
+    sections,
     completedCount: completedLessonIds.size,
-    totalCount: total,
+    totalCount,
   };
 }

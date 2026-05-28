@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { PixelMascot } from "@/components/mascot/pixel-mascot";
+import { CosmoMascot } from "@/components/mascot/cosmo-mascot";
 
 const STREAK_MESSAGES: Record<number, string> = {
   3:   "3 zile la rând! Obișnuințele se formează în 21 de zile — ești la start.",
@@ -30,7 +30,7 @@ export function StreakToast({ show, streakCount, onDismiss }: StreakToastProps) 
           transition={{ type: "spring", stiffness: 260, damping: 20 }}
           className="fixed bottom-6 right-6 z-50 flex items-center gap-4 rounded-2xl bg-card border border-orange-400/40 shadow-xl px-5 py-4 max-w-sm"
         >
-          <PixelMascot emotion="proud" size={56} />
+          <CosmoMascot emotion="excited" size={56} />
           <div className="flex-1">
             <p className="text-xs font-medium text-orange-500 uppercase tracking-wide">
               🔥 Streak {streakCount} zile

@@ -3,6 +3,7 @@
 import { useRef, useEffect, useState } from "react";
 import { useChat } from "ai/react";
 import { Bot, X, Send, Loader2, Zap, ShieldCheck, Mic, MicOff, Volume2, VolumeX } from "lucide-react";
+import { CosmoMascot } from "@/components/mascot/cosmo-mascot";
 import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -70,6 +71,17 @@ export function AICoachChat({
   const recognition = useSpeechRecognition();
   const tts = useSpeechSynthesis();
 
+  // ── Log errors and loading state changes ─────────────────────────────────
+  useEffect(() => {
+    if (error) {
+      console.error("[CHAT] useChat error:", error);
+    }
+  }, [error]);
+
+  useEffect(() => {
+    console.log("[CHAT] isLoading changed:", isLoading, "messages count:", messages.length);
+  }, [isLoading, messages.length]);
+
   // ── Scroll to bottom on new messages ─────────────────────────────────────
   useEffect(() => {
     if (isOpen) {
@@ -119,20 +131,24 @@ export function AICoachChat({
     if (!isOpen) tts.stop();
   }, [isOpen, tts.stop]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Mirror live transcript into input field while recording ───────────────
+  // ── Mirror transcript into input field ────────────────────────────────────
   useEffect(() => {
     if (recognition.isListening) {
       setInput(recognition.transcript);
     }
   }, [recognition.isListening, recognition.transcript, setInput]);
 
-  // ── Auto-submit voice message when mic is released ────────────────────────
-  // Watches isListening: true → false transition.
+  // ── Auto-submit voice message after STT completes ───────────────────────
+  // With Whisper-based STT, isListening stays true until transcription finishes,
+  // then goes false with the final transcript already set.
   const prevIsListeningRef = useRef(false);
   useEffect(() => {
     if (prevIsListeningRef.current && !recognition.isListening) {
+      // Recording + STT just finished
       const text = recognition.transcript.trim();
-      if (text) {
+      console.log("[CHAT] STT done — text:", JSON.stringify(text));
+      if (text && text !== "Se transcrie...") {
+        console.log("[CHAT] calling append with:", text);
         append({ role: "user", content: text });
         recognition.resetTranscript();
         setInput("");
@@ -181,15 +197,16 @@ export function AICoachChat({
     }).catch(() => {});
   }
 
-  // ── Push-to-talk handlers ─────────────────────────────────────────────────
-  function handleMicDown() {
-    tts.stop(); // prevent feedback loop: stop AI speaking before mic opens
-    recognition.startListening();
-  }
-
-  function handleMicUp() {
-    recognition.stopListening();
-    // Auto-submit is handled in the isListening effect above
+  // ── Toggle mic handler (click to start, click to stop) ───────────────────
+  function handleMicToggle() {
+    if (recognition.isListening) {
+      console.log("[CHAT] handleMicToggle STOP — transcript so far:", JSON.stringify(recognition.transcript));
+      recognition.stopListening();
+    } else {
+      console.log("[CHAT] handleMicToggle START");
+      tts.stop(); // prevent feedback loop: stop AI speaking before mic opens
+      recognition.startListening();
+    }
   }
 
   // ── Quick Actions ─────────────────────────────────────────────────────────
@@ -346,13 +363,13 @@ export function AICoachChat({
             </div>
           ))}
 
-          {/* Loading indicator */}
+          {/* Loading indicator — Cosmo in "thinking" state */}
           {isLoading && (
             <div className="flex items-start gap-2 justify-start">
-              <div className="h-6 w-6 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5">
-                <Bot className="h-3.5 w-3.5" />
+              <div className="shrink-0 -ml-1 -mt-1">
+                <CosmoMascot emotion="thinking" size={32} />
               </div>
-              <div className="bg-muted rounded-2xl rounded-bl-none px-3.5 py-2.5">
+              <div className="bg-muted rounded-2xl rounded-bl-none px-3.5 py-2.5 mt-1">
                 <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
               </div>
             </div>
@@ -419,17 +436,14 @@ export function AICoachChat({
             )}
           />
 
-          {/* Push-to-talk mic button — hidden if browser doesn't support Speech API */}
+          {/* Toggle mic button — hidden if browser doesn't support Speech API */}
           {recognition.isSupported && (
             <button
               type="button"
-              onMouseDown={handleMicDown}
-              onMouseUp={handleMicUp}
-              onTouchStart={(e) => { e.preventDefault(); handleMicDown(); }}
-              onTouchEnd={(e) => { e.preventDefault(); handleMicUp(); }}
+              onClick={handleMicToggle}
               disabled={isLoading}
               aria-label={recognition.isListening ? "Oprește înregistrarea" : "Vorbește cu AI Coach"}
-              title="Ține apăsat pentru a vorbi"
+              title={recognition.isListening ? "Click pentru a opri" : "Click pentru a vorbi"}
               className={cn(
                 "shrink-0 p-2.5 rounded-xl transition-all select-none",
                 recognition.isListening

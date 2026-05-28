@@ -1,5 +1,5 @@
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { MessageSquare, Eye, EyeOff, Trash2, AlertTriangle } from "lucide-react";
+import { Eye, EyeOff, Trash2, AlertTriangle } from "lucide-react";
 import Link from "next/link";
 import { hideComment, unhideComment, deleteComment } from "./actions";
 

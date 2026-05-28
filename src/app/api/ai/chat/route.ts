@@ -9,7 +9,7 @@ const chatRequestSchema = z.object({
   lessonId: z.string().uuid().optional(),
   lessonTitle: z.string().max(200).optional(),
   lessonContent: z.string().max(8000).optional(),
-  sessionContext: z.string().max(800).optional(),
+  sessionContext: z.string().max(4000).optional(),
   messages: z
     .array(
       z.object({
@@ -87,12 +87,20 @@ ${contentSnippet}
 - Folosește markdown pentru cod, liste sau evidențieri când ajută la claritate.
 - Dacă ai memorie din sesiuni anterioare, poți face referire natural la ce a discutat studentul înainte.`;
 
-  const result = await streamText({
-    model: openai("gpt-4o-mini"),
-    system: systemPrompt,
-    messages,
-    maxTokens: 512,
-  });
+  try {
+    const result = await streamText({
+      model: openai("gpt-4o-mini"),
+      system: systemPrompt,
+      messages,
+      maxTokens: 512,
+    });
 
-  return result.toDataStreamResponse();
+    return result.toDataStreamResponse();
+  } catch (err) {
+    console.error("[api/ai/chat] streamText error:", err);
+    return new Response(
+      JSON.stringify({ error: "AI generation failed" }),
+      { status: 502, headers: { "Content-Type": "application/json" } }
+    );
+  }
 }

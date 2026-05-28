@@ -1,0 +1,201 @@
+---
+title: "Unitatea Aritmetică (ALU) — când totul face click"
+order: 24
+type: lesson
+module_index: 1
+duration: 15
+difficulty: 2
+---
+
+# Unitatea Aritmetică (ALU) — când totul face click
+
+## HOOK
+
+De câteva lecții construiești piese separate. Porți logice. Un sumator. Un MUX. Flip-flop-uri. Registre.
+
+Acum uite unde duc toate astea.
+
+Ia un Full Adder din L18. Conectează-l la porțile AND, OR, XOR din L11–L14. Pune un MUX din L19 la ieșire. Alimentează intrările din registrele din L22. Conectează ieșirile la flip-flop-uri din L21, sincronizate de ceasul din L20.
+
+Ai construit o **Unitate Aritmetică și Logică** — ALU. Circuitul care adună, scade, compară, shiftează. Circuitul care *execută instrucțiunile*.
+
+Fără ALU, un computer e o cutie de stocare. Cu ALU, devine o mașină care calculează.
+
+## CONTEXT
+
+ALU e un circuit combinațional pur — ieșirile depind exclusiv de intrările curente, fără memorie internă. Primește doi operanzi din registre, un cod de operație de la unitatea de control, și produce un rezultat plus un set de flag-uri care descriu acel rezultat.
+
+Ce poate face:
+- **Aritmetică**: ADD, SUB, INC, DEC — operații care implică transport de rang (carry) între biți
+- **Logică booleană**: AND, OR, XOR, NOT — operații bit-wise pure, fără carry
+- **Shift-uri**: SHL (shift left), SHR (shift right)
+- **Comparații**: EQ (egal), GT (mai mare), LT (mai mic)
+
+Distincția esențială: operațiile logice tratează fiecare bit independent. Operațiile aritmetice propagă informație între biți prin carry — motivul pentru care au nevoie de Full Adder, nu doar de porți logice simple.
+
+Trucul: toate astea se calculează **simultan** în paralel. MUX-ul de la ieșire selectează doar rezultatul operației cerute. Celelalte sunt ignorate.
+
+## MIEZUL
+
+### De la moara lui Babbage la organul aritmetic al lui Von Neumann
+
+**1837** — Charles Babbage proiectează Motorul Analitic cu o componentă separată numită **„moara"** (mill) — dedicată exclusiv procesării aritmetice, separată de stocare. Henry Babbage, fiul cel mic, a construit parțial moara în **1910**, demonstrând viabilitatea unui organ aritmetic izolat.
+
+**1942** — John Vincent Atanasoff și Clifford Berry finalizează **Atanasoff-Berry Computer (ABC)** la Iowa State College — primul calculator electronic care conține un ALU electronic. ABC folosea tuburi vidate pentru adunare și scădere binară. Nu era Turing-complet (nu putea fi reprogramat), dar a demonstrat pentru prima dată că logica aritmetică poate fi executată electronic.
+
+**30 iunie 1945** — John von Neumann distribuie „First Draft of a Report on the EDVAC" — 101 pagini care definesc arhitectura calculatoarelor pentru următoarele 80 de ani. Von Neumann numește componenta **„Central Arithmetical organ"** (CA) și face o analogie biologică: CA corespunde „neuronilor asociativi" ai creierului uman. Documentul specifică binar, propune cuvinte de 32 de biți și recomandă complementul față de doi pentru a simplifica subtracția. Toate standard universal azi.
+
+Termenul „arithmetic logic unit" a apărut treptat în manualele hardware din anii '50–'60. Merriam-Webster l-a înregistrat oficial în **1972**.
+
+<FactBox>
+De la moara mecanică a lui Babbage (1837) la ABC electronic (1942) la Von Neumann (1945) la 74181 pe un cip (1970) la ALU superconductor la 20 GHz (2011) — aceeași idee arhitecturală, 187 de ani de rafinare. Fiecare generație a schimbat tehnologia de implementare; structura conceptuală a rămas identică.
+</FactBox>
+
+### Anatomia unui 1-bit ALU
+
+Cea mai mică ALU posibilă procesează un singur bit. Structura:
+
+**Intrări:** A, B, Carry-in, cod de operație (3–4 biți)
+
+**Calculat simultan în paralel:**
+- AND gate → A AND B
+- OR gate → A OR B
+- XOR gate → A XOR B
+- Full Adder → A + B + Cin (cu Carry-out)
+
+**MUX la ieșire:** selectează unul din rezultatele de mai sus bazat pe codul de operație
+
+{/* ANIMATION */}
+
+Electricitatea curge prin toate porțile simultan. Toate rezultatele există în același timp. MUX-ul alege. Asta e tot.
+
+**Subtracția — cel mai elegant truc din arhitectura calculatoarelor:**
+
+ALU-ul nu știe să scadă. Nu există circuit de scădere separat. În schimb:
+
+```
+A - B = A + (-B) = A + (NOT B) + 1
+```
+
+Controlul inversează toți biții lui B prin XOR gates (când semnalul SUB e activ). Setează Cin=1 la primul bit. Rulează adunarea normală. Complementul față de doi e executat gratuit, în același ciclu, fără tranzistoare extra.
+
+**Comparația — tot o scădere:**
+- A == B? Execută A − B. Dacă rezultatul e 0, **Zero Flag** = 1.
+- A < B? Execută A − B. Dacă MSB-ul rezultatului e 1 (negativ), **Sign Flag** = 1.
+- A > B? Verifică că nici ZF, nici SF nu sunt setate.
+
+Fiecare `if` din orice limbaj de programare se reduce fizic la o scădere în ALU și citirea unui flag.
+
+### Flag-urile — memoria rezultatului
+
+ALU produce nu doar date, ci și **metadate** despre rezultat:
+
+| Flag | Condiție | Circuit fizic |
+|------|----------|---------------|
+| Zero (ZF) | Rezultat = 0 | NOR gigant pe toți biții de ieșire |
+| Carry (CF) | Carry-out din MSB | Direct din Full Adder-ul final |
+| Sign (SF) | Rezultat negativ | Copie hardwired a MSB |
+| Overflow (OF) | Overflow signed | XOR între carry-in și carry-out la MSB |
+
+{/* TABLE */}
+
+Flags Register din registrele de la L22 nu stochează date — stochează starea ultimei operații ALU. Branch instructions citesc aceste flag-uri și actualizează Program Counter-ul.
+
+### 74181 — primul ALU pe un singur cip
+
+Înainte de 1970, ALU-urile ocupau plăci de circuit întregi cu sute de cipuri discrete. Inginerii de la Texas Instruments au schimbat asta.
+
+**Martie 1970: SN74181** — primul ALU complet pe un singur cip integrat. Specs:
+- **4 biți** lățime
+- **75 porți logice** (~170 tranzistoare)
+- **16 operații aritmetice + 16 operații logice**
+- **Carry-lookahead** intern
+- Pachet DIP-24, 24 pini
+
+L-au folosit: DEC PDP-11, DEC VAX-11/780, Xerox Alto (pionierul GUI și al programării orientate pe obiecte), Data General Nova 1200.
+
+Pentru ALU-uri mai late:
+
+| Lățime | Cipuri 74181 | Cipuri 74182 (carry) |
+|--------|-------------|---------------------|
+| 8 biți | 2 | 0 (ripple suficient) |
+| 16 biți | 4 | 1 |
+| 32 biți | 8 | 2 |
+
+<FactBox>
+**Funcțiile bizarre ale 74181.** Datasheetul chipului listează operații aritmetice care par complet inutile: „A PLUS (A AND NOT B) PLUS 1", „A MINUS (A OR B) MINUS 1". Inginerii din anii '70 erau derutați. Explicația: designerii 74181 au generat sistematic *toate* cele 16 funcții booleene posibile pentru 2 variabile și le-au rutat direct în sumatorul intern. Operațiile „utile" (ADD, SUB) sunt 2 din 16. Celelalte 14 sunt **byproduct gratuit** al arhitecturii — ar fi costat tranzistoare extra să le *suprime*. Xerox Alto pur și simplu le ignora prin PROM-uri de remapare.
+</FactBox>
+
+### Intel 4004 — ALU-ul în primul microprocesor
+
+15 noiembrie 1971. Federico Faggin, Marcian Hoff și Stanley Mazor lansează Intel 4004 — primul microprocesor comercial pe un singur cip.
+
+- **2.300 tranzistoare** total, die de 12 mm²
+- **ALU de 4 biți** cu sumator, subtrăctor, shifter, și unitate BCD
+- **740–750 kHz** frecvență
+- Silicon Gate Technology (SGT) — densitate dublă față de procesele anterioare cu aluminiu
+
+4004 a integrat ALU, registre, unitate de control și decodor de instrucțiuni pe același die — stabilind blueprintul fizic al tuturor microprocesoarelor din următorii 50 de ani.
+
+### ALU-ul modern — nu unul, ci șase
+
+Un ALU clasic: serial, un singur circuit, o instrucțiune pe ciclu.
+
+Un CPU modern core: **multiple ALU-uri în paralel**, alimentate de un scheduler out-of-order care lansează simultan instrucțiuni independente.
+
+| Microarhitectură | ALU-uri integer | AGU-uri | Latență ADD | Latență MUL | Latență DIV |
+|-----------------|----------------|---------|-------------|-------------|-------------|
+| AMD Zen 5 | 6 | 4 | 1 ciclu | 3 cicluri | 14–46 cicluri |
+| Intel Golden Cove | 5–6 | multiple | 1 ciclu | 3 cicluri | 14–46 cicluri |
+
+**Latența ADD = 1 ciclu.** La 5 GHz, asta înseamnă o adunare la fiecare 200 picosecunde.
+
+**Latența DIV = 14–46 cicluri.** Împărțirea e iterativă prin natură — algoritmul SRT Radix-4 recalculează câte 2 biți de rezultat per ciclu. Nu poți paraleliza asta.
+
+<CosmoHint emotion="thinking">
+De ce există AGU (Address Generation Unit) separat de ALU? Adresarea memoriei moderne implică: baza + index × scale + displacement. Patru operanzi, calcule complexe la fiecare instrucțiune de memorie. Dacă AGU-ul ar folosi ALU-ul principal, fiecare load/store ar bloca execuția aritmetică. AMD Zen 5 are **4 AGU-uri independente** — pot calcula 4 adrese de memorie simultan cu 6 operații aritmetice. Total: 10 operații per ciclu per core.
+</CosmoHint>
+
+### CPU vs GPU — filosofii opuse ale ALU
+
+CPU: câteva ALU-uri complexe, rapide, cu branch prediction masiv, caches uriașe. Optimizat pentru un singur fir de execuție complex.
+
+GPU (RTX 4090): **16.384 CUDA cores** — fiecare un ALU simplu. Fără branch prediction sofisticat. Fără cache masiv. Totul sacrificat pentru numărul brut de ALU-uri paralele.
+
+Un GPU nu poate rula un browser mai rapid decât un CPU. Dar poate executa 16.000 de înmulțiri simple simultan — exact ce necesită rețelele neuronale și rendering-ul grafic.
+
+### ALU superconductor la 20 GHz
+
+Limita termică a siliciului CMOS: ~5 GHz la răcire normală. Leakage curent, căldură, electromigration.
+
+**2011, HYPRES Inc. + Stony Brook University:** un ALU de 8 biți care funcționează la **20 GHz** — răcit la aproape zero absolut cu Josephson Junctions (superconductori). Josephson Junctions comutează de ~100 ori mai rapid decât siliciul și consumă de 300 de ori mai puțină energie. La aceste temperaturi, rezistența electrică dispare, curentul circulă fără pierderi și bariera termică se evaporă.
+
+Nu e practică pentru smartphone-uri. Dar demonstrează că limita ALU nu e matematică — e termodinamică.
+
+<CosmoHint emotion="surprised">
+Un ALU RISC-V complet de 32 de biți — capabil să execute cod Turing-complet și să booteze Linux — poate fi scris în **sub 200 de linii de Verilog**. Etapa de execuție se reduce la un singur bloc combinațional: un `case` pe opcode care rutează `A+B`, `A-B`, `A<<B`, `A^B`, sau `A<B` direct la ieșire. Toată complexitatea unui procesor real — în mai puțin cod decât un `README` mediu.
+</CosmoHint>
+
+## REVEAL
+
+Uite ce se află în ALU:
+
+- **Porți logice** din L11–L15 — AND, OR, XOR, NOT, NAND
+- **Full Adder** din L18 — adunarea binară
+- **Subtracția ca adunare** — complementul față de doi cu Cin=1 (L17–L18)
+- **MUX** din L19 — selectează operația
+- **Flags** — Zero, Carry, Sign, Overflow — citite de branch instructions
+- **Registre** din L22 — furnizează operanzii, primesc rezultatul
+- **Clock** din L20 — sincronizează totul
+
+Fiecare lecție a construit o piesă. ALU-ul le asamblează pe toate.
+
+Von Neumann l-a numit „organul aritmetic" în 1945. 74181 l-a pus pe un cip în 1970. 4004 l-a integrat în primul microprocesor în 1971. Zen 5 rulează 6 astfel de ALU-uri în paralel la 5 GHz în 2024.
+
+Principiul: același. Scala: de milioane de ori mai mare.
+
+## ÎNCHEIERE
+
+Acum știi cum procesorul execută instrucțiunile — nu abstract, ci fizic, poartă cu poartă.
+
+Lecțiile rămase din Cursul 1 construiesc pe ALU pentru a ajunge la CPU-ul complet: Unitatea de Control, Program Counter, ciclul Fetch-Decode-Execute, și arhitectura Von Neumann. Piesele sunt toate pe masă — ce urmează e să le asamblezi într-o mașină completă.

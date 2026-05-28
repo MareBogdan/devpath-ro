@@ -93,12 +93,10 @@ export function LessonPresence({
       .on("presence", { event: "sync" }, () => {
         const state = channel.presenceState() as Record<string, PresenceUser[]>;
         const users = Object.values(state).flat() as PresenceUser[];
-        console.log("[LessonPresence] sync — users:", users);
         setPresenceList(users);
       })
       .on("broadcast", { event: "lesson_complete" }, ({ payload }: { payload: unknown }) => {
         const ev = payload as CelebrationEvent;
-        console.log("[LessonPresence] lesson_complete broadcast:", ev);
         if (ev.display_name !== displayName) {
           setCelebration(ev);
           setTimeout(() => setCelebration(null), 4500);
@@ -117,8 +115,6 @@ export function LessonPresence({
     const timeoutId = window.setTimeout(async () => {
       subscribed = true;
       channel.subscribe(async (status: string) => {
-        console.log("[LessonPresence] Presence Channel Status:", status);
-
         if (status === "SUBSCRIBED") {
           setChannelStatus("connected");
           await channel.track({

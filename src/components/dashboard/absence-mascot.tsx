@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
-import { PixelMascot } from "@/components/mascot/pixel-mascot";
+import { CosmoMascot } from "@/components/mascot/cosmo-mascot";
 
 const SESSION_KEY = "absence_mascot_dismissed";
 
@@ -41,7 +41,7 @@ export function AbsenceMascot({
           transition={{ type: "spring", stiffness: 260, damping: 22 }}
           className="rounded-2xl border border-blue-300/30 bg-blue-50/10 dark:border-blue-700/30 dark:bg-blue-950/20 px-5 py-4 flex items-center gap-4"
         >
-          <PixelMascot emotion="sad" size={56} />
+          <CosmoMascot emotion={daysAbsent >= 7 ? "sad" : "sleeping"} size={56} />
           <div className="flex-1 min-w-0">
             <p className="font-semibold text-foreground">Mi-a fost dor de tine!</p>
             {lastLessonTitle && lastLessonHref ? (

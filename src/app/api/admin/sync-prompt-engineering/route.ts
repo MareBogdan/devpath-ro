@@ -108,22 +108,12 @@ export async function POST(): Promise<NextResponse> {
         continue;
       }
 
-      // Check for simple mode variant
-      const simpleFile = file.replace(/\.mdx$/, "-simple.mdx");
-      const simplePath = path.join(CONTENT_DIR, simpleFile);
-      let simpleContent: string | null = null;
-      try {
-        const rawSimple = fs.readFileSync(simplePath, "utf-8");
-        simpleContent = matter(rawSimple).content.trim() || null;
-      } catch {
-        // No simple variant — stays null
-      }
-
+      // Dual-mode retired: only sync the standard MDX file. Existing
+      // content_simple_md column is left untouched in the DB.
       const lessonData = {
         course_id: course.id,
         title: frontmatter.title,
         content_md: content.trim(),
-        content_simple_md: simpleContent,
         type: frontmatter.type,
         order_index: frontmatter.order,
       };

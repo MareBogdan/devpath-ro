@@ -1,0 +1,145 @@
+---
+title: "Flip-Flop — primul bit de memorie"
+order: 21
+type: lesson
+module_index: 1
+duration: 14
+difficulty: 2
+---
+
+# Flip-Flop — primul bit de memorie
+
+## HOOK
+
+Imaginează-ți o fabrică automată cu mii de roboți care prelucrează piese la viteză maximă. Există un dirijor care bate tactul — fiecare robot se mișcă sincron, perfect coordonat.
+
+Dar nu există rafturi. Nu există cutii. Nicio suprafață unde să pui piesele procesate.
+
+Robotul termină operația. Piesa cade pe jos. Robotul următor n-are ce prelua.
+
+Ceasul de sistem din L20 e dirijorul. Fără flip-flop, e un dirijor care conduce o orchestră fără instrumente — sincronizează perfect nimicul. Flip-flop-ul e raftul. Containerul. Locul unde calculul rămâne între un ciclu și următorul.
+
+Un singur bit. Ținut captiv într-o buclă de feedback. Asta e toată memoria unui computer, la nivel atomic.
+
+## CONTEXT
+
+Toate circuitele de până acum sunt combinaționale — reacționează instant la intrări și nu rețin nimic. Ceasul introduce ordinea în timp. Flip-flop-ul introduce **persistența**.
+
+Un flip-flop capturează starea unui bit la frontul crescător al ceasului și o menține stabilă până la următorul front — indiferent ce se întâmplă la intrare între timp.
+
+E prima componentă din acest curs care are **memorie**. Nu memorie în sensul de RAM sau SSD — memorie în sensul cel mai primitiv: un bit care supraviețuiește unui ciclu de ceas și poate fi citit în ciclul următor.
+
+Conexiunea cu L15: un flip-flop e construit din porți NAND încrucișate. Universalitatea NAND înseamnă că memoria însăși emerge din aceeași cărămidă din care e construit orice alt circuit.
+
+## MIEZUL
+
+### 21 iunie 1918 — Londra, City and Guilds Technical College
+
+William Eccles și Frank Jordan depun un brevet pentru „Improvements in Ionic Relays". Circuitul: două tuburi vidate conectate în cruce — ieșirea primului intră în intrarea celui de-al doilea și invers.
+
+Rezultatul: dacă un tub conduce, celălalt e blocat. Starea e stabilă și se menține singură, fără consum suplimentar de energie. Un impuls extern poate răsturna starea — și noua stare se menține la rândul ei.
+
+Era primul flip-flop electronic din istorie. Eccles și Jordan credeau că inventaseră un releu mai bun pentru telegrafie. Nu aveau idee că tocmai construiseră blocul primitiv al erei informaționale — cu 27 de ani înainte de primul computer.
+
+Numele „flip-flop" vine de la sunetul produs pe un difuzor conectat la ieșire în momentul comutării.
+
+<FactBox>
+Zuse Z3 (1941) — primul computer programabil funcțional din lume — stoca 64 de cuvinte de 22 de biți în ~1.400 de relee electromagnetice. Funcționa la 5–10 Hz și consuma 4.000 de wați. Colossus (1943) a fost primul computer care a folosit flip-flop-uri electronice cu tuburi vidate — 1.600 de tuburi pentru operații de numărare și shift la viteze imposibile pentru relee. Fiecare generație a înlocuit tehnologia, dar structura cross-coupled a rămas identică.
+</FactBox>
+
+### SR Latch — memoria din două NAND-uri
+
+Ia două porți NAND. Conectează ieșirea primeia la o intrare a celei de-a doua. Conectează ieșirea celei de-a doua înapoi la o intrare a primeia.
+
+Ai creat un SR Latch — cel mai primitiv circuit de memorie.
+
+{/* TABLE */}
+
+| S̄ (Set) | R̄ (Reset) | Q | Stare |
+|---------|-----------|---|-------|
+| 1 | 1 | Q_anterior | **Memorare** — starea se păstrează |
+| 0 | 1 | 1 | **Set** — Q forțat la 1 |
+| 1 | 0 | 0 | **Reset** — Q forțat la 0 |
+| 0 | 0 | 1 și 1 | **Interzis** — ambele ieșiri = 1, contradicție |
+
+Starea interzisă ($\bar{S}=0, \bar{R}=0$) e periculoasă nu când e activă, ci când se eliberează. Dacă ambele semnale revin simultan la 1, circuitul intră în metastabilitate — tensiunile oscilează la valori intermediare, nedeterminate. Zgomotul termic din siliciu va decide în câteva nanosecunde în ce stare cade, dar până atunci ieșirile sunt invalide.
+
+### D Latch → D Flip-Flop — de la haos la precizie
+
+SR Latch e asincron — răspunde instant la orice schimbare de intrare, fără să aștepte ceasul. Periculos în sisteme complexe unde datele se schimbă continuu.
+
+Soluția: **D Latch**. Adaugi un inversor între S și R și conectezi totul la o singură intrare D (Data) + un semnal de enable (ceasul). Starea interzisă dispare — S și R nu pot fi egale niciodată. Când ceasul e 1, latch-ul e „transparent": orice schimbare pe D apare imediat la ieșire. Când ceasul e 0, latch-ul e opac — menține ultima valoare.
+
+Problema rămâne: dacă ceasul stă pe 1 prea mult, un semnal poate traversa multiple latch-uri într-un singur ciclu, distrugând ordinea secvențială.
+
+Soluția finală: **Master-Slave D Flip-Flop**. Două D Latch-uri în serie, comandate de faze opuse ale ceasului.
+
+{/* ANIMATION */}
+
+- **Ceas = 0**: Master transparent (acceptă date), Slave opac (menține ieșirea anterioară)
+- **Front crescător** (0→1): Master se blochează instant — capturează valoarea curentă. Slave se deschide — transmite valoarea blocată la ieșire.
+- **Ceas = 1**: Master opac, Slave transparent — dar datele nu mai pot pătrunde din exterior
+
+Nu există niciodată o cale directă de la intrare la ieșire. Datele sunt capturate exact la frontul de ceas — un snapshot de nanosecundă — și ținute stabile un ciclu întreg.
+
+<CosmoHint emotion="thinking">
+Un SRAM cell stochează un bit în 6 tranzistoare. Un D flip-flop standard necesită 18–24 de tranzistoare — de 3–4 ori mai mult. Costul extra e justificat: flip-flop-ul oferă capturare edge-triggered robustă la GHz, necesară pentru pipeline-uri de procesare. SRAM e optimizat pentru densitate, nu pentru viteză de capturare sincronă.
+</CosmoHint>
+
+### Câte flip-flop-uri are un CPU modern?
+
+Aproximativ **15% din celulele logice standard** dintr-un bloc logic de înaltă performanță sunt flip-flop-uri. Într-un CPU modern cu zeci de miliarde de tranzistoare, asta înseamnă **sute de milioane de flip-flop-uri** răspândite pe die.
+
+Unde trăiesc:
+
+**Register File** — ARMv8 are 31 de registre generale de 64 de biți: $31 \times 64 = 1.984$ flip-flop-uri doar pentru stocarea stării integer. Cu registrele SIMD de 128 de biți (32 bucăți): încă 4.096 flip-flop-uri. Program counter: alte 64. Toate actualizate simultan la fiecare front de ceas.
+
+**Pipeline Registers** — Între fiecare etapă a pipeline-ului (Fetch, Decode, Execute, Memory, Writeback) stă un zid de flip-flop-uri care capturează rezultatul intermediar și îl ține stabil pentru etapa următoare. Frecvența maximă a CPU-ului e dictată de cea mai lentă cale combinațională dintre două astfel de ziduri.
+
+**Earle Latch** — inventat de John Earle pentru IBM System/360 Model 91 în anii '60. Trucul: fuzionează funcția logică și funcția de latch într-un singur nivel de porți, cu întârziere constantă de exact 2 porți indiferent de calea de intrare. Hazard-free by design. Principiile lui Earle influențează pipeline-urile moderne până azi.
+
+### Raze cosmice și biți care se întorc singuri
+
+Flip-flop-urile nu sunt izolate de univers.
+
+Un **Single-Event Upset (SEU)** apare când o particulă ionizantă — neutron cosmic sau particulă alfa din ambalajul cipului — lovește un nod sensibil din siliciu. Ionizarea creează perechi electron-gaură. Dacă lovește lângă joncțiunea unui tranzistor din flip-flop, curentul tranzitoriu poate răsturna feedback-ul cross-coupled. Bitul se schimbă din 0 în 1 sau invers — fără nicio comandă software, fără nicio urmă fizică de deteriorare.
+
+Se numește **soft error** tocmai pentru că siliciul rămâne intact. Doar starea stocată e coruptă.
+
+**Studiu Google (2009):** 2,5 ani de date de pe mii de servere. Concluzie: 25.000–70.000 de erori per miliard de ore de funcționare per megabit. Peste 8% din modulele de memorie afectate anual. La scara unui datacenter modern cu petabytes de RAM, erorile soft sunt **evenimente orare**, nu anomalii rare.
+
+**Rata practică:** ~4 bit flip-uri per gigabyte de memorie per lună în sisteme neprotejate.
+
+<FactBox>
+**Schaerbeek, Belgia, 2003.** O mașină de vot electronică a înregistrat un rezultat imposibil: candidata Maria Vindevoghel a primit cu exact **4.096 voturi mai mult** decât era posibil matematic. Investigatorii au concluzionat: o rază cosmică a lovit memoria mașinii și a răsturnat bitul 13 din contorul de voturi. În binar, bitul 13 are valoarea $2^{12} = 4.096$. Un singur bit. O singură particulă subatomică. Un scrutin alterat.
+
+**Qantas Flight 72 (2008):** Un Airbus A330 la 37.000 de picioare a intrat brusc în picaj brusc, rănind pasageri. Investigatorii au identificat un SEU în unitatea de referință inerțială care furniza date false de altitudine sistemului de control al zborului.
+
+**Super Mario 64 speedrun (2013):** Un personaj s-a teleportat vertical prin tavanul unui nivel. Analiza codului a confirmat: o rază cosmică a răsturnat cel mai puțin semnificativ bit din cel mai semnificativ byte al coordonatei de înălțime — schimbând `11000101` în `11000100`.
+</FactBox>
+
+### Mitigare: ECC și DICE
+
+**ECC (Error Correcting Code):** Adaugă flip-flop-uri extra per cuvânt pentru biți de paritate. Când datele sunt citite, porți XOR calculează un „sindrom". Dacă un bit a fost răsturnat de o rază cosmică, sindromul identifică exact care bit și îl corectează înainte să ajungă la CPU. Hamming code, implementat în hardware, la viteza ceasului.
+
+**DICE (Dual Interlocked Storage Cell):** Folosit în hardware aerospațial și militar. În loc de 18–24 de tranzistoare, DICE folosește 24–36, cu noduri de feedback fizic separate spațial pe die. Pentru a răsturna un DICE flip-flop, o particulă ar trebui să lovească simultan două noduri îndepărtate. Statistic aproape imposibil.
+
+<CosmoHint emotion="surprised">
+Cel mai rapid flip-flop construit vreodată nu e din silicon — e din **Indium Phosphide (InP)**, un semiconductor compus cu mobilitate electronică superioară siliciului. TRW și cercetătorii de la UCSB au construit frequency dividers din master-slave D flip-flops care operează la **204.8 GHz** — 204 de miliarde de cicluri pe secundă. La această viteză, flip-flop-ul capturează și eliberează un bit în mai puțin de **5 picosecunde**. Folosit pentru rețele optice de 40–100 Gbps.
+</CosmoHint>
+
+## REVEAL
+
+Memoria nu e o substanță specială. Nu e un material magic. E o proprietate emergentă a **topologiei de feedback**.
+
+Conectezi ieșirea unui NAND la intrarea altuia și invers — și dintr-odată, un bit rămâne captiv în acea buclă până când îl eliberezi explicit. Asta e tot. Eccles și Jordan au descoperit asta în 1918 cu două tuburi vidate și câteva rezistoare.
+
+De la Zuse Z3 cu 1.400 de relee la Colossus cu tuburi vidate, la ENIAC, la Apollo Guidance Computer, la miliardele de flip-flop-uri din M4 — structura e identică. Cross-coupled feedback. Stare persistentă. Un bit ținut captiv.
+
+Fără flip-flop, ceasul sincronizează haosul. Cu flip-flop, fiecare ciclu construiește pe cel anterior. Calculul devine secvențial. Software-ul devine posibil.
+
+## ÎNCHEIERE
+
+Acum știi cum se stochează un bit în hardware.
+
+Lecția următoare: **Registrele** — grupuri de flip-flop-uri care lucrează împreună pentru a stoca cuvinte întregi de date. De la bitul singular al flip-flop-ului la cuvântul de 64 de biți al unui registru ARM — un singur pas de scalare.

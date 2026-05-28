@@ -1,0 +1,131 @@
+---
+title: "Registrele — cuvintele cu care gândește procesorul"
+order: 22
+type: lesson
+module_index: 1
+duration: 14
+difficulty: 2
+---
+
+# Registrele — cuvintele cu care gândește procesorul
+
+## HOOK
+
+Un flip-flop stochează o literă. O singură literă nu spune nimic.
+
+Un registru de 64 de biți e 64 de flip-flop-uri pe același fir de ceas — actualizate simultan, formând un cuvânt întreg. Un număr. O adresă de memorie. O instrucțiune. Ceva cu care procesorul poate efectiv *face ceva*.
+
+Fără registre, ALU-ul din L17–L18 ar calcula în gol — nu ar exista unde să pui operanzii și unde să primești rezultatul. Fără registre, Program Counter-ul din L19 n-ar putea ține adresa instrucțiunii următoare. Fără registre, nu există stare. Nu există execuție. Nu există computer.
+
+Registrele sunt memoria activă a procesorului — nu ce știe, ci ce *gândește în acest moment*.
+
+## CONTEXT
+
+Un registru e o colecție de flip-flop-uri care împart un singur fir de ceas și un semnal de write-enable. La frontul crescător al ceasului, toate flip-flop-urile se actualizează simultan — capturând un cuvânt întreg de date în același nanosecundă.
+
+Latența unui registru: **100–150 picosecunde**. Nu există nicio altă formă de stocare mai rapidă în calculator. L1 cache: ~1.000 ps. DRAM: ~100.000 ps. SSD NVMe: ~50.000.000 ps.
+
+De ce sunt registrele cu un ordin de mărime mai rapide decât L1 cache, deși și cache-ul e pe același die? Diferența e topologică, nu tehnologică. Registrele nu sunt adresate prin magistrale — sunt hardwired direct în multiplexoarele care alimentează ALU-ul. Nu există protocol de handshake, nu există arbitraj de bus, nu există decodare de tag-uri cache. A citi un registru înseamnă a deschide o poartă logică și a lăsa tensiunea să curgă direct în pipeline. Cache-ul, oricât de rapid, necesită totuși un ciclu de lookup și o confirmare că datele sunt valide. Registrele nu au nevoie de confirmare — sunt mereu acolo, mereu valide.
+
+## MIEZUL
+
+### De la un singur acumulator la 32 de registre
+
+Primele computere aveau **un singur registru** — acumulatorul. Orice operație trebuia să treacă prin el. Vrei să aduni trei numere? Încarci primul în acumulator, aduni al doilea, stochezi rezultatul în memorie, încarci al treilea, aduni rezultatul anterior. Fiecare pas — un acces la memorie. Lent și serializat.
+
+**Manchester Mark 1 (1949)** — primul computer care a introdus **index registers**, numite intern „B-lines". Inventate de Tom Kilburn și Freddie Williams, B-lines permiteau modificarea dinamică a adreselor de instrucțiuni fără a schimba instrucțiunile din memorie. Saltul iterativ prin array-uri a devenit posibil. Mark 1 a pornit cu 2 B-lines, extins la 8 în Ferranti Mark 1 (1951).
+
+**IBM 704 (1954)** — proiectat de Gene Amdahl și John Backus — a adus 3 index registers accesibile simultan programatorului, a trecut de la Williams tubes la magnetic core memory și a furnizat hardware-ul necesar pentru primul compilator Fortran din lume.
+
+**RISC, ~1985** — David Patterson și John Hennessy (MIPS, SPARC) au standardizat exact **32 de registre generale**. De ce 32 și nu mai multe?
+
+Matematica din spatele deciziei: într-o instrucțiune de 32 de biți cu trei operanzi (sursă 1, sursă 2, destinație), fiecare adresă de registru ocupă 5 biți ($2^5 = 32$). Trei operanzi = 15 biți consumați. Rămân 17 biți pentru opcode, imediate și offset-uri. Dacă ai folosi 64 de registre, ai consuma 18 biți pentru adrese — prea mult. Cu 16 registre (cum a ales x86), presiunea pe compilator devine insuportabilă.
+
+<FactBox>
+Intel și AMD au anunțat în 2023 **Advanced Performance Extensions (APX)** — extensia care adaugă 16 registre noi (R16–R31) arhitecturii x86-64, dublând GPR-urile de la 16 la 32 pentru paritate cu RISC. Efectul măsurat: reducere cu 10% a load-urilor din memorie și peste 20% a store-urilor. Arhitectura x86 a trăit cu 16 registre timp de 20 de ani din motive de compatibilitate — un compromis care a costat performanță reală în fiecare program compilat în tot acel timp.
+</FactBox>
+
+### Anatomia register file — de ce nu poți avea oricâte registre vrei
+
+Un bit de SRAM (L1 cache) costă **6 tranzistoare**. Un bit de register file costă **20–32 de tranzistoare** — de 3–5 ori mai mult.
+
+Motivul: un register file nu e simplu SRAM. E SRAM cu **porturi multiple**. Un procesor superscalar care lansează 4 instrucțiuni simultan are nevoie să citească până la 8 registre și să scrie 4 în același ciclu de ceas. Fiecare port adaugă o linie de bit și o linie de cuvânt care traversează întreaga matrice.
+
+**Costul scalează pătratic cu numărul de porturi** — O(N²). Dublez numărul de porturi, de 4 ori mai mult siliciu. Din cauza asta, procesoarele moderne partajează register file-ul în domenii separate (integer, floating-point, vector) și plasează bucăți din el fizic lângă fiecare unitate de execuție.
+
+{/* ANIMATION */}
+
+### Registrele specializate — fiecare cu rolul său
+
+**Registrele generale (GPR)** — workspace-ul principal. RAX, RBX, RCX... R15 în x86-64. X0–X30 în ARM64. Integer arithmetic, pointeri, adrese.
+
+**Program Counter (PC / RIP)** — registrul care ține adresa instrucțiunii *următoare*. E singurul registru pe care procesorul îl actualizează automat după fiecare instrucțiune. Dacă PC-ul e corupt — de un buffer overflow, un soft error sau un exploit — procesorul încearcă să decodeze bytes arbitrari ca instrucțiuni. Rezultat: Illegal Instruction, Segmentation Fault, pipeline flush complet.
+
+**Stack Pointer (RSP / SP)** — ține adresa top-ului stivei de apeluri. Fiecare apel de funcție execută un **prologue**: push adresa de return pe stivă, push base pointer, MOV RBP←RSP, SUB RSP←N (rezervă spațiu pentru variabile locale). La ieșire, **epilogue** inversează totul și RET reîncarcă adresa de return în PC. Toată această orchestrație se reduce la operații pe doi registre: RSP și RBP.
+
+**Flags Register (RFLAGS / CPSR)** — nu ține date, ci **rezultate ale ultimei operații ALU**:
+- **Zero Flag (ZF)**: 1 dacă rezultatul e 0
+- **Carry Flag (CF)**: 1 dacă adunarea a generat carry din MSB
+- **Overflow Flag (OF)**: 1 dacă rezultatul signed depășește registrul
+
+Fiecare instrucțiune `if` din orice limbaj de programare se compilează în: o instrucțiune de comparație (care setează flags) urmată de un branch condiționat (care citește un flag și actualizează PC-ul). Fără Flags Register, logica condițională e imposibilă.
+
+<CosmoHint emotion="thinking">
+MIPS și RISC-V au un truc elegant: registrul 0 (`$0` sau `x0`) e hardwired la GND — citești mereu 0, iar orice scriere e ignorată. Astfel, `MOV R1, 0` devine `ADD R1, x0, x0`. NOP devine `ADD x0, x0, x0`. Negarea unui număr devine `SUB R1, x0, R2`. Un registru special elimină nevoia de instrucțiuni dedicate și salvează spațiu prețios în opcode.
+</CosmoHint>
+
+**SIMD / Vector registers** — SSE (128-bit XMM), AVX (256-bit YMM), AVX-512 (512-bit ZMM) în x86; NEON în ARM. O singură instrucțiune AVX-512 procesează **16 numere float de 32 de biți simultan**. Motoarele de AI, criptografia și multimedia trăiesc în aceste registre. Register file-ul vector fizic din AMD Zen 5: **384 de intrări de 512 biți** — unul dintre cele mai mari blocuri de flip-flop-uri de pe orice die de procesor.
+
+### Câte registre *fizice* are un CPU modern?
+
+Arhitectura x86-64 expune 16 GPR-uri software-ului. Dar hardware-ul intern are mult mai multe.
+
+**Register renaming** — algoritmul lui Robert Tomasulo, IBM System/360 Model 91, 1967. Problema: dacă instrucțiunea A scrie în RAX și instrucțiunea B (independentă) scrie tot în RAX, ele nu pot executa simultan — ar scrie în același loc. Soluția: hardware-ul alocă registre fizice diferite pentru fiecare scriere și menține un tabel de mapare `RAX → P42`, `RAX → P87`. Instrucțiunile independente execută în paralel pe registre fizice distincte. Software-ul vede 16 registre; hardware-ul are sute.
+
+{/* TABLE */}
+
+| Microarhitectură | An | Registre integer fizice | Registre vector fizice |
+|-----------------|-----|------------------------|----------------------|
+| Intel Skylake | 2015 | 180 | 168 |
+| Intel Golden Cove | 2021 | 280 | 332 |
+| AMD Zen 4 | 2022 | 224 | 192 |
+| AMD Zen 5 | 2024 | 240 | **384** |
+| Apple M3 | 2023 | ~750 (ROB) | — |
+
+Apple M3 menține un Reorder Buffer de ~750 intrări pentru a susține un motor de dispatch de 9 instrucțiuni simultane — pariind pe IPC masiv în loc de frecvență înaltă.
+
+### Hazarduri și forwarding — când registrele blochează pipeline-ul
+
+Instrucțiunea 1 calculează un rezultat și îl scrie în R1. Instrucțiunea 2 citește R1 imediat după. Problema: în pipeline-ul clasic cu 5 etape, instrucțiunea 1 nu scrie în register file până la etapa 5 (Writeback), dar instrucțiunea 2 citește din register file la etapa 2 (Decode). **RAW hazard (Read After Write)** — instrucțiunea 2 ar citi valoarea veche.
+
+Soluția: **Operand Forwarding**. Hardware-ul detectează dependența și rutează output-ul ALU-ului din instrucțiunea 1 direct la input-ul ALU-ului din instrucțiunea 2 — fără să aștepte scrierea în register file. Prin MUX-uri adăugate pe calea de date (exact componentele din L19), procesorul rezolvă majoritatea hazardurilor RAW fără niciun ciclu de penalizare.
+
+### Zenbleed — când registrele vector scurg secrete
+
+**CVE-2023-20593 — AMD Zen 2, iulie 2023.**
+
+Instrucțiunea `vzeroupper` zerorizează jumătatea superioară a registrelor YMM (256-bit) pentru a evita penalități de performanță la tranziția între cod AVX și cod SSE legacy. Dacă `vzeroupper` era executată *speculativ* și ulterior anulată din cauza unei predicții greșite de branch, hardware-ul nu restaura corect tabelul de alocare a registrelor fizice.
+
+Rezultatul: tabelul de mapare era corupt, iar registrele fizice ale unui proces ajungeau să fie mapate la registrele fizice ale unui **alt proces care rula pe același core**. Un atacator putea executa un loop simplu de operații pe string-uri (care folosesc registre AVX intern) și citi pasiv datele care curgeau în ele — chei de criptare, parole, date confidențiale din mașini virtuale vecine pe același server cloud.
+
+Un bug în implementarea register renaming pentru registre vector → scurgere directă de date cross-process.
+
+<CosmoHint emotion="surprised">
+**Z80 (1976)** — legendarul procesor de 8 biți — avea un set **dublu de registre** (shadow registers). Instrucțiunea `EXX` schimba instantaneu setul activ cu cel shadow. La un interrupt hardware, programatorul executa `EXX`, comuta la shadow registers, procesa interrupt-ul, și comuta înapoi — fără a mai face push/pop pe stivă. Context switch în zero cicluri. Principiul supraviețuiește în procesorele moderne ca register renaming, dar Z80-ul îl expunea direct programatorului.
+</CosmoHint>
+
+## REVEAL
+
+Un registru e 64 de flip-flop-uri pe același fir de ceas. Asta e tot, fizic vorbind.
+
+Dar semantic, un registru e diferența dintre un procesor care calculează și unul care *gândește*. Fără registre, fiecare operație ar necesita un drum la memorie — un calcul care durează 1.000 de cicluri în loc de 1. Pipeline-ul s-ar opri la fiecare instrucțiune. Frecvențele de GHz ar deveni MHz.
+
+De la B-lines lui Kilburn din 1949, la 32 de registre RISC în 1985, la 750 de registre fizice în Apple M3 din 2023 — fiecare generație a adăugat mai multe registre, mai multe porturi, mai multă paralelism. Nu din capriciu arhitectural, ci pentru că fiecare registru în plus înseamnă o variabilă în plus care rămâne în procesorul rapid și nu emigrează în memoria lentă.
+
+Registrele sunt memoria activă a mașinii. Tot ce nu încape în ele devine mai lent.
+
+## ÎNCHEIERE
+
+Acum știi cum procesorul stochează și manipulează cuvinte întregi de date la viteze de picosecunde. Un registru simplu ascunde zeci de tranzistoare per bit și decenii de inginerie menite să țină unitatea de execuție ocupată — nu așteptând memoria, ci calculând.
+
+Lecția următoare: **Grila Memoriei RAM** — primul joc interactiv care te pune să construiești și să manipulezi o memorie RAM simplă din flip-flop-uri. Principiile sunt aceleași — dar acum la scară.

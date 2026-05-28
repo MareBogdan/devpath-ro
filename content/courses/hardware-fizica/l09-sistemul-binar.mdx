@@ -1,0 +1,333 @@
+---
+title: "Sistemul Binar"
+order: 9
+type: lesson
+module_index: 1
+duration: 12
+difficulty: 2
+---
+
+## O molie a oprit un calculator
+
+9 septembrie 1947. Harvard Mark II Calculator, Cambridge, Massachusetts.
+
+Echipa de ingineri raportase erori recurente inexplicabile în calcule.
+Coborând fizic la panoul de relee, au găsit cauza:
+o molie carbonizată, strivită exact între contactele releului #70, Panel F.
+
+Au scos-o cu o pensă, au lipit-o în jurnalul tehnic și au notat:
+**"First actual case of bug being found."**
+
+Primul caz documentat de bug software — nu era software.
+Era o insectă care rupsese fluxul fizic de 0 și 1.
+
+De atunci, orice defect într-un program se numește bug.
+Și tot de atunci, calculatoarele depind complet de integritatea binarului —
+un sistem atât de fragil încât o molie îl poate opri,
+și atât de puternic încât poate reprezenta tot ce există.
+
+---
+
+## Ce s-a schimbat față de lecțiile trecute
+
+Ai văzut tranzistorul MOSFET: un robinet electric cu două stări.
+La 5V alimentare, tensiunile de 0–1,5V sunt "0", tensiunile de 3,5–5V sunt "1".
+Spațiul fizic dintre cele două stări e ceea ce face sistemul robust.
+
+Dar cum devine asta calcul?
+Cum reprezinți un număr, o literă, o culoare, un sunet —
+folosind doar două simboluri?
+
+Nu e suficient că tranzistorul poate fi deschis sau închis.
+Trebuie un limbaj care să transforme miliarde de comutări
+în ceva cu sens: texte, imagini, instrucțiuni, muzică.
+
+Acesta e sistemul binar — nu o invenție a calculatoarelor,
+ci o idee matematică veche de 300 de ani,
+redescoperită de electronice pentru că se potrivea perfect cu fizica tranzistorului.
+
+---
+
+## Miezul
+
+### De ce binar și nu altceva
+
+Prima întrebare corectă: de ce baza 2 și nu baza 10?
+
+Răspunsul e fizic, nu matematic.
+
+Un tranzistor funcționează cu tensiuni reale, nu cu concepte abstracte.
+La 5V alimentare, intervalul 0–1,5V e interpretat ca "0", intervalul 3,5–5V ca "1".
+Spațiul dintre ele — 2 volți — se numește **marginea de zgomot**.
+
+Dacă am folosi baza 10 pe același fir de 5V,
+fiecare cifră ar ocupa doar 0,5V de interval.
+O interferență electromagnetică banală ar schimba o cifră în alta.
+
+Baza 2 câștigă prin robustețe, nu prin eleganță matematică.
+
+---
+
+### Trei oameni care au construit fundamentul
+
+**1703 — Gottfried Leibniz** publică *De Progressione Dyadica* —
+primul sistem de numerație pur binar capabil să execute cele patru operații.
+În același timp, corespondează cu un misionar iezuit în China, Joachim Bouvet,
+care îi trimite hexagramele din I Ching.
+Leibniz realizează că sistemul său matematic abia inventat existase deja în filosofia chineză:
+linia întreruptă (Yin) = 0, linia continuă (Yang) = 1.
+
+**1854 — George Boole** publică *An Investigation of the Laws of Thought*.
+Demonstrează că orice raționament logic poate fi redus la algebră cu două stări: Adevărat/Fals.
+Rămâne o curiozitate academică timp de 80 de ani.
+
+**1937/1948 — Claude Shannon** face conexiunea finală.
+În teza sa de masterat (1937), arată că releele și comutatoarele pot rezolva
+fizic ecuații de algebră booleană.
+În *A Mathematical Theory of Communication* (1948), definește cantitatea fundamentală
+de informație: **bitul** — termenul propus de colegul său J.W. Tukey.
+Un bit = răspunsul la o întrebare cu două variante la fel de probabile.
+
+<FactBox>
+  Calculatorul sovietic Setun (1958) opera în baza 3 — logic ternary.
+  Baza 3 e mai eficientă matematic (mai apropiată de numărul lui Euler, e ≈ 2,718).
+  Au produs 50 de unități, utilizate în 30 de universități sovietice.
+  A pierdut competiția din un singur motiv: fabricarea tranzistoarelor cu 3 praguri
+  stabile la scară microscopică era exponențial mai complexă decât on/off.
+  Baza 2 a câștigat prin randamentul producției de masă.
+</FactBox>
+
+---
+
+### Cum se numără în binar
+
+Sistemul zecimal folosește 10 simboluri (0–9).
+Baza 2 folosește 2 simboluri (0 și 1).
+
+Regulile sunt identice. Când epuizezi simbolurile disponibile,
+revii la 0 și adaugi 1 la coloana din stânga.
+
+{/* TABLE: Zecimal 0-10 → Binar echivalent, cu coloana "ce se întâmplă" */}
+
+Fiecare poziție din stânga înseamnă o putere a lui 2:
+
+| Poziție | Formulă | Valoare |
+|---|---|---|
+| Bit 0 (dreapta) | 2⁰ | 1 |
+| Bit 1 | 2¹ | 2 |
+| Bit 2 | 2² | 4 |
+| Bit 3 | 2³ | 8 |
+| Bit 7 | 2⁷ | 128 |
+| Bit 10 | 2¹⁰ | 1.024 |
+
+**Binar → Zecimal:** aduni valorile pozițiilor cu bitul 1.
+Exemplu: 1011 = 8 + 0 + 2 + 1 = **11**
+
+**Zecimal → Binar:** împarți repetat la 2 și citești resturile de jos în sus.
+13 ÷ 2 = 6 rest **1** → 6 ÷ 2 = 3 rest **0** → 3 ÷ 2 = 1 rest **1** → 1 ÷ 2 = 0 rest **1**
+Citit invers: **1101**
+
+Un număr de **n biți** poate reprezenta **2ⁿ stări distincte**.
+8 biți (un byte) = 256 valori. 16 biți = 65.536 valori. 32 biți = 4,29 miliarde valori.
+
+**Kibibyte vs Kilobyte — o confuzie cu procese legale**
+
+2¹⁰ = 1.024 — aproape de 1.000, dar nu exact.
+Primii ingineri au numit 1.024 bytes un "kilobyte" din inerție.
+Producătorii de hard disk-uri foloseau 1 KB = 1.000 bytes (mai mare în reclame).
+Sistemele de operare foloseau 1 KB = 1.024 bytes (mai mic în Explorer).
+La terabytes, diferența depășea 10% — și au apărut procese legale.
+
+În 1998, IEC a standardizat: **Kilobyte (KB) = 1.000 bytes**, **Kibibyte (KiB) = 1.024 bytes**.
+Linux și macOS folosesc standardul corect. Windows încă afișează KiB și scrie KB.
+
+---
+
+### Cum textul devine binar — și un truc de design genial
+
+În 1963, Bob Bemer la IBM a publicat standardul **ASCII** —
+American Standard Code for Information Interchange.
+
+7 biți per caracter = 128 simboluri posibile.
+De ce 7 și nu 8? Al 8-lea bit era rezervat pentru detectarea erorilor de transmisie.
+
+Fiecare literă are un număr:
+- 'A' = 65 = 1000001
+- 'a' = 97 = 1100001
+- 'Z' = 90, 'z' = 122
+
+<FactBox>
+  Observă diferența dintre 'A' (65) și 'a' (97): exact 32.
+  32 = 2⁵ — un singur bit (bitul 5 din dreapta).
+  Conversia majuscule ↔ minuscule înseamnă să răstorni un singur bit.
+  Calculatoarele din 1963 puteau converti pagini întregi de text
+  aplicând o singură poartă logică — fără nicio formulă, fără niciun tabel de căutare.
+  A fost o decizie de design deliberată. Ingineresc, e aproape artă.
+</FactBox>
+
+ASCII acoperea doar 128 de caractere — suficient pentru engleză, dezastruos pentru restul lumii.
+
+**Unicode** rezolvă asta: 1.114.112 puncte de cod unice — toate limbile din istoria omenirii.
+**UTF-8** le stochează eficient: caracterele ASCII ocupă 1 byte,
+celelalte 1–4 bytes în funcție de complexitate.
+Un fișier ASCII din 1970 e valid UTF-8 astăzi fără nicio modificare.
+
+---
+
+### Culorile și sunetele în binar
+
+**Culori:** fiecare pixel pe ecran are 3 canale (roșu, verde, albastru), fiecare pe 8 biți (0–255).
+Roșu pur: R=255, G=0, B=0 → în hex: #FF0000.
+24 biți per pixel = 2²⁴ = **16.777.216 culori distincte** — limita ochiului uman normal.
+
+**Sunet:** un CD eșantionează sunetul de 44.100 ori pe secundă,
+fiecare eșantion pe 16 biți = 65.536 niveluri de amplitudine.
+Ceea ce auzi e o reconstrucție din 44.100 de trepte discrete pe secundă —
+atât de rapid că urechea nu distinge tăieturile.
+
+**Numere negative:** calculatoarele nu știu simbolul minus.
+Folosesc **complementul față de 2**: inversezi toți biții și aduni 1.
+Exemplu: -5 în 4 biți → 5=0101 → inversezi: 1010 → aduni 1: **1011**
+Eleganța: scăderea devine adunare cu complementul. Un singur circuit face totul.
+
+---
+
+### Hexazecimal — scurtătura practică
+
+Binar e precis dar greu de citit. 11011010 nu spune nimic imediat.
+
+Hexazecimalul grupează câte 4 biți într-un singur simbol (0–9, A–F).
+16 simboluri, 16 combinații posibile de 4 biți — se potrivesc perfect.
+
+1101 = D, 1010 = A → 11011010 = **DA** în hex.
+
+Un byte (8 biți) = mereu exact 2 caractere hex.
+Adrese de memorie, culori RGB, adrese MAC — toate se scriu în hex
+pentru că e cu 4× mai scurt decât binar și perfect reversibil.
+
+<CosmoHint emotion="thinking">
+  #FF6B6B e culoarea roșie din paleta DevPath.
+  FF = 255 roșu, 6B = 107 verde, 6B = 107 albastru.
+  Sau în binar: 11111111 01101011 01101011.
+  Hex câștigă.
+</CosmoHint>
+
+---
+
+### Cifre care schimbă perspectiva
+
+**Câți biți pentru toți atomii din univers?**
+
+Universul observabil conține ~10⁸⁰ atomi.
+2²⁶⁶ ≈ 10⁸⁰.
+Deci **266 biți** — câteva rânduri de text — sunt suficienți pentru a asigna
+un număr unic fiecărui atom din tot ce există.
+
+**Genomul uman în bytes:**
+3,2 miliarde de perechi de baze × 2 biți per pereche (4 baze = 2 biți) = 6,4 miliarde biți.
+
+<FactBox>
+  6,4 miliarde biți = 800 Megabytes.
+  Rețeta completă a unui om — toate instrucțiunile pentru a construi
+  fiecare celulă, organ și conexiune neuronală — încape pe un CD.
+  Un CD standard stochează 700 MB.
+  Genomul uman e mai mic decât un CD.
+</FactBox>
+
+**O fotografie de 12 megapixeli necomprimată:**
+12.000.000 pixeli × 3 canale × 8 biți = 288 Megabiți = **36 MB**.
+De aceea JPEG există — compresia reduce asta la 3–5 MB fără pierderi vizibile majore.
+
+**Cel mai mare număr pe 64 biți:**
+2⁶⁴ - 1 = **18.446.744.073.709.551.615**
+Numărul de secunde de la Big Bang: ~4 × 10¹⁷.
+64 biți conțin de 46 de ori mai mult decât vârsta universului în secunde.
+
+---
+
+### Când bitul greșit costă vieți
+
+Un **bit flip** apare când o radiație cosmică lovește un atom de siliciu
+și modifică starea unui condensator din memorie — 0 devine 1 sau invers.
+
+**Schaerbeek, Belgia, 18 mai 2003.**
+La alegerile locale, un candidat a primit exact **4.096 voturi în plus** — imposibil matematic.
+4.096 = 2¹² — un singur bit răsturnat în coloana a 13-a.
+Analiza a concluzionat: o particulă cosmică a lovit memoria sistemului de vot.
+Un bit, o alegere națională temporar compromisă.
+
+**Toyota, 2009–2013.**
+Sistemul electronic de control al accelerației (ETCS) rula fără protecție ECC.
+Experții NASA care au auditat 800 de pagini de cod au concluzionat:
+un singur bit flip putea coborî un "task" critic de monitorizare a frânei —
+**Task Death** — lăsând sistemul incapabil să oprească accelerația.
+
+**Super Mario 64 Speedrun, 2013.**
+Un jucător a traversat un perete solid — fizic imposibil în cod.
+Ani mai târziu, analiza a arătat: o rază cosmică a răsturnat un singur bit
+din registrul de altitudine al personajului.
+0xC5 → 0xC4. Un singur bit. Teleport instantaneu prin geometrie solidă.
+
+<CosmoHint emotion="surprised">
+  Serverele din centrele de date folosesc RAM cu ECC (Error-Correcting Code).
+  ECC detectează și corectează automat bit flip-urile înainte ca procesorul să le vadă.
+  Laptopul tău probabil nu are ECC.
+  În fiecare moment, radiații cosmice traversează camera ta.
+  Cele mai multe nu lovesc nimic important. Unele o fac.
+</CosmoHint>
+
+---
+
+### Bug-ul care vine
+
+**19 ianuarie 2038, ora 03:14:07 UTC.**
+
+Sistemele Unix stochează timpul ca număr de secunde de la 1 ianuarie 1970.
+Pe sisteme vechi cu integer de 32 biți cu semn,
+limita maximă e 2³¹ - 1 = **2.147.483.647 secunde**.
+
+La 03:14:08, adăugarea unei secunde în plus face overflow.
+Bitul de semn se răstoarnă: valoarea devine negativă.
+Sistemul interpretează că data e **13 decembrie 1901**.
+
+Miliarde de dispozitive IoT, routere și sisteme embedded vechi
+vor crede că s-au întors 137 de ani în trecut.
+Certificatele SSL vor părea expirate din 1901.
+Sistemele bancare vor calcula dobânzi pentru 137 de ani inexistenți.
+
+Soluția: rescrierea pe 64 biți — care poate număra secunde
+pentru 292 de miliarde de ani viitori. Se lucrează la ea acum.
+
+---
+
+## Reveal
+
+Binar nu e o limitare a calculatoarelor.
+E o reflecție a fizicii tranzistorului — două stări stabile, margine maximă de zgomot.
+
+Din aceste două simboluri derivă tot:
+numerele negative prin complement față de 2,
+textul prin ASCII și UTF-8,
+culorile prin 24 de biți de RGB,
+sunetul prin PCM la 44.100 de eșantioane pe secundă,
+genomul uman în 800 MB,
+toți atomii din univers în 266 biți.
+
+Și tot din aceste două simboluri derivă și vulnerabilitățile:
+o molie în 1947, o rază cosmică în 2003, un bug care vine în 2038.
+
+Un sistem atât de simplu încât o molie îl poate opri —
+și atât de puternic încât poate conține universul.
+
+---
+
+## Ce urmează
+
+Știi acum cum funcționează binar în teorie.
+
+Dar dacă ar trebui să transmiți un mesaj secret folosind doar 0 și 1?
+Sau să decodezi un mesaj binar primit de la altcineva?
+
+Lecția următoare e un **joc** — Traducătorul Binar.
+Vei converti text în binar și binar în text în timp real.
+Vei simți exact cât de natural devine după câteva minute.

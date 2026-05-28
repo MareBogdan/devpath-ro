@@ -1,0 +1,350 @@
+---
+title: "Analogic vs. Digital"
+order: 5
+type: lesson
+module_index: 1
+duration: 12
+difficulty: 2
+---
+
+## Lumea e analogică. Calculatorul nu.
+
+Vocea ta e o undă de presiune în aer — continuă, fără trepte, infinit de fină.
+Temperatura din cameră crește și scade fără pauze discrete.
+Lumina de la fereastră trece prin mii de nuanțe pe secundă.
+Presiunea sângelui în arteră, unghiul unei roți de bicicletă, umiditatea din aer —
+toate sunt valori care curg fără să se oprească la numere întregi.
+
+Nicio valoare din natură nu se oprește la trepte fixe.
+Totul curge.
+
+Dar procesorul din telefonul tău nu știe să curgă.
+Știe doar două lucruri: pornit sau oprit, 1 sau 0.
+
+Cum a supraviețuit această limitare radicală?
+Cum a câștigat digitalul față de un semnal cu rezoluție infinită?
+
+Răspunsul nu e că digitalul e mai precis.
+E că digitalul nu îmbătrânește.
+
+---
+
+## Ce s-a schimbat față de lecția trecută
+
+În C1L4 ai văzut că siliciul poate fi comutat între izolator și conductor.
+Band gap de 1,12 eV — suficient de mic pentru a fi traversat controlat,
+suficient de mare pentru a bloca zgomotul termic aleator.
+
+Ai văzut că dopajul cu un singur atom de fosfor la zece milioane de atomi de siliciu
+crește conductivitatea de zeci de milioane de ori.
+Că puritatea de 9N permite controlul precis al comutării.
+
+Dar o întrebare a rămas fără răspuns:
+comutat între ce stări? Cu ce scop?
+
+Ce faci cu un material care poate fi izolator sau conductor?
+Cum transformi o proprietate fizică într-un instrument de calcul?
+
+Răspunsul trăiește în diferența dintre două filozofii ale informației:
+una care încearcă să copieze lumea exact — și una care renunță deliberat la precizie
+pentru a câștiga ceva incomparabil mai valoros.
+
+---
+
+## Miezul
+
+### Ce este un semnal analogic
+
+Microfon. Apăsare pe diafragmă. Bobină care se mișcă.
+Mișcare transformată în fluctuație de tensiune — 1 mV până la 5 mV.
+
+Fiecare variație microscopică a vocii tale produce o variație corespunzătoare a tensiunii.
+Nu există trepte. Nu există pauze. Semnalul e o copie electrică exactă a sunetului.
+
+Asta e definiția analogicului: o reprezentare continuă, proporțională, fidelă.
+
+Același principiu funcționează pentru temperatură — un termistor schimbă
+rezistența continuu cu temperatura, fără nicio treaptă intermediară.
+Pentru presiune — un strain gauge deformează un fir metalic, care crește rezistența,
+care generează o variație de tensiune de ordinul microvolților per volt aplicat.
+
+Semnalul analogic are, teoretic, rezoluție infinită.
+Pe o amplitudine de 1 volt, există un număr infinit de tensiuni posibile:
+0,1 V, 0,11 V, 0,111 V, 0,1111 V — și tot așa, la infinit.
+
+Acesta e avantajul lui aparent.
+Și exact acesta e și problema lui.
+
+---
+
+### Zgomotul care nu poate fi eliminat
+
+Orice conductor electric aflat la o temperatură mai mare de zero absolut
+generează fluctuații aleatorii de tensiune.
+
+Nu din cauza unui defect. Nu din cauza unui design prost.
+Din cauza agitației termice a electronilor din rețeaua cristalină.
+
+Acest zgomot se numește **zgomot Johnson-Nyquist** și are o formulă exactă:
+
+{/* TABLE: Formula zgomot termic — Vnoise = sqrt(4 * kB * T * R * Δf) cu parametrii explicați */}
+
+La temperatura camerei (300 K), o rezistență simplă de 50 Ω
+generează un zgomot de aproximativ **0,9 nV/√Hz**.
+
+Pare neglijabil — până când îl compari cu semnalul pe care vrei să îl transmiți.
+
+Un microfon de studio livrează tensiuni de 1–5 mV.
+O rezistență de 10 kΩ cu lățime de bandă audio (20 kHz) adaugă ~1,8 µV de zgomot.
+Asta e un zgomot de fond inevitabil, indiferent de calitatea componentelor.
+
+<FactBox>
+  Zgomotul Johnson-Nyquist nu poate fi eliminat fără a răci conductorul la zero absolut.
+  La 0 K, agitația termică e zero — și zgomotul termic e zero.
+  Superconductorii răciți la temperatura azotului lichid (-196°C) se apropie de această limită.
+  Orice altceva — inclusiv cel mai scump cablu audio — generează zgomot din principiu fizic.
+</FactBox>
+
+---
+
+### Amplificarea care distruge ce salvează
+
+Un semnal analogic se atenuează pe distanță.
+Rezistivitatea cuprului scade amplitudinea exponențial cu distanța.
+
+Soluția: amplifici semnalul pe traseu, la intervale regulate.
+Problema: amplificatorul nu știe ce e semnal util și ce e zgomot.
+Amplifică tot.
+
+Când conectezi amplificatoare în cascadă, degradarea e descrisă de **formula lui Friis**:
+fiecare etaj adaugă propriul zgomot, iar zgomotul cumulat crește ireversibil.
+
+{/* TABLE: SNR la start vs. după 10 etape amplificare — 80 dB → sub 40 dB */}
+
+Un semnal care pornește cu un SNR de 80 dB — calitate de studio —
+ajunge după 10 noduri de amplificare analogică la sub 40 dB.
+Semnalul util abia se mai distinge de fâșâit.
+
+Primul cablu telefonic transatlantic, pus în funcțiune în 1858,
+a funcționat 27 de zile înainte să moară complet.
+Inginerii au mărit tensiunea pentru a compensa atenuarea semnalului.
+Izolația s-a degradat. Cablul a ars.
+
+Al doilea cablu, din 1866, a rezistat — dar calitatea vocii se deteriora
+dramatic pe măsură ce semnalul parcurgea cei 3.000 km de ocean.
+Releele de amplificare adăugau fiecare câte un strat de zgomot.
+
+Acesta e motivul fizic pentru care rețelele telefonice transcontinentale analogice
+nu puteau funcționa fără pierderi severe de claritate.
+Nu era o problemă de inginerie. Era o problemă de termodinamică.
+
+---
+
+### Vinilul și banda: degradare garantată
+
+Discul de vinil stochează sunetul ca variații microscopice ale unui șanț fizic.
+Forma șanțului *este* sunetul.
+
+La fiecare redare, acul de diamant apasă cu 1,5–3 grame.
+Zona de contact dintre ac și șanț e de câteva fracțiuni de micrometru pătrat.
+Presiunea locală e uriașă — deformează fizic pereții plastici ai șanțului.
+
+Detaliile de înaltă frecvență se șterg ireversibil.
+Zgomotul de suprafață crește la fiecare redare.
+
+Pe lângă asta, spre centrul discului, raza e mai mică —
+viteza liniară a șanțului scade, frecvențele înalte se comprimă fizic,
+acul nu mai poate urmări curbele. Ultimele piese de pe disc sună mai rău decât primele.
+Nu din cauza unui defect — din cauza geometriei.
+
+<FactBox>
+  Copiezi o casetă video analogică de șapte ori.
+  La generația 4, culorile se degradează vizibil.
+  La generația 7, imaginea devine o masă de zgomot.
+  Un fișier digital copiat de un trilion de ori e identic bit cu bit cu originalul.
+</FactBox>
+
+---
+
+### De ce digitalul nu îmbătrânește
+
+Logica digitală nu măsoară valori exacte de tensiune.
+Compară tensiunea cu un prag — și decide: 1 sau 0.
+
+Pentru logica CMOS de 3,3V:
+
+{/* TABLE: Praguri TTL/CMOS — VIL, VIH, VOL, VOH, zona interzisă, noise margin */}
+
+Ieșirea garantează minimum 2,4 V pentru un "1".
+Intrarea următoare necesită minimum 2,0 V pentru a recunoaște un "1".
+
+Diferența: **0,4 V marjă de zgomot**.
+
+Un cablu poate pierde 0,39 V din semnal, poate acumula interferențe electromagnetice,
+poate fi distorsionat de reflecții — semnalul ajunge la 2,01 V.
+Poarta logică îl citește ca "1" fără ezitare.
+
+Și mai important: poarta logică **regenerează** semnalul.
+Nu îl amplifică — îl reconstruiește din zero la 3,3 V perfect, cu fronturi abrupte.
+Orice zgomot acumulat înainte de prag e șters complet.
+
+Față de microvolții care distrugeau microfonul analogic,
+marja de 0,4 V a cipului digital e un blindaj impenetrabil.
+
+<CosmoHint emotion="excited">
+  Telegraful lui Morse din 1844 era deja digital — circuit închis sau circuit deschis.
+  Două stări. Fără valori intermediare.
+  Prima telecomunicație comercială la distanță era binară cu 100 de ani înainte de calculatoare.
+</CosmoHint>
+
+---
+
+### Matematica unui CD și de ce 74 de minute
+
+Un CD audio eșantionează sunetul de **44.100 de ori pe secundă**.
+Fiecărui eșantion îi alocă **16 biți** — 65.536 niveluri discrete de amplitudine.
+Stereo — deci două canale.
+
+44.100 × 16 × 2 = **1.411.200 biți pe secundă**.
+
+Într-o oră de muzică, cipul din CD player citește și validează
+peste **5 miliarde de tranziții binare**.
+
+Capacitatea de 74 de minute nu a venit din calcule acustice.
+Inginerii Philips propuseseră inițial un disc de 11,5 cm cu 60 de minute.
+Norio Ohga de la Sony — fost student de operă, ulterior CEO —
+a cerut un disc de 12 cm care să încapă în buzunarul unui sacou.
+
+Legenda că durata de 74 de minute a fost aleasă ca să încapă Simfonia a 9-a
+a lui Beethoven în interpretarea lui Furtwängler e frumoasă — dar neverificată.
+Documentele arată că limita a venit din capacitatea casetelor video U-Matic
+folosite de Sony pentru masteruri digitale, nu din Beethoven.
+
+Primul CD comercial produs pe linia de fabricație?
+**"The Visitors"** al trupei ABBA, 1982.
+
+<FactBox>
+  Nervul optic uman transmite aproximativ 10 Megabiți pe secundă spre creier.
+  O singură fibră optică dintr-un cablu de internet modern transmite zeci de Terabiți pe secundă.
+  Fibra e de cel puțin un milion de ori mai rapidă decât conexiunea biologie–creier.
+</FactBox>
+
+---
+
+### Lumea e analogică — conversia e obligatorie
+
+WiFi și Bluetooth sunt unde radio sinusoidale.
+Complet analogice la nivel fizic — oscilații electromagnetice continue.
+
+Ceea ce le face "digitale" e modularea: faza sau amplitudinea undei
+e modificată rapid pentru a codifica biți.
+La receptor, decodorul citește schimbările de fază și reconstruiește biții originali.
+
+Termometrul digital din bucătărie are un senzor analogic.
+Termistorul schimbă rezistența continuu cu temperatura.
+ADC-ul (convertor analog-digital) preia tensiunea variabilă, o eșantionează,
+o cuantizează, o codifică în biți.
+Afișajul arată "23°C" — o aproximare discretă a unei valori continue.
+
+### Pașii conversiei: cum analogicul devine digital
+
+Termometrul digital din bucătărie are un senzor analogic în interior.
+Microfonul telefonului captează vocea analogic.
+WiFi-ul trimite date digitale pe unde radio sinusoidale — complet analogice fizic.
+
+Lumea e analogică. Calculul e digital. Conversia e obligatorie.
+
+Procesul se întâmplă în trei pași, de milioane de ori pe secundă:
+
+**Eșantionarea** — ADC-ul ia o "poză" a tensiunii la intervale regulate.
+La 8.000 Hz, ia 8.000 de poze pe secundă.
+La 44.100 Hz (CD audio), ia 44.100 de poze pe secundă.
+
+**Cuantizarea** — fiecare poză e rotunjită la cea mai apropiată treaptă fixă.
+Cu 8 biți, există 256 de trepte posibile.
+Cu 16 biți, există 65.536 de trepte.
+
+**Codarea** — fiecare treaptă primește un număr binar.
+Treapta 128 din 256 devine `10000000`. Gata — analogicul a devenit digital.
+
+<ADCSimulator />
+
+Joacă-te cu frecvența de eșantionare și rezoluția în biți.
+La 8.000 Hz / 8 biți — vocea GSM: 64 kbps, inteligibilă dar înăbușită.
+La 44.100 Hz / 16 biți — audio CD: 1.411 kbps, fidelitate ridicată.
+La 8.000 Hz / 1 bit — semnalul Morse: doar pornit sau oprit.
+
+Asta e de ce vocea sună "înăbușit" la telefon.
+Nu e o limitare hardware — e o decizie deliberată de compresie.
+64 kbps e suficient pentru inteligibilitatea vorbirii.
+Nu e suficient pentru fidelitate.
+
+<CosmoHint emotion="thinking">
+  Un osciloscop îți arată tensiunea exact cum e — haotică, zgomotoasă, curbată.
+  Un analizor logic ignoră totul și îți arată doar 1 și 0 — linii perfect drepte.
+  Același semnal fizic. Două perspective complet diferite.
+  Care e "realitatea"? Depinde de ce vrei să faci cu ea.
+</CosmoHint>
+
+---
+
+### Primele calculatoare erau analogice
+
+Înainte de ENIAC, înainte de biți, problemele de calcul se rezolvau mecanic.
+
+William Thomson (Lord Kelvin) a construit în 1872 **"Tide Predictor"** —
+o mașinărie de roți și scripeți care simula ecuațiile mareelor.
+Poziția unui fir care trecea prin scripeți la raze diferite
+reprezenta suma matematică a unui număr de funcții sinus.
+Nu exista niciun "1" sau "0". Calcul pur continuu, mecanic.
+
+Vannevar Bush a perfecționat în 1931 **Analizorul Diferențial** la MIT —
+un panou de motoare și roți de sticlă care integra ecuații diferențiale.
+Timp de un deceniu, a fost singura mașinărie capabilă să calculeze
+traiectoriile artileriei în Al Doilea Război Mondial.
+
+Aceste mașini erau precise — pentru că lumea e continuă.
+Dar nu puteau fi copiate exact. Orice reconstrucție introducea erori.
+Și nu puteau fi programate — erau construite fizic pentru o singură problemă.
+
+Digitalul a câștigat nu prin precizie, ci prin **reproductibilitate**.
+
+---
+
+## Reveal
+
+Acum înțelegi mizele reale ale acestei tranziții.
+
+Analogicul e fidel lumii fizice — dar acumulează zgomot ireversibil.
+Fiecare amplificare, fiecare copie, fiecare redare adaugă imperfecțiuni.
+Cablul transatlantic din 1858 a murit în 27 de zile din cauza asta.
+Vinilul tău favorit sună mai prost la a zecea ascultare decât la prima.
+
+Digitalul renunță la rezoluție infinită — dar câștigă ceva incomparabil:
+un semnal care se regenerează perfect la fiecare nod,
+care poate fi copiat de un trilion de ori fără degradare,
+care rezistă la 0,4 V de zgomot fără să clipească.
+
+Decizia de a ignora tot ce e între zero și unu
+nu a fost o limitare.
+A fost temelia pe care s-a construit internetul, telefonul mobil,
+streaming-ul, inteligența artificială — tot ce înseamnă lumea digitală modernă.
+
+Renunțând la infinit, am câștigat eternitatea.
+
+---
+
+## Ce urmează
+
+Știi acum că digitalul funcționează prin comutare între două stări.
+Dar ce comută exact?
+
+Un tranzistor.
+Un robinet electric controlat de tensiune — nu de mâna ta.
+
+Un tranzistor deschis e un "1". Un tranzistor închis e un "0".
+Procesorul tău are 19 miliarde de astfel de robinete.
+Toți comută de miliarde de ori pe secundă.
+
+Cum funcționează acest robinet la nivel de atom — și de ce siliciul dopat e cheia —
+e subiectul lecției următoare.

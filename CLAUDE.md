@@ -4,6 +4,18 @@
 
 ---
 
+## Project Documentation
+- `PROJECT-STATE.md` — Single source of truth. Complete project state + methodology. Read first in any new session.
+- `devpath-docs/devpath-vision.md` — Original platform vision document. The mascot section references "Pixel" — that mascot was retired in Block 1.5 (2026-05-06) and replaced by Cosmo. See "Cosmo Mascot" section below for the current API.
+- `schema.sql` — DB schema reference. For live state, verify via Supabase MCP.
+
+## Design System
+- `DESIGN-SYSTEM.md` — Complete Aurora palette reference. Read before any UI/styling task.
+- Dark mode is the default. All new components must look good on dark first.
+- Primary: violet (#6C5CE7). Accent: teal (#00CEC9). Gold: gamification. Red: streak/alerts.
+
+---
+
 ## Project Overview
 
 **DevPath RO** is a Romanian e-learning platform for IT/AI students. Desktop-first Next.js 14 App Router web application deployed on Vercel. Delivers 30+ MDX lesson files across structured modules with theory, quiz, exercise, and project lesson types.
@@ -367,14 +379,77 @@ Messages are stored in `messages/ro.json` for reference only — not imported at
 
 ---
 
-## Dual Content Modes
+## Cosmo Mascot
 
-Lessons have two content columns:
-- `content_md` = Mod Tehnic (existing, technical with code)
-- `content_simple_md` = Mod Simplu (new, no code, analogies only)
+DevPath RO's mascot is **Cosmo**, a procedural SVG golden retriever with 8 emotions, idle animations (breathing, blink, ear-twitch, head-drift), optional mouse-gaze tracking, and per-emotion canvas particle overlays. Replaced the legacy "Pixel" mascot in Block 1.5 (2026-05-06).
 
-Always check `users.learning_mode` to determine which column to render.
-If `content_simple_md` is null, fall back to `content_md` with a notice.
+- **Component**: `src/components/mascot/cosmo-mascot.tsx`
+- **Export**: `CosmoMascot` (named export)
+- **8 emotions**: `happy`, `excited`, `thinking`, `encouraging`, `celebrating`, `sleeping`, `waving`, `sad`
+
+### Props
+
+```ts
+interface CosmoMascotProps {
+  emotion?: CosmoEmotion;        // default "happy"
+  size?: number;                 // default 200 (CSS px width — height auto-scales 1.15x)
+  className?: string;
+  enableIdleAnimations?: boolean; // default true (breath/blink/ear-twitch/drift)
+  enableInteraction?: boolean;    // default false (mouse-gaze + cursor-close tail-wag)
+}
+```
+
+### When to use which emotion
+
+| Context | Emotion |
+|---|---|
+| Lesson content / reading mode | `encouraging` |
+| AI Coach streaming response | `thinking` |
+| Lesson-gate wrong answer | `encouraging` (matches "Nu-i bai!" copy) |
+| Returning after 3-6 day absence | `sleeping` |
+| Returning after 7+ day absence | `sad` |
+| Onboarding welcome | `waving` (with `enableInteraction`) |
+| Landing hero | `waving` (with `enableInteraction`) |
+| Pricing card / generic happy state | `happy` |
+| Mini-game intro | `excited` |
+| Mini-game perfect / passed | `celebrating` |
+| Mini-game failed | `encouraging` |
+| Level-up toast | `celebrating` |
+| Streak toast | `excited` |
+| Stripe checkout success | `celebrating` |
+| Stripe checkout cancel | `encouraging` ("hai să mai vorbim") |
+| Generic celebration overlay | `celebrating` (level up) / `excited` (XP gain) |
+
+### Where Cosmo is currently deployed (15 sites)
+
+- Landing page (hero + CTA)
+- Pricing page (cards + success/cancel pages)
+- Onboarding welcome step
+- Dashboard absence banner
+- AI Coach chat (loading state)
+- Lesson gate (wrong-answer banner)
+- Mini-game modal + result screen
+- Level-up toast + streak toast
+- Mascot celebration overlay (any place that imports it — e.g., post-lesson XP gain)
+
+### Notes
+
+- The `withSparks` prop from the legacy Pixel mascot **does NOT exist on Cosmo**. Particle effects (sparks/rainbow/zzz) are emitted automatically by `excited`, `celebrating`, and `sleeping` emotions via the canvas particle overlay built into the component.
+- The retired Pixel emotions `proud` and `idle` map to `celebrating` and `happy` respectively.
+- Default `size` differs (Pixel was 80, Cosmo is 200) — every existing call site passes an explicit `size`, so the default rarely matters.
+- Cosmo's idle animations are JS-driven (rAF loop inside the component); there are NO `pixel-mascot-breathe` / `pixel-mascot-blink` CSS classes anymore — they were deleted from `globals.css` in Block 1.5.
+- For full integration spec (per-site emotion mapping, prop diff vs Pixel, risk register), see `devpath-docs/cosmo-integration-spec.md`.
+
+---
+
+## Lesson Content Mode
+
+Single-mode lessons only. The Mod Simplu / Mod Tehnic dual-mode system was retired in Block 1 (Prompt 1.4); 51 simple-mode files were archived to `content/_archive/simple-mode/`.
+
+- Render lesson content from the `content_md` column only.
+- The `content_simple_md` column is preserved in the schema for historical reasons but is **not rendered**.
+- The `users.learning_mode` column is **not used**; do not branch on it.
+- Block 3 (curriculum content writing) produces ONE technical version per lesson. Archived simple-mode prose may be mined as analogies/sidebars where useful.
 
 ---
 

@@ -1,0 +1,223 @@
+---
+title: "NAND — cărămida Lego universală"
+order: 15
+type: lesson
+module_index: 1
+duration: 14
+difficulty: 2
+---
+
+# NAND — cărămida Lego universală
+
+## HOOK
+
+Tocmai am spus că există o singură poartă din care le poți construi pe toate celelalte.
+
+Nu e o metaforă. E matematică pură.
+
+Procesorul din telefonul tău — cu 28 de miliarde de tranzistoare — poate fi descris în întregime ca o rețea de porți NAND interconectate. XOR-ul din lecția anterioară? NAND. Inversor? NAND. Jumătatea de sumator care adună biți? Tot NAND.
+
+Privit dintr-un satelit imaginar deasupra siliciului, un cip modern e o mare uniformă de un singur tip de element — copiat de miliarde de ori, conectat în milioane de combinații diferite. Aceeași cărămidă. Construcții diferite. Orice calcul posibil.
+
+Dar de ce NAND și nu altceva? De ce nu AND, nu OR, nu XOR?
+
+Răspunsul e fizică. Și e mai elegant decât te-ai aștepta.
+
+## CONTEXT
+
+NAND înseamnă NOT-AND. Ieșirea e 0 doar când toate intrările sunt 1 — în orice altă situație, ieșirea e 1.
+
+Gândește-te la un seif cu două chei de securitate. Alarma se oprește doar când ambele chei sunt introduse simultan. Dacă lipsește una — oricare — alarma rămâne activă. Asta e NAND: output 0 doar când toți spun DA în același timp.
+
+{/* TABLE */}
+
+| A | B | NAND |
+|---|---|------|
+| 0 | 0 | **1** |
+| 0 | 1 | **1** |
+| 1 | 0 | **1** |
+| 1 | 1 | **0** |
+
+Un singur caz produce zero. Restul trei produc unu. Poarta e pesimistă: dacă măcar un semnal e 0, ieșirea rămâne 1. Doar când toți spun „da" simultan, ieșirea cade la 0.
+
+Această asimetrie e cheia universalității sale.
+
+## MIEZUL
+
+### 4 tranzistoare. Nu 6, nu 8 — 4.
+
+Orice poartă logică CMOS are două rețele: una care trage ieșirea spre 1 (rețeaua pull-up, cu tranzistoare PMOS) și una care o trage spre 0 (rețeaua pull-down, cu tranzistoare NMOS).
+
+La NAND cu 2 intrări:
+- **Pull-down**: 2 tranzistoare NMOS **în serie** — ieșirea ajunge la 0 doar dacă ambii conduc simultan (A=1 ȘI B=1)
+- **Pull-up**: 2 tranzistoare PMOS **în paralel** — ieșirea ajunge la 1 dacă oricare conduce (A=0 SAU B=0)
+
+{/* ANIMATION */}
+
+Total: 4 tranzistoare. Cea mai compactă structură posibilă pentru o funcție cu două intrări.
+
+Prin contrast, o poartă AND pură nu există în CMOS. Ca să obții AND, pui un NAND (4 tranzistoare) urmat de un inversor NOT (2 tranzistoare) = **6 tranzistoare și două etape de întârziere**. La fel pentru OR.
+
+NAND și NOR sunt primitivele fizice reale. AND și OR sunt derivate.
+
+<FactBox>
+Creierul uman percepe AND și OR ca operații "naturale", intuitive. Fizica siliciului nu e de acord — NAND și NOR sunt singurele porți care se implementează direct în CMOS cu 4 tranzistoare. AND și OR necesită întotdeauna un etaj extra de inversie.
+</FactBox>
+
+### De ce NAND a câștigat față de NOR
+
+Matematic, NAND și NOR sunt echivalente. Ambele sunt universale. Dar în orice procesor modern, algoritmii de sinteză preferă copleșitor NAND.
+
+Motivul: electronii și golurile nu se mișcă la fel de repede.
+
+În tranzistoarele NMOS, curentul e purtat de **electroni** — particule cu masă efectivă mică. Mobilitate: **1400 cm²/V·s**.
+
+În tranzistoarele PMOS, curentul e purtat de **goluri** — absențe de electroni din rețeaua cristalină, care se mișcă „prin sărituri". Mobilitate: **450 cm²/V·s**.
+
+Golurile sunt de ~3 ori mai lente decât electronii. PMOS e mai lent, mai rezistiv.
+
+Acum compară arhitecturile:
+- **NAND**: NMOS rapizi sunt în serie la pull-down, PMOS lenți sunt în paralel la pull-up. Conexiunea paralelă compensează rezistența ridicată a fiecărui PMOS.
+- **NOR**: PMOS lenți sunt în **serie** la pull-up. Rezistențele se adună. Poarta devine semnificativ mai lentă la tranziția de la 0 la 1.
+
+Ca să faci o poartă NOR la fel de rapidă ca o NAND echivalentă, trebuie să lățești tranzistoarele PMOS de ~4 ori — mai mult siliciu, mai multă capacitate parazită, mai mult consum.
+
+Inginerii de la Stanford au formalizat asta în **Teoria Efortului Logic** — o metodă de a estima penalitatea de viteză a fiecărei porți:
+
+| Poartă | Efort logic |
+|--------|-------------|
+| NOT (inversor) | 1.00 |
+| NAND2 | **1.33** |
+| NOR2 | **1.66** |
+
+NOR e cu 25% mai „greu" decât NAND. La miliarde de porți, diferența decide dacă telefonul tău ține o zi sau două.
+
+<CosmoHint emotion="thinking">
+Efortul logic e ca rezistența aerodinamică în Formula 1. O poartă cu efort mai mare „frânează" semnalul. Compilatoarele hardware (Synopsys Design Compiler) construiesc din NAND-uri în ~90% din cazuri tocmai pentru că minimizează această rezistență cumulată pe zeci de etaje logice.
+</CosmoHint>
+
+### Completitudinea funcțională — demonstrația matematică
+
+Henry Sheffer a arătat în 1913 că există o funcție logică unică din care pot fi derivate toate celelalte. A numit-o *Sheffer stroke* — ce azi cunoaștem drept NAND.
+
+Demonstrația riguroasă a venit în 1941, de la matematicianul Emil Post, prin **Teorema de Completitudine**.
+
+Post a definit 5 clase de funcții „limitate". Un operator care scapă din toate 5 poate genera orice funcție booleană posibilă — fără excepție.
+
+Clasele lui Post și cum le violează NAND:
+
+| Clasa | Regula | NAND |
+|-------|--------|------|
+| T₀ | Dacă toate intrările = 0, ieșirea = 0 | NAND(0,0) = **1** ✗ |
+| T₁ | Dacă toate intrările = 1, ieșirea = 1 | NAND(1,1) = **0** ✗ |
+| M | Funcție monotonă — o intrare crește → ieșirea nu scade | (0,1)→(1,1): ieșirea scade de la 1 la 0 ✗ |
+| S | Auto-duală — inversezi intrările → inversezi ieșirea | NAND(1,0)=1, NAND(0,1)=1 (nu se schimbă) ✗ |
+| L | Liniară — exprimabilă doar prin XOR și constante | Conține înmulțire ascunsă ✗ |
+
+{/* TABLE */}
+
+NAND violează toate cele 5 clase simultan. Concluzie garantată de Post: **{NAND} singur e suficient pentru orice funcție booleană posibilă.**
+
+Și iată cum construiești celelalte porți exclusiv din NAND:
+
+**NOT din 1 NAND** — legi ambele intrări la același semnal:
+```
+A NAND A = NOT(A·A) = NOT(A)
+```
+
+**AND din 2 NAND** — NAND urmat de inversare:
+```
+(A NAND B) NAND (A NAND B) = AND(A,B)
+```
+
+**OR din 3 NAND** — teorema De Morgan: A∨B = NOT(NOT(A)·NOT(B)):
+```
+(A NAND A) NAND (B NAND B) = OR(A,B)
+```
+
+**XOR din 4 NAND** — rețeaua elegantă de 16 tranzistoare:
+```
+N1 = A NAND B
+N2 = A NAND N1
+N3 = B NAND N1
+ieșire = N2 NAND N3 = A XOR B
+```
+
+{/* TABLE */}
+
+| Poarta | Porți NAND | Tranzistoare totale |
+|--------|------------|---------------------|
+| NOT | 1 | 4 |
+| AND | 2 | 8 |
+| OR | 3 | 12 |
+| XOR | 4 | 16 |
+| NOR | 4 | 16 |
+
+Mai scump decât implementarea nativă — dar funcționează. Orice circuit din lume poate fi redus la o rețea de NAND-uri identice.
+
+### De la combinațional la secvențial — memoria din buclă
+
+Toate porțile de până acum sunt **combinaționale**: ieșirea depinde doar de intrarea curentă. Nu există memorie.
+
+Calculatoarele au nevoie de memorie. Și ea emerge din aceleași 4 tranzistoare, conectate diferit.
+
+Ia două porți NAND. Conectează ieșirea primeia la o intrare a celei de-a doua. Conectează ieșirea celei de-a doua înapoi la o intrare a primeia.
+
+Ai creat un **SR Latch** — primul bit de memorie.
+
+{/* ANIMATION */}
+
+Bara de deasupra literelor (S̄, R̄) înseamnă că intrările sunt **active-low** — acțiunea are loc când semnalul cade la 0, nu când e 1. E logica inversată naturală a NAND-ului.
+
+| S̄ | R̄ | Ieșire Q | Comportament |
+|----|-----|----------|--------------|
+| 1 | 1 | Q_anterior | **Memorare** — starea se păstrează |
+| 0 | 1 | 1 | **Set** — forțează Q=1 |
+| 1 | 0 | 0 | **Reset** — forțează Q=0 |
+| 0 | 0 | INTERZIS | Ambele ieșiri = 1 simultan — stare invalidă |
+
+Bucla de feedback „îngheață" un bit. Asta e memoria statică SRAM din cache-ul procesorului — zeci de milioane de astfel de perechi de NAND-uri, fiecare ținând câte un bit.
+
+Starea interzisă (S̄=0, R̄=0) e fascinant de periculoasă: dacă eliberezi ambele semnale simultan, tranzistoarele — cu dopaj ușor asimetric și zgomot termic — decid aleator care ieșire câștigă. Procesoarele reale au circuite dedicate exclusiv pentru a elimina această situație.
+
+<CosmoHint emotion="surprised">
+Memoria nu necesită o componentă nouă. Emerge din aceleași porți NAND, conectate în buclă. Asta e o idee profundă: complexitatea nu vine din componente noi, ci din modul în care le interconectezi.
+</CosmoHint>
+
+### De la SN7400 la M4 — 60 de ani de NAND
+
+Texas Instruments a lansat **SN7400** în 1964: 4 porți NAND cu 2 intrări, 5V, întârziere de propagare 10 nanosecunde, consum 10 mW per poartă. O capsulă DIP-14 de 19×6 mm.
+
+E în producție și azi — 61 de ani mai târziu.
+
+**Apple M4** (2024, TSMC N3E): 28 de miliarde de tranzistoare = echivalentul a **7 miliarde de porți NAND**.
+
+Densitate: 215 milioane de tranzistoare per mm² → **54 milioane de porți NAND per mm²** de siliciu.
+
+<FactBox>
+Dacă ai construi un Apple M4 din cipuri SN7400 din 1964, ai avea nevoie de 1,75 miliarde de bucăți. Puse cap la cap, ar acoperi o suprafață de 211.750 m² — mai mult de 30 de terenuri de fotbal — pentru a replica ce stă azi sub ecranul unui iPad de 6 mm grosime.
+</FactBox>
+
+Viteză: un NAND pe 3nm comută în 3–4 picosecunde. SN7400: 10.000 de picosecunde. **De ~3.000 de ori mai rapid.**
+
+Energie per operație: SN7400 consuma ~100.000.000 attojouli per calcul. La 3nm: 26–225 attojouli. **De un milion de ori mai eficient.** Fără această reducere, bateria telefonului tău s-ar consuma termic în câteva secunde.
+
+## REVEAL
+
+Iată paradoxul central al informaticii fizice:
+
+Mintea umană percepe AND și OR ca operații elementare, intuitive. Fizica siliciului spune că sunt derivate — construite din ceva mai primitiv.
+
+NAND e primitivul real. Nu pentru că e mai ușor de înțeles, ci pentru că e mai ușor de fabricat. Patru tranzistoare, aranjate optimal față de mobilitatea electronilor. Suficient pentru tot — dovedit matematic de Post în 1941.
+
+Un singur tip de poartă. Miliarde de copii. Orice calcul posibil.
+
+Asta e completitudinea funcțională: nu diversitate, ci profunzime dintr-un singur element. Și e un principiu care apare din nou și din nou în informatică — sisteme uriașe construite din primitive minuscule, repetate la scară masivă. NAND e primul exemplu. Nu va fi ultimul.
+
+## ÎNCHEIERE
+
+Acum știi că orice circuit digital poate fi construit exclusiv din NAND-uri.
+
+Lecția următoare te pune față în față cu primul circuit complex: **Alarma de Seif**. Senzori în AND, bypass în OR, comutator de urgență în NOT. Pare un amestec eterogen de porți — dar sub capotă, e doar NAND repetat, interconectat, multiplicat.
+
+Acum poți să-l citești altfel.

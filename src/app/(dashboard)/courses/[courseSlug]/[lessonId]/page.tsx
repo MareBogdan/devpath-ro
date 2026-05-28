@@ -2,6 +2,11 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { serialize } from "next-mdx-remote/serialize";
+import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
+import rehypeHighlight from "rehype-highlight";
+import rehypeKatex from "rehype-katex";
 import {
   ChevronRight,
   ChevronLeft,
@@ -94,6 +99,15 @@ export default async function LessonPage({ params }: PageProps) {
     .single();
 
   if (!lesson) notFound();
+
+  // Compile the lesson MDX on the server — next-mdx-remote requires a
+  // server-side compile step; the client <MDXRemote> renders the result.
+  const mdxSource = await serialize(lesson.content_md ?? "", {
+    mdxOptions: {
+      remarkPlugins: [remarkGfm, remarkMath],
+      rehypePlugins: [rehypeHighlight, rehypeKatex],
+    },
+  });
 
   // Fetch all lessons in course for navigation
   const { data: allLessons } = await supabase
@@ -216,7 +230,7 @@ export default async function LessonPage({ params }: PageProps) {
     <div className="flex flex-col min-h-full">
       {/* Sticky lesson header */}
       <div className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b border-border px-6 py-3">
-        <div className="max-w-3xl mx-auto flex items-center justify-between gap-4">
+        <div className="max-w-[680px] mx-auto flex items-center justify-between gap-4">
           {/* ← Back to course + breadcrumb */}
           <nav className="flex items-center gap-1.5 text-sm text-muted-foreground min-w-0">
             <Link
@@ -270,8 +284,8 @@ export default async function LessonPage({ params }: PageProps) {
 
       {/* Lesson content */}
       <div className="flex-1 px-6 py-8">
-        <div className="max-w-3xl mx-auto">
-          <h1 className="text-3xl font-bold text-foreground mb-8 leading-tight">
+        <div className="max-w-[680px] mx-auto">
+          <h1 className="mb-8 text-balance bg-gradient-to-r from-[#6C5CE7] to-[#00CEC9] bg-clip-text pb-1 text-3xl font-bold leading-[1.15] text-transparent">
             {lesson.title}
           </h1>
 
@@ -297,7 +311,8 @@ export default async function LessonPage({ params }: PageProps) {
                   courseSlug={courseSlug}
                   isCompleted={isCompleted}
                   nextLessonId={nextLesson?.id ?? null}
-                  contentMd={lesson.content_md}
+                  nextLessonTitle={nextLesson?.title ?? null}
+                  mdxSource={mdxSource}
                   lessonType={lesson.type}
                   lessonOrder={lesson.order_index}
                   gateQuestions={gateQuestions}
@@ -332,7 +347,8 @@ export default async function LessonPage({ params }: PageProps) {
                   courseSlug={courseSlug}
                   isCompleted={isCompleted}
                   nextLessonId={nextLesson?.id ?? null}
-                  contentMd={lesson.content_md}
+                  nextLessonTitle={nextLesson?.title ?? null}
+                  mdxSource={mdxSource}
                   lessonType={lesson.type}
                   lessonOrder={lesson.order_index}
                   gateQuestions={[]}
@@ -359,7 +375,7 @@ export default async function LessonPage({ params }: PageProps) {
       {/* Lesson comments — hidden for coming-soon lessons */}
       {user && !isComingSoon && (
         <div className="px-6 pb-8">
-          <div className="max-w-3xl mx-auto">
+          <div className="max-w-[680px] mx-auto">
             <Suspense fallback={<div className="h-32 rounded-xl bg-muted/40 animate-pulse" />}>
               <LessonComments
                 lessonId={lessonId}
@@ -390,7 +406,7 @@ export default async function LessonPage({ params }: PageProps) {
 
       {/* Sticky bottom — prev/next navigation only */}
       <div className="sticky bottom-0 border-t border-border bg-background/95 backdrop-blur px-6 py-4">
-        <div className="max-w-3xl mx-auto flex items-center justify-between gap-4">
+        <div className="max-w-[680px] mx-auto flex items-center justify-between gap-4">
           {/* Prev navigation */}
           <div>
             {prevLesson ? (
@@ -416,22 +432,7 @@ export default async function LessonPage({ params }: PageProps) {
             )}
           </div>
 
-          {/* Next navigation */}
-          <div>
-            {nextLesson && (
-              <Link
-                href={`/courses/${courseSlug}/${nextLesson.id}`}
-                className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition"
-                title="Alt + →"
-              >
-                <span className="hidden sm:inline">Lecția următoare</span>
-                <ChevronRight className="h-4 w-4" />
-                <kbd className="hidden lg:inline-flex items-center text-[10px] text-muted-foreground/50 font-mono border border-border rounded px-1 py-0.5 ml-0.5">
-                  Alt →
-                </kbd>
-              </Link>
-            )}
-          </div>
+          {/* Next navigation lives in the in-content CTA card (lesson-page-client) */}
         </div>
       </div>
     </div>

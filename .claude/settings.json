@@ -1,5 +1,20 @@
 {
   "mcpServers": {
+    "@21st-dev/magic": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@21st-dev/magic@latest",
+        "API_KEY=API_KEY_PLACEHOLDER"
+      ]
+    },
+    "@magicuidesign/mcp": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@magicuidesign/mcp@latest"
+      ]
+    },
     "context7": {
       "command": "npx",
       "args": [
@@ -13,8 +28,7 @@
         "-y",
         "@supabase/mcp-server-supabase@latest",
         "--project-ref",
-        "https://mcp.supabase.com/mcp?project_ref=umtecpbixdkumfjsvzcl",
-        "--read-only"
+        "umtecpbixdkumfjsvzcl"
       ]
     }
   },

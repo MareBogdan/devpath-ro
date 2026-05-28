@@ -4,7 +4,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle2, XCircle } from "lucide-react";
 import { awardGateXP } from "@/app/(dashboard)/courses/actions";
-import { PixelMascot } from "@/components/mascot/pixel-mascot";
+import { CosmoMascot } from "@/components/mascot/cosmo-mascot";
 
 interface GateQuestion {
   id: string;
@@ -160,7 +160,7 @@ export function LessonGate({
             })}
           </div>
 
-          {/* Pixel sad mascot on wrong answer */}
+          {/* Cosmo encouraging mascot on wrong answer */}
           <AnimatePresence>
             {lastAnswerWrong && (
               <motion.div
@@ -169,7 +169,7 @@ export function LessonGate({
                 exit={{ opacity: 0, y: 4 }}
                 className="mt-4 flex items-start gap-3 rounded-xl bg-red-50/10 border border-red-200/20 p-3"
               >
-                <PixelMascot emotion="sad" size={44} />
+                <CosmoMascot emotion="encouraging" size={44} />
                 <p className="text-sm text-muted-foreground pt-1">
                   Nu-i bai! Citește din nou lecția și încearcă din nou — poți!
                 </p>

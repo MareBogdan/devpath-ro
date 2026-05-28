@@ -17,7 +17,6 @@ const bodySchema = z.object({
     "curious",
   ]),
   learningGoal: z.enum(["understand", "build", "career", "curiosity"]),
-  learningMode: z.enum(["simple", "technical"]),
   userName: z.string().max(100),
 });
 
@@ -53,7 +52,7 @@ export async function POST(req: NextRequest) {
 
   const { text } = await generateText({
     model: openai("gpt-4o-mini"),
-    system: `Ești Pixel, mascota prietenoasă a platformei DevPath RO.
+    system: `Ești Cosmo, mascota prietenoasă a platformei DevPath RO.
 Scrie un mesaj de bun venit în română, cald și personal, de exact 2 propoziții.
 Folosești "tu", nu "dumneavoastră".
 Nu folosi emoji în text.

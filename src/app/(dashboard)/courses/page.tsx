@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { FlaskConical, BookOpen } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { EmptyState } from "@/components/ui/empty-state";
-import { CoursesMissionHeader } from "@/components/course/courses-mission-header";
+import { CoursesHero } from "@/components/course/courses-hero";
 import { CoursesPageClient } from "@/components/course/courses-page-client";
 import type { CourseSelectorOption } from "@/components/course/course-selector";
 import type { RawLesson } from "@/lib/course-map";
@@ -57,9 +57,6 @@ export default async function CoursesPage({ searchParams }: CoursesPageProps) {
   const progress = progressResult.data ?? [];
 
   const isAdmin = profile?.role === "admin";
-  const xpPoints = (profile?.xp_points as number | null) ?? 0;
-  const level = (profile?.level as number | null) ?? 1;
-  const streakCount = (profile?.streak_count as number | null) ?? 0;
 
   const completedLessonIds = progress.map((p) => p.lesson_id as string);
   const completedSet = new Set(completedLessonIds);
@@ -97,9 +94,18 @@ export default async function CoursesPage({ searchParams }: CoursesPageProps) {
     };
   });
 
-  // ─── Mission Control stats ──────────────────────────────────────────────
-  const totalLessonsAvailable = allLessons.length;
+  // ─── Hero stats ─────────────────────────────────────────────────────────
   const totalLessonsCompleted = completedSet.size;
+
+  // Per-course state for the hero's 12 course badges.
+  const courseStates: ("completed" | "started" | "locked")[] =
+    selectorOptions.map((c) =>
+      c.totalLessons > 0 && c.completedLessons === c.totalLessons
+        ? "completed"
+        : c.completedLessons > 0
+        ? "started"
+        : "locked"
+    );
 
   // "Continue from where you left off" — most recently completed lesson's NEXT lesson,
   // or first uncompleted lesson if no progress yet.
@@ -166,12 +172,9 @@ export default async function CoursesPage({ searchParams }: CoursesPageProps) {
   return (
     <div className="pb-20">
       {!isEmpty && (
-        <CoursesMissionHeader
-          totalXP={xpPoints}
-          level={level}
-          streakCount={streakCount}
-          totalLessonsCompleted={totalLessonsCompleted}
-          totalLessonsAvailable={totalLessonsAvailable}
+        <CoursesHero
+          completedCount={totalLessonsCompleted}
+          courseStates={courseStates}
           continueLessonHref={continueLessonHref}
           continueLessonTitle={continueLessonTitle}
         />

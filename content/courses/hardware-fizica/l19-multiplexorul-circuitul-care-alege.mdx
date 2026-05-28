@@ -1,0 +1,149 @@
+---
+title: "Multiplexorul — circuitul care alege"
+order: 19
+type: lesson
+module_index: 1
+duration: 13
+difficulty: 2
+---
+
+# Multiplexorul — circuitul care alege
+
+## HOOK
+
+Full-Adder-ul calculează suma. Mereu. Fără oprire. Cât timp curge curent, adună.
+
+Dar un procesor nu vrea mereu suma. Uneori vrea diferența. Alteori vrea AND, sau OR, sau valoarea unui registru. ALU-ul calculează toate astea simultan — suma, diferența, AND, OR — și le pune pe toate la ieșire în același timp.
+
+Cine decide care rezultat contează?
+
+Multiplexorul. Un circuit cu N intrări, un selector și o singură ieșire. Selectorul spune care intrare iese. Restul sunt ignorate.
+
+Fără MUX, un procesor e o mașină de calculat care nu poate alege ce să facă cu calculele ei. Cu MUX, devine un motor de decizie. Diferența dintre un calculator și un computer.
+
+## CONTEXT
+
+Multiplexorul e primul circuit din acest curs care nu calculează — *selectează*.
+
+Primește N semnale de intrare și S biți de selecție. Ieșirea e exact unul din cele N semnale — cel indicat de S. Celelalte N-1 semnale nu ajung niciodată la ieșire.
+
+Relația dintre intrări și biți de selecție e fixă: 2 intrări = 1 bit de selecție, 4 intrări = 2 biți, 8 intrări = 3 biți, 16 intrări = 4 biți. Fiecare bit de selecție dublea numărul de intrări posibile — aceeași logică binară exponențială din L9.
+
+Un 2:1 MUX are două intrări (A și B), un selector (S) și o ieșire (Y):
+
+$$S=0 \Rightarrow Y=A$$
+$$S=1 \Rightarrow Y=B$$
+
+Ecuația booleană exactă:
+
+$$Y = (A \cdot \overline{S}) + (B \cdot S)$$
+
+Simplu. Și totuși suficient pentru a implementa orice funcție logică posibilă — inclusiv NOT, AND, OR și XOR. La fel ca NAND din L15, MUX-ul e universal.
+
+## MIEZUL
+
+### De la telegraful lui Edison la primul cip de selecție
+
+MUX-ul nu a apărut în calculatoare. A apărut în telecomunicații — pentru că firul de cupru era scump și lumea voia să trimită mai multe mesaje pe același fir.
+
+În 1874, Thomas Edison a inventat **quadruplex telegraph**: 4 semnale simultane pe un singur fir. Conceptul: multiplexezi — combini mai multe fluxuri, le transmiți împreună, le separi la celălalt capăt.
+
+În 1918, inginerii Bell Labs Edwin Colpitts și Otto Blackwell au folosit tuburi vidate pentru **frequency-division multiplexing** — 4 convorbiri telefonice simultane pe un singur cablu de cupru între Baltimore și Pittsburgh. Prima dată când selecția electronică a înlocuit fizic firele separate.
+
+În 1962, Bell Labs a lansat **T1** — primul sistem digital de multiplexare a vocii. 24 de convorbiri telefonice simultane pe o pereche de fire de cupru, prin time-division multiplexing. Exact același principiu pe care îl folosesc procesoarele azi pentru a partaja magistrale de date.
+
+<FactBox>
+Federico Faggin — același inginer care a co-proiectat Intel 4004 — a creat în 1968 la Fairchild Semiconductor **cipul 3708**: un multiplexor analogic pe 8 canale și primul circuit integrat cu silicon-gate technology din lume. MUX-ul lui Faggin a deschis calea tehnologiei care a făcut posibil primul microprocesor. Selecția a precedat calculul.
+</FactBox>
+
+### 6 tranzistoare — de ce transmission gate câștigă
+
+O implementare naivă din porți NAND a unui 2:1 MUX necesită 4 porți NAND = **16 tranzistoare**.
+
+Implementarea modernă folosește **transmission gate** — un comutator analogic format dintr-un NMOS și un PMOS în paralel. Când selectorul îl activează, semnalul trece direct, fără recalculare.
+
+De ce ambele tranzistoare? Fizica siliciului: NMOS transmite perfect 0, dar degradează 1-ul — pierde $V_{th}$ din tensiune la ieșire, reducând marja de zgomot. PMOS transmite perfect 1, dar degradează 0-ul, ridicând tensiunea minimă cu $V_{th}$. Puse în paralel cu semnale de control complementare, se compensează reciproc — semnal perfect pe toată gama de tensiune, fără degradare.
+
+Un 2:1 MUX în transmission gate: **6 tranzistoare total**.
+- 2 tranzistoare (NMOS+PMOS) pentru primul comutator → intrarea A
+- 2 tranzistoare (NMOS+PMOS) pentru al doilea comutator → intrarea B
+- 2 tranzistoare pentru inversor → generează $\overline{S}$
+
+{/* ANIMATION */}
+
+Față de 16 tranzistoare în NAND-only, transmission gate e de **2.7× mai eficient**. Și mai rapid — semnalul nu trece prin porți logice active, ci direct printr-un comutator. Întârzierea e doar RC-ul unui fir, nu niveluri de porți.
+
+Scalabilitatea e la fel de elegantă: un 64:1 MUX construit din transmission gates înlănțuite adaugă câte un nivel de selecție per bit de selector — 6 niveluri pentru 64 de intrări — fără a multiplica dramatic consumul de tranzistoare față de varianta NAND.
+
+### MUX e universal — la fel ca NAND
+
+Shannon's Expansion Theorem (1949) spune că orice funcție booleană $f(x_1, x_2, \ldots)$ poate fi scrisă ca:
+
+$$f = x_1 \cdot f(1, x_2, \ldots) + \overline{x_1} \cdot f(0, x_2, \ldots)$$
+
+Asta e exact ecuația unui 2:1 MUX. Conectezi variabila la selector, sub-funcțiile la intrări — și MUX-ul implementează funcția.
+
+Concret, cu un singur 2:1 MUX implementezi:
+
+{/* TABLE */}
+
+| Funcție | Selector | Intrarea 0 | Intrarea 1 |
+|---------|----------|-----------|-----------|
+| NOT(A) | A | 1 | 0 |
+| AND(A,B) | A | 0 | B |
+| OR(A,B) | A | B | 1 |
+| XOR(A,B) | A | B | NOT(B) |
+
+NOT, AND, OR dintr-un singur MUX. XOR din două.
+
+<CosmoHint emotion="thinking">
+FPGA-urile din L15 funcționează exact pe principiul ăsta. Un LUT cu 4 intrări e de fapt un 16:1 MUX — cele 16 intrări sunt biți de configurare stocați în SRAM, selectorul sunt variabilele de intrare. Schimbi biții din SRAM, schimbi funcția logică. Fără a tăia niciun fir fizic.
+</CosmoHint>
+
+### Unde trăiește MUX-ul în CPU
+
+ALU-ul calculează simultan: sumă, diferență, AND, OR, XOR. Toate rezultatele sunt prezente la ieșirile circuitelor în același timp. Un MUX la ieșirea ALU-ului citește opcode-ul instrucțiunii curente și selectează rezultatul corect. Celelalte calcule sunt pur și simplu ignorate.
+
+**Program Counter și branch:** PC-ul stochează adresa instrucțiunii următoare. Normal, un incrementor adaugă 4 (în arhitecturi pe 32 de biți) și execuția continuă liniar. La un `if`, un MUX decide: selectorul e condiția (Zero Flag din ALU). Dacă e 1, MUX-ul alege adresa de salt. Dacă e 0, alege adresa incrementată. Instrucțiunea `if` din orice limbaj de programare e, la nivel fizic, un MUX cu 6 tranzistoare.
+
+**RAM address decoding:** Memoria e o matrice de celule. Ca să găsești o celulă specifică, un demultiplexor activează rândul corect, iar un MUX selectează coloana corectă. Fiecare acces la memorie trece prin această pereche MUX/DEMUX.
+
+**IBM 360 și cardurile mylar:** Într-unul din cele mai elegante trucuri arhitecturale din istorie, IBM 360 nu stoca microcodul în ROM. Îl stoca pe **carduri fizice de mylar** — folii transparente cu benzi metalice imprimate în rețea. O matrice de MUX-uri de 8 biți citea intersecțiile benzilor: acolo unde o bandă orizontală se intersecta cu una verticală, era un 1; unde nu se intersectau, era un 0. Schimbai setul de instrucțiuni al calculatorului introducând un alt card. Flexibilitate hardware completă — prin selecție pură.
+
+### Latch-up — când MUX-ul se autodistruge
+
+Există un fenomen fizic periculos în orice circuit CMOS: **latch-up**.
+
+Structura internă a siliciului CMOS creează involuntar tranzistoare bipolare parazite — o joncțiune P-N-P-N care formează un tiristor latent. Normal, rămâne inactiv.
+
+{/* ANIMATION */}
+
+Dacă un semnal extern depășește tensiunea de alimentare $V_{DD}$ cu mai mult de o diodă (~0.7V), injectează curent în substrat. Tiristorul se activează. Creează o buclă de feedback pozitiv — un NPN aprinde un PNP, care aprinde înapoi NPN-ul. Circuitul se „blochează" într-un scurtcircuit direct între $V_{DD}$ și GND.
+
+Logica încetează. Curent masiv curge prin cipul minuscul. Dacă alimentarea nu e întreruptă imediat, cipul se topește termic.
+
+Pe ISS (Stația Spațială Internațională), pe 11 aprilie 2014, un calculator MDM (Multiplexer/Demultiplexer) de pe trusul S0 a cedat brusc. MDM-urile controlau articulațiile panourilor solare, sistemul de răcire termică și transportorul mobil. NASA a trimis astronauții Steve Swanson și Rick Mastracchio în spacewalk de urgență să înlocuiască fizic unitatea de 23 kg — o piesă de rezervă stocată pe stație din 2001.
+
+Un MUX defect. Un spacewalk neplanificat. Toată stația în risc.
+
+<CosmoHint emotion="surprised">
+Ecografia medicală modernă — wand-ul cu care medicii scanează — conține 128 de senzori piezoelectrici. În loc de 128 de cabluri coaxiale (gros cât un braț), wand-ul are un multiplexor analogic de înaltă tensiune (±100V) direct în mâner. MUX-ul ciclează rapid prin toți senzorii, trimite pulsuri și primește ecouri, totul prin un cablu subțire și flexibil. Selecția hardware face posibilă medicina modernă.
+</CosmoHint>
+
+## REVEAL
+
+Aritmetica e oarbă. Full-Adder-ul nu știe de ce adună — reacționează la electroni conform legilor fizicii.
+
+MUX-ul introduce contextul. Selectează. Decide ce contează din tot ce s-a calculat.
+
+Fiecare `if` dintr-un program, fiecare branch, fiecare acces la memorie, fiecare instrucțiune selectată din setul de instrucțiuni al procesorului — toate sunt, la nivel fizic, un MUX care alege între semnale.
+
+De la Edison cu 4 semnale pe un fir de telegraf în 1874, la Faggin cu primul silicon-gate MUX în 1968, la astronauți în spacewalk pentru un MDM defect în 2014 — principiul e identic: un selector binar care decide care semnal contează.
+
+Calculatoarele fără MUX sunt calculatoare. Cu MUX, devin mașini de decizie.
+
+## ÎNCHEIERE
+
+Acum ai toate componentele fundamentale: porți logice, NAND universal, aritmetică binară, și selecție.
+
+Lecția următoare: **Ceasul de sistem** — semnalul care sincronizează toate aceste circuite și transformă logica combinațională în calcul secvențial. Fără ceas, toate porțile calculează haotic în paralel. Cu ceas, calculul devine ordonat, repetabil, predictibil.

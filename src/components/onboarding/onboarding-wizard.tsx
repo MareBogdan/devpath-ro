@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Sparkles } from "lucide-react";
 import { StepProfile } from "./step-profile";
 import { StepGoal } from "./step-goal";
 import { StepCalibration } from "./step-calibration";
@@ -14,7 +15,16 @@ interface OnboardingWizardProps {
   userId: string;
 }
 
-export function OnboardingWizard({ userName, userId: _userId }: OnboardingWizardProps) {
+const TOTAL_STEPS = 4;
+
+const STEP_LABELS: Record<number, string> = {
+  1: "Profilul tău",
+  2: "Obiectivul tău",
+  3: "Calibrare",
+  4: "Bun venit",
+};
+
+export function OnboardingWizard({ userName }: OnboardingWizardProps) {
   const [state, setState] = useState<OnboardingState>({
     step: 1,
     profileType: null,
@@ -51,14 +61,45 @@ export function OnboardingWizard({ userName, userId: _userId }: OnboardingWizard
 
   return (
     <div className="w-full max-w-xl">
-      {/* Progress indicator */}
+      {/* Brand mark */}
+      <motion.div
+        initial={{ opacity: 0, y: -8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        className="flex items-center justify-center gap-2 mb-6"
+      >
+        <Sparkles className="h-4 w-4 text-aurora-primary-500" />
+        <span className="text-sm font-medium tracking-tight">
+          <span className="text-aurora-primary-300">DevPath</span>
+          <span className="text-aurora-accent-500">.ro</span>
+        </span>
+      </motion.div>
+
+      {/* Step header */}
+      <div className="mb-6 text-center">
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
+          Pasul {state.step} din {TOTAL_STEPS}
+        </p>
+        <p className="text-sm text-aurora-primary-400 font-medium">
+          {STEP_LABELS[state.step]}
+        </p>
+      </div>
+
+      {/* Progress bar */}
       <div className="flex gap-2 mb-8 justify-center">
         {[1, 2, 3, 4].map((s) => (
-          <div
+          <motion.div
             key={s}
-            className={`h-1.5 rounded-full transition-all duration-300 ${
-              s <= state.step ? "bg-primary w-12" : "bg-muted w-6"
-            }`}
+            initial={false}
+            animate={{
+              width: s === state.step ? 48 : s < state.step ? 24 : 24,
+              backgroundColor:
+                s <= state.step
+                  ? "rgb(108, 92, 231)" // aurora-primary
+                  : "var(--muted, rgb(229, 231, 235))",
+            }}
+            transition={{ type: "spring", stiffness: 280, damping: 26 }}
+            className="h-1.5 rounded-full"
           />
         ))}
       </div>

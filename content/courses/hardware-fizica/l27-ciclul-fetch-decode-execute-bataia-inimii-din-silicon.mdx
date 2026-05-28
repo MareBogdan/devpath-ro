@@ -1,0 +1,144 @@
+---
+title: "Ciclul Fetch-Decode-Execute: bătaia inimii din silicon"
+order: 27
+type: lesson
+module_index: 1
+duration: 11
+difficulty: 2
+---
+
+EDSAC, Cambridge, 6 mai 1949. Maurice Wilkes pornește calculatorul și rulează primul program practic din istorie — tabele de pătrate și numere prime. Mașina execută aproximativ 650 de instrucțiuni pe secundă. Operatorii stau și privesc cum luminițele clipesc pe panoul frontal.
+
+Astăzi, un procesor modern execută **4 miliarde de cicluri pe secundă**. Același mecanism, aceeași buclă de trei pași. Doar viteza s-a schimbat.
+
+Acea buclă se numește **Fetch-Decode-Execute**. Este singurul lucru pe care îl face orice CPU, de la pornire până la oprire, fără excepție.
+
+---
+
+Ai construit toate piesele: ALU care calculează, registre care stochează, Unitatea de Control care orchestrează, ceasul care sincronizează, Program Counter-ul care ține locul în memorie. Acum le punem pe toate împreună și vedem cum funcționează.
+
+Răspunsul e surprinzător de simplu.
+
+---
+
+## Cei trei pași
+
+**FETCH** — CPU-ul citește instrucțiunea din memorie, de la adresa indicată de PC.
+
+**DECODE** — Unitatea de Control descifrează ce înseamnă instrucțiunea: ce operație, cu ce date, unde se scrie rezultatul.
+
+**EXECUTE** — CPU-ul execută efectiv: ALU calculează, sau memoria e accesată, sau PC-ul e suprascris pentru un salt.
+
+Gata. Ciclul reîncepe imediat, cu instrucțiunea următoare. Miliarde de ori pe secundă.
+
+## Registrele implicate
+
+Cinci registre speciale coordonează ciclul:
+
+{/* TABLE */}
+
+| Registru | Abreviere | Rol |
+|---|---|---|
+| Program Counter | PC | Adresa instrucțiunii URMĂTOARE |
+| Memory Address Register | MAR | Adresa trimisă la RAM pentru citire/scriere |
+| Memory Data Register | MDR | Datele sosite de la RAM (sau care pleacă spre RAM) |
+| Instruction Register | IR | Instrucțiunea curentă, în așteptare de decodare |
+| Registre generale | R0–Rn | Operanzii și rezultatele calculelor |
+
+## Fetch pas cu pas — în notație RTL
+
+Notația RTL (Register Transfer Level) descrie exact ce se mișcă unde la fiecare ciclu de ceas. Săgeata ← înseamnă "se transferă în":
+
+**T1:** `MAR ← PC`
+Valoarea din PC — adresa instrucțiunii — se copiază în MAR. MAR e interfața între CPU și RAM.
+
+**T2:** `MDR ← Memory` și `PC ← PC + 4`
+MAR trimite adresa la RAM. RAM returnează instrucțiunea binară în MDR. Simultan, PC se incrementează automat — arată deja spre instrucțiunea URMĂTOARE.
+
+**T3:** `IR ← MDR`
+Instrucțiunea ajunge în Instruction Register. Fetch-ul e complet.
+
+## Decode — traducerea binarului în acțiune
+
+Unitatea de Control citește IR. Instrucțiunea binară are câmpuri distincte: primii biți sunt **opcode-ul** (codul operației: adunare, salt, citire din memorie...), restul identifică operanzii (ce registre, ce adresă, ce valoare imediată).
+
+Un circuit combinatorial — instruction decoder — recunoaște opcode-ul și activează fizic firele de control corespunzătoare: "ALU să adune", "deschide portul de scriere al lui R1", "cere citire din memorie".
+
+## Execute — trei scenarii diferite
+
+**Instrucțiune aritmetică: `ADD R1, R2`**
+
+```
+T4: Decode — opcode identificat ca ADD, operanzi R1 și R2
+T5: ALUin1 ← R1 | ALUin2 ← R2 | ALU_Op = ADD
+T6: R1 ← ALUout
+```
+
+Zero acces la RAM. Totul rămâne intern. Rapid.
+
+**Instrucțiune de memorie: `LDR R1, [R2]`**
+(Citește din adresa stocată în R2, pune rezultatul în R1)
+
+```
+T4: Decode — opcode identificat ca LOAD
+T5: MAR ← R2          ← adresa din R2 merge la MAR
+T6: MDR ← Memory      ← RAM returneaza datele (lent!)
+T7: R1 ← MDR          ← datele ajung în R1
+```
+
+Un acces suplimentar la RAM în faza Execute. De aceea LDR ia mai mult timp decât ADD.
+
+**Instrucțiune de salt: `JMP 0x400`**
+
+```
+T4: Decode — opcode identificat ca JUMP, adresă target = 0x400
+T5: PC ← 0x400
+```
+
+Valoarea incrementată automat în T2 (PC+4) e **suprascrisă**. La ciclul următor, CPU fetch-uiește de la 0x400 — execuția continuă de acolo.
+
+Aceasta e implementarea hardware a unui `if`, a unui `for`, a oricărei funcții.
+
+<CosmoHint emotion="thinking">
+De ce LDR ia 7 cicluri iar ADD ia 6? Din cauza accesului la RAM în Execute. RAM e fizic mai lentă decât registrele — semnalul trebuie să iasă din CPU, să traverseze placa de bază, să aștepte memoria. Compilatoarele știu asta și reordonează instrucțiunile ca să minimizeze timpii morți de așteptare.
+</CosmoHint>
+
+## Gâtuiala Von Neumann
+
+Arhitectura originală a lui Von Neumann are o problemă structurală: **o singură magistrală** între CPU și RAM, folosită atât pentru instrucțiuni cât și pentru date.
+
+În ciclul LDR de mai sus, magistrala e ocupată de două ori: o dată la Fetch (T2), o dată la Execute (T6). CPU-ul nu poate face cele două operații simultan. Trebuie să aștepte.
+
+Soluția: **Arhitectura Harvard** — două memorii separate, două magistrale separate: una dedicată instrucțiunilor, una dedicată datelor. Fetch și accesul la date pot rula în paralel.
+
+Procesoarele moderne folosesc un compromis: **Harvard Modificată**. La nivelul cache-ului L1 (cel mai rapid, direct pe die), există **L1 Instruction Cache** și **L1 Data Cache** separate. CPU-ul poate fetch-ui instrucțiunea următoare în timp ce execută accesul la date al instrucțiunii curente. La nivelul L2 și L3, memoria e unificată — flexibil pentru sistemul de operare.
+
+## Întreruperile — lumea din afara buclei
+
+CPU-ul execută ciclul neîntrerupt. Dar tastaturile, plăcile de rețea, timer-ele hardware trebuie să comunice cu procesorul **oricând**, nu când CPU-ul ajunge el la ele.
+
+Soluția: **întreruperea** (interrupt). La finalul fiecărei faze Execute, CPU-ul verifică dacă există un semnal de întrerupere. Dacă da:
+
+1. **Salvează starea** — PC-ul și registrele se împing pe Stack
+2. **Vectorizare** — PC-ul sare la adresa handler-ului de întrerupere (ISR)
+3. **Execută handler-ul** — procesează evenimentul (citește tasta, primește pachetul de rețea)
+4. **Restaurare** — instrucțiunea RETI/IRET scoate PC-ul salvat de pe Stack
+5. **Reluare** — programul original continuă exact de unde s-a oprit
+
+Sistemul de operare folosește un timer hardware care generează întreruperi la fiecare câteva milisecunde. La fiecare întrerupere, OS-ul salvează starea aplicației A, restaurează starea aplicației B. Asta e **multitasking-ul** — sute de comutări pe secundă, invizibile pentru utilizator.
+
+<CosmoHint emotion="surprised">
+CPU-ul nu știe că rulează un "program". Nu vede browser, nu vede joc video, nu vede sistem de operare. Vede doar: adresă în PC → fetch → decode → execute → adresă nouă în PC. Atât. Sensul îl dă programatorul. Hardware-ul e orb la context — execută orice binar găsește la adresa indicată. De aceea malware-ul funcționează: dacă rușești să-ți pui codul în memorie și să convingi PC-ul să pointeze acolo, CPU-ul îl execută fără nicio întrebare.
+</CosmoHint>
+
+---
+
+## De la 650 la 4 miliarde
+
+EDSAC 1949: 650 instrucțiuni/secundă, 550 tuburi vidate, aproape o tonă, 3.5 kilowați.
+
+CPU modern la 4 GHz: 4.000.000.000 cicluri/secundă, miliarde de tranzistori, câteva grame de siliciu, câteva zeci de wați.
+
+Același ciclu. Fetch → Decode → Execute. Repetat de 6 milioane de ori mai rapid.
+
+Ciclul Fetch-Decode-Execute nu e o detaliu de implementare. E definiția unui calculator. Orice altceva — sisteme de operare, limbaje de programare, inteligență artificială — e construit pe această buclă de trei pași care se repetă neîncetat în silicon.

@@ -42,7 +42,8 @@ export function AdaptiveQuizSection({ lessonId }: AdaptiveQuizSectionProps) {
       if (!res.ok) throw new Error("Eroare la generare");
       const data = await res.json() as { questions: AIQuestion[] };
       setQuestions(data.questions ?? []);
-    } catch {
+    } catch (err) {
+      console.error("[adaptive-quiz] Failed to generate questions:", err);
       setError("Nu am putut genera întrebările. Încearcă din nou.");
     } finally {
       setLoading(false);

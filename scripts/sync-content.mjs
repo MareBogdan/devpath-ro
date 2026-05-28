@@ -57,15 +57,15 @@ async function main() {
   const { data: course, error: courseErr } = await supabase
     .from("courses")
     .select("id")
-    .eq("slug", "ai-fundamentals")
+    .eq("slug", "hardware-fizica")
     .single();
 
   if (courseErr || !course) {
-    console.error("❌  Course 'ai-fundamentals' not found:", courseErr?.message);
+    console.error("❌  Course 'hardware-fizica' not found:", courseErr?.message);
     process.exit(1);
   }
 
-  const contentDir = path.join(ROOT, "content", "courses", "ai-fundamentals");
+  const contentDir = path.join(ROOT, "content", "courses", "hardware-fizica");
   if (!fs.existsSync(contentDir)) {
     console.error("❌  Content directory not found:", contentDir);
     process.exit(1);

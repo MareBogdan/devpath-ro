@@ -34,7 +34,8 @@ export function CertificateDownloadButton({
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-    } catch {
+    } catch (err) {
+      console.error("[certificate-download] Network error:", err);
       setError("Conexiune întreruptă. Încearcă din nou.");
     } finally {
       setLoading(false);

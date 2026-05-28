@@ -1,0 +1,297 @@
+---
+title: "Poarta NOT"
+order: 11
+type: lesson
+module_index: 1
+duration: 12
+difficulty: 2
+---
+
+## Cel mai simplu circuit care face ceva util
+
+Iei un tranzistor MOSFET.
+Îi pui un rezistor deasupra, conectat la tensiunea de alimentare.
+Intrarea merge pe poartă. Ieșirea iese din drenă.
+
+Aplici 1 pe intrare — tranzistorul conduce — ieșirea cade la 0.
+Aplici 0 pe intrare — tranzistorul se blochează — ieșirea urcă la 1.
+
+Asta e tot. Tabelul de adevăr complet al porții NOT:
+
+| Intrare (A) | Ieșire (Q) |
+|---|---|
+| 0 | 1 |
+| 1 | 0 |
+
+Un singur tranzistor. O singură regulă: inversează tot ce primești.
+
+Pare trivial. Dar din această inversare se construiesc memorii, procesoare,
+sisteme de criptare și tot ce urmează în acest curs.
+
+---
+
+## Ce s-a schimbat față de lecțiile trecute
+
+În C1L9 ai văzut că biții sunt reprezentarea fizică a informației.
+0 și 1, tensiuni joase și înalte, stări stabile ale tranzistorului.
+
+Dar informația nu e utilă dacă nu o poți transforma.
+Nu e suficient să stochezi un bit — trebuie să îl poți manipula.
+
+Tranzistorul din L7 era un robinet: deschis sau închis.
+Poarta logică e un nivel mai sus: un circuit care ia o decizie.
+Primește unul sau mai mulți biți la intrare și produce un rezultat la ieșire.
+
+Porțile logice sunt instrumentele acestei manipulări.
+NOT e prima și cea mai simplă — o singură intrare, o singură ieșire.
+Dar prin ea înțelegi arhitectura tuturor celorlalte,
+de la AND și OR la NAND și la procesoarele cu miliarde de tranzistoare.
+
+---
+
+## Miezul
+
+### Problema cu rezistorul — și soluția CMOS
+
+Invertorul simplu cu rezistor de pull-up funcționează, dar are un defect fatal.
+
+Când intrarea e 1 și tranzistorul conduce,
+există o cale directă de curent de la tensiunea de alimentare (VDD) prin rezistor,
+prin tranzistor, la masă (GND).
+
+Curent constant. Căldură constantă. Pierdere constantă de energie.
+
+Dacă un procesor modern ar folosi această arhitectură pentru miliardele sale de porți,
+căldura generată ar vaporiza cipul instantaneu.
+
+**Soluția: CMOS** — Complementary MOS.
+
+Brevetată în 1963 de Frank Wanlass la Fairchild Semiconductor.
+Demonstrațiile inițiale au șocat industria: circuitul consuma de un **milion de ori**
+mai puțină energie în repaus față de circuitele cu tranzistoare bipolare concurente.
+
+{/* ANIMATION: schema CMOS invertor — PMOS sus (VDD), NMOS jos (GND), ieșire la mijloc */}
+
+Un invertor CMOS are doi tranzistori:
+- **PMOS** în partea superioară — conectat la VDD
+- **NMOS** în partea inferioară — conectat la GND
+
+PMOS și NMOS funcționează opus unul față de celălalt:
+- NMOS conduce când intrarea e HIGH (1)
+- PMOS conduce când intrarea e LOW (0)
+
+Când intrarea e 1: NMOS conduce, PMOS se blochează → ieșirea e trasă la GND (0).
+Când intrarea e 0: PMOS conduce, NMOS se blochează → ieșirea e trasă la VDD (1).
+
+**Cheia:** în orice stare statică, unul dintre cei doi tranzistori e blocat complet.
+Nu există nicio cale de curent direct între VDD și GND.
+Disiparea statică e teoretic **zero**.
+
+Energia se consumă doar la comutare — fracțiuni de nanosecundă când ambii
+tranzistori pot conduce parțial simultan în timp ce semnalul se schimbă.
+
+Aceasta e inovația care a făcut posibilă bateria de laptop, telefonul mobil
+și orice dispozitiv portabil cu consum redus.
+
+<FactBox>
+  Un invertor CMOS la nodul de 3nm consumă ~26 attojouli per comutare.
+  Un attojoule = 10⁻¹⁸ jouli.
+  Un foton vizibil individual are ~0,32 attojouli de energie.
+  O singură comutare logică echivalează cu energia a câtorva zeci de fotoni.
+  Procesoarele moderne funcționează la limita agitației termice moleculare.
+</FactBox>
+
+---
+
+### De ce PMOS e de trei ori mai lat decât NMOS
+
+Dacă te uiți la un invertor CMOS sub microscop,
+tranzistorul PMOS arată diferit față de NMOS.
+E de două până la trei ori mai lat.
+
+Motivul: golurile (purtătorii din PMOS) se mișcă mai lent decât electronii (din NMOS).
+Mobilitate electroni: 1.400 cm²/V·s.
+Mobilitate goluri: 450 cm²/V·s.
+
+Pentru ca timpii de comutare — cât durează tranziția 0→1 vs. 1→0 —
+să fie identici, inginerii lărgesc fizic canalul PMOS.
+Un canal mai lat = mai mulți purtători disponibili = compensează viteza mai mică.
+
+Asimetria aceasta e vizibilă în fiecare invertor din fiecare procesor din lume.
+
+---
+
+### De la relee la CMOS — 80 de ani de evoluție
+
+**Era releelor (Zuse Z3, 1941):**
+O poartă NOT era un releu "normally-closed" — un contact metalic menținut închis de un arc,
+deschis de un electromagnet când apărea curent pe intrare.
+Viteza de comutare: 10–50 milisecunde per tranziție.
+Durată de viață: ~10 milioane de cicluri înainte de uzura mecanică.
+Frecvența de operare a Z3: 5–10 Hz.
+
+**Era tuburilor vidate (ENIAC, 1945):**
+O poartă NOT era o triodă — un tub de sticlă vidat cu trei electrozi.
+Viteza: microsecunde. O mie de ori mai rapid decât releele.
+Costul: ENIAC consuma 150 kilowați. Cântărea 30 de tone.
+Necesita două suflante de 20 de cai putere doar pentru răcire.
+
+**RTL — primul circuit integrat logic (Fairchild, 1961):**
+Prima familie de circuite integrate cu porți logice.
+Calculatorul Apollo Guidance Computer folosea peste 4.000 de cipuri RTL Fairchild
+pentru a trimite oameni pe Lună.
+Prețul per poartă în 1961: $43,50 — echivalentul a ~$450 astăzi.
+
+**TTL 7400 (Texas Instruments, 1964):**
+Alimentare 5V, timp de propagare ~10 nanosecunde per poartă.
+★ Seria 7400 e **încă în producție comercială** — după 60 de ani.
+Se găsește pe orice breadboard universitar din lume.
+
+**CMOS (Frank Wanlass, Fairchild, 1963 / RCA, 1968):**
+Consum static de un milion de ori mai mic față de TTL.
+Baza fiecărui microprocesor modern.
+
+{/* TABLE: Evoluție NOT — releu 50ms / tub µs 150kW / TTL 10ns 5V / CMOS sub-ps sub-1V */}
+
+<CosmoHint emotion="surprised">
+  Poarta NOT din calculatorul tău comută în sub-picosecunde.
+  O picosecundă e 10⁻¹² secunde.
+  Lumina parcurge 0,3 mm într-o picosecundă.
+  Tranzistorul din procesorul tău e mai rapid decât distanța dintre două neuroni.
+</CosmoHint>
+
+---
+
+### Oscilatorul cu inel — cum măsori un nod de fabricație
+
+Iei trei inversoare NOT.
+Conectezi ieșirea ultimului la intrarea primului.
+Număr impar — sistemul nu poate găsi o stare stabilă.
+0 devine 1, 1 devine 0, la infinit.
+
+Rezultatul: un oscilator care funcționează fără nicio sursă externă de ceas.
+
+{/* ANIMATION: 3 inversoare în inel → oscilație */}
+
+La nodurile moderne de 3nm, trei inversoare în inel oscilează la **40–50 GHz**.
+
+Inginerii de la TSMC și Samsung folosesc exact această structură —
+cea mai simplă posibilă, doar trei porți NOT —
+pentru a măsura viteza reală a unui lot de plachete de siliciu proaspăt fabricate.
+Frecvența oscilației spune direct cât de bine a ieșit procesul de litografie.
+
+Un oscilator cu inel e rigla de măsurat a întregii industrii semiconductoare.
+
+---
+
+### Shannon, De Morgan și completitudinea
+
+**Claude Shannon, MIT, 1937.**
+La 21 de ani, Shannon demonstrează în teza sa de masterat
+că circuitele cu relee pot rezolva ecuații de algebră booleană.
+Toate combinațiile posibile de contacte deschise/închise
+corespund exact operatorilor NOT, AND și OR ai lui Boole.
+
+Asta înseamnă că orice funcție logică poate fi implementată fizic.
+Nu ca teorie — ca fire și relee.
+
+**Teoremele lui De Morgan:**
+¬(A ∧ B) = ¬A ∨ ¬B
+¬(A ∨ B) = ¬A ∧ ¬B
+
+Tradus: negarea unui AND e echivalentă cu OR-ul negațiilor.
+Și viceversa.
+
+Consecința practică: nu ai nevoie de porți AND și OR separate.
+Poți construi orice circuit logic folosind **exclusiv porți NAND** sau **exclusiv NOR**.
+Ambele conțin un NOT integrat în definiție.
+
+Aceasta se numește **completitudine funcțională** — NAND singur poate înlocui orice altă poartă.
+De aceea NAND e numită "cărămida universală" a electronicii digitale.
+
+O fabrică poate printa milioane de porți NAND identice pe un wafer,
+fără să schimbe niciodată masca de litografie.
+Uniformitate perfectă. Costuri minime. Erori minime.
+
+---
+
+### NOT în lumea reală — logica inversată e peste tot
+
+**RS-232 (standardul portului serial clasic):**
+0 logic = +3V la +15V. 1 logic = -3V la -15V.
+Tensiunea pozitivă înseamnă zero. Tensiunea negativă înseamnă unu.
+
+De ce? Liniile de telegraf vechi din cupru erau ținute la tensiune negativă în repaus
+pentru a încetini coroziunea electrolitică cauzată de umiditate.
+Starea naturală "inactivă" a rețelei a devenit "1 logic negativ".
+Toți adaptoarele RS-232 conțin inversoare pentru a traduce înapoi.
+
+**LED-uri pe microcontrolere:**
+Pe majoritatea plăcilor de dezvoltare (Arduino, STM32),
+un LED se aprinde când pinul e la 0, nu la 1.
+"Active low logic" — controlul prin NMOS e mai eficient energetic
+decât prin PMOS la aceleași condiții de fabricație.
+
+**SRAM — memoria cache a procesorului:**
+Fiecare bit de SRAM e stocat în doi inversoare cuplate în buclă.
+Ieșirea primului → intrarea celui de-al doilea.
+Ieșirea celui de-al doilea → intrarea primului.
+Bucla de feedback pozitiv menține starea indefinit — cât există alimentare.
+
+Dacă primul invertor are 1 la ieșire, al doilea are 0.
+Al doilea returnează 0 la intrarea primului, care îl inversează în 1 — stabil.
+Sistemul e blocat în această stare până când forța externă o schimbă.
+
+Schimbi un bit? Aplici o tensiune externă mai puternică decât feedback-ul.
+Bucla sare în starea opusă și rămâne acolo.
+
+Fără NOT — fără memorie procesor. Fără L1, L2, L3 cache.
+Fiecare instrucțiune pe care CPU-ul tău o execută trece printr-o buclă de două inversoare.
+
+<FactBox>
+  Primul circuit integrat logic comercial (Fairchild RTL, 1961) costa $43,50 per poartă.
+  Astăzi, la 216 milioane de tranzistoare per mm², costul per tranzistor e sub 0,000001 cenți.
+  În 60 de ani, prețul per poartă logică a scăzut de aproximativ 10 milioane de ori.
+</FactBox>
+
+---
+
+## Reveal
+
+Poarta NOT e banală ca tabel de adevăr: inversează 0 și 1.
+
+Dar în spatele acestei simplicități stau:
+doi tranzistori complementari care elimină consumul static,
+o reducere de consum de un milion de ori față de tuburile vidate,
+completitudinea funcțională care face NAND suficient pentru orice circuit,
+un oscilator de 40 GHz construit din trei porți,
+și memoria cache a procesorului tău.
+
+Evoluția de la releele lui Zuse (10ms, 5Hz) la inversorul CMOS modern (sub-ps, 40GHz)
+reprezintă un factor de îmbunătățire de 10 milioane de ori în 80 de ani.
+Același operator logic. Aceeași regulă: inversează tot ce primești.
+Implementarea s-a transformat complet.
+
+Negarea e piatra de temelie a calculului digital.
+Nu pentru că e sofisticată — ci pentru că e completă.
+Din ea se construiesc toate celelalte.
+
+<CosmoHint emotion="thinking">
+  Dacă ai doar porți NAND, poți construi orice circuit digital din lume.
+  NOT, AND, OR, XOR, flip-flop, sumator, procesor — totul din NAND.
+  Fabricile de cipuri profită de asta: printează un singur tip de poartă la scară masivă,
+  iar designerii le asamblează în orice arhitectură vor.
+</CosmoHint>
+
+---
+
+## Ce urmează
+
+Știi acum cum funcționează NOT.
+Dar calculul real apare când combini decizii.
+
+**Dacă A este 1 ȘI B este 1** → ce se întâmplă?
+**Dacă A este 1 SAU B este 1** → ce se întâmplă?
+
+Lecția următoare introduce **poarta AND** —
+prima poartă cu două intrări, fundația oricărui circuit de decizie.

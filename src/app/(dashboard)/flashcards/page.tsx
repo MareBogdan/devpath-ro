@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { FlashcardReview } from "@/components/flashcards/flashcard-review";
-import { BookOpen, Layers } from "lucide-react";
+import { FlashcardsContent } from "@/components/flashcards/flashcards-content";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -17,7 +16,7 @@ export interface ReviewCard {
   dueDate: string | null;
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
+// ─── Page (RSC, data fetch only) ─────────────────────────────────────────────
 
 export default async function FlashcardsPage() {
   const supabase = createSupabaseServerClient();
@@ -36,7 +35,6 @@ export default async function FlashcardsPage() {
     .lte("due_date", today);
 
   const dueIds = dueProgress?.map((p) => p.flashcard_id) ?? [];
-
   const dueFlashcards: ReviewCard[] = [];
 
   if (dueIds.length > 0) {
@@ -64,10 +62,10 @@ export default async function FlashcardsPage() {
   // ── 2. New cards (no progress row at all), up to 10 ───────────────────────
   const { data: allProgress } = await supabase
     .from("user_flashcard_progress")
-    .select("flashcard_id")
+    .select("flashcard_id, repetitions")
     .eq("user_id", user.id);
 
-  const studiedIds = allProgress?.map((p) => p.flashcard_id) ?? [];
+  const studiedIds = (allProgress ?? []).map((p) => p.flashcard_id);
 
   let newCardQuery = supabase
     .from("flashcards")
@@ -95,49 +93,38 @@ export default async function FlashcardsPage() {
     };
   });
 
-  // ── 3. Merge: due first, then new ─────────────────────────────────────────
+  // ── 3. Stats: total reviewed ever, mastered (rep ≥ 3), total catalog size ─
+  const totalReviewed = (allProgress ?? []).filter(
+    (p) => Number(p.repetitions) > 0
+  ).length;
+  const totalMastered = (allProgress ?? []).filter(
+    (p) => Number(p.repetitions) >= 3
+  ).length;
+
+  const { count: totalCatalogCount } = await supabase
+    .from("flashcards")
+    .select("id", { count: "exact", head: true });
+
+  // ── 4. User streak (global)
+  const { data: profile } = await supabase
+    .from("users")
+    .select("streak_count")
+    .eq("id", user.id)
+    .single();
+  const streakCount = (profile?.streak_count as number | null) ?? 0;
+
+  // ── 5. Merge: due first, then new ─────────────────────────────────────────
   const cards: ReviewCard[] = [...dueFlashcards, ...newReviewCards];
 
-  // ─── Render ───────────────────────────────────────────────────────────────
-
   return (
-    <div className="mx-auto max-w-2xl px-4 py-10 space-y-8">
-      {/* Header */}
-      <div className="space-y-1">
-        <div className="flex items-center gap-2">
-          <Layers className="h-6 w-6 text-primary" />
-          <h1 className="text-2xl font-bold">Carduri Flash</h1>
-        </div>
-        <p className="text-muted-foreground text-sm">
-          Recenzie zilnică cu algoritmul SM-2 — carduri sortate după dată de revizuire.
-        </p>
-      </div>
-
-      {/* Stats row */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-xl border border-border bg-card p-4 space-y-1">
-          <p className="text-2xl font-bold text-primary">{dueFlashcards.length}</p>
-          <p className="text-xs text-muted-foreground">Carduri scadente azi</p>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-4 space-y-1">
-          <p className="text-2xl font-bold">{newReviewCards.length}</p>
-          <p className="text-xs text-muted-foreground">Carduri noi disponibile</p>
-        </div>
-      </div>
-
-      {cards.length === 0 ? (
-        <div className="flex flex-col items-center gap-4 py-16 text-center">
-          <BookOpen className="h-12 w-12 text-muted-foreground/40" />
-          <div>
-            <p className="font-semibold text-lg">Nicio carte de revizuit!</p>
-            <p className="text-muted-foreground text-sm mt-1">
-              Felicitări — ai terminat toate cardurile de azi. Revino mâine!
-            </p>
-          </div>
-        </div>
-      ) : (
-        <FlashcardReview cards={cards} />
-      )}
-    </div>
+    <FlashcardsContent
+      cards={cards}
+      dueCount={dueFlashcards.length}
+      newCount={newReviewCards.length}
+      totalReviewed={totalReviewed}
+      totalMastered={totalMastered}
+      totalCatalog={totalCatalogCount ?? 0}
+      streakCount={streakCount}
+    />
   );
 }

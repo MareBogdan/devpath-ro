@@ -6,14 +6,12 @@ import { submitLessonFeedback } from "@/app/(dashboard)/courses/actions";
 
 interface LessonFeedbackProps {
   lessonId: string;
-  learningMode: string;
   show: boolean;
   alreadySubmitted: boolean;
 }
 
 export function LessonFeedback({
   lessonId,
-  learningMode,
   show,
   alreadySubmitted: initialSubmitted,
 }: LessonFeedbackProps) {
@@ -23,7 +21,7 @@ export function LessonFeedback({
 
   async function handleFeedback(rating: "clear" | "hard") {
     const timeSpent = Math.round((Date.now() - startTimeRef.current) / 1000);
-    await submitLessonFeedback(lessonId, rating, timeSpent, learningMode);
+    await submitLessonFeedback(lessonId, rating, timeSpent);
     setSubmitted(true);
     setShowThanks(true);
     setTimeout(() => setShowThanks(false), 3000);

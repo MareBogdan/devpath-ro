@@ -1,0 +1,178 @@
+---
+title: "Half-Adder — când porțile încep să calculeze"
+order: 17
+type: lesson
+module_index: 1
+duration: 13
+difficulty: 2
+---
+
+# Half-Adder — când porțile încep să calculeze
+
+## HOOK
+
+Noiembrie 1937. George Stibitz ia acasă niște relee vechi aruncate la Bell Labs, taie o cutie de tutun, lipește două becuri de lanternă și le conectează la baterii pe o masă de bucătărie.
+
+Rezultatul: primul circuit care face adunare binară din istorie.
+
+Nu un supercomputer. Nu un laborator cu milioane de dolari. O masă de bucătărie, o cutie de tutun, și doi ani mai târziu mașina lui calcula mai repede decât 100 de oameni cu calculatoare mecanice.
+
+De la acel moment, porțile logice au încetat să *decidă* și au început să *calculeze*. Acesta e exact ce faci în lecția asta.
+
+## CONTEXT
+
+Ai trecut prin BOSS-ul interactiv din L16 — alarma de seif cu AND, OR și NOT combinate. Acum vine payoff-ul direct al lecțiilor L11–L15.
+
+Până acum, fiecare poartă logică pe care ai învățat-o *lua o decizie*: alarma se declanșează SAU nu, semnalul trece ȘI nu, ieșirea se inversează sau nu.
+
+Half-Adder e primul circuit care *produce un număr*.
+
+Primește doi biți. Returnează suma lor — inclusiv transportul la coloana următoare. E cel mai simplu circuit aritmetic posibil, și e construit din exact două porți pe care le știi deja: XOR și AND.
+
+XOR detectează diferența, AND detectează coincidența. Împreună, adună. Asta e tot ce a trebuit să se întâmple.
+
+## MIEZUL
+
+### De ce ENIAC — cel mai faimos calculator din istorie — nu folosea binar
+
+Înainte să construim Half-Adder-ul, un fapt care îți rearanjează puțin imaginea despre istoria calculatoarelor.
+
+ENIAC, finalizat în 1946 — 18.000 de tuburi vidate, 30 de tone, 100 de picioare lungime, 150 de kilowați consum — **nu folosea aritmetică binară**.
+
+Inginerii din anii '40 considerau binarul „prea ciudat" pentru operatori umani. Așa că ENIAC imita roțile unui calculator mecanic: zece poziții, zece cifre, baza 10. Ca să reprezinte o singură cifră zecimală, folosea un inel de **10 tuburi vidate** — câte unul aprins pentru fiecare valoare de la 0 la 9.
+
+Să stochezi numărul 128 în ENIAC: 30 de tuburi active (10 pentru „1", 10 pentru „2", 10 pentru „8"). Același număr în binar: 8 biți, `10000000`. Adică de aproape 4 ori mai eficient.
+
+90% din defecțiunile ENIAC erau tuburi arse. Inginerii patrulau continuu să le găsească pe cele moarte.
+
+<FactBox>
+Atanasoff-Berry Computer (ABC), finalizat în 1942 — mai puțin faimos decât ENIAC, dar mai inteligent în privința asta — folosea binar de la bun început. 300 de tuburi vidate, 30 de sumatoare complete rulând în paralel. Era cu 4 ani înaintea ENIAC și consuma o fracțiune din resurse. Lumea a ales totuși ENIAC pentru că era mai mare și mai impresionant vizual.
+</FactBox>
+
+### 1+1=10 — și de ce e perfect logic
+
+În binar, fiecare „găleată" ține maxim 1. Când aduni 1+1, găleata de la poziția curentă se umple și se varsă.
+
+Suma rămâne 0. Transportul (carry) merge la coloana următoare.
+
+```
+  1
++ 1
+───
+ 10
+```
+
+Nu „zece". „Unu-zero" — adică 2 în binar. Exact cum în zecimal 9+1=10 nu înseamnă că ai sărit la „zece" magic — înseamnă că poziția curentă s-a resetat și 1 a trecut la coloana zecilor.
+
+Tabelul complet al adunării pe un bit:
+
+{/* TABLE */}
+
+| A | B | Sumă | Carry |
+|---|---|------|-------|
+| 0 | 0 | 0 | 0 |
+| 0 | 1 | 1 | 0 |
+| 1 | 0 | 1 | 0 |
+| 1 | 1 | 0 | **1** |
+
+Privește coloana Sumă: 0, 1, 1, 0. Recunoști? E exact tabelul XOR din L14.
+
+Privește coloana Carry: 0, 0, 0, 1. E exact tabelul AND din L12.
+
+Half-Adder nu e un circuit nou. E XOR și AND puse împreună:
+
+```
+Sumă  = A XOR B
+Carry = A AND B
+```
+
+{/* ANIMATION */}
+
+Asta e tot. Două porți. Primul circuit care face matematică.
+
+<CosmoHint emotion="surprised">
+Porțile n-au învățat matematică. Matematica a fost mereu acolo, ascunsă în tabelele lor de adevăr. XOR număra paritatea de la L14. AND detecta coincidența de la L12. Half-Adder nu adaugă nimic nou — doar pune două lucruri pe care le știai deja față în față.
+</CosmoHint>
+
+### Implementarea fizică — tranzistoare și compromisuri
+
+În CMOS nativ, Half-Adder costă:
+- XOR: 8–12 tranzistoare
+- AND: 6 tranzistoare (NAND + inversor)
+
+**Total: 14–18 tranzistoare.**
+
+Dar știi deja că orice circuit poate fi construit din NAND. Un Half-Adder optimizat din NAND-uri pure necesită **exact 5 porți NAND** — 20 de tranzistoare.
+
+Trucul elegant: primul NAND calculează `NOT(A·B)`. Acel semnal intermediar e refolosit de toate celelalte porți — atât pentru Carry cât și pentru Sumă. Zero redundanță, zero calcule repetate.
+
+```
+W1 = A NAND B          → semnal intermediar
+C  = W1 NAND W1        → Carry (NOT de W1 = AND)
+S  = (A NAND W1) NAND (B NAND W1) → Sumă (XOR)
+```
+
+Un nod. Cinci porți. Matematică completă.
+
+<CosmoHint emotion="thinking">
+În 1961, Fairchild Semiconductor a lansat Micrologic „Type H" — primul half-adder integrat direct pe siliciu. Înainte de el, aritmetica binară trăia în relee și tuburi vidate. Fairchild a pus-o pe un cip cât unghia. Aceeași logică XOR + AND, același carry — dar acum gravată în siliciu, nu lipită pe o masă de bucătărie.
+</CosmoHint>
+
+### Când carry-ul devine problema — limitele fizice ale adunării
+
+Un Half-Adder adună un singur bit. Ca să aduni numere de 8, 32, sau 64 de biți, înlănțuiești mai mulți adders — Carry-out de la poziția k devine Carry-in la poziția k+1.
+
+Problema: carry-ul trebuie să *aștepte* să se propage prin fiecare poziție înainte ca suma finală să fie validă. Într-un procesor pe 64 de biți cu Ripple-Carry naiv, semnalul parcurge 64 de porți în serie. Procesorul nu poate trece la instrucțiunea următoare până când ultimul bit nu s-a stabilizat.
+
+Acesta e motivul pentru care **Carry-Lookahead Adder (CLA)** există. În loc să aștepte propagarea, calculează în avans dacă un bloc de biți va *genera* un carry intern sau doar îl va *propaga* mai departe:
+
+```
+Propagate: P = A XOR B
+Generate:  G = A AND B
+```
+
+Kogge-Stone — arhitectura folosită în ALU-urile moderne — calculează toate carry-urile în paralel printr-un arbore ierarhic. Rezultatul: de **11.7 ori mai rapid** decât Ripple-Carry, cu prețul a de **2.9 ori mai mult siliciu**.
+
+{/* TABLE */}
+
+| Arhitectură | Întârziere | Cost siliciu | Unde se folosește |
+|-------------|-----------|--------------|-------------------|
+| Ripple-Carry | O(n) | Minim | Căi necritice, low-power |
+| Carry-Lookahead | O(log n) | Mare | ALU generalist |
+| Kogge-Stone | O(log n) | Maxim | CPU/GPU high-performance |
+
+<FactBox>
+Contra-intuitiv: în practică, carry-ul nu parcurge niciodată toți cei 64 de biți. Profiling-ul pe aplicații reale arată că peste 90% din adunări au lanțul de carry mai scurt de 3–4 poziții. Von Neumann a demonstrat matematic că lungimea medie e log₂(n) — pentru 64 de biți, asta e 6 poziții. Procesoarele moderne exploatează asta cu „approximate adders" care pariază că worst-case-ul nu se va întâmpla.
+</FactBox>
+
+### Când aritmetica la nivel de bit dă greș
+
+Aritmetica binară nu e o problemă academică. Când un singur bit e greșit — fie că lipsește dintr-un tabel, fie că se trunchiază, fie că depășește registrul — consecințele sunt reale.
+
+**Pentium FDIV Bug, 1994.** Intel a optimizat agresiv un tabel de lookup pentru algoritmul de împărțire — a comprimat 2.048 de intrări la 112 rânduri active. În procesul ăsta, 16 intrări au dispărut fizic din silicon. Cinci dintre ele erau critice: când procesorul le accesa, hardware-ul returna 0 în loc de 2. Rezultatul: erori de precizie începând de la a 14-a zecimală. Costul: **$475 milioane** pentru recall global.
+
+**Racheta Patriot, 1991.** Sistemul actualiza ceasul intern în incremente de 0.1 secunde. Problema: 0.1 nu se poate reprezenta exact în binar — devine o fracție infinit repetitivă. Trunchiată la 24 de biți, eroarea per tick era de 0.000000095 secunde. Neglijabilă. Dar după 100 de ore continue de funcționare — 3.6 milioane de tick-uri — eroarea acumulată era de **0.34 secunde**. Un Scud parcurge 600 de metri în 0.34 secunde. Radarul a căutat racheta la coordonatele vechi și a găsit aer. **28 de soldați morți.**
+
+**Ariane 5, 1996.** La 37 de secunde după lansare, sistemul de navigație a încercat să convertească o variabilă de 64 de biți (viteza orizontală) într-un întreg de 16 biți. Ariane 5 era mai rapid decât Ariane 4 pentru care fusese scris codul. Valoarea a depășit 32.767 — maximul unui întreg pe 16 biți — și a produs overflow. Calculatoarele de navigație s-au oprit. Duza motorului s-a rotit la poziție extremă. Racheta s-a autoistrus. **$500 milioane** în fum.
+
+Trei cauze diferite — tabel lipsă, trunchiere, overflow — același rezultat: un bit care nu a reprezentat ce trebuia.
+
+## REVEAL
+
+Stibitz a pus doi relee pe o masă de bucătărie și a demonstrat că aritmetica nu necesită roți, pârghii sau deplasare fizică. E doar logică booleană — AND și XOR — aplicată la tensiuni.
+
+Fairchild a gravat aceeași logică în siliciu în 1961. Intel a multiplicat-o de miliarde de ori în 1971. Apple o rulează de 38 de trilioane de ori pe secundă în M4 astăzi.
+
+De la acea masă de bucătărie la Kogge-Stone Adder din M4: același principiu, același carry, același XOR. Doar scala s-a schimbat.
+
+Half-Adder e granița unde porțile încetează să decidă și încep să calculeze. Tot ce vine după — multiplicatoare, FPU-uri, unități AI, criptografie — e Half-Adder înmulțit, înlănțuit, ierarhizat.
+
+Dar esența e aceeași: XOR pentru sumă, AND pentru carry.
+
+## ÎNCHEIERE
+
+Acum știi cum adună un procesor la nivel fizic.
+
+Lecția următoare adaugă lipsă evidentă: **Full-Adder** — versiunea care acceptă și un carry de intrare, permițând înlănțuirea pentru numere de orice dimensiune.
+
+Half-Adder e primul bit de matematică. Full-Adder e primul bit de matematică scalabilă.

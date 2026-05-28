@@ -1,0 +1,382 @@
+---
+title: "Tranzistorul — robinet electric controlat de tensiune"
+order: 7
+type: lesson
+module_index: 1
+duration: 12
+difficulty: 3
+---
+
+## O folie de aur pe o pană de plastic
+
+16 decembrie 1947. Bell Laboratories, New Jersey.
+
+Walter Brattain ia o pană de plastic transparent.
+Înfășoară pe muchia ascuțită o peliculă subțire de folie de aur.
+Taie extremitatea cu o lamă de ras — exact în vârf.
+Creează două contacte de aur distincte, separate de o fracțiune de milimetru.
+
+Apasă pana pe o plachetă de germaniu.
+Injectează un semnal minuscul pe primul contact.
+Curentul de la al doilea contact explodează — de o sută de ori mai mare.
+
+Fără vid. Fără căldură extremă. Fără tuburi de sticlă care să ardă.
+Un semnal mic controla un curent mare — dintr-o bucată de piatră semiconductoare.
+
+Trans-rezistorul. Prescurtat: **tranzistorul**.
+Dispozitivul care a făcut posibil tot ce înseamnă lumea digitală modernă.
+
+---
+
+## Ce s-a schimbat față de lecția trecută
+
+În C1L6 ai văzut joncțiunea p-n — bariera de 0,7 V care lasă curentul
+să treacă doar într-o direcție.
+
+Ai ajuns la o concluzie: dioda are două terminale.
+Fie lasă curentul, fie nu.
+Nu poți controla această decizie din exterior — e fixată de polarizare.
+
+Calculatoarele timpurii comutau stările logice cu relee electromecanice.
+Arcuri metalice, contacte fizice, uzură mecanică — și câteva sute de comutări pe secundă.
+ENIAC din 1945 folosea 17.468 de tuburi vidate care se ardeau constant.
+
+Întrebarea era urgentă: cum controlezi curentul fără piese în mișcare,
+fără căldură extremă, fără uzură — și de miliarde de ori pe secundă?
+
+Răspunsul: un al treilea terminal — o **poartă** — care comută bariera
+printr-un câmp electric invizibil, fără să consume nimic în stare statică.
+
+Asta e tranzistorul MOSFET. Și asta a schimbat totul.
+
+---
+
+## Miezul
+
+### De la point-contact la MOSFET — 12 ani de evoluție
+
+Tranzistorul lui Brattain și Bardeen din 1947 era genial — și imposibil de fabricat.
+Două fire de aur presate pe germaniu la fracțiuni de milimetru distanță.
+Orice vibrație muta contactele. Orice reproducere era diferită.
+
+William Shockley, liderul teoretic al grupului, a înțeles imediat limitele.
+În 1948 a publicat arhitectura care a dominat deceniile următoare:
+**Tranzistorul Bipolar cu Joncțiune (BJT)** — un sandwich de siliciu dopat opus
+(n-p-n sau p-n-p), unde un curent mic injectat în stratul din mijloc
+controla un curent mare între straturile exterioare.
+
+BJT era robust, reproductibil — și avea un defect fatal pentru calculatoare:
+era controlat de **curent**. Pentru a rămâne deschis, consuma permanent.
+Într-un cip cu milioane de tranzistoare, consumul static devenea de nesuportat.
+
+Rezolvarea a venit în 1959, la Bell Labs.
+**Mohamed Atalla** studiase de ani de zile de ce câmpul electric nu putea controla
+siliciul — electronii se prindeau în legăturile atomice rupte de pe suprafața cristalului.
+A descoperit că oxidarea termică a siliciului în cuptor crește un strat de SiO₂
+care vindecă exact aceste defecte.
+
+**Dawon Kahng** a pus o poartă metalică deasupra acestui strat izolant.
+Rezultatul: primul **MOSFET** funcțional.
+
+Avantajul față de BJT: curentul pe poartă e zero absolut.
+Izolația de oxid blochează orice electron.
+Poarta controlează printr-un câmp electric — fără să consume nimic static.
+
+---
+
+### Structura fizică a MOSFET-ului
+
+{/* ANIMATION: secțiune transversală MOSFET n-channel — substrat p, sursă n+, drenă n+, oxid SiO₂, poartă metalică */}
+
+Fundația: un substrat de siliciu dopat **tip P** — dominat de goluri.
+
+În interiorul acestuia, două insule puternic dopate **tip N⁺**: **Sursa** și **Drena**.
+Distanța dintre ele — lungimea canalului (L).
+
+Deasupra spațiului dintre Sursă și Drenă: un strat izolant ultra-subțire.
+La nodurile clasice: SiO₂ (dioxid de siliciu), câțiva nanometri grosime.
+La nodurile moderne (sub 28nm): HfO₂ (dioxid de hafniu) — grosime echivalentă sub 1 nm.
+
+Deasupra oxidului: **Poarta** — terminalul de control.
+
+<FactBox>
+  Oxidul de poartă la nodurile moderne are o grosime echivalentă de ~1 nm.
+  Asta înseamnă aproximativ 4–6 atomi de HfO₂ puși unul peste altul.
+  O coală de hârtie e de 80.000 de ori mai groasă.
+  Prin acest perete de 6 atomi trece câmpul electric care controlează miliarde de comutări pe secundă.
+</FactBox>
+
+---
+
+### Cum apare canalul — inversia
+
+Fără tensiune pe poartă: tranzistorul e blocat.
+Între Sursă și Drenă stau două joncțiuni p-n spate-în-spate.
+Orice tensiune aplicată blochează una dintre ele. Curentul nu trece.
+
+Aplici o tensiune pozitivă pe poartă (V_GS > 0).
+Câmpul electric traversează oxidul și pătrunde în substratul p.
+
+**Faza 1:** câmpul respinge golurile din zona de sub oxid.
+Se formează o zonă de dezertare — ionii negativi de bor rămân expuși.
+
+**Faza 2:** câmpul crește. Atrage electronii minoritari din substrat
+și electronii masivi din Sursă spre interfața siliciu-oxid.
+Aceștia se acumulează într-un strat subțire de câțiva nanometri.
+
+Concentrația de electroni depășește concentrația de goluri.
+Materialul local și-a schimbat tipul: din P în N.
+
+Acest strat subțire de electroni se numește **strat de inversie** — sau **canal**.
+Conectează direct Sursa cu Drena. Curentul poate trece.
+
+---
+
+### Tensiunea de prag (V_th)
+
+Momentul exact în care canalul devine conductiv se numește **tensiunea de prag**.
+
+| Epocă | Tensiune alimentare (V_DD) | Tensiune de prag (V_th) |
+|---|---|---|
+| TTL clasic (anii '70–'80) | 5 V | 1,0–2,0 V |
+| CMOS submicron (anii '90) | 3,3 V | 0,6–0,8 V |
+| Logică modernă (sub 10nm) | 0,7–0,8 V | 0,3–0,5 V |
+
+Tensiunea de prag nu e un parametru fix al materialului.
+Inginerii o reglează prin profilele de dopaj din canal și prin funcția de lucru a metalului de poartă.
+
+---
+
+### Cele trei regiuni de operare
+
+**Sub-prag (Cut-off):** V_GS < V_th.
+Tranzistorul e "oprit". Curentul e zero — în teorie.
+
+În realitate, energia termică permite câtorva electroni să sară peste barieră.
+Curentul de scurgere sub-prag nu dispare brusc — scade exponențial.
+La temperaturi mai ridicate, scurgerea crește dramatic.
+Acesta e motivul pentru care procesoarele fierbinți consumă mai mult chiar și în repaus.
+
+**Liniară (Triodă):** V_GS > V_th, V_DS mic.
+Canalul e complet format. Tranzistorul funcționează ca un rezistor variabil.
+Conductanța e controlată de poartă.
+
+**Saturație:** V_DS mare.
+La capătul dinspre Drenă, câmpul distruge parțial canalul.
+Curentul se plafonează — devine aproape independent de V_DS,
+controlat exclusiv de V_GS.
+
+{/* TABLE: Ecuațiile IDS în cele trei regiuni — cut-off, liniar, saturație */}
+
+---
+
+### Putere dinamică — de ce căldura a oprit frecvența
+
+CMOS are un avantaj suprem față de BJT:
+în stare statică (0 sau 1 logic), nu există cale de curent direct.
+Puterea se disipă **doar la comutare**.
+
+Formula care guvernează totul:
+
+**P = α × C × V² × f**
+
+Unde α e factorul de activitate (~0,1), C e capacitanța circuitului,
+V e tensiunea de alimentare, f e frecvența.
+
+Dependența **pătratică față de tensiune** e crucială.
+Scăzând V de la 5V la 1V → puterea scade de 25 de ori.
+De aceea tensiunea de alimentare a coborât constant timp de 30 de ani.
+
+Dar frecvența a stagnat după 2004.
+
+<FactBox>
+  Patrick Gelsinger, director tehnic Intel, a prezentat la ISSCC 2001 o extrapolare:
+  dacă frecvența continua să crească în același ritm, un procesor ar fi atins în 2005
+  densitatea de putere a unui reactor nuclear. În 2010 — a duzei unei rachete navete.
+  În 2015 — suprafața Soarelui.
+  Răspunsul industriei: nu mai creștem frecvența. Adăugăm nuclee.
+  De aceea procesoarele moderne au 8, 16, 32 de nuclee în loc de un singur nucleu rapid.
+</FactBox>
+
+Limitele fizice sunt concrete:
+
+- **Temperatura joncțiunii maxime:** 125°C standard, 150°C pentru uz extins militar
+- **Răcire cu aer:** maxim 30–50 W/cm²
+- **Răcire cu lichid:** 100–300 W/cm²
+- **Azot lichid (criogenic):** peste 1.000 W/cm²
+
+---
+
+### Viteza maximă — velocity saturation
+
+Când canalul se micșorează sub 100nm, chiar și o tensiune mică (1V)
+creează un câmp electric gigantic în canal: 10.000–100.000 V/cm.
+
+Electronii accelerați violent se ciocnesc cu atomii rețelei cristaline.
+Energia cinetică se transformă în vibrații ale rețelei — căldură.
+
+Rezultatul: electronii nu se mai accelerează liniar cu câmpul.
+Viteza lor se plafonează la o limită fizică independentă:
+
+**~10⁷ cm/s în siliciu** — echivalentul a 100.000 km/h.
+
+Nicio tensiune mai mare nu mișcă electronii mai repede.
+Transformă energia doar în mai multă căldură.
+
+<CosmoHint emotion="surprised">
+  Electronii din canalul tranzistorului tău se mișcă la 100.000 km/h.
+  Dar procesorul pare să calculeze instant —
+  pentru că miliarde de tranzistoare lucrează în paralel,
+  nu unul singur extrem de rapid.
+</CosmoHint>
+
+---
+
+### De la plat la 3D — FinFET și GAA
+
+Arhitectura planară tradițională a colapsat sub 28nm.
+
+La canale scurte, Sursa și Drena sunt atât de apropiate
+că câmpurile lor electrice "sângerează" sub poartă.
+Fenomenul se numește **DIBL** (Drain-Induced Barrier Lowering):
+tensiunea de pe Drenă coboară bariera de lângă Sursă,
+permițând curentului să curgă chiar și când poarta e "închisă".
+
+Soluția: poarta trebuie să învelească canalul din mai multe direcții.
+
+**FinFET (2012 — Intel Ivy Bridge, 22nm):**
+Canalul e sculptat vertical ca o lamelă (fin) — o aripioară de siliciu.
+Poarta acoperă trei fețe — stânga, dreapta, sus.
+Câmpul electric "sugrumă" canalul din toate direcțiile accesibile.
+Electronii nu mai pot ocoli poarta pe sub ea — nu există "sub" în 3D.
+Controlul electrostatic incomparabil față de arhitectura planară.
+
+**Gate-All-Around / Nanosheet (2022 — Samsung 3nm):**
+Finul vertical a devenit prea subțire pentru a fi controlat perfect.
+Soluția: taie canalul în foi orizontale suprapuse — 3, 4, 5 foi de siliciu.
+Poarta se strecoară printre foi și le învelește fiecare la 360°.
+Control perfect din toate direcțiile, pe fiecare foaie în parte.
+Samsung a introdus primul GAA comercial în 2022.
+TSMC și Intel urmează cu propriile implementări la nodurile sub-3nm.
+
+**CFET (estimat ~2031 — IMEC A7 node):**
+Tranzistoarele n și p stivuite vertical, unul deasupra celuilalt.
+Nu mai ocupă suprafață laterală — doar înălțime.
+Reduce aria cu ~50% față de GAA clasic.
+
+{/* ANIMATION: evoluția arhitecturii — planar → FinFET → GAA Nanosheet → CFET stivuit */}
+
+---
+
+### Sfârșitul drumului pe siliciu
+
+La ~2–3nm lungime fizică a canalului — câțiva zeci de atomi —
+electroni din Sursă nu mai "văd" o barieră clasică.
+
+Conform mecanicii cuantice, electronii se comportă și ca unde.
+O undă poate traversa o barieră subțire fără să sară peste ea — **tunelare cuantică**.
+
+La aceste dimensiuni, electronii se materializează direct în Drenă
+indiferent de tensiunea de pe poartă.
+Tranzistorul nu mai poate fi "oprit".
+
+Aceasta e limita fizică fundamentală a MOSFET-ului pe siliciu.
+Nu o limită a ingineriei — o limită a mecanicii cuantice.
+
+---
+
+### Legea lui Moore în cifre concrete
+
+Gordon Moore a observat în 1965 că numărul de tranzistoare per cip
+se dubla aproximativ la fiecare 12–18 luni.
+Industria a transformat această observație empirică în obiectiv auto-împlinit.
+
+{/* TABLE: Intel 4004 (1971) 2.300 tr / 10µm → Pentium (1993) 3,1M / 800nm → Apple M1 (2020) 16B / 5nm TSMC → Apple M4 (2024) 28B / 3nm TSMC N3E → NVIDIA H100 (2022) 80B / 4nm TSMC */}
+
+La nodul TSMC N3E, densitatea atinge **192–216 milioane de tranzistoare per mm²**.
+
+<FactBox>
+  Un tranzistor de 3nm mărit la dimensiunea unui om (1,8m) necesită o amplificare de 600 milioane de ori.
+  La aceeași scară, cipul Apple M4 (167 mm²) s-ar întinde pe 7.740 de kilometri —
+  distanța de la București la Beijing și înapoi.
+  Aceasta e suprafața unui singur procesor de telefon, la scara unui om.
+</FactBox>
+
+Iar Apple M4 la 3 GHz execută:
+28 × 10⁹ tranzistoare × 3 × 10⁹ Hz × 0,1 factor activitate =
+**8,4 × 10¹⁸ comutări logice pe secundă** — pe un cip care încape pe degetul mare.
+
+---
+
+### Memoria care nu scalează — DRAM și SRAM
+
+MOSFET-ul a revoluționat nu doar logica, ci și memoria.
+
+În 1968, **Robert Dennard** la IBM a inventat prima memorie DRAM (Dynamic RAM).
+Ideea era radicală în simplitatea ei: **un singur tranzistor + un condensator** per bit.
+Tranzistorul deschide calea, electronii umplu condensatorul — bit "1".
+Tranzistorul închide — electronii rămân prinși — bit "1" stocat.
+Fără condensator încărcat — bit "0".
+
+Patentul US3387286 a deschis calea memoriilor de mare densitate.
+Astăzi, RAM-ul din telefon și laptop folosește exact același principiu — celula 1T1C.
+
+Memoria statică (SRAM) din cache-ul procesorului e diferită.
+Nu pierde sarcina și nu necesită reîmprospătare — dar costă mai mult spațiu.
+Procesoarele moderne alocă **~50% din arie** memoriei cache SRAM.
+Fiecare bit SRAM necesită **6 tranzistoare** pentru stabilitate și citire sigură.
+
+Paradoxul: la tranziția de la N5 la N3E (de la 5nm la 3nm),
+logica devine cu 20% mai densă.
+Celula SRAM rămâne la **0,021 µm²** — identică la ambele noduri.
+
+Memoria nu scalează cu logica.
+De aceea procesoarele devin din ce în ce mai mari fizic —
+nu din cauza logicii, ci din cauza cache-ului care nu se micșorează.
+
+<CosmoHint emotion="thinking">
+  Memoria flash din telefonul tău stochează biți prin tunelare cuantică.
+  Un număr mare de electroni prinși într-o "insulă" izolată = bit "0".
+  Zero electroni = bit "1".
+  Fără baterie, fără putere — electronii rămân închiși în insulă ani de zile.
+  Același efect care distruge tranzistoarele la 2nm
+  e exploatat deliberat pentru stocare în flash.
+</CosmoHint>
+
+---
+
+## Reveal
+
+Tranzistorul MOSFET e un robinet electric controlat de câmp electric.
+
+Un câmp aplicat pe o poartă izolată creează un canal de electroni
+în siliciu care altfel ar bloca orice curent.
+Câmpul dispare — canalul dispare. Fără consum static.
+
+Din această idee simplă — câmpul controlează conducția —
+au derivat:
+procesoarele cu miliarde de tranzistoare,
+memoriile flash care stochează fără baterie,
+senzorii de imagine din camere,
+ecranele OLED cu pixeli controlați individual.
+
+Industria a comprimat 2.300 de tranzistoare (Intel 4004, 1971)
+în 80 de miliarde (NVIDIA H100, 2022),
+pe o suprafață care încape în palmă,
+în 51 de ani.
+
+Și se apropie de limita fizică a acestui joc.
+
+---
+
+## Ce urmează
+
+Ai înțeles cum funcționează tranzistorul la nivel de fizică.
+
+Acum e momentul să îl controlezi tu.
+
+Lecția următoare e un **LAB interactiv** — vei putea aplica tensiuni pe poartă,
+vedea cum apare canalul, cum variază curentul,
+și simți direct diferența dintre cut-off, liniară și saturație.
+
+Fizica pe care ai citit-o devine vizuală și interactivă.

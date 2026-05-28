@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Image from "next/image";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { postComment, upvoteComment } from "@/app/(dashboard)/courses/actions";
 import { MessageSquare, ThumbsUp, CornerDownRight, Send, Lock } from "lucide-react";
@@ -58,8 +59,14 @@ function UserAvatar({
       className={`w-${size} h-${size} rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center shrink-0 overflow-hidden`}
     >
       {avatarUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={avatarUrl} alt={name ?? "avatar"} className="w-full h-full object-cover" />
+        <Image
+          src={avatarUrl}
+          alt={name ? `${name}'s avatar` : ""}
+          width={32}
+          height={32}
+          className="w-full h-full object-cover"
+          unoptimized
+        />
       ) : (
         initials
       )}
@@ -104,6 +111,7 @@ function CommentCard({
           <button
             onClick={() => onUpvote(comment.id)}
             disabled={localUpvoted || comment.user_id === userId}
+            aria-label="Apreciază comentariul"
             className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             <ThumbsUp className="h-3 w-3" />
@@ -114,6 +122,7 @@ function CommentCard({
           {!isReply && userId && userLevel >= 3 && (
             <button
               onClick={() => onReply(comment.id, authorName)}
+              aria-label="Răspunde"
               className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
               <CornerDownRight className="h-3 w-3" />

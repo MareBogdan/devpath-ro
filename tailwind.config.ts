@@ -16,6 +16,7 @@ const config: Config = {
     },
     extend: {
       colors: {
+        // shadcn/ui tokens — keep intact
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
@@ -49,6 +50,48 @@ const config: Config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        // Aurora design system — additive, prefix: aurora-*
+        aurora: {
+          primary: {
+            50: "#F3F1FE",
+            100: "#E0DDFC",
+            300: "#A29BFE",
+            500: "#6C5CE7",
+            700: "#4834D4",
+            900: "#26215C",
+          },
+          accent: {
+            50: "#E0FAF9",
+            300: "#81ECEC",
+            500: "#00CEC9",
+            700: "#0A6B68",
+            900: "#04342C",
+          },
+          gold: {
+            50: "#FFF8E7",
+            300: "#FFEAA7",
+            500: "#FDCB6E",
+            600: "#E17055",
+            900: "#8B6914",
+          },
+          streak: {
+            50: "#FFE8E8",
+            500: "#FF6B6B",
+            600: "#EB4D4B",
+            900: "#501313",
+          },
+          // Surface tokens — reference CSS variables for theme-awareness
+          "bg-deepest": "var(--aurora-bg-deepest)",
+          "bg-card": "var(--aurora-bg-card)",
+          "bg-elevated": "var(--aurora-bg-elevated)",
+          "bg-interactive": "var(--aurora-bg-interactive)",
+          "border-subtle": "var(--aurora-border-subtle)",
+          "border-medium": "var(--aurora-border-medium)",
+          "border-strong": "var(--aurora-border-strong)",
+          "text-primary": "var(--aurora-text-primary)",
+          "text-secondary": "var(--aurora-text-secondary)",
+          "text-tertiary": "var(--aurora-text-tertiary)",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -68,10 +111,26 @@ const config: Config = {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
+        gradient: {
+          to: { backgroundPosition: "var(--bg-size, 300%) 0" },
+        },
+        shine: {
+          "0%": { backgroundPosition: "0% 0%" },
+          "50%": { backgroundPosition: "100% 100%" },
+          "100%": { backgroundPosition: "0% 0%" },
+        },
+        meteor: {
+          "0%": { transform: "rotate(var(--angle)) translateX(0)", opacity: "1" },
+          "70%": { opacity: "1" },
+          "100%": { transform: "rotate(var(--angle)) translateX(-500px)", opacity: "0" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        gradient: "gradient 8s linear infinite",
+        shine: "shine var(--duration) infinite linear",
+        meteor: "meteor 5s linear infinite",
       },
     },
   },

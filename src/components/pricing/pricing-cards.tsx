@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, type Variants } from "framer-motion";
 import { Check, ArrowRight, Zap, Infinity as InfinityIcon, Gift, Loader2 } from "lucide-react";
-import { PixelMascot } from "@/components/mascot/pixel-mascot";
+import { CosmoMascot } from "@/components/mascot/cosmo-mascot";
 
 interface PricingCardsProps {
   currentPlan?: string | null;
@@ -66,7 +66,7 @@ const PLANS = [
       "Toate cursurile, complet",
       "AI Coach nelimitat",
       "Certificate PDF verificabile",
-      "Mod Simplu & Tehnic",
+      "Curriculum progresiv (de la zero la avansat)",
       "Suport prioritar",
       "Toate funcționalitățile viitoare",
     ],
@@ -102,8 +102,8 @@ const FAQ = [
     a: "Da — planul gratuit îți dă acces permanent la modulele 1-2 din fiecare curs, AI Coach (5 mesaje/zi) și portofoliu public. Nicio perioadă de trial, nicio cartelă de credit necesară.",
   },
   {
-    q: "Ce înseamnă \"Mod Simplu & Tehnic\"?",
-    a: "Fiecare lecție are două versiuni: una tehnică (cu cod, formule, detalii exacte) și una simplă (cu analogii, fără cod). Comutezi cu un click în funcție de cum vrei să înveți în ziua respectivă.",
+    q: "Ce înseamnă \"curriculum progresiv\"?",
+    a: "Cursurile sunt ordonate de la nivel 0 (matematică de bază, programare începători) până la avansat (rețele neuronale, transformere, LLM-uri). Fiecare curs presupune că l-ai parcurs pe cel anterior — nu sunt salturi bruște și nici redundanță.",
   },
   {
     q: "Pot anula abonamentul Pro oricând?",
@@ -168,7 +168,7 @@ export function PricingCards({ currentPlan, isAuthenticated }: PricingCardsProps
             animate={{ y: [0, -12, 0] }}
             transition={{ repeat: Infinity, duration: 3, ease: "easeInOut" }}
           >
-            <PixelMascot emotion="excited" size={80} />
+            <CosmoMascot emotion="happy" size={80} />
           </motion.div>
         </motion.div>
       </div>

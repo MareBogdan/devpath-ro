@@ -1,0 +1,359 @@
+---
+title: "Poarta AND"
+order: 12
+type: lesson
+module_index: 1
+duration: 12
+difficulty: 2
+---
+
+## Două chei, două mâini, opt picioare distanță
+
+În buncărele de lansare ale rachetelor balistice americane,
+există două console cu lăcașe de chei.
+
+Distanța exactă dintre ele: **8 picioare** — 2,4 metri.
+Nu e arbitrară. E calculată biometric.
+Niciun singur om nu poate roti ambele chei simultan.
+Brațele nu ajung. Fizic imposibil.
+
+Lansarea nucleară necesită doi ofițeri, în același timp, la console diferite.
+Ambii trebuie să rotească cheile în același interval de două secunde.
+Dacă unul ezită, dacă unul refuză, dacă unul cade — nu se întâmplă nimic.
+
+Aceasta nu e o regulă organizatorică.
+E o poartă AND implementată fizic în geometria unui bunker.
+**Ofițer_A AND Ofițer_B** — altfel sistemul rămâne blocat.
+
+---
+
+## Ce s-a schimbat față de lecția trecută
+
+C1L11 s-a terminat cu o întrebare: "Dacă A este 1 ȘI B este 1 — ce se întâmplă?"
+
+Răspunsul e poarta AND. Ieșirea e 1 **doar** când toate intrările sunt 1 simultan.
+
+Dar de ce contează asta?
+
+Poarta NOT inversează o singură intrare.
+E utilă — dar nu poate lua decizii complexe.
+Nu poate spune "activează sistemul doar dacă condiția A ȘI condiția B sunt îndeplinite."
+
+Calculul real apare când combini condiții.
+Un seif care cere parolă SAU card — nesigur.
+Un seif care cere parolă ȘI card ȘI biometrie — robust.
+
+Poarta AND e prima care implementează această logică de conjuncție.
+Prima care poate refuza dintr-un număr de motive.
+Și fundația oricărui sistem care trebuie să fie sigur că **toate** condițiile sunt îndeplinite.
+
+---
+
+## Miezul
+
+### Tabelul de adevăr — un filtru exclusivist
+
+Poarta AND cu două intrări are patru combinații posibile:
+
+| A | B | A AND B |
+|---|---|---|
+| 0 | 0 | 0 |
+| 0 | 1 | 0 |
+| 1 | 0 | 0 |
+| 1 | 1 | **1** |
+
+Un singur rezultat din patru e 1. Celelalte trei sunt 0.
+
+Extins la 3 intrări: 1 din 8 combinații e 1.
+La 4 intrări: 1 din 16.
+La 8 intrări: 1 din 256.
+
+Probabilitatea că ieșirea e 1 scade exponențial cu fiecare intrare adăugată.
+AND e cel mai strict filtru din logica digitală.
+
+---
+
+### De ce AND e de fapt NAND + NOT
+
+Ai putea crede că AND e mai simplu de implementat decât NAND.
+E mai "natural" — afirmativ, nu negat.
+
+Fizica spune altceva.
+
+{/* ANIMATION: schema CMOS NAND — 2 NMOS serie (pull-down) + 2 PMOS paralel (pull-up) */}
+
+Un invertor CMOS are 2 tranzistori.
+O poartă NAND CMOS are 4 tranzistori — și e atomică, directă din fizică:
+- 2 NMOS **în serie** în pull-down (ambii trebuie să conducă → AND implicat)
+- 2 PMOS **în paralel** în pull-up (oricare conduce → semnalul urcă)
+
+Seria NMOS implementează AND în rețeaua de jos.
+Dar ieșirea e trasă la GND când ambii NMOS conduc — adică ieșirea e 0 când A=1 ȘI B=1.
+Asta e NAND, nu AND.
+
+Pentru a obține AND pur, adaugi un invertor NOT la ieșire.
+
+| Arhitectură | Tranzistori |
+|---|---|
+| NAND (atomic CMOS) | 4 |
+| AND = NAND + NOT | 6 |
+
+<FactBox>
+  AND costă 6 tranzistori. NAND costă 4.
+  NAND e și mai rapid — fără etapa suplimentară de inversare.
+  De aceea compilatoarele hardware transformă AND în NAND ori de câte ori pot.
+  Procesoarele moderne sunt construite aproape exclusiv din NAND-uri,
+  nu din AND-uri directe.
+</FactBox>
+
+---
+
+### Boole și Shannon — de ce înmulțirea
+
+George Boole a ales semnul înmulțirii (·) pentru conjuncție în 1854.
+Nu din capriciu — din aritmetică:
+- 1 × 1 = 1
+- 1 × 0 = 0
+- 0 × 0 = 0
+
+Singurul mod în care produsul a doi factori e 1 este ca ambii să fie 1.
+Exact comportamentul AND.
+
+Claude Shannon a implementat AND cu relee în 1938:
+două relee **în serie** pe același fir.
+Curentul trece doar dacă ambele sunt închise simultan.
+Releele în **paralel** formau OR — curentul trece dacă oricare e închis.
+
+Serie = AND. Paralel = OR. Intuiția fizică de bază a oricărui circuit logic.
+
+**Proprietățile algebrice ale AND:**
+
+```
+A · B = B · A              (comutativitate — ordinea firelor nu contează)
+(A · B) · C = A · (B · C)  (asociativitate — poți grupa orice)
+A · A = A                  (idempotență — un fir cu el însuși nu schimbă nimic)
+A · 1 = A                  (element neutru — VDD la o intrare = buffer transparent)
+A · 0 = 0                  (element absorbit — o singură masă anulează totul)
+A · Ā = 0                  (complementaritate — o variabilă și negarea ei nu coexistă)
+```
+
+Proprietatea elementului absorbit e critică în hardware.
+Un singur fir greșit conectat la GND — un 0 permanent —
+neutralizează orice AND din lanț, indiferent de celelalte semnale.
+Un bug greu de găsit, pentru că logica pare corectă pe hârtie.
+
+**Cel mai simplu AND posibil: logica cu diode**
+
+Înainte de tranzistoare, AND se putea face cu două diode și un rezistor.
+Ambele intrări conectate prin anozi la un catod comun, rezistor de pull-up la VDD.
+
+Dacă oricare intrare e la 0, dioda respectivă conduce și trage ieșirea la 0.
+Dacă ambele intrări sunt la 1, ambele diode sunt blocate în polarizare inversă.
+Rezistorul ridică ieșirea la 1.
+
+Elegant — dar practic inutilizabil.
+Fiecare diodă pierde 0,7V din tensiune.
+Semnalul se degradează la fiecare poartă în lanț.
+La 5 porți consecutive, nu mai ai semnal valid.
+
+Aceasta a forțat tranziția la tranzistori — DTL (Diode-Transistor Logic) și apoi TTL,
+unde tranzistorul regenerează semnalul la fiecare etapă.
+
+---
+
+### Bit masking — AND în fiecare linie de cod
+
+Operația `x AND mască` se numește **bit masking** — mascarea de biți.
+E probabil cea mai frecventă operație în codul de nivel jos.
+
+Vrei să extragi cei 4 biți din dreapta unui byte:
+```
+11001010
+AND
+00001111
+--------
+00001010
+```
+
+Biții unde masca e 0 sunt absorbiți (devin 0) — proprietatea elementului absorbit.
+Biții unde masca e 1 trec nealterați — proprietatea elementului neutru (AND·1=A).
+
+Bit masking apare peste tot:
+- Extragerea culorii roșii dintr-un pixel RGB: `pixel AND 0xFF0000`
+- Verificarea dacă un număr e par: `n AND 1` (dacă rezultatul e 0 → par)
+- Extragerea adresei de pagină în MMU: `adresă AND mască_pagină`
+- Setarea sau ștergerea unui flag specific dintr-un registru de stare
+
+De ce e mai bun decât un `if-else`?
+
+Un `if-else` necesită predicție de ramură (branch prediction) din procesor.
+Când predicția e greșită, procesorul șterge tot pipeline-ul — pierde zeci de cicluri.
+
+AND se execută în **exact 1 ciclu de ceas** pe ALU, fără nicio predicție necesară.
+
+Compilatoarele exploatează asta: `x / 4` devine automat `x AND 0b11111100`
+(cu ajustare pentru semnul negativ). Același rezultat, de zece ori mai rapid.
+
+<CosmoHint emotion="thinking">
+  Când browserul tău randează o pagină web,
+  execută milioane de AND-uri pe biți de vizibilitate, z-index și canal alfa.
+  Fiecare pixel verifică dacă trebuie să apară — printr-o poartă AND.
+  Nu o vezi niciodată, dar e acolo, la fiecare frame.
+</CosmoHint>
+
+---
+
+### Arborele AND — de ce nu faci AND cu 8 intrări direct
+
+Intuiția ar spune: AND cu 8 intrări = un bloc cu 8 fire.
+Fizica spune: nu.
+
+8 tranzistori NMOS în serie înseamnă rezistență enormă în pull-down.
+Fiecare tranzistor în serie adaugă rezistență — timp de descărcare mai lung — frecvență mai mică.
+La 8 tranzistori în serie, viteza scade dramatic față de un AND cu 2 intrări.
+
+Soluția: **AND tree** — arbore de porți AND cu 2 intrări.
+
+```
+Nivel 1: AND(A,B),  AND(C,D),  AND(E,F),  AND(G,H)
+Nivel 2: AND(AB,CD), AND(EF,GH)
+Nivel 3: AND(ABCD, EFGH)
+```
+
+3 niveluri în loc de 8 în serie. Timp logaritmic O(log₂ n) în loc de liniar.
+Întârzierea totală e suma a 3 porți AND cu 2 intrări — nu a 8 tranzistori în serie.
+
+Procesoarele moderne folosesc arbori AND la orice evaluare cu intrări multiple.
+Decodificatoarele de instrucțiuni, unitățile de control, adresorii de memorie —
+toate sunt arbori logici, nu lanțuri lungi.
+
+<CosmoHint emotion="surprised">
+  Un sumator Carry-Lookahead pe 64 de biți calculează simultan toate carry-urile
+  folosind lanțuri masive de AND-uri.
+  Costul: ~48.288 porți logice față de ~640 pentru un sumator simplu.
+  De 75 de ori mai mult siliciu — pentru același rezultat matematic.
+  Procesorul acceptă acest compromis pentru că viteza valorează mai mult decât aria.
+</CosmoHint>
+
+---
+
+### Two-man rule — AND implementat în beton
+
+Revenind la buncărul nuclear de la început.
+
+Consolele Minuteman sunt la 8–12 picioare distanță.
+Fereastra de toleranță temporală: 2 secunde.
+Fără sincronizare — fără lansare.
+
+Azi, cheile fizice sunt înlocuite de două token-uri HMAC (Hash-based Message Authentication Code)
+procesate de calculatoare militare separate.
+Logica e identică: semnătura_A AND semnătura_B → comandă validată.
+
+Același principiu apare în aviație.
+Sistemele fly-by-wire folosesc **logica 2-din-3**:
+trei computere independente procesează aceiași senzori.
+Decizia finală: (A·B) + (A·C) + (B·C).
+
+Dacă doar unul raportează o problemă — ignorat.
+Dacă oricare două sunt de acord — acțiune imediată.
+
+AND e instrumentul care împiedică un singur punct de eșec să provoace un dezastru.
+
+---
+
+### Intel 4004 — primul AND pe siliciu
+
+**Noiembrie 1971. Federico Faggin, Intel.**
+Primul microprocesor comercial pe o singură matriță de siliciu: **Intel 4004**.
+2.300 de tranzistori. Lățime de date: 4 biți.
+
+Instrucțiunile de salt condiționat (JCN — Jump Conditional)
+testau biți de stare prin porți AND atomice în decodificatorul de instrucțiuni.
+ALU-ul folosea AND pentru operații de mascare și decodare.
+Fiecare instrucțiune era verificată bit cu bit printr-un arbore de AND-uri.
+
+Era primul artefact în care logica AND a părăsit plăcile mari de circuit
+și s-a retras definitiv în nanometrii de siliciu.
+
+De la 2.300 de tranzistori în 1971 la **28 de miliarde** în Apple M4 (2024, TSMC 3nm) —
+o densitate de un milion de ori mai mare în 53 de ani.
+Aceeași logică AND. Scară incomparabil mai mare.
+
+---
+
+### Decodificatorul de instrucțiuni — AND la fiecare ciclu de ceas
+
+Când procesorul tău execută un program, fiecare instrucțiune e un număr binar.
+Instrucțiunea `ADD R1, R2` e stocată ca o secvență de biți — un opcode.
+
+Decodificatorul de instrucțiuni trebuie să identifice ce instrucțiune e.
+Cum? Prin porți AND care testează combinații specifice de biți.
+
+Exemplu simplificat: dacă bitul 7 = 1 ȘI bitul 4 = 0 ȘI bitul 1 = 1 → instrucțiunea e ADD.
+Fiecare combinație posibilă de biți activează un AND diferit.
+Rezultatele merg la unitățile de execuție corespunzătoare.
+
+Un decodificator pentru un set de instrucțiuni cu 256 de opcodeuri
+conține sute de porți AND aranjate în matrici logice.
+Toate evaluează simultan — în fracțiuni de nanosecundă — la fiecare ciclu de ceas.
+
+---
+
+### Masca de subrețea — AND în rețelistică
+
+Fiecare dispozitiv conectat la internet are o adresă IP: de exemplu `192.168.1.47`.
+Și o mască de subrețea: `255.255.255.0`.
+
+Cum determină routerul dacă două dispozitive sunt în aceeași rețea locală?
+Aplică AND binar între adresă și mască.
+
+```
+192.168.1.47   = 11000000.10101000.00000001.00101111
+AND
+255.255.255.0  = 11111111.11111111.11111111.00000000
+=
+192.168.1.0    = 11000000.10101000.00000001.00000000
+```
+
+Ultimii 8 biți sunt absorbiți de 0-urile din mască — devin 0.
+Rămâne adresa rețelei: `192.168.1.0`.
+
+Dacă două dispozitive au aceeași adresă de rețea după AND → sunt în același segment.
+Pachetele merg direct. Fără router intermediar.
+
+Fiecare pachet de date trimis de pe calculatorul tău trece prin această operație AND.
+De miliarde de ori pe zi, pe routere din toată lumea.
+Poarta AND din algebră e operatorul de bază al internetului.
+
+---
+
+## Reveal
+
+AND e cel mai strict filtru din logica digitală.
+Un singur 0 la intrare anulează totul — proprietatea elementului absorbit aplicată la sistemul real.
+
+Dar această strictețe e exact ceea ce o face valoroasă.
+Sistemele critice — nucleare, avionice, medicale —
+au nevoie de o poartă care refuză să acționeze dacă nu sunt toate condițiile îndeplinite.
+
+Din AND derivă:
+bit masking-ul care face codul rapid fără predicție de ramură,
+arborii de carry-lookahead care fac procesoarele să calculeze 64 de biți în câteva picosecunde,
+decodificatoarele de instrucțiuni care interpretează fiecare opcode din binarul programului,
+și regulile de lansare care împiedică un singur punct de eșec să provoace o catastrofă.
+
+O singură regulă: **toate intrările trebuie să fie 1**.
+Tot restul — procesoarele, securitatea, calculul rapid — e consecință.
+
+---
+
+## Ce urmează
+
+AND spune "toate condițiile trebuie îndeplinite."
+Dar uneori ai nevoie de ceva mai permisiv:
+**oricare dintre condiții e suficientă**.
+
+Dacă A este 1 **SAU** B este 1 — ce se întâmplă?
+
+Poarta OR e subiectul lecției următoare —
+și împreună cu AND formează perechea care construiește orice circuit de decizie.
