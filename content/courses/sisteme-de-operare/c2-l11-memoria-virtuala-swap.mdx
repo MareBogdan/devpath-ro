@@ -1,0 +1,346 @@
+---
+title: "Memoria Virtuală și Swap"
+order: 11
+type: lesson
+module_index: 2
+duration: 15
+difficulty: 3
+---
+
+# Memoria Virtuală și Swap
+
+## HOOK
+
+Ai 16GB RAM. Rulezi un server cu 50 de procese. Fiecare cere 1GB. 50GB > 16GB.
+
+Totuși funcționează. Cum?
+
+Fiindcă niciunul dintre cele 50 de procese nu folosește efectiv 1GB simultan.
+Fiecare a cerut memoria, dar kernelul nu a alocat niciun byte fizic până când
+procesul n-a atins efectiv acea zonă. Și când RAM-ul se umple cu ce e cu
+adevărat activ, paginile inactive se mută pe disc.
+
+Memoria virtuală e o minciună orchestrată perfect între hardware și kernel.
+Și funcționează aproape întotdeauna.
+
+## CONTEXT
+
+Știi deja că fiecare proces are un spațiu virtual gestionat prin `vm_area_struct`,
+că paginile fizice sunt de 4KB, că MMU traduce adrese virtuale în fizice prin
+tabele de pagini, că `task_struct` conține `mm_struct`. Lecția asta intră în
+mecanismele complete: cum funcționează traducerea, ce se întâmplă la un page
+fault, cum funcționează swap-ul, și ce e thrashing-ul.
+
+## MIEZUL
+
+### Spațiul de Adrese Virtual pe x86-64
+
+Procesoarele x86-64 au registre de 64 biți — teoretic 16 exabytes adresabile.
+În practică, implementările hardware curente folosesc doar **48 de biți** (sau
+57 cu PML5). Regula de canonicitate: biții 48–63 trebuie să fie copii ale
+bitului 47. Orice adresă care violează regula → `General Protection Fault (#GP)`.
+
+Rezultatul: spațiu valid de **256TB**, împărțit în două emisfere:
+
+$$\text{User space: } 0x0000000000000000 \rightarrow 0x00007FFFFFFFFFFF \quad (128\ TB)$$
+$$\text{Kernel space: } 0xFFFF800000000000 \rightarrow 0xFFFFFFFFFFFFFFFF \quad (128\ TB)$$
+
+Zona dintre ele = adrese non-canonice, invalide hardware. Kernelul trăiește în
+128TB superiori — identici în **toate** procesele, dar protejați hardware (U/S=0
+în PTE). User space-ul e unic per proces.
+
+Avantajele memoriei virtuale:
+- **Izolare**: procesul A nu poate citi memoria procesului B
+- **Overcommit**: promite mai multă memorie decât există fizic (lazy allocation)
+- **Shared libraries**: `libc.so` = un singur set de pagini fizice, mapate
+  read-only în mii de procese simultan
+- **Fragmentare ascunsă**: paginile fizice pot fi împrăștiate în RAM, procesul
+  vede un spațiu liniar continuu
+
+### Tabelele de Pagini: CR3 → PML4 → PDPT → PD → PT
+
+O adresă virtuală de 48 biți e secționată în 5 componente:
+
+```
+Biții 47-39: index PML4  (9 biți → 512 intrări)
+Biții 38-30: index PDPT  (9 biți → 512 intrări)
+Biții 29-21: index PD    (9 biți → 512 intrări)
+Biții 20-12: index PT    (9 biți → 512 intrări)
+Biții 11-0:  offset      (12 biți → 4096 bytes în pagina fizică)
+```
+
+**CR3** conține adresa fizică a tabelului PML4 al procesului curent.
+La context switch între procese diferite → CR3 rescris → TLB flush.
+
+**Page Table Entry (PTE) — 8 bytes pe 64-bit:**
+
+{/* TABLE */}
+
+| Bit | Denumire | Funcție |
+|---|---|---|
+| 0 | **Present (P)** | 1 = pagina în RAM; 0 = absent (page fault) |
+| 1 | **Read/Write (R/W)** | 0 = read-only; 1 = read/write |
+| 2 | **User/Supervisor (U/S)** | 0 = doar kernel; 1 = accesibil din Ring 3 |
+| 5 | **Accessed (A)** | Setat hardware la orice acces; folosit de LRU |
+| 6 | **Dirty (D)** | Setat hardware la scriere; indică pagini de writeback |
+| 12–51 | **Physical Frame Number** | Adresa de bază a paginii fizice |
+| 63 | **NX/XD** | 1 = execuția de cod interzisă (previne shellcode în date) |
+
+**Overhead tabele de pagini**: pentru 1GB de memorie virtuală contiguă cu
+pagini de 4KB:
+$$\frac{1\ GB}{4\ KB} = 262.144\ \text{intrări} \times 8\ \text{bytes} = 2\ \text{MB overhead}$$
+
+Un proces tipic cu spațiu virtual fragmentat (ASLR, biblioteci multiple) consumă
+**2–8MB** doar pentru structurile de tabele de pagini.
+
+**TLB și costul unui miss**: TLB-ul cache-uiește mapările frecvente. Un hit TLB
+= sub 1 ciclu. Un **TLB miss** forțează un page walk complet: 4 accese RAM pe
+4 niveluri de tabele = **100–1000 cicli CPU** (depinde de ce nivel cache conține
+tabelele).
+
+**PCID (Process Context Identifiers)**: biții 0–11 din CR3 stochează un ID de
+12 biți (max 4096 valori). La context switch, bitul 63 al CR3 setat ca NOFLUSH
+permite păstrarea intrărilor TLB ale procesului anterior. Când planificatorul
+revine rapid la un proces, mapările sale sunt deja în TLB → economie de mii de
+cicli per switch.
+
+### Page Fault: Cele Trei Tipuri
+
+Când MMU nu poate traduce o adresă virtuală, generează **Page Fault (#PF)**.
+CPU salvează adresa vinovată în **CR2**, setează un cod de eroare, trece la
+Ring 0 și apelează `handle_mm_fault()`.
+
+**Minor Fault (soft fault)** — pagina există în RAM, dar PTE-ul nu e mapat:
+- **Demand paging**: procesul a primit VMA prin `malloc()` sau `mmap()`, dar
+  pagina fizică n-a fost alocată. Kernelul alocă o pagină zero, actualizează
+  PTE, reia instrucțiunea. Cost: **1–10 µs**.
+- **Copy-on-Write (COW)**: după `fork()`, paginile părintelui sunt marcate
+  read-only pentru ambii. La prima scriere → fault → kernelul copiază pagina
+  (4096 bytes), actualizează PTE-ul procesului scriptor cu noua adresă fizică,
+  restabilește R/W=1.
+
+**Major Fault (hard fault)** — pagina nu e în RAM, trebuie citită de pe disc:
+- Pagina a fost evacuată în swap, sau e un fișier mapat neîncărcat încă
+- Thread-ul intră în `TASK_UNINTERRUPTIBLE` (starea D) pe durata I/O
+- Cost pe **NVMe SSD**: 100–500 µs
+- Cost pe **HDD**: 5–10 ms → catastrofal pentru baze de date
+
+**Invalid Fault** — adresa nu aparține niciunui VMA valid:
+- Dereferențiere NULL, acces în afara heap-ului, stack overflow
+- Kernelul trimite `SIGSEGV` → procesul moare
+
+Contorizare în `/proc/[pid]/stat`: câmpul 10 = `minflt` (minor faults),
+câmpul 12 = `majflt` (major faults). Multe `majflt` = aplicația paginează
+activ pe disc.
+
+### Overcommit și OOM Killer
+
+**Overcommit** = kernelul promite mai multă memorie virtuală decât există fizic.
+Funcționează pentru că programele alocă mult mai mult decât folosesc efectiv.
+
+Controlat prin `/proc/sys/vm/overcommit_memory`:
+
+{/* TABLE */}
+
+| Valoare | Comportament | Recomandat pentru |
+|---|---|---|
+| **0** | Heuristic (default) — refuză alocări absurde | Uz general |
+| **1** | Always overcommit — orice `malloc()` reușește | Redis, baze de date custom |
+| **2** | Never overcommit — limita strictă via `CommitLimit` | PostgreSQL enterprise |
+
+Cu valoarea 2, limita e calculată:
+$$\text{CommitLimit} = (\text{RAM} - \text{HugeTLB}) \times \frac{\text{overcommit\_ratio}}{100} + \text{Swap}$$
+
+Exemplu: 8GB RAM + 8GB swap + ratio 50% → CommitLimit = 12GB.
+
+Când RAM + swap se epuizează complet, **OOM Killer** se activează din
+`mm/oom_kill.c`. Calculează `oom_score` (0–1000) pentru fiecare proces bazat
+pe RSS + swap usage + overhead PTE. Scor mai mare = candidat mai probabil la
+ucidere. Procese root primesc o reducere de 3%.
+
+OOM Killer ucide adesea "procesul nepotrivit" — MySQL cu 4GB în loc de un
+proces mic cu memory leak de 100MB care a declanșat criza. Logica e pur
+volumetrică.
+
+**Protejarea unui proces critic:**
+```bash
+echo -1000 > /proc/[pid]/oom_score_adj  # imun la OOM Killer
+echo 1000  > /proc/[pid]/oom_score_adj  # prima victimă
+```
+
+<FactBox>
+**Câmpurile critice din `/proc/meminfo`:**
+- `MemTotal` — RAM total disponibil kernelului
+- `MemFree` — pagini complet libere (de obicei mic)
+- `MemAvailable` — estimare realistă a memoriei disponibile (include cache reclaimable)
+- `Cached` — Page Cache: fișiere citite recent, reutilizabile
+- `Dirty` / `Writeback` — pagini modificate neflushate / în curs de flush pe disc
+- `SwapTotal` / `SwapUsed` — swap total / ocupat
+- `HugePages_Total` / `HugePages_Free` — huge pages de 2MB disponibile/libere
+</FactBox>
+
+### Swap: Extensia RAM-ului pe Disc
+
+Swap-ul mută paginile inactive din RAM pe disc (HDD/SSD) pentru a elibera
+spațiu. Swap partition și swap file sunt echivalente ca performanță în kernelele
+moderne — la activare (`swapon`), kernelul generează o hartă directă
+bloc-sector, ocolind complet layer-ul VFS.
+
+**Cum decide kernelul ce să evacueze — algoritmul LRU:**
+
+Kernelul menține două liste per zonă de memorie: **Active** și **Inactive**.
+Bitul **Accessed (A)** din PTE e senzorul: hardware-ul îl setează la 1 la
+orice acces. Periodic, daemonul `kswapd` trece prin liste:
+- Paginile cu A=1 → Active list, bitul se resetează la 0
+- Paginile cu A=0 (neaccesate recent) → migrează spre Inactive list
+- Paginile din Inactive → candidate pentru swap-out
+
+**Watermarks** — pragurile care activează `kswapd`:
+- `WMARK_HIGH` (~4% din RAM): kswapd doarme, totul e OK
+- `WMARK_LOW` (~2%): kswapd se trezește, începe evacuarea
+- `WMARK_MIN` (~1%): kernel blochează alocările normale, evacuare agresivă
+
+**swp_entry_t** — cum știe kernelul unde e o pagină în swap: când P=0 în PTE,
+ceilalți biți stochează `swp_entry_t` cu **Swap Type** (care partiție, max 32)
+și **Swap Offset** (sectorul exact). La page-in, kernelul citește exact acel
+sector și restaurează pagina în RAM.
+
+<CosmoHint emotion="thinking">
+**Swap Offset Inversion** — kernelul inversează biții swap offset-ului cu `~`
+(bitwise NOT) înainte de a-l stoca în PTE. De ce? Vulnerabilitatea L1TF
+(CVE-2018-3646) permitea unui guest VM să citească paginile altor VM-uri prin
+execuție speculativă care confunda adresa swap cu o adresă fizică reală. Cu
+biții inversați, adresele swap nu pot fi confundate cu adrese fizice valide.
+Prețul: swap limitat la max RAM/2 (ex: 16TB pe sisteme cu 32TB RAM).
+</CosmoHint>
+
+**swappiness** — ponderează decizia LRU între evacuarea cache-ului de fișiere
+vs. a paginilor de proces:
+- Default: **60** — echilibrat
+- Desktop: **10** — minimizează swap, preferă cache
+- Servere baze de date: **1** — aproape zero swap, păstrează datele active
+
+`/proc/swaps` arată toate partițiile/fișierele de swap active, dimensiunea
+și utilizarea curentă.
+
+### zswap și zram: Swap Fără Disc
+
+**zswap** — un cache comprimat în RAM între kswapd și disc:
+- La evacuare, pagina e comprimată (LZ4 sau zstd) și stocată în pool RAM
+- Dacă pool-ul se umple → paginile cel mai vechi sunt trimise pe disc
+- La page-in → decomprimare din RAM (rapid) sau disc (lent dacă a ajuns acolo)
+- Beneficiu: reduce masiv I/O pe disc, crește rata de compresie efectivă
+- Cost: cicli CPU pentru compresie/decompresie
+
+**zram** — un bloc device comprimat 100% în RAM:
+- Se declară ca partiție de swap: `mkswap /dev/zram0 && swapon /dev/zram0`
+- Nicio scriere pe disc, niciodată — dacă zram se umple → OOM
+- Ratio compresie tipic: **2:1–3:1** cu LZ4, **3:1–3.6:1** cu zstd
+- Folosit pe: Android, ChromeOS, sisteme embedded, Raspberry Pi
+
+{/* TABLE */}
+
+| | **zswap** | **zram** |
+|---|---|---|
+| Stochează pe disc | Da (overflow) | Nu |
+| Compresie | Da (LZ4/zstd) | Da (LZ4/zstd) |
+| Dacă se umple | Overflow pe disc | OOM |
+| Ideal pentru | Server cu SSD lent | Mobile/embedded |
+
+Meta-alocatoarele pentru pool-urile de compresie: **zbud** (~2:1), **z3fold**
+(~3:1), **zsmalloc** (>3.6:1 cu zstd).
+
+### mmap() și Shared Memory
+
+`mmap()` mapează un fișier direct în spațiul virtual al procesului — fără
+`read()`/`write()`. Accesul la acea zonă de memorie = acces la fișier prin
+Page Cache.
+
+- **MAP_SHARED**: modificările sunt vizibile tuturor proceselor care mapează
+  același fișier și se propagă pe disc (writeback async). Ideal pentru IPC.
+- **MAP_PRIVATE**: Copy-on-Write la prima modificare — procesul primește o
+  copie privată, fișierul original rămâne intact. Cum încarcă executabilele ELF.
+- **MAP_ANONYMOUS**: alocare fără fișier, inițializată cu zerouri (alternativa
+  la `malloc()` pentru blocuri mari). Paginile sunt anonime → pot merge în swap.
+
+**Shared libraries**: `libc.so` are secțiunea `.text` mapată MAP_PRIVATE
+(read-only) în mii de procese simultan → o singură copie fizică. Secțiunea
+`.data` (variabile globale) primește pagini COW per proces la prima scriere.
+
+**`/proc/[pid]/smaps`** — detalii per VMA:
+- `Shared_Clean`: pagini partajate nemodificate (cod din .so)
+- `Shared_Dirty`: pagini partajate modificate (IPC, MAP_SHARED)
+- `Private_Clean`: pagini private nemodificate
+- `Private_Dirty`: pagini private modificate (heap, stack) — **costul real al procesului**
+
+**PSS (Proportional Set Size)** = RSS ajustat: paginile partajate sunt împărțite
+proporțional. Suma PSS-urilor tuturor proceselor = RAM fizic real ocupat.
+
+### Working Set și Thrashing
+
+**Working Set** (Denning, 1968) — mulțimea paginilor active ale unui proces
+într-o fereastră de timp $\tau$:
+$$W(t, \tau) = \{\text{pagini accesate în intervalul } [t-\tau, t]\}$$
+
+Kernelul estimează working set-ul prin bitul Accessed (A) din PTE.
+
+**Thrashing** — se declanșează când suma working set-urilor tuturor proceselor
+depășește RAM-ul disponibil:
+
+```
+Aplicație A cere pagina X → major fault → kswapd evacuează pagina Y a aplicației B
+Aplicație B cere pagina Y → major fault → kswapd evacuează pagina X a aplicației A
+Aplicație A cere pagina X → ...
+```
+
+Simptomele: CPU la 0–5% utilizare, I/O wait la 99%, sistem aparent îngheșat.
+**Thrashing e mai rău decât orice**: CPU consumă energie fără a face progres util.
+
+Soluții: cgroups memory limits (containere), uciderea proceselor, huge pages
+(mai puține page faults pentru același working set).
+
+### Huge Pages și NUMA
+
+**Huge Pages de 2MB**: în loc de 512 PTE-uri × 8B = 4KB overhead per 2MB,
+o singură intrare PD mapează direct 2MB fizic contiguu. Reduce TLB pressure
+masiv pe workload-uri cu acces random la zone mari de memorie (baze de date
+in-memory, modele ML).
+
+Pentru 1GB cu pagini de 4KB: 262.144 PTE-uri × 8B = 2MB overhead.
+Pentru 1GB cu huge pages de 2MB: **512 intrări PD × 8B = 4KB overhead** — de
+500× mai puțin.
+
+**NUMA** — pe servere multi-socket, RAM-ul e local unui socket. Accesul
+cross-socket adaugă ~50–100ns latență. `numactl --membind=0 ./app` forțează
+alocările pe nodul local al CPU-ului care rulează aplicația.
+
+<CosmoHint emotion="thinking">
+**KSM (Kernel Same-page Merging)** — kernelul scanează paginile anonime și
+deduplicează pe cele identice. Funcționează pe două arbori Red-Black: Unstable
+(scanare periodică) și Stable (pagini verificate, merguite COW). Util în
+KVM/QEMU: 50 VM-uri cu același OS kernel → kernel text maparea e deduplicată
+→ economii de sute de MB per host. Prețul: CPU pentru scanare + latență la
+prima modificare (COW). **Dezactivat implicit** — activat explicit de
+hypervisori care știu că au VM-uri identice.
+</CosmoHint>
+
+## REVEAL
+
+Memoria virtuală e contractul dintre hardware și kernel: MMU traduce adrese
+virtuale în fizice prin 4 niveluri de tabele (CR3→PML4→PDPT→PD→PT), TLB-ul
+cacheează mapările frecvente, iar la un miss plătești 100–1000 cicli pentru
+page walk complet.
+
+Page fault-urile sunt normale (minor, demand paging, COW) sau costisitoare
+(major, disc). Overcommit funcționează pentru că lazy allocation amână materializarea
+fizică. OOM Killer ucide euristic când totul se umple. Swap mută paginile inactive
+pe disc prin LRU bazat pe bitul Accessed din PTE.
+
+Thrashing apare când suma working set-urilor depășește RAM-ul — sistemul nu
+mai face progres util, doar mută pagini pe disc și înapoi.
+
+## ÎNCHEIERE
+
+Lecția următoare intră în Garbage Collector — cum limbajele managed rezolvă
+problema alocării și eliberării automate a memoriei, și de ce GC pause-urile
+sunt costisitoare exact din cauza mecanismelor pe care le-ai învățat azi.

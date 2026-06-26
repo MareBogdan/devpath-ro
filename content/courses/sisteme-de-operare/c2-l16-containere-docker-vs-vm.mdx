@@ -1,0 +1,222 @@
+---
+title: "Containere Docker vs VM: Aceeași mașină, altă iluzie"
+order: 16
+type: lesson
+module_index: 2
+duration: 15
+difficulty: 4
+---
+
+# Containere Docker vs VM: Aceeași mașină, altă iluzie
+
+## HOOK
+
+Rulezi `docker run -d nginx` și în 80ms ai un server web funcțional. Rulezi o VM Ubuntu și aștepți 15 secunde să pornească kernel-ul, initramfs-ul, systemd-ul.
+
+Ambele par izolate. Ambele au propriul IP, propriul filesystem, propriul PID 1. Dar dacă găsești o vulnerabilitate în kernel-ul host-ului și exploatezi containerul — ai compromis toate celelalte containere de pe server simultan. Din VM, ai nevoie de o a doua vulnerabilitate, mult mai rară: un hypervisor breakout.
+
+Diferența nu e de configurare. E de arhitectură fundamentală. Un container nu e o mașină virtuală mică. E un **proces cu iluzii**.
+
+---
+
+## CONTEXT
+
+O mașină virtuală rulează pe VMCS, EPT, VM Exit-uri — izolarea e impusă de hardware. Kernel-ul guest e separat complet de kernel-ul host. Am văzut în L15 cum funcționează.
+
+Un container e altceva. La nivel kernel, e un `task_struct` obișnuit. Nu există VMCS. Nu există VM Exit-uri. Instrucțiunile procesului rulează direct pe CPU, prin syscall-uri standard Ring 3 → Ring 0, pe **același kernel** ca toate celelalte procese de pe server.
+
+Izolarea containerului e construită din trei primitive Linux preexistente: **namespaces** (ce poate vedea), **cgroups** (ce poate consuma), **union filesystem** (ce filesystem vede). Nicio instrucțiune hardware nouă. Niciun hypervisor. Doar pointeri modificați în `task_struct`.
+
+---
+
+## MIEZUL
+
+### Namespaces — iluzia izolării
+
+`task_struct` conține un pointer `nsproxy`. Această structură grupează referințe la instanțele de namespace asociate procesului. Dacă două procese au același pointer `nsproxy`, trăiesc în aceeași lume. Dacă au pointeri diferiți, nu se văd.
+
+Linux suportă **8 tipuri de namespace**, fiecare izolând o categorie de resurse globale:
+
+{/* TABLE */}
+
+| Namespace | Flag clone | Ce izolează |
+|---|---|---|
+| **PID** | `CLONE_NEWPID` | Arbore de procese propriu. Primul proces = PID 1. |
+| **Mount** | `CLONE_NEWNS` | Arbore VFS propriu. `pivot_root()` schimbă `/`. |
+| **Network** | `CLONE_NEWNET` | Interfețe, tabele de rutare, iptables, sockets. |
+| **UTS** | `CLONE_NEWUTS` | Hostname și domainname proprii. |
+| **IPC** | `CLONE_NEWIPC` | System V IPC și POSIX message queues izolate. |
+| **User** | `CLONE_NEWUSER` | Mapare UID/GID. UID 0 în container = UID 1000 pe host. |
+| **Cgroup** | `CLONE_NEWCGROUP` | Vizibilitate izolată a ierarhiei cgroup. |
+| **Time** | `CLONE_NEWTIME` | Offset pentru `CLOCK_MONOTONIC` și `CLOCK_BOOTTIME`. Introdus în kernel 5.6. |
+
+Syscall-urile implicate: `clone()` cu flagurile de mai sus la creare, `unshare()` pentru separarea unui namespace existent, `setns()` pentru alăturarea la un namespace deja format.
+
+Containerul nu execută niciun boot. `docker run` apelează `clone()` cu toți flagurile, aplică `pivot_root()`, și execută procesul aplicației. Asta e tot. De aceea pornește în 80ms.
+
+---
+
+### cgroups — limitarea resurselor
+
+Namespaces controlează **vizibilitatea**. cgroups controlează **consumul**.
+
+**cgroups v1 vs v2:** v1 permitea ierarhii multiple independente — un proces putea fi în grupul A pentru CPU și grupul B pentru memorie. Complexitate enormă, race conditions în kernel. **cgroups v2** (default din kernel 5.2, systemd 244+): o singură ierarhie unificată, toate controllerele pe același nod din arbore.
+
+Controllerele principale folosite de Docker:
+
+- **cpu**: `cpu.weight` (v2, distribuție relativă) + `cpu.max` (v2, bandwidth limiting hard — ex. `50000 100000` = 50% dintr-un core)
+- **memory**: `memory.max` (v2, hard limit) — depășirea declanșează OOM Killer
+- **io**: limite de IOPS și MB/s per block device
+- **pids**: `pids.max` — prevenire fork bomb
+- **cpuset**: pinning la nuclee fizice specifice
+
+Docker plasează containerele sub `/sys/fs/cgroup/system.slice/docker-<id>.scope`.
+
+**OOM Killer în context cgroup:** Când `memory.max` e depășit, kernel-ul calculează `oom_score` pentru procesele din cgroup și ucide cel cu scorul maxim. Implicit ucide **un singur proces** — containerul poate rămâne în stare inconsistentă. Cu `memory.oom.group = 1`, kernel-ul trimite `SIGKILL` **tuturor proceselor din cgroup** simultan — comportamentul preferat în Kubernetes.
+
+<FactBox>
+**Overhead container vs VM:**
+- Startup container: **50-500ms** | VM: **1-30s** | Firecracker microVM: **< 125ms**
+- RAM overhead per container: **câțiva MB** | per VM: **100-300MB**
+- CPU overhead container: **0-1%** | VM KVM+VirtIO: 2-8%
+- Densitate: mii de containere vs zeci-sute VM-uri per server
+- Seccomp default Docker: blochează **~44-61 syscall-uri**
+- Default capabilities container: **~14 din 41**
+</FactBox>
+
+---
+
+### OverlayFS — layered filesystem și copy-on-write
+
+O imagine Docker e un stack de layers **read-only** + un layer **read-write** pe deasupra. Implementarea dominantă: **OverlayFS** (înlocuiește AUFS, Device Mapper, Btrfs).
+
+Patru componente montate simultan:
+- **Lowerdir**: unul sau mai multe layers read-only (imaginea descărcată)
+- **Upperdir**: layerul read-write unic per container (modificările runtime)
+- **Workdir**: director intern pentru operații atomice (rename, xattr)
+- **Merged dir**: viziunea finală prezentată proceselor ca `/`
+
+**Citire:** VFS scanează mai întâi Upperdir. Dacă fișierul nu e acolo, cade în cascadă în Lowerdir. Dacă fișierul nu a fost modificat — zero overhead, citire nativă.
+
+**Scriere (copy-up):** Prima scriere pe un fișier din Lowerdir copiază **întregul fișier** în Upperdir, apoi aplică modificarea. Un singur byte modificat dintr-un fișier de 1GB = copiere completă de 1GB. Penalizarea se suportă o singură dată per fișier per container.
+
+**Ștergere (whiteout):** Nu poți șterge din Lowerdir (read-only). OverlayFS creează în Upperdir un **character device special cu major:minor = 0:0** cu același nume. Când VFS îl întâlnește, maschează orice fișier cu același nume din Lowerdir. Directoarele se opacizează prin xattr `trusted.overlay.opaque`.
+
+**Fiecare instrucțiune Dockerfile = un layer nou**, identificat prin SHA256 al conținutului. `docker pull` transferă doar layers lipsă. Toate containerele pornite din aceeași imagine partajează aceleași pagini din Page Cache pentru fișierele read-only.
+
+<CosmoHint emotion="thinking">
+Ordinea instrucțiunilor în Dockerfile contează enorm pentru cache. Dacă pui `COPY . .` înainte de `RUN apt-get install`, orice modificare în codul sursă invalidează cache-ul pentru toate layerele de mai jos — inclusiv instalarea pachetelor. Regula: ce se schimbă rar → sus. Ce se schimbă des → jos.
+</CosmoHint>
+
+---
+
+### Network namespaces și networking Docker
+
+La `CLONE_NEWNET`, procesul apare într-o stivă de rețea complet vidă — doar o interfață `lo` neconfigurată. Docker cablează conectivitatea prin **veth pairs**:
+
+- `veth0` mutat în network namespace-ul containerului, redenumit `eth0`
+- `vethXYZ` rămas pe host, atașat la bridge-ul `docker0`
+
+**Bridge networking (default):** NAT prin iptables/nftables.
+- Trafic outbound: regulă `MASQUERADE` în `POSTROUTING` — rescrie IP-ul privat al containerului cu IP-ul public al host-ului
+- Port mapping (`-p 8080:80`): regulă `DNAT` — traficul pe portul 8080 al host-ului redirectat la IP-ul containerului pe portul 80
+
+**Host networking (`--network=host`):** Containerul preia direct `task->nsproxy->net_ns` al host-ului. Zero overhead NAT, zero izolare. Un `bind()` pe portul 80 din container deschide portul 80 pe interfața fizică a serverului.
+
+**Overlay networking (Swarm/Kubernetes):** **VXLAN** — encapsulare L2 over L3, UDP port 4789, overhead fix **~50 bytes** per pachet. Fără ajustare MTU (Jumbo Frames), pachetele TCP se fragmentează și throughput-ul scade dramatic.
+
+**eBPF networking (Cilium):** Elimină iptables complet. Pentru comunicarea între containere pe același host, Cilium folosește **socket splicing**: interceptează TCP handshake cu `BPF_PROG_TYPE_SOCK_OPS`, stochează socket-urile într-un sockmap, și la `sendmsg()` redirectează payload direct din coada TX a socket-ului sursă în coada RX a destinației — bypass total al stivei TCP/IP. Reducere de latență **~50%** față de rețeaua clasică izolată.
+
+**CNI (Container Network Interface):** Standardul Kubernetes pentru plugins de rețea. Definește interfața prin care kubelet apelează un plugin la crearea/ștergerea unui pod. Implementări principale: **Calico** (BGP routing, politici de rețea granulare), **Flannel** (VXLAN sau host-gw, simplu), **Cilium** (eBPF dataplane, înlocuiește iptables complet). Fiecare plugin e responsabil de alocarea IP, crearea veth pairs și configurarea rutării — CNI standardizează API-ul, nu implementarea.
+
+---
+
+### Securitate — suprafața de atac a kernel-ului partajat
+
+**Problema fundamentală:** Toate syscall-urile din toate containerele sunt procesate de același kernel. O singură vulnerabilitate zero-day în kernel = compromitere completă a tuturor containerelor de pe server.
+
+**CVE-2019-5736 (runc):** Atacatorul înlocuia un binar din container (`/bin/bash`) cu un script al cărui shebang era `#!/proc/self/exe`. Când un admin executa comanda în container, kernel-ul urma link-ul `/proc/self/exe` care pointea la executabilul `runc` de pe host. Kernel-ul elimina flag-ul `non-dumpable` la `execve()`. Atacatorul deschidea un fd read-only spre `runc`, aștepta că procesul `runc` terminase (dispărea eroarea `ETXTBSY`), redeschidea cu `O_RDWR` și suprascrieu binarele `runc` cu cod malițios. Orice `docker run` ulterior executa malware-ul cu drepturi root pe host. Afecta toate versiunile `runc < 1.0-rc6`.
+
+**CVE-2022-0492:** Funcția `release_agent` din cgroups v1 rula un script la distrugerea unui cgroup — direct de către kernel, fără namespaces. Docker monta cgroupfs read-only. Dar dacă containerul putea crea un user namespace cu `CAP_SYS_ADMIN`, putea remonta cgroupfs cu permisiuni de scriere. Scria calea scriptului malițios în `release_agent`, ucidea un proces intern — kernel-ul executa scriptul cu privilegii globale pe host. Patch în kernel 5.17.
+
+**Straturi de apărare Docker:**
+
+**Capabilities (~14 din 41 acordate implicit):** Docker refuză implicit `CAP_SYS_ADMIN`, `CAP_NET_ADMIN`, `CAP_SYS_BOOT` și alte 27. Acordă `CAP_CHOWN`, `CAP_NET_BIND_SERVICE`, `CAP_DAC_OVERRIDE`, `CAP_SETUID`, `CAP_SETGID`, `CAP_KILL`. Flag-ul `--privileged` acordă toate 41 + acces la `/dev` + dezactivează seccomp — echivalent cu root nerestricționat pe host.
+
+**Seccomp-BPF:** Program eBPF atașat la syscall entry point, implementează allowlist cu `SCMP_ACT_ERRNO` implicit. Profilul default Docker blochează ~44-61 syscall-uri: `reboot`, `kexec_load`, `keyctl`, `add_key`, `open_by_handle_at`, `ptrace` și altele. CVE-2022-0492 ar fi fost mitigat parțial de seccomp.
+
+**AppArmor și SELinux — stratul MAC:** Dincolo de capabilities și seccomp, sistemele de **Mandatory Access Control** adaugă un al treilea strat de apărare care funcționează chiar dacă primele două sunt configurate greșit. Docker aplică implicit profilul AppArmor `docker-default` pe toate containerele pe sisteme cu AppArmor activ (Ubuntu, Debian). Profilul restricționează montările, accesul la `/proc` și `/sys`, și interzice operații de management al rețelei. SELinux (Red Hat/CentOS) aplică etichete de context pe procese și fișiere — un container nu poate accesa fișierele host-ului chiar dacă obține `CAP_DAC_OVERRIDE`, dacă contextul SELinux nu permite. `docker run --security-opt apparmor=unconfined` sau `--security-opt label=disable` dezactivează aceste protecții — la fel de periculos ca `--privileged` în medii cu workload neîncrezut.
+
+**Anti-pattern critic — `/var/run/docker.sock`:** Montarea socket-ului Docker în container = root complet pe host. Un proces din container poate apela Docker API, lansa un container nou cu `--privileged -v /:/host_root` și are acces nerestricționat la tot filesystem-ul fizic al serverului.
+
+<CosmoHint emotion="sad">
+`--privileged` e cel mai periculos flag Docker. Îl vei vedea în documentații ca "soluție rapidă" pentru probleme de permisiuni. Ce face concret: acordă toate cele 41 de capabilities, montează toate device-urile din `/dev` în container, dezactivează seccomp și AppArmor, dezactivează verificările SELinux. E un container escape garantat dacă există orice vulnerabilitate în aplicație.
+</CosmoHint>
+
+---
+
+### Container runtimes — runc, containerd, gVisor
+
+**OCI (Open Container Initiative):** Două specificații:
+- **OCI Image Spec**: formatul imaginii (layers tarball + manifest JSON + config JSON)
+- **OCI Runtime Spec**: ce trebuie să facă un runtime (`create`, `start`, `kill`, `delete`)
+
+**runc:** Runtime de referință OCI, scris în Go. La `docker run`: `clone()` cu toți flags namespace → `pivot_root()` → drop capabilities → aplică seccomp → `exec()`. Starea per container în `/run/runc/<id>/`.
+
+**Detaliu arhitectural**: Go e multithreaded implicit prin goroutines. `setns()` refuză să migreze un namespace pe un thread activ blocat paralel. Soluția: în `libcontainer/nsenter`, codul C cu `__attribute__((constructor))` rulează `nsexec()` **înainte** ca runtime-ul Go să pornească vreun thread. În această fereastră single-threaded, `clone()` și `setns()` funcționează corect.
+
+**containerd:** Daemon deasupra runc, expune gRPC API. Folosit de Docker Engine și Kubernetes (via CRI). Gestionează snapshotter-ul pentru OverlayFS.
+
+**gVisor (Google):** Interceptează syscall-urile containerului cu un kernel userspace (**Sentry**) scris în Go, rulând în Ring 3 pe host. Accesul la filesystem trece prin agentul **Gofer**. Syscall-urile nu ajung niciodată la kernel-ul host. Overhead: **10-20%** pe operații intensive syscall. Izolarea e apropiată de un VM.
+
+**Kata Containers:** Rulează un microVM (QEMU/KVM sau Firecracker) per container. Kernel guest dedicat per container. Overhead: intermediar între container și VM. Izolarea hardware reală a unui VM, startup aproape de container.
+
+---
+
+### Kubernetes — pod-uri și scaling
+
+**Pod:** Unitatea atomică Kubernetes. Unul sau mai multe containere care partajează **network namespace** și **IPC namespace** — același IP, pot comunica prin `localhost`.
+
+Cum funcționează: Kubelet → containerd (CRI) → **pause container** pornit primul. Acest container C minimal execută `pause()` în buclă infinită — singurul său rol e să dețină network namespace-ul pod-ului activ. Celelalte containere din pod se join la namespace-ul lui prin `setns()`.
+
+**Resource requests vs limits:** `requests` = garantia minimă, folosită de scheduler pentru plasare pe node. `limits` = hard stop, implementat ca `cpu.max` și `memory.max` în cgroup. Dacă `memory.max` e depășit → OOM kill. Dacă `cpu.max` e depășit → throttling (nu kill).
+
+**CSI (Container Storage Interface):** Standardul Kubernetes pentru plugins de stocare. Decuplează kubelet de implementările specifice (AWS EBS, GCE PD, Ceph RBD, NFS). Un driver CSI expune operațiile `CreateVolume`, `AttachVolume`, `MountVolume` prin gRPC — kubelet bind-mountează volumul rezultat direct în namespace-ul containerului.
+
+**Init containers:** Rulează secvențial, complet, înainte de containerele principale. Folosite pentru migrări de baze de date, așteptare dependențe, populare volume.
+
+**Sidecar pattern:** Container auxiliar în același pod — logging agent, proxy mTLS (Envoy), rotație secrete. Partajează volume și network namespace cu containerul principal.
+
+---
+
+## REVEAL
+
+Comparație completă pe toate dimensiunile relevante:
+
+{/* TABLE */}
+
+| Criteriu | Container (Docker) | VM (KVM+VirtIO) | Kata/gVisor |
+|---|---|---|---|
+| **Kernel** | Partajat cu host | Izolat (kernel propriu) | Izolat (microVM/userspace) |
+| **Startup** | 50-500ms | 1-30s | < 125ms |
+| **RAM overhead** | Câțiva MB | 100-300MB | Intermediar |
+| **CPU overhead** | 0-1% | 2-8% | 10-20% (gVisor) |
+| **Izolare securitate** | Namespace + cgroups + seccomp | Hardware (VMCS, EPT, VM Exit) | Hardware sau kernel userspace |
+| **Container escape** | Posibil (CVE-2019-5736, CVE-2022-0492) | Hypervisor breakout (rar) | Mult mai dificil |
+| **Densitate** | Mii per server | Zeci-sute per server | Sute per server |
+| **Filesystem** | OverlayFS (copy-up la prima scriere) | VirtIO-blk (+10-50µs) | Overlay sau VirtIO |
+| **Volume bind mount** | **Performanță nativă 100%** (bypass OverlayFS) | Performanță nativă prin VirtIO | Nativă |
+| **Emulare pură (fără KVM)** | N/A | **10-50× overhead** | N/A |
+| **Ideal pentru** | Microservicii, CI/CD, scale-out | Multi-tenant neîncrezut, compliance | Workload neîncrezut cu startup rapid |
+
+Containerele și VM-urile nu se exclud reciproc — multe sisteme rulează containere **în interiorul** VM-urilor. AWS EC2 (VM) + ECS/Fargate (containere) e pattern-ul dominant în cloud. Kubernetes pe bare-metal cu Kata Containers oferă izolarea unui VM cu startup-ul unui container.
+
+---
+
+## ÎNCHEIERE
+
+Un container e un proces cu namespaces, cgroups și un filesystem în straturi. Nu există hardware nou, nu există hypervisor, nu există boot. Viteza vine din absența acestora.
+
+Securitatea vine din configurare corectă: capabilities minime, seccomp activ, fără `--privileged`, fără socket Docker montat, imagini distroless, `memory.oom.group=1`.
+
+`docker run --rm --cap-drop ALL --security-opt no-new-privileges nginx` — asta ar trebui să fie default-ul tău, nu `docker run nginx`.

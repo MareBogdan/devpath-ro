@@ -1,0 +1,248 @@
+---
+title: "Mașini Virtuale și Hypervisors: Cum rulezi un OS în interiorul altui OS"
+order: 15
+type: lesson
+module_index: 2
+duration: 16
+difficulty: 5
+---
+
+# Mașini Virtuale și Hypervisors: Cum rulezi un OS în interiorul altui OS
+
+## HOOK
+
+AWS întreține sute de mii de servere fizice. Când un server are nevoie de mentenanță hardware, instanțele EC2 care rulează pe el nu pot fi oprite pur și simplu — clienții au aplicații în producție. Soluția: migrarea live a VM-urilor pe alt server fizic, în timp ce rulează, cu un downtime de 10-100ms. Atât de scurt încât TCP nu apucă să detecteze că s-a întâmplat ceva.
+
+Sau mai simplu: deschizi VirtualBox pe laptop, instalezi Ubuntu, și în câteva minute ai un kernel Linux complet izolat rulând pe Windows. Cum e posibil?
+
+Un container partajează kernel-ul host-ului — izolarea e o iluzie software prin namespaces și cgroups. O mașină virtuală rulează **propriul kernel**, izolat la nivel hardware. Orice vulnerabilitate din kernel-ul containerului tău poate compromite toate celelalte containere de pe server. Orice vulnerabilitate din kernel-ul VM-ului tău rămâne în VM.
+
+Diferența e hardware. Și pentru a o înțelege, trebuie să înțelegi de ce virtualizarea x86 era aproape imposibilă înainte de 2005.
+
+---
+
+## CONTEXT
+
+Procesorul x86 are patru inele de protecție (Ring 0-3). Kernel-ul rulează în Ring 0 cu acces complet la hardware. Aplicațiile rulează în Ring 3. Syscall-ul e tranziția controlată între ele — ~100-200 cicli CPU.
+
+Un container e un proces obișnuit în Ring 3. Task_struct-ul lui există în kernel-ul host-ului, mm_struct-ul lui folosește paginarea host-ului. Kernel-ul e partajat.
+
+O mașină virtuală are propriul kernel, propria IDT, propriile page tables, propriul CR3. Din perspectiva hardware-ului, guest OS-ul crede că deține mașina fizică. Hypervisorul îl lasă să creadă asta — cu excepțiile necesare.
+
+Diferența fundamentală în cifre: syscall = ~100-200 cicli. VM Exit (echivalentul unui syscall spre hypervisor) = **1000-5000 cicli**. Toată arhitectura virtualizării moderne e construită pentru a minimiza numărul de VM Exit-uri.
+
+---
+
+## MIEZUL
+
+### De ce virtualizarea x86 era imposibilă înainte de 2005
+
+Abordarea naivă: hypervisorul rulează în Ring 0, guest OS-ul forțat în Ring 1, aplicațiile guest în Ring 3. Când guest OS-ul execută o instrucțiune privilegiată (HLT, CLI, LGDT), procesorul generează un trap → hypervisorul îl prinde → emulează efectul → returnează controlul.
+
+Problema: **teorema Popek-Goldberg (1974)**. Pentru ca o arhitectură să fie virtualizabilă, instrucțiunile "sensibile" (care observă sau modifică starea privilegiată) trebuie să fie un subset al instrucțiunilor "privilegiate" (care generează trap în mod neprivilegiat). x86 viola flagrant această condiție prin **17 instrucțiuni sensibile non-privilegiate**.
+
+Exemplul clasic: `POPF` (Pop to EFLAGS). Guest OS-ul o executa pentru a dezactiva întreruperile (flag IF). Procesorul, văzând CPL=1 vs IOPL=0, ignora pur și simplu modificarea flag-ului IF — fără trap, fără eroare. Guest-ul credea că a intrat într-o secțiune critică. Când venea o întrerupere hardware, structurile kernel-ului guest se corupeau. Kernel panic.
+
+`SGDT` era și mai periculoasă: returna adresa **reală** a GDT-ului hypervisorului. Guest-ul detecta imediat că nu e singur pe mașină.
+
+**Două soluții software înainte de 2005:**
+
+**Binary Translation (VMware, 1999):** Un motor de traducere citea dinamic blocurile de cod ale guest-ului. Instrucțiunile sigure rulau nativ. Cele 17 instrucțiuni sensibile erau rescrise din zbor cu apeluri software controlate. Codul tradus era salvat în cache. Funcționa cu orice OS nemodificat, dar adăuga complexitate enormă și overhead vizibil.
+
+**Para-virtualizare (Xen, 2003):** Modifica kernel-ul guest la nivel de cod sursă. Toate instrucțiunile sensibile înlocuite cu **hypercalls** — apeluri directe la hypervisor, conceptual identice cu syscall-urile. Performanță aproape nativă. Dezavantaj: Windows cu sursă închisă nu putea fi modificat.
+
+---
+
+### Intel VT-x și AMD-V — virtualizarea hardware
+
+În 2005, Intel lansează VT-x (Virtualization Technology), AMD urmează cu AMD-V (SVM). Rezolvarea e elegantă: nu modifică inelele existente, adaugă o dimensiune nouă.
+
+**Două moduri ortogonale:**
+- **VMX Root**: domeniul hypervisorului. Control total.
+- **VMX Non-Root**: domeniul guest-ului. Inovația cheie: **guest OS-ul rulează în Ring 0 real**. Crede că deține hardware-ul. Dar procesorul interceptează automat instrucțiunile sensibile și forțează tranziția la hypervisor.
+
+Problema ring aliasing dispare complet. `POPF`, `SGDT` și celelalte 17 instrucțiuni generează acum trap controlat direct din siliciu.
+
+**VMCS — creierul virtualizării**
+
+Fiecare vCPU al fiecărui VM are un **VMCS (Virtual Machine Control Structure)** — o structură de 4KB în memorie, manipulată exclusiv prin instrucțiunile `VMREAD`/`VMWRITE`. Structura VMCS are patru zone:
+
+- **Guest-State Area**: registrele complete ale guest-ului (CR0, CR3, CR4, RSP, RIP, EFLAGS, segmente). Încărcate automat în CPU la VM Entry.
+- **Host-State Area**: RIP, RSP, CR3 ale hypervisorului. Restaurate automat la VM Exit.
+- **VM-Execution Control Fields**: bitmap-uri care configurează hardware-ul. Un bit setat = instrucțiunea respectivă generează VM Exit. Un bit nesetat = execuție nativă la viteză maximă.
+- **VM-Exit Information Fields**: motivul exact al ieșirii, codul de eroare, instrucțiunea care a cauzat trap-ul.
+
+**VM Entry** (`VMLAUNCH` la prima pornire, `VMRESUME` ulterior): hypervisorul cedează controlul guest-ului. Hardware-ul încarcă Guest-State Area direct în registrele fizice ale CPU.
+
+**VM Exit**: tranziție inversă, declanșată de instrucțiuni privilegiate, întreruperi hardware, scrieri în MSR-uri, execuția `CPUID`. Hardware-ul salvează starea guest-ului în Guest-State Area, încarcă starea hypervisorului din Host-State Area. Cost: **1000-5000 cicli** — de 10-50× mai scump decât un syscall.
+
+AMD-V folosește **VMCB (Virtual Machine Control Block)** în loc de VMCS — structură similară dar accesibilă direct prin pointeri, fără instrucțiuni speciale. Tranzițiile: `VMRUN`, `VMSAVE`, `VMLOAD`.
+
+**Nested Virtualization — hypervisor în interiorul unui VM**
+
+Vrei să rulezi KVM înăuntrul unei instanțe AWS EC2? Trei niveluri: **L0** (hypervisorul fizic bare-metal), **L1** (hypervisorul guest — KVM-ul tău), **L2** (VM-ul guest al lui L1). Hardware-ul fizic are o singură unitate VMX. L0 trebuie să simuleze complet comportamentul VMX pentru L1.
+
+KVM rezolvă asta cu trei structuri VMCS: `vmcs01` (L0 rulează L1, hardware real), `vmcs12` (structură virtuală pur software pe care L1 o populează când vrea să pornească L2) și `vmcs02` (construit de L0 combinând host-state din `vmcs01` cu guest-state din `vmcs12` — singurul VMCS hardware real pentru execuția L2). Orice VM Exit din L2 ajunge la L0, care decide: dacă e destinat L0, îl procesează direct; dacă e destinat L1, actualizează `vmcs12` și injectează o întrerupere în L1 simulând un VM Exit natural. Costul: zeci de mii de cicli suplimentari per eveniment față de o singură ierarhie.
+
+<FactBox>
+**Costul comparativ al tranzițiilor:**
+- Syscall (Ring 3 → Ring 0): ~100-200 cicli CPU
+- VM Exit (VMX Non-Root → VMX Root): **1000-5000 cicli CPU**
+- VMCS dimensiune: 4KB per vCPU
+- AWS Nitro overhead total: **< 1%** din CPU (față de ~15% cu Xen/Dom0 clasic)
+- Consolidare tipică: **20-100 VM-uri** per server fizic
+</FactBox>
+
+---
+
+### Virtualizarea memoriei — EPT și 24 de accese
+
+Guest OS-ul crede că gestionează adrese fizice. Din perspectiva host-ului, aceste "adrese fizice" sunt de fapt virtuale. Rezultă trei niveluri de adresare:
+
+- **GVA** (Guest Virtual Address): văzută de procesele din VM
+- **GPA** (Guest Physical Address): ce crede guest OS-ul că e fizic
+- **HPA** (Host Physical Address): adresa fizică reală din RAM
+
+**Shadow Page Tables (înainte de EPT):** Hypervisorul menținea tabele de pagini shadow care mapau direct GVA→HPA. Fiecare scriere în CR3 de către guest = VM Exit. Fiecare `mmap()`, page fault, eliberare de memorie = VM Exit. Pe sisteme cu ritm ridicat de creare/distrugere de procese: paralizie completă.
+
+**EPT (Extended Page Tables) Intel / NPT AMD:** Hardware-ul MMU parcurge nativ **două ierarhii de page tables simultan**. VMCS conține un pointer suplimentar **EPTP** (EPT Pointer) pe lângă CR3. Guest OS-ul scrie liber în CR3 — zero VM Exit-uri pentru context switching. EPT mapează GPA→HPA, gestionat exclusiv de hypervisor. **EPT Violation** = echivalentul unui page fault pentru nivelul GPA→HPA.
+
+**Costul unui TLB miss cu EPT — calcul exact:**
+
+Fiecare nivel de page table al guest-ului (GVA→GPA) necesită citirea unei adrese GPA. Fiecare adresă GPA trebuie tradusă prin EPT (4 niveluri). Cu paginare pe 4 niveluri (PML4→PDPT→PD→PT):
+
+```
+4 niveluri guest × 4 niveluri EPT per nivel = 16 accese
++ 4 accese finale pentru traducerea GPA a datelor propriu-zise
+= până la 24 accese de memorie
+```
+
+Față de **4 accese** pe bare-metal. De aceea serverele de virtualizare folosesc **hugepages de 2MB sau 1GB** — reduc nivelurile de paginare și factorul multiplicativ EPT dramatic.
+
+**VPID (Virtual Processor ID):** Tag hardware unic per VM în TLB. Fără VPID, fiecare VM Entry/Exit forța flush complet al TLB. Cu VPID, intrările TLB ale guest-ului sunt păstrate între comutări — eliminând costul reconstrucției 2D Page Walks la reluarea execuției.
+
+<CosmoHint emotion="thinking">
+Shadow Page Tables vs EPT e un trade-off clasic. Shadow PT elimina al doilea nivel de page walk (direct GVA→HPA), deci TLB miss-urile erau mai ieftine. Dar genera zeci de mii de VM Exit-uri pentru fiecare modificare a tabelelor de pagini ale guest-ului. EPT inversează compromisul: zero VM Exit-uri pentru gestionarea memoriei, dar TLB miss-urile costă de 6× mai mult. Pe workload-urile moderne cu ritm mare de context switching, EPT câștigă clar.
+</CosmoHint>
+
+---
+
+### Virtualizarea I/O — de la emulare la VirtIO
+
+**Emulare completă:** Hypervisorul simulează hardware real (Realtek RTL8139, IDE disk). Guest-ul folosește drivere native nemodificate. Fiecare scriere MMIO a driverului = EPT Violation = VM Exit = QEMU decodifică instrucțiunea = emulează hardware-ul simulat = VM Entry. Un singur pachet de rețea: zeci de VM Exit-uri independente. Rezultat: **~2.8 Gbps pe un link de 10 Gbps**, 85% utilizare CPU pe host. Inacceptabil în producție.
+
+**VirtIO — para-virtualizare I/O:** Guest-ul încarcă drivere specializate (virtio-net, virtio-blk) care știu că rulează în VM. Comunicarea se face prin **Virtqueue** — structură de memorie partajată cu trei zone:
+
+- **Descriptor Area**: lista bufferelor (adrese GPA + dimensiuni)
+- **Available Ring**: controlat de driver (guest) — indecșii descriptorilor pregătiți
+- **Used Ring**: controlat de backend (host) — confirmări după procesare
+
+Guest-ul populează zeci de descriptori, apoi face **un singur VM Exit** (scriere MMIO ca "sonerie" pentru host). Host-ul citește toți descriptorii din memoria EPT fără copieri suplimentare. Rezultat: **~9.2 Gbps pe un link de 10 Gbps**, 28% utilizare CPU — față de 85% la emulare.
+
+**vhost-net:** Elimină round-trip-ul prin QEMU userspace pentru networking. Un worker thread direct în kernel procesează Virtqueue-urile, conectând direct memoria guest la bridge-ul de rețea Linux. Latență redusă cu ~30%.
+
+**VFIO și PCI Passthrough:** Aloci un device fizic (GPU, NIC 10GbE) direct unui VM. Performanță 100% nativă. Condiție: **IOMMU activ** (Intel VT-d / AMD-Vi). Fără IOMMU, device-ul ar face DMA direct la adrese fizice neautorizate, citind memoria altor VM-uri sau a host-ului. IOMMU validează fiecare transfer DMA, traducând GPA→HPA în hardware. Limitare: device-ul dispare complet din inventarul host-ului, nu poate fi partajat.
+
+**SR-IOV:** Un NIC fizic prezintă mai multe **Virtual Functions** (VF) independente pe magistrala PCIe. Fiecare VM primește propria VF cu cozi TX/RX dedicate. Multiplexarea pachetelor se face în ASIC-ul NIC-ului, fără intervenția CPU-ului host. Latență aproape nativă, partajabil între zeci de VM-uri.
+
+---
+
+### KVM — Linux ca hypervisor Type 1
+
+**Type 1 (bare-metal):** Rulează direct pe hardware — VMware ESXi, Xen, Microsoft Hyper-V. Nu există OS host.
+
+**Type 2 (hosted):** Rulează ca aplicație pe un OS existent — VirtualBox, VMware Workstation.
+
+**KVM (Kernel-based Virtual Machine):** Hibrid. Două module kernel: `kvm.ko` (logica generică de virtualizare) și `kvm-intel.ko` / `kvm-amd.ko` (suport hardware specific). Linux însuși devine hypervisor Type 1.
+
+Din perspectiva kernel-ului Linux, un VM KVM cu 4 vCPU-uri e un proces QEMU cu 4 thread-uri Pthread — 4 `task_struct`-uri. Beneficiu imediat: schedulingul vCPU-urilor urmează CFS, memoria respectă setările NUMA, limitarea resurselor se face cu cgroups. Gratis, fără cod suplimentar.
+
+Interfața KVM: `/dev/kvm`, folosit prin `ioctl()`:
+
+```c
+int kvm_fd = open("/dev/kvm", O_RDWR);
+int vm_fd  = ioctl(kvm_fd, KVM_CREATE_VM, 0);
+// configurează regiunile de memorie GPA→HPA:
+ioctl(vm_fd, KVM_SET_USER_MEMORY_REGION, &region);
+int vcpu_fd = ioctl(vm_fd, KVM_CREATE_VCPU, 0);
+// buclă infinită: VM Entry + așteptare VM Exit:
+while (1) ioctl(vcpu_fd, KVM_RUN, 0);
+```
+
+QEMU gestionează emularea device-urilor. KVM gestionează virtualizarea CPU și memorie. Împreună: overhead total pe workload server tipic = **2-8% CPU**.
+
+---
+
+### Memory Overcommit — mai multă RAM virtuală decât RAM fizică
+
+Un server cu 256GB RAM poate prezenta VM-urilor sale 384GB total — ratio de **1.5:1**. În datacenter-e cu workload-uri stabile, se merge până la **3:1**. Cum e posibil fără ca totul să cadă?
+
+**KSM (Kernel Samepage Merging):** Daemonul `ksmd` scanează periodic paginile fizice ale tuturor VM-urilor, calculează hash-uri și compară conținutul byte cu byte. Când găsește 50 de VM-uri care au aceeași pagină cu binarul `/boot/vmlinuz`, anulează 49 din cele 50 de mapări EPT și le redirectează la un singur HPA marcat **Copy-on-Write**. La prima scriere, se creează o copie privată. Economie tipică pe workload-uri OS similare: **30-50% din RAM fizică**. Trade-off: overhead CPU constant pentru scanarea milioanelor de pagini.
+
+**Memory Balloon Driver (`virtio-balloon`):** Când host-ul rămâne fără RAM fizic, trimite un semnal prin canalul VirtIO la driverul `virtio-balloon` din kernel-ul guest. Driverul — rulând cu drepturi depline în Ring 0 guest — alocă intenționat pagini din pool-ul intern al guest-ului, blocându-le, și raportează adresele GPA hypervisorului. Acesta distruge mapările EPT corespunzătoare și eliberează HPA-urile pentru alți VM-uri. Guest-ul "sărăcește" controlat, rămânând funcțional. Procesul e reversibil: când presiunea memoriei scade, balloon se dezumflă și paginile revin.
+
+---
+
+### Live Migration — 100ms de downtime
+
+**Condiție prealabilă:** Live migration migrează RAM și starea CPU. Discul trebuie să fie deja accesibil de pe ambele servere — prin **shared storage** (NFS, iSCSI, Ceph block storage centralizat). Fără disk partajat, mutarea RAM-ului și CPU-ului e inutilă: noul server nu are de unde citi sistemul de fișiere al VM-ului.
+
+Pre-copy migration (algoritmul standard QEMU):
+
+**Faza 1 — Bulk transfer:** Copierea întregii memorii VM (ex. 16GB) la serverul destinație, în timp ce VM-ul continuă să ruleze. Paginile modificate în timpul transferului devin "dirty".
+
+**Faza 2 — Iterații dirty pages:** Hardware-ul Intel **PML (Page Modification Logging)** loghează automat paginile modificate fără VM Exit-uri. Pe hardware vechi: KVM marchează EPT ca write-protected, detectează scrierile prin EPT Violations. Re-trimiterea paginilor dirty. Se repetă până când rata de murdărire < rata de transfer.
+
+**Faza 3 — Stop-and-copy:** VM-ul e suspendat (stun phase). Se transferă ultimele pagini dirty + starea completă CPU (regiștri, VMCS, APIC state). Destinația reconstruiește VMCS și reia execuția. Guest-ul emite un **gratuitous ARP** pentru a notifica switch-urile că adresa MAC s-a mutat.
+
+**Downtime total: 10-100ms** — sub timeout-ul unui retry TCP Layer 4.
+
+Post-copy migration: VM-ul pornește imediat la destinație cu starea CPU transferată, fără memorie. Paginile lipsă cerute on-demand de la sursă (similar page fault la distanță). Ideal pentru VM-uri cu ritm mare de scrieri (unde faza 2 nu converge niciodată). Dezavantaj critic: dacă legătura de rețea cade după stun phase, VM-ul e corupt irecuperabil — sursă și destinație au stări inconsistente.
+
+<CosmoHint emotion="thinking">
+AWS Nitro System a mutat complet logica de networking, stocare și firewall de pe CPU-urile principale pe carduri PCIe dedicate cu ASIC-uri hardware (Nitro Cards). Hypervisorul software KVM rămas pe CPU-ul principal face exclusiv virtualizarea CPU și memorie. Rezultatul: overhead de virtualizare **< 1%** pe instanțele C5/M5 față de ~15% cu arhitectura Xen/Dom0 clasică. Clienții primesc practic performanță bare-metal. Nitro implementează și un control hardware care blochează accesul la shell-ul host chiar și pentru angajații Amazon.
+</CosmoHint>
+
+---
+
+### Securitate și VM Escape
+
+**CVE-2015-3456 (VENOM):** Buffer overflow în emulatorul de floppy disk din QEMU. Controller-ul FDC avea un buffer intern de 512 bytes (`fdctrl->fifo`). Un guest cu acces root putea trimite comenzi I/O care depășeau limita buffer-ului, suprascriind memoria procesului QEMU pe host. Rezultat: execuție de cod arbitrar pe host cu privilegiile QEMU. Afecta **toți hypervisorii care foloseau codul QEMU**: KVM, Xen, VirtualBox. Fix: validare corectă a limitelor buffer-ului.
+
+**CVE-2019-14378:** Heap overflow în stack-ul SLiRP (networking emulat) din QEMU. Funcția `ip_reass()` pentru reasamblarea pachetelor IP fragmentate nu valida dimensiunea totală. Un guest putea trimite pachete crafted care cauzau overflow pe heap — DoS sau potențial execuție de cod pe host.
+
+**L1TF (L1 Terminal Fault):** Atac side-channel pe cache-ul L1. Cu SMT/HyperThreading activ, două thread-uri de pe același core fizic partajează cache-ul L1. Un VM putea face timing measurements pe citirile din L1 pentru a extrage date dintr-un al doilea VM care rula pe același core fizic — chiar dacă EPT izola adresele fizice. Mitigare: **Core Scheduling** — KVM nu alocă thread-uri din VM-uri diferite pe același core fizic.
+
+**AMD SEV-SNP (Secure Encrypted Virtualization + Secure Nested Paging):** Criptare transparentă a memoriei VM-ului la nivel hardware, cu cheie unică per VM gestionată de AMD Secure Processor. Hypervisorul din Ring 0 citește din RAM-ul guest-ului date criptate — nu poate vedea conținutul real. SNP adaugă protecție și pentru page tables, prevenind injectarea de date modificate. Disponibil din EPYC Gen 3 (Milan). Echivalent Intel: **TDX (Trust Domain Extensions)** cu MKTME.
+
+---
+
+## REVEAL
+
+Comparație completă a mecanismelor de virtualizare:
+
+{/* TABLE */}
+
+| | Container | VM (emulare) | VM (KVM+VirtIO) | VM (SR-IOV/Passthrough) |
+|---|---|---|---|---|
+| **Izolare kernel** | Nu (partajat) | Da (complet) | Da (complet) | Da (complet) |
+| **Overhead CPU** | ~0% | 10-50× | **2-8%** | 2-8% |
+| **VM Exit cost** | N/A | 1000-5000 cicli | 1000-5000 cicli | Minim |
+| **TLB miss** | 4 accese | 24 accese (EPT) | 24 accese (EPT) | 24 accese (EPT) |
+| **Throughput rețea** | ~100% | ~30% (2.8/10G) | **~97%** (9.2/10G) | ~100% |
+| **Latență rețea** | ~0.05ms | N/A | ~0.12-0.18ms | ~0.05ms |
+| **Live migration** | Nu nativ | Da | Da | Da |
+| **Snapshots** | Parțial | Da | Da | Da |
+| **Portabilitate** | Kernel-dependent | Orice OS | Orice OS | Orice OS |
+
+AWS Nitro < 1% overhead demonstrează că granița dintre VM și bare-metal devine invizibilă când mută logica hypervisorului din software în ASIC-uri hardware dedicat. Viitorul: AMD SEV-SNP și Intel TDX fac RAM-ul guest-ului opac chiar și pentru hypervisor — zero trust până la nivel de siliciu.
+
+---
+
+## ÎNCHEIERE
+
+Virtualizarea x86 a necesitat două soluții software ingenioase (binary translation, para-virtualizare) și ulterior o revizuire fundamentală a ISA-ului (VT-x/AMD-V) pentru a deveni practică. KVM transformă Linux însuși într-un hypervisor Type 1, cu un overhead de 2-8% față de bara metal.
+
+Câteva numere de ținut minte: VM Exit = 5000 cicli. EPT TLB miss = 24 accese. VirtIO = 97% din throughput nativ. Live migration downtime = 100ms. AWS Nitro overhead = < 1%.
+
+Containerele sunt mai rapide. VM-urile sunt mai sigure. Produsul maturat e combinația lor: Firecracker (AWS), gVisor (Google) — microVM-uri care pornesc în < 125ms cu izolarea unui VM și densitatea unui container.

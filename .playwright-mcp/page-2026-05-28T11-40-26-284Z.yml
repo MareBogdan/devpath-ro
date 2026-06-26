@@ -1,0 +1,146 @@
+- generic [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e3]:
+      - generic [ref=e4]:
+        - link [ref=e5] [cursor=pointer]:
+          - /url: /dashboard#cursuri
+          - img [ref=e6]
+        - link "DevPath.ro" [ref=e8] [cursor=pointer]:
+          - /url: /dashboard
+          - generic [ref=e9]: DevPath.ro
+        - generic [ref=e10]:
+          - generic [ref=e11]: 0 XP
+          - button "Schimbă tema" [ref=e12] [cursor=pointer]:
+            - img [ref=e13]
+          - button "T" [ref=e15] [cursor=pointer]:
+            - generic [ref=e17]: T
+    - main [ref=e18]:
+      - generic [ref=e54]:
+        - generic [ref=e56]:
+          - navigation [ref=e57]:
+            - link "Hardware & Fizică" [ref=e58] [cursor=pointer]:
+              - /url: /courses?c=hardware-fizica
+              - img [ref=e59]
+              - generic [ref=e61]: Hardware & Fizică
+            - img [ref=e62]
+            - generic [ref=e64]: "BOSS: Alarma de Seif"
+          - generic [ref=e65]:
+            - generic [ref=e66]: 16 din 30
+            - generic [ref=e67]:
+              - img [ref=e68]
+              - text: Boss Fight
+            - button "Adaugă la favorite" [ref=e74] [cursor=pointer]:
+              - img [ref=e75]
+        - generic [ref=e78]:
+          - 'heading "BOSS: Alarma de Seif" [level=1] [ref=e79]'
+          - generic [ref=e83]:
+            - generic [ref=e84]:
+              - generic [ref=e85]: VAULT_SEC_SYS // LEVEL_3_CLEARANCE
+              - generic [ref=e252]: WAVE 1/3
+              - generic [ref=e88]: BREACH ATTEMPT ACTIVE
+            - generic [ref=e90]:
+              - img "Vault sealed" [ref=e91]
+              - paragraph [ref=e120]: BOSS FIGHT
+              - heading "A L A R M A D E S E I F" [level=2] [ref=e121]:
+                - generic [ref=e122]: A
+                - generic [ref=e123]: L
+                - generic [ref=e124]: A
+                - generic [ref=e125]: R
+                - generic [ref=e126]: M
+                - generic [ref=e127]: A
+                - generic [ref=e129]: D
+                - generic [ref=e130]: E
+                - generic [ref=e132]: S
+                - generic [ref=e133]: E
+                - generic [ref=e134]: I
+                - generic [ref=e135]: F
+              - generic [ref=e136]:
+                - generic [ref=e137]: 3 straturi de securitate
+                - generic [ref=e138]: Logică booleană
+                - generic [ref=e139]: NAND universal
+              - paragraph [ref=e140]: Sistemul de securitate folosește 3 straturi de porți logice. Fiecare strat e mai complex decât precedentul. Găsește combinația care deschide seiful. 3 minute pe ceas.
+              - button "Începe Infiltrarea" [active] [ref=e141] [cursor=pointer]:
+                - img [ref=e142]
+                - text: Începe Infiltrarea
+          - generic [ref=e144]:
+            - generic [ref=e145]:
+              - generic "test" [ref=e147]:
+                - generic [ref=e148]: T
+              - generic [ref=e149]:
+                - img [ref=e150]
+                - text: Ești singurul online
+            - button "Marchează completat" [ref=e156] [cursor=pointer]:
+              - img [ref=e157]
+              - text: Marchează completat
+          - link "Lecția următoare Half-Adder" [ref=e160] [cursor=pointer]:
+            - /url: /courses/hardware-fizica/adb4d538-93d5-4ee8-b1ce-fa565aa6138b
+            - generic [ref=e161]:
+              - paragraph [ref=e162]: Lecția următoare
+              - paragraph [ref=e163]: Half-Adder
+            - img [ref=e164]
+          - generic [ref=e166]:
+            - generic [ref=e167]:
+              - img [ref=e168]
+              - heading "Trimite proiectul tău" [level=2] [ref=e170]
+            - paragraph [ref=e171]: Descrie ce ai construit. Proiectul tău va fi vizibil pe profilul tău public ca parte din portofoliu.
+            - generic [ref=e172]:
+              - generic [ref=e173]:
+                - generic [ref=e174]: Titlu *
+                - textbox "Titlu *" [ref=e175]:
+                  - /placeholder: ex. Clasificator de imagini cu CNN
+              - generic [ref=e176]:
+                - text: Descriere
+                - textbox "Descriere" [ref=e177]:
+                  - /placeholder: Ce ai construit? Ce ai învățat? Ce tehnologii ai folosit?
+              - generic [ref=e178]:
+                - generic [ref=e180]:
+                  - img [ref=e181]
+                  - text: Link GitHub (opțional)
+                - textbox "Link GitHub (opțional)" [ref=e184]:
+                  - /placeholder: https://github.com/username/repo
+              - button "Trimite proiectul" [disabled] [ref=e185]:
+                - img [ref=e186]
+                - text: Trimite proiectul
+        - generic [ref=e190]:
+          - heading "Comentarii" [level=3] [ref=e191]:
+            - img [ref=e192]
+            - text: Comentarii
+          - generic [ref=e194]:
+            - img [ref=e195]
+            - generic [ref=e198]:
+              - paragraph [ref=e199]: Comentariile se deblochează la Nivelul 3
+              - paragraph [ref=e200]: Completează mai multe lecții pentru a ajunge la nivelul Învățăcel și a putea comenta.
+          - paragraph [ref=e201]: Niciun comentariu încă. Fii primul!
+        - generic "AI Coach" [ref=e202]:
+          - generic [ref=e203]:
+            - img [ref=e205]
+            - generic [ref=e208]:
+              - paragraph [ref=e209]: AI Coach
+              - paragraph [ref=e210]: "BOSS: Alarma de Seif"
+            - button "Dezactivează vocea AI" [ref=e211] [cursor=pointer]:
+              - img [ref=e212]
+            - button "Închide AI Coach" [ref=e216] [cursor=pointer]:
+              - img [ref=e217]
+          - generic [ref=e221]:
+            - img [ref=e223]
+            - paragraph [ref=e227]:
+              - text: Bună! Sunt
+              - strong [ref=e228]: AI Coach
+              - text: "-ul tău pentru lecția"
+              - strong [ref=e229]: "\"BOSS: Alarma de Seif\""
+              - text: . Pune-mi orice întrebare despre ce citești! 😊
+          - generic [ref=e230]:
+            - textbox "Pune o întrebare..." [ref=e231]
+            - button "Vorbește cu AI Coach" [ref=e232] [cursor=pointer]:
+              - img [ref=e233]
+            - button [disabled] [ref=e236]:
+              - img [ref=e237]
+        - button "Deschide AI Coach" [ref=e240] [cursor=pointer]:
+          - img [ref=e241]
+          - text: AI Coach
+        - link "Lecția anterioară Alt ←" [ref=e247] [cursor=pointer]:
+          - /url: /courses/hardware-fizica/f6e3065c-153f-45af-94c1-2f1d8e980f0e
+          - img [ref=e248]
+          - generic [ref=e250]: Lecția anterioară
+          - generic [ref=e251]: Alt ←
+  - alert [ref=e53]

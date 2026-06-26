@@ -1,0 +1,396 @@
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - generic [ref=e4]:
+      - link [ref=e5] [cursor=pointer]:
+        - /url: /dashboard#cursuri
+        - img [ref=e6]
+      - link "DevPath.ro" [ref=e8] [cursor=pointer]:
+        - /url: /dashboard
+        - generic [ref=e9]: DevPath.ro
+      - generic [ref=e10]:
+        - generic [ref=e11]: 0 XP
+        - button "Schimbă tema" [ref=e12] [cursor=pointer]:
+          - img [ref=e13]
+        - button "T" [ref=e15] [cursor=pointer]:
+          - generic [ref=e17]: T
+  - main [ref=e18]:
+    - generic [ref=e20]:
+      - generic [ref=e22]:
+        - navigation [ref=e23]:
+          - link "Hardware & Fizică" [ref=e24] [cursor=pointer]:
+            - /url: /courses?c=hardware-fizica
+            - img [ref=e25]
+            - generic [ref=e27]: Hardware & Fizică
+          - img [ref=e28]
+          - generic [ref=e30]: NAND — cărămida Lego universală
+        - generic [ref=e31]:
+          - generic [ref=e32]: 15 din 30
+          - generic [ref=e33]:
+            - img [ref=e34]
+            - text: Lecție
+          - generic [ref=e37]:
+            - img [ref=e38]
+            - text: ~18 min
+          - button "Adaugă la favorite" [ref=e41] [cursor=pointer]:
+            - img [ref=e42]
+      - generic [ref=e45]:
+        - heading "NAND — cărămida Lego universală" [level=1] [ref=e46]
+        - generic [ref=e48]:
+          - heading "NAND — cărămida Lego universală" [level=1] [ref=e49]
+          - heading "HOOK" [level=2] [ref=e50]
+          - paragraph [ref=e51]: Tocmai am spus că există o singură poartă din care le poți construi pe toate celelalte.
+          - paragraph [ref=e52]: Nu e o metaforă. E matematică pură.
+          - paragraph [ref=e53]: Procesorul din telefonul tău — cu 28 de miliarde de tranzistoare — poate fi descris în întregime ca o rețea de porți NAND interconectate. XOR-ul din lecția anterioară? NAND. Inversor? NAND. Jumătatea de sumator care adună biți? Tot NAND.
+          - paragraph [ref=e54]: Privit dintr-un satelit imaginar deasupra siliciului, un cip modern e o mare uniformă de un singur tip de element — copiat de miliarde de ori, conectat în milioane de combinații diferite. Aceeași cărămidă. Construcții diferite. Orice calcul posibil.
+          - paragraph [ref=e55]: Dar de ce NAND și nu altceva? De ce nu AND, nu OR, nu XOR?
+          - paragraph [ref=e56]: Răspunsul e fizică. Și e mai elegant decât te-ai aștepta.
+          - heading "CONTEXT" [level=2] [ref=e57]
+          - paragraph [ref=e58]: NAND înseamnă NOT-AND. Ieșirea e 0 doar când toate intrările sunt 1 — în orice altă situație, ieșirea e 1.
+          - paragraph [ref=e59]: "Gândește-te la un seif cu două chei de securitate. Alarma se oprește doar când ambele chei sunt introduse simultan. Dacă lipsește una — oricare — alarma rămâne activă. Asta e NAND: output 0 doar când toți spun DA în același timp."
+          - table [ref=e61]:
+            - rowgroup [ref=e62]:
+              - row "A B NAND" [ref=e63]:
+                - columnheader "A" [ref=e64]
+                - columnheader "B" [ref=e65]
+                - columnheader "NAND" [ref=e66]
+            - rowgroup [ref=e67]:
+              - row "0 0 1" [ref=e68]:
+                - cell "0" [ref=e69]
+                - cell "0" [ref=e70]
+                - cell "1" [ref=e71]:
+                  - strong [ref=e72]: "1"
+              - row "0 1 1" [ref=e73]:
+                - cell "0" [ref=e74]
+                - cell "1" [ref=e75]
+                - cell "1" [ref=e76]:
+                  - strong [ref=e77]: "1"
+              - row "1 0 1" [ref=e78]:
+                - cell "1" [ref=e79]
+                - cell "0" [ref=e80]
+                - cell "1" [ref=e81]:
+                  - strong [ref=e82]: "1"
+              - row "1 1 0" [ref=e83]:
+                - cell "1" [ref=e84]
+                - cell "1" [ref=e85]
+                - cell "0" [ref=e86]:
+                  - strong [ref=e87]: "0"
+          - paragraph [ref=e88]: "Un singur caz produce zero. Restul trei produc unu. Poarta e pesimistă: dacă măcar un semnal e 0, ieșirea rămâne 1. Doar când toți spun „da\" simultan, ieșirea cade la 0."
+          - paragraph [ref=e89]: Această asimetrie e cheia universalității sale.
+          - heading "MIEZUL" [level=2] [ref=e90]
+          - heading "4 tranzistoare. Nu 6, nu 8 — 4." [level=3] [ref=e91]
+          - paragraph [ref=e92]: "Orice poartă logică CMOS are două rețele: una care trage ieșirea spre 1 (rețeaua pull-up, cu tranzistoare PMOS) și una care o trage spre 0 (rețeaua pull-down, cu tranzistoare NMOS)."
+          - paragraph [ref=e93]: "La NAND cu 2 intrări:"
+          - list [ref=e94]:
+            - listitem [ref=e95]:
+              - strong [ref=e96]: Pull-down
+              - text: ": 2 tranzistoare NMOS"
+              - strong [ref=e97]: în serie
+              - text: — ieșirea ajunge la 0 doar dacă ambii conduc simultan (A=1 ȘI B=1)
+            - listitem [ref=e98]:
+              - strong [ref=e99]: Pull-up
+              - text: ": 2 tranzistoare PMOS"
+              - strong [ref=e100]: în paralel
+              - text: — ieșirea ajunge la 1 dacă oricare conduce (A=0 SAU B=0)
+          - paragraph [ref=e101]: "Total: 4 tranzistoare. Cea mai compactă structură posibilă pentru o funcție cu două intrări."
+          - paragraph [ref=e102]:
+            - text: Prin contrast, o poartă AND pură nu există în CMOS. Ca să obții AND, pui un NAND (4 tranzistoare) urmat de un inversor NOT (2 tranzistoare) =
+            - strong [ref=e103]: 6 tranzistoare și două etape de întârziere
+            - text: . La fel pentru OR.
+          - paragraph [ref=e104]: NAND și NOR sunt primitivele fizice reale. AND și OR sunt derivate.
+          - generic [ref=e106]:
+            - img [ref=e108]
+            - paragraph [ref=e111]: Creierul uman percepe AND și OR ca operații "naturale", intuitive. Fizica siliciului nu e de acord — NAND și NOR sunt singurele porți care se implementează direct în CMOS cu 4 tranzistoare. AND și OR necesită întotdeauna un etaj extra de inversie.
+          - heading "De ce NAND a câștigat față de NOR" [level=3] [ref=e112]
+          - paragraph [ref=e113]: Matematic, NAND și NOR sunt echivalente. Ambele sunt universale. Dar în orice procesor modern, algoritmii de sinteză preferă copleșitor NAND.
+          - paragraph [ref=e114]: "Motivul: electronii și golurile nu se mișcă la fel de repede."
+          - paragraph [ref=e115]:
+            - text: În tranzistoarele NMOS, curentul e purtat de
+            - strong [ref=e116]: electroni
+            - text: "— particule cu masă efectivă mică. Mobilitate:"
+            - strong [ref=e117]: 1400 cm²/V·s
+            - text: .
+          - paragraph [ref=e118]:
+            - text: În tranzistoarele PMOS, curentul e purtat de
+            - strong [ref=e119]: goluri
+            - text: "— absențe de electroni din rețeaua cristalină, care se mișcă „prin sărituri\". Mobilitate:"
+            - strong [ref=e120]: 450 cm²/V·s
+            - text: .
+          - paragraph [ref=e121]: Golurile sunt de ~3 ori mai lente decât electronii. PMOS e mai lent, mai rezistiv.
+          - paragraph [ref=e122]: "Acum compară arhitecturile:"
+          - list [ref=e123]:
+            - listitem [ref=e124]:
+              - strong [ref=e125]: NAND
+              - text: ": NMOS rapizi sunt în serie la pull-down, PMOS lenți sunt în paralel la pull-up. Conexiunea paralelă compensează rezistența ridicată a fiecărui PMOS."
+            - listitem [ref=e126]:
+              - strong [ref=e127]: NOR
+              - text: ": PMOS lenți sunt în"
+              - strong [ref=e128]: serie
+              - text: la pull-up. Rezistențele se adună. Poarta devine semnificativ mai lentă la tranziția de la 0 la 1.
+          - paragraph [ref=e129]: Ca să faci o poartă NOR la fel de rapidă ca o NAND echivalentă, trebuie să lățești tranzistoarele PMOS de ~4 ori — mai mult siliciu, mai multă capacitate parazită, mai mult consum.
+          - paragraph [ref=e130]:
+            - text: Inginerii de la Stanford au formalizat asta în
+            - strong [ref=e131]: Teoria Efortului Logic
+            - text: "— o metodă de a estima penalitatea de viteză a fiecărei porți:"
+          - table [ref=e133]:
+            - rowgroup [ref=e134]:
+              - row "Poartă Efort logic" [ref=e135]:
+                - columnheader "Poartă" [ref=e136]
+                - columnheader "Efort logic" [ref=e137]
+            - rowgroup [ref=e138]:
+              - row "NOT (inversor) 1.00" [ref=e139]:
+                - cell "NOT (inversor)" [ref=e140]
+                - cell "1.00" [ref=e141]
+              - row "NAND2 1.33" [ref=e142]:
+                - cell "NAND2" [ref=e143]
+                - cell "1.33" [ref=e144]:
+                  - strong [ref=e145]: "1.33"
+              - row "NOR2 1.66" [ref=e146]:
+                - cell "NOR2" [ref=e147]
+                - cell "1.66" [ref=e148]:
+                  - strong [ref=e149]: "1.66"
+          - paragraph [ref=e150]: NOR e cu 25% mai „greu" decât NAND. La miliarde de porți, diferența decide dacă telefonul tău ține o zi sau două.
+          - generic [ref=e151]:
+            - generic [ref=e152]:
+              - 'img "Cosmo mascot: thinking"':
+                - img
+            - paragraph [ref=e155]: Efortul logic e ca rezistența aerodinamică în Formula 1. O poartă cu efort mai mare „frânează" semnalul. Compilatoarele hardware (Synopsys Design Compiler) construiesc din NAND-uri în ~90% din cazuri tocmai pentru că minimizează această rezistență cumulată pe zeci de etaje logice.
+          - heading "Completitudinea funcțională — demonstrația matematică" [level=3] [ref=e156]
+          - paragraph [ref=e157]:
+            - text: Henry Sheffer a arătat în 1913 că există o funcție logică unică din care pot fi derivate toate celelalte. A numit-o
+            - emphasis [ref=e158]: Sheffer stroke
+            - text: — ce azi cunoaștem drept NAND.
+          - paragraph [ref=e159]:
+            - text: Demonstrația riguroasă a venit în 1941, de la matematicianul Emil Post, prin
+            - strong [ref=e160]: Teorema de Completitudine
+            - text: .
+          - paragraph [ref=e161]: Post a definit 5 clase de funcții „limitate". Un operator care scapă din toate 5 poate genera orice funcție booleană posibilă — fără excepție.
+          - paragraph [ref=e162]: "Clasele lui Post și cum le violează NAND:"
+          - table [ref=e164]:
+            - rowgroup [ref=e165]:
+              - row "Clasa Regula NAND" [ref=e166]:
+                - columnheader "Clasa" [ref=e167]
+                - columnheader "Regula" [ref=e168]
+                - columnheader "NAND" [ref=e169]
+            - rowgroup [ref=e170]:
+              - row "T₀ Dacă toate intrările = 0, ieșirea = 0 NAND(0,0) = 1 ✗" [ref=e171]:
+                - cell "T₀" [ref=e172]
+                - cell "Dacă toate intrările = 0, ieșirea = 0" [ref=e173]
+                - cell "NAND(0,0) = 1 ✗" [ref=e174]:
+                  - text: NAND(0,0) =
+                  - strong [ref=e175]: "1"
+                  - text: ✗
+              - row "T₁ Dacă toate intrările = 1, ieșirea = 1 NAND(1,1) = 0 ✗" [ref=e176]:
+                - cell "T₁" [ref=e177]
+                - cell "Dacă toate intrările = 1, ieșirea = 1" [ref=e178]
+                - cell "NAND(1,1) = 0 ✗" [ref=e179]:
+                  - text: NAND(1,1) =
+                  - strong [ref=e180]: "0"
+                  - text: ✗
+              - 'row "M Funcție monotonă — o intrare crește → ieșirea nu scade (0,1)→(1,1): ieșirea scade de la 1 la 0 ✗" [ref=e181]':
+                - cell "M" [ref=e182]
+                - cell "Funcție monotonă — o intrare crește → ieșirea nu scade" [ref=e183]
+                - 'cell "(0,1)→(1,1): ieșirea scade de la 1 la 0 ✗" [ref=e184]'
+              - row "S Auto-duală — inversezi intrările → inversezi ieșirea NAND(1,0)=1, NAND(0,1)=1 (nu se schimbă) ✗" [ref=e185]:
+                - cell "S" [ref=e186]
+                - cell "Auto-duală — inversezi intrările → inversezi ieșirea" [ref=e187]
+                - cell "NAND(1,0)=1, NAND(0,1)=1 (nu se schimbă) ✗" [ref=e188]
+              - row "L Liniară — exprimabilă doar prin XOR și constante Conține înmulțire ascunsă ✗" [ref=e189]:
+                - cell "L" [ref=e190]
+                - cell "Liniară — exprimabilă doar prin XOR și constante" [ref=e191]
+                - cell "Conține înmulțire ascunsă ✗" [ref=e192]
+          - paragraph [ref=e193]:
+            - text: "NAND violează toate cele 5 clase simultan. Concluzie garantată de Post:"
+            - strong [ref=e194]: singur e suficient pentru orice funcție booleană posibilă.
+          - paragraph [ref=e195]: "Și iată cum construiești celelalte porți exclusiv din NAND:"
+          - paragraph [ref=e196]:
+            - strong [ref=e197]: NOT din 1 NAND
+            - text: "— legi ambele intrări la același semnal:"
+          - code [ref=e199]: A NAND A = NOT(A·A) = NOT(A)
+          - paragraph [ref=e200]:
+            - strong [ref=e201]: AND din 2 NAND
+            - text: "— NAND urmat de inversare:"
+          - code [ref=e203]: (A NAND B) NAND (A NAND B) = AND(A,B)
+          - paragraph [ref=e204]:
+            - strong [ref=e205]: OR din 3 NAND
+            - text: "— teorema De Morgan: A∨B = NOT(NOT(A)·NOT(B)):"
+          - code [ref=e207]: (A NAND A) NAND (B NAND B) = OR(A,B)
+          - paragraph [ref=e208]:
+            - strong [ref=e209]: XOR din 4 NAND
+            - text: "— rețeaua elegantă de 16 tranzistoare:"
+          - code [ref=e211]: N1 = A NAND B N2 = A NAND N1 N3 = B NAND N1 ieșire = N2 NAND N3 = A XOR B
+          - table [ref=e213]:
+            - rowgroup [ref=e214]:
+              - row "Poarta Porți NAND Tranzistoare totale" [ref=e215]:
+                - columnheader "Poarta" [ref=e216]
+                - columnheader "Porți NAND" [ref=e217]
+                - columnheader "Tranzistoare totale" [ref=e218]
+            - rowgroup [ref=e219]:
+              - row "NOT 1 4" [ref=e220]:
+                - cell "NOT" [ref=e221]
+                - cell "1" [ref=e222]
+                - cell "4" [ref=e223]
+              - row "AND 2 8" [ref=e224]:
+                - cell "AND" [ref=e225]
+                - cell "2" [ref=e226]
+                - cell "8" [ref=e227]
+              - row "OR 3 12" [ref=e228]:
+                - cell "OR" [ref=e229]
+                - cell "3" [ref=e230]
+                - cell "12" [ref=e231]
+              - row "XOR 4 16" [ref=e232]:
+                - cell "XOR" [ref=e233]
+                - cell "4" [ref=e234]
+                - cell "16" [ref=e235]
+              - row "NOR 4 16" [ref=e236]:
+                - cell "NOR" [ref=e237]
+                - cell "4" [ref=e238]
+                - cell "16" [ref=e239]
+          - paragraph [ref=e240]: Mai scump decât implementarea nativă — dar funcționează. Orice circuit din lume poate fi redus la o rețea de NAND-uri identice.
+          - heading "De la combinațional la secvențial — memoria din buclă" [level=3] [ref=e241]
+          - paragraph [ref=e242]:
+            - text: Toate porțile de până acum sunt
+            - strong [ref=e243]: combinaționale
+            - text: ": ieșirea depinde doar de intrarea curentă. Nu există memorie."
+          - paragraph [ref=e244]: Calculatoarele au nevoie de memorie. Și ea emerge din aceleași 4 tranzistoare, conectate diferit.
+          - paragraph [ref=e245]: Ia două porți NAND. Conectează ieșirea primeia la o intrare a celei de-a doua. Conectează ieșirea celei de-a doua înapoi la o intrare a primeia.
+          - paragraph [ref=e246]:
+            - text: Ai creat un
+            - strong [ref=e247]: SR Latch
+            - text: — primul bit de memorie.
+          - paragraph [ref=e248]:
+            - text: Bara de deasupra literelor (S̄, R̄) înseamnă că intrările sunt
+            - strong [ref=e249]: active-low
+            - text: — acțiunea are loc când semnalul cade la 0, nu când e 1. E logica inversată naturală a NAND-ului.
+          - table [ref=e251]:
+            - rowgroup [ref=e252]:
+              - row "S̄ R̄ Ieșire Q Comportament" [ref=e253]:
+                - columnheader "S̄" [ref=e254]
+                - columnheader "R̄" [ref=e255]
+                - columnheader "Ieșire Q" [ref=e256]
+                - columnheader "Comportament" [ref=e257]
+            - rowgroup [ref=e258]:
+              - row "1 1 Q_anterior Memorare — starea se păstrează" [ref=e259]:
+                - cell "1" [ref=e260]
+                - cell "1" [ref=e261]
+                - cell "Q_anterior" [ref=e262]
+                - cell "Memorare — starea se păstrează" [ref=e263]:
+                  - strong [ref=e264]: Memorare
+                  - text: — starea se păstrează
+              - row "0 1 1 Set — forțează Q=1" [ref=e265]:
+                - cell "0" [ref=e266]
+                - cell "1" [ref=e267]
+                - cell "1" [ref=e268]
+                - cell "Set — forțează Q=1" [ref=e269]:
+                  - strong [ref=e270]: Set
+                  - text: — forțează Q=1
+              - row "1 0 0 Reset — forțează Q=0" [ref=e271]:
+                - cell "1" [ref=e272]
+                - cell "0" [ref=e273]
+                - cell "0" [ref=e274]
+                - cell "Reset — forțează Q=0" [ref=e275]:
+                  - strong [ref=e276]: Reset
+                  - text: — forțează Q=0
+              - row "0 0 INTERZIS Ambele ieșiri = 1 simultan — stare invalidă" [ref=e277]:
+                - cell "0" [ref=e278]
+                - cell "0" [ref=e279]
+                - cell "INTERZIS" [ref=e280]
+                - cell "Ambele ieșiri = 1 simultan — stare invalidă" [ref=e281]
+          - paragraph [ref=e282]: Bucla de feedback „îngheață" un bit. Asta e memoria statică SRAM din cache-ul procesorului — zeci de milioane de astfel de perechi de NAND-uri, fiecare ținând câte un bit.
+          - paragraph [ref=e283]: "Starea interzisă (S̄=0, R̄=0) e fascinant de periculoasă: dacă eliberezi ambele semnale simultan, tranzistoarele — cu dopaj ușor asimetric și zgomot termic — decid aleator care ieșire câștigă. Procesoarele reale au circuite dedicate exclusiv pentru a elimina această situație."
+          - generic [ref=e284]:
+            - generic [ref=e285]:
+              - 'img "Cosmo mascot: encouraging"':
+                - img
+            - paragraph [ref=e288]: "Memoria nu necesită o componentă nouă. Emerge din aceleași porți NAND, conectate în buclă. Asta e o idee profundă: complexitatea nu vine din componente noi, ci din modul în care le interconectezi."
+          - heading "De la SN7400 la M4 — 60 de ani de NAND" [level=3] [ref=e289]
+          - paragraph [ref=e290]:
+            - text: Texas Instruments a lansat
+            - strong [ref=e291]: SN7400
+            - text: "în 1964: 4 porți NAND cu 2 intrări, 5V, întârziere de propagare 10 nanosecunde, consum 10 mW per poartă. O capsulă DIP-14 de 19×6 mm."
+          - paragraph [ref=e292]: E în producție și azi — 61 de ani mai târziu.
+          - paragraph [ref=e293]:
+            - strong [ref=e294]: Apple M4
+            - text: "(2024, TSMC N3E): 28 de miliarde de tranzistoare = echivalentul a"
+            - strong [ref=e295]: 7 miliarde de porți NAND
+            - text: .
+          - paragraph [ref=e296]:
+            - text: "Densitate: 215 milioane de tranzistoare per mm² →"
+            - strong [ref=e297]: 54 milioane de porți NAND per mm²
+            - text: de siliciu.
+          - generic [ref=e299]:
+            - img [ref=e301]
+            - paragraph [ref=e304]: Dacă ai construi un Apple M4 din cipuri SN7400 din 1964, ai avea nevoie de 1,75 miliarde de bucăți. Puse cap la cap, ar acoperi o suprafață de 211.750 m² — mai mult de 30 de terenuri de fotbal — pentru a replica ce stă azi sub ecranul unui iPad de 6 mm grosime.
+          - paragraph [ref=e305]:
+            - text: "Viteză: un NAND pe 3nm comută în 3–4 picosecunde. SN7400: 10.000 de picosecunde."
+            - strong [ref=e306]: De ~3.000 de ori mai rapid.
+          - paragraph [ref=e307]:
+            - text: "Energie per operație: SN7400 consuma ~100.000.000 attojouli per calcul. La 3nm: 26–225 attojouli."
+            - strong [ref=e308]: De un milion de ori mai eficient.
+            - text: Fără această reducere, bateria telefonului tău s-ar consuma termic în câteva secunde.
+          - heading "REVEAL" [level=2] [ref=e309]
+          - paragraph [ref=e310]: "Iată paradoxul central al informaticii fizice:"
+          - paragraph [ref=e311]: Mintea umană percepe AND și OR ca operații elementare, intuitive. Fizica siliciului spune că sunt derivate — construite din ceva mai primitiv.
+          - paragraph [ref=e312]: NAND e primitivul real. Nu pentru că e mai ușor de înțeles, ci pentru că e mai ușor de fabricat. Patru tranzistoare, aranjate optimal față de mobilitatea electronilor. Suficient pentru tot — dovedit matematic de Post în 1941.
+          - paragraph [ref=e313]: Un singur tip de poartă. Miliarde de copii. Orice calcul posibil.
+          - paragraph [ref=e314]: "Asta e completitudinea funcțională: nu diversitate, ci profunzime dintr-un singur element. Și e un principiu care apare din nou și din nou în informatică — sisteme uriașe construite din primitive minuscule, repetate la scară masivă. NAND e primul exemplu. Nu va fi ultimul."
+          - heading "ÎNCHEIERE" [level=2] [ref=e315]
+          - paragraph [ref=e316]: Acum știi că orice circuit digital poate fi construit exclusiv din NAND-uri.
+          - paragraph [ref=e317]:
+            - text: "Lecția următoare te pune față în față cu primul circuit complex:"
+            - strong [ref=e318]: Alarma de Seif
+            - text: . Senzori în AND, bypass în OR, comutator de urgență în NOT. Pare un amestec eterogen de porți — dar sub capotă, e doar NAND repetat, interconectat, multiplicat.
+          - paragraph [ref=e319]: Acum poți să-l citești altfel.
+        - generic [ref=e320]:
+          - generic [ref=e321]:
+            - img [ref=e322]
+            - generic [ref=e326]: conectare...
+          - generic [ref=e327]:
+            - button "Marchează completat" [disabled] [ref=e328]:
+              - img [ref=e329]
+              - text: Marchează completat
+            - generic: Citește lecția mai întâi 📖
+        - 'link "Lecția următoare BOSS: Alarma de Seif" [ref=e331] [cursor=pointer]':
+          - /url: /courses/hardware-fizica/b2301c4b-2e47-419e-8c6e-0e2f5dbaccae
+          - generic [ref=e332]:
+            - paragraph [ref=e333]: Lecția următoare
+            - paragraph [ref=e334]: "BOSS: Alarma de Seif"
+          - img [ref=e335]
+      - generic [ref=e339]:
+        - heading "Comentarii" [level=3] [ref=e340]:
+          - img [ref=e341]
+          - text: Comentarii
+        - generic [ref=e343]:
+          - img [ref=e344]
+          - generic [ref=e347]:
+            - paragraph [ref=e348]: Comentariile se deblochează la Nivelul 3
+            - paragraph [ref=e349]: Completează mai multe lecții pentru a ajunge la nivelul Învățăcel și a putea comenta.
+      - generic "AI Coach" [ref=e361]:
+        - generic [ref=e362]:
+          - img [ref=e364]
+          - generic [ref=e367]:
+            - paragraph [ref=e368]: AI Coach
+            - paragraph [ref=e369]: NAND — cărămida Lego universală
+          - button "Dezactivează vocea AI" [ref=e370] [cursor=pointer]:
+            - img [ref=e371]
+          - button "Închide AI Coach" [ref=e375] [cursor=pointer]:
+            - img [ref=e376]
+        - generic [ref=e380]:
+          - img [ref=e382]
+          - paragraph [ref=e386]:
+            - text: Bună! Sunt
+            - strong [ref=e387]: AI Coach
+            - text: "-ul tău pentru lecția"
+            - strong [ref=e388]: "\"NAND — cărămida Lego universală\""
+            - text: . Pune-mi orice întrebare despre ce citești! 😊
+        - generic [ref=e389]:
+          - textbox "Pune o întrebare..." [ref=e390]
+          - button [disabled] [ref=e391]:
+            - img [ref=e392]
+      - button "Deschide AI Coach" [ref=e395] [cursor=pointer]:
+        - img [ref=e396]
+        - text: AI Coach
+      - link "Lecția anterioară Alt ←" [ref=e402] [cursor=pointer]:
+        - /url: /courses/hardware-fizica/31508c73-fa9d-4be7-8db7-ed6584aa201b
+        - img [ref=e403]
+        - generic [ref=e405]: Lecția anterioară
+        - generic [ref=e406]: Alt ←

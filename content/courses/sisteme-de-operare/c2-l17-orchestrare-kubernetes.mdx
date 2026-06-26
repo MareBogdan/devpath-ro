@@ -1,0 +1,281 @@
+---
+title: "Kubernetes: Orchestratorul care nu doarme niciodată"
+order: 17
+type: lesson
+module_index: 2
+duration: 17
+difficulty: 5
+---
+
+# Kubernetes: Orchestratorul care nu doarme niciodată
+
+## HOOK
+
+Ai 50 de servicii, 300 de instanțe, trafic variabil de 10× între ziuă și noapte. Un nod cade la 3 dimineața. Un deployment greșit blochează 20% din pod-uri. Cererea crește brusc de 5× în 2 minute.
+
+Fără Kubernetes: alertă, trezești pe cineva, repornești manual, dai rollback manual. Cu Kubernetes: **nimic**. Controllerele detectează, reconciliază, rescalează — fără intervenție umană.
+
+Kubernetes nu e un sistem de deployment. E un **sistem de reconciliere continuă**: compară permanent starea dorită cu starea reală și ia decizii pentru a le alinia. Fiecare obiect din cluster — Pod, Service, Deployment, ConfigMap — trăiește în etcd. Fiecare controller observă schimbările și reacționează.
+
+Cel mai important lucru de înțeles: Kubernetes nu rulează containere. **Kubernetes declară intenții. Containerele sunt o consecință.**
+
+---
+
+## CONTEXT
+
+Un cluster Kubernetes are două planuri: **Control Plane** (creierul) și **Data Plane** (brațele). Control plane-ul ține starea în etcd, ia decizii de scheduling, reconciliază starea. Data plane-ul execută containerele pe noduri worker.
+
+Toată comunicarea trece prin un singur punct: **kube-apiserver**. Nimeni nu scrie direct în etcd. Nimeni nu execută direct pe noduri. Totul e un obiect în apiserver, totul e un watch care reacționează la schimbări.
+
+Paradigma fundamentală: **Desired State vs. Actual State**. Spui ce vrei. Sistemul face ce trebuie pentru a ajunge acolo — și menține acel acolo pe termen nedefinit.
+
+---
+
+## MIEZUL
+
+### Control Plane — componentele creierului
+
+**etcd** — sursa unică de adevăr. Bază de date distribuită key-value, algoritm de consens **Raft**. Toate obiectele K8s (Pod, Service, Deployment, Secret) sunt stocate serializate Protobuf sub prefixul `/registry/` (ex. `/registry/pods/default/nginx-pod`). Dimensiunea tipică a unui entry: **1-5KB**.
+
+Scrierea în etcd e scumpă: Raft necesită `fdatasync` pe disc + confirmare de la **majority** (quorum) înainte de commit. Latența unui write: **1-10ms intra-datacenter** pe NVMe SSD. Pe HDD sau stocare de rețea lentă, latența depășește timeout-urile de heartbeat (100ms implicit), declanșând leader elections haotice — cluster paralizat.
+
+Matematica quorum-ului:
+- 3 noduri etcd → tolerează **1 failure** (quorum = 2)
+- 5 noduri etcd → tolerează **2 failure-uri** (quorum = 3)
+- Număr impar obligatoriu — 4 noduri au același quorum ca 3 (necesită tot 3), dar trafic de replicare dublu
+
+**Watch stream:** În loc de polling, clientii deschid un stream gRPC persistent pe un prefix. Când o valoare se schimbă, etcd **push-ează** modificarea instantaneu. Fără watch, Kubernetes la 1000 noduri ar necesita polling masiv care ar distruge apiserver-ul.
+
+**Resource version + optimistic locking:** Fiecare obiect are un câmp `metadata.resourceVersion` monoton crescător. La update, clientul include versiunea. Dacă etcd are o versiune mai nouă (altcineva a modificat între timp) → HTTP 409 Conflict → clientul preia noua versiune și reîncearcă. Fără race conditions pe obiecte partajate.
+
+**Compaction:** etcd menține istoricul complet al tuturor reviziilor pentru a permite watch-uri din trecut. Fără compaction, baza de date crește nelimitat. Apiserver instruiește etcd periodic (implicit la ~5 minute) să ruleze compaction — truncează reviziile vechi, eliberează spațiu pe disc. Fără compaction: etcd umple discul, cluster oprit.
+
+**Backup și recovery:** `etcdctl snapshot save /backup/etcd.db` face un dump complet al bazei. `etcdctl snapshot restore` reconstruiește starea clusterului din acel punct în timp. Standard de producție: snapshot la fiecare oră, retenție 24h, stocat pe S3/GCS.
+
+**kube-apiserver** — singurul component care scrie în etcd. Fiecare cerere trece prin: Autentificare → Autorizare (RBAC) → Admission Controllers (MutatingAdmissionWebhook, ValidatingAdmissionWebhook) → Validare → Scriere etcd. La 1000 noduri: ~**50 req/s** steady state spre etcd (reînnoiri lease, heartbeat-uri).
+
+**kube-scheduler** — watch pe pod-uri cu `spec.nodeName` gol. Algoritmul în două faze:
+1. **Filtering** — elimină noduri incompatibile (resurse insuficiente, affinity, taints)
+2. **Scoring** — scor 0-100 per nod supraviețuitor, alege maximul
+
+Rezultat: scrie `nodeName` în pod spec → kubelet de pe nodul ales preia prin watch.
+
+**kube-controller-manager** — zeci de control loops într-un singur proces. ReplicaSet controller asigură numărul corect de pod-uri. Deployment controller orchestrează tranziții de versiune. Node controller detectează heartbeat-uri lipsă și marchează noduri ca `NotReady`. Endpoints controller populează IP-urile pod-urilor în Service-uri.
+
+**cloud-controller-manager** — integrare cu AWS/GCP/Azure. Când creezi un Service `type: LoadBalancer`, CCM apelează AWS API și provisionează un ELB. Când un PVC cere stocare, CCM creează un disc EBS.
+
+---
+
+### Scheduling — de ce un Pod ajunge pe un anumit nod
+
+**Faza de Filtering** — răspunsuri binare Pass/Fail:
+
+- **NodeResourcesFit**: verifică dacă `(capacitate nod - suma requests existente) ≥ requests pod nou`. K8s face scheduling pe **requests**, nu pe utilizarea reală. Un nod cu 80% CPU real dar 100% requests alocate e considerat plin.
+- **NodeAffinity**: expresii `In`, `NotIn`, `Exists` pe labeluri de nod (ex. `topology.kubernetes.io/zone In eu-west-1a`)
+- **PodAntiAffinity**: vital pentru HA — asigură că două replici ale aceleiași aplicații nu ajung pe același nod fizic
+- **Taints și Tolerations**: noduri GPU rezervate refuză orice pod fără `toleration: gpu=true`
+- **VolumeBinding**: un volum EBS creat în `eu-west-1a` nu poate fi atașat unui nod din `eu-west-1b`
+
+**Faza de Scoring** — funcții cu punctaj 0-100:
+
+- **LeastRequestedPriority**: preferă noduri cu resurse libere → K8s implicit **dispersează** pod-urile pe cât mai multe noduri
+- **BalancedResourceAllocation**: penalizează dezechilibrele CPU vs memorie
+- **InterPodAffinityPriority**: grupare soft a pod-urilor corelate
+
+**Preemption**: Dacă niciun nod nu trece Filtering, scheduler-ul simulează evictarea pod-urilor cu `PriorityClass` mai mică. Un job critic (prioritate 1.000.000) poate "împinge" joburi batch (prioritate 0) pentru a-și face loc.
+
+<FactBox>
+**Kubernetes la scară — cifre cheie:**
+- Max noduri per cluster: **~5000** (K8s 1.29+)
+- etcd write latency target: **P99 < 10ms** (NVMe SSD obligatoriu)
+- etcd throughput tipic: **1000-10000 writes/s**
+- kube-apiserver la 1000 noduri: **~50 req/s** steady state
+- iptables overhead: **O(N)** per pachet — problematic > 1000 Services
+- IPVS: **O(1)** lookups — eficient la 10.000+ Services
+- CrashLoopBackOff backoff maxim: **300s** (5 minute)
+- HPA scale-up cooldown: **15s** | scale-down: **5 minute**
+</FactBox>
+
+---
+
+### Services și load balancing
+
+Un pod are IP efemer — moare, IP-ul dispare. **Service** = IP virtual (VIP) stabil care abstractizează un grup de pod-uri.
+
+**ClusterIP (default):** kube-proxy instalează reguli iptables pe fiecare nod. La fiecare pachet spre VIP, kernel-ul traversează lanțurile `KUBE-SERVICES → KUBE-SVC-*` — round-robin probabilistic prin modulul statistic. Problema: **O(N) per pachet**. La 5000 Services cu zeci de mii de reguli, fiecare SYN TCP nou traversează secvențial toate regulile. CPU-ul nodului suferă.
+
+**IPVS mode:** Hash table în kernel. Lookup **O(1)**. La 10.000 Services: ~8% CPU per nod (vs ~35% cu iptables). Suportă algoritmi: round-robin, least connections, source hashing.
+
+**eBPF (Cilium):** Bypass complet iptables, programe eBPF injectate direct în kernel. Socket splicing pentru trafic intra-nod (am detaliat în L16).
+
+**NodePort:** Expune un port pe **fiecare nod** din cluster (range 30000-32767). Traficul pe `IP_nod:30123` e interceptat de iptables și redirecționat la pod-ul corect, chiar dacă pod-ul e pe alt nod.
+
+**LoadBalancer:** Extinde NodePort. cloud-controller-manager provisionează un load balancer extern (AWS ELB) care rutează spre noduri pe portul NodePort alocat.
+
+**Headless Service (`clusterIP: None`):** CoreDNS returnează direct IP-urile pod-urilor (A records), nu un VIP. kube-proxy e scos din schemă. Fundament pentru StatefulSets — fiecare pod e adresabil direct prin `pod-0.service.namespace.svc.cluster.local`.
+
+**ExternalName:** Creează un CNAME DNS (`my-db.default.svc.cluster.local → database.aws.rds.com`) fără niciun proxy. Pod-urile folosesc numele intern fără să știe de adresa externă reală.
+
+**Ingress — Layer 7 routing:** Services acoperă exclusiv Layer 4 (TCP/UDP). Pentru HTTP/gRPC cu routing pe path (`/api → service-api`, `/web → service-frontend`), terminare TLS, virtual hosting pe domenii, se folosesc resurse **Ingress**. Un **Ingress Controller** (nginx, Traefik, AWS ALB Ingress Controller) rulează în cluster ca pod, interceptează porturile 80/443 și aplică regulile. Exemplu:
+```yaml
+rules:
+- host: app.example.com
+  http:
+    paths:
+    - path: /api
+      backend: service: api-service port: 8080
+```
+
+**Gateway API** — succesorul Ingress, stabilizat în K8s 1.28. Model bazat pe roluri: `GatewayClass` (definit de operatorul de infrastructură), `Gateway` (definit de admin cluster), `HTTPRoute` (definit de dezvoltator). Decuplare clară între cine provisionează infrastructura și cine configurează routingul aplicației.
+
+**DNS și ndots:5:** CoreDNS rezolvă `<service>.<namespace>.svc.cluster.local`. Problema: `/etc/resolv.conf` din containere are `options ndots:5`. Un query extern `api.github.com` (2 puncte < 5) generează **5 query-uri DNS** înainte de a încerca FQDN:
+1. `api.github.com.default.svc.cluster.local` → NXDOMAIN
+2. `api.github.com.svc.cluster.local` → NXDOMAIN
+3. `api.github.com.cluster.local` → NXDOMAIN
+4. `api.github.com.ec2.internal` → NXDOMAIN
+5. `api.github.com.` → Succes
+
+La microservicii cu sute de apeluri externe pe secundă: CoreDNS supraîncărcat, latență adăugată. Fix: `ndots: 1` în `dnsConfig` al pod-ului, sau apeluri cu punct final (`api.github.com.`).
+
+<CosmoHint emotion="thinking">
+iptables vs IPVS e un compromis clasic. iptables e simplul default care funcționează bine la scară mică. Dar la 1000+ Services, regula O(N) se simte: fiecare conexiune nouă TCP traversează secvențial mii de reguli în kernel. IPVS rezolvă asta cu hash tables, dar necesită modulul ipvs încărcat în kernel și configurare explicită. Pe clustere de producție cu zeci de mii de servicii, IPVS nu mai e opțional — e obligatoriu.
+</CosmoHint>
+
+---
+
+### StatefulSets, PV/PVC și stocare persistentă
+
+**Deployment vs StatefulSet:** Pod-urile din Deployment sunt interschimbabile (`app-5d67b-zx2wq`). StatefulSet dă identitate stabilă: `database-0`, `database-1`. La scaling de la 1 la 3: pornește `pod-0`, așteaptă `Ready`, pornește `pod-1`, etc. Ordine strictă obligatorie.
+
+**PV și PVC:**
+- **PersistentVolume (PV)**: resursa fizică de stocare (disc EBS, NFS share)
+- **PersistentVolumeClaim (PVC)**: cererea unui pod pentru stocare
+- **StorageClass**: template pentru dynamic provisioning — când un pod cere un PVC, CSI driver-ul (ex. `ebs.csi.aws.com`) creează automat discul și îl atașează nodului
+
+**Access Modes:**
+- **ReadWriteOnce (RWO)**: un singur nod poate monta read-write (AWS EBS, disc local)
+- **ReadOnlyMany (ROX)**: multiple noduri, read-only
+- **ReadWriteMany (RWX)**: multiple noduri, read-write — necesită NFS, CephFS, AWS EFS. Discurile block (EBS) **nu suportă RWX** nativ
+
+**Reclaim Policy:** `Retain` (discul supraviețuiește ștergerii PVC), `Delete` (discul distrus odată cu PVC — default pentru dynamic provisioning).
+
+**Rolling update StatefulSet:** Reverse order. Pe un cluster PostgreSQL cu `pod-0` (primary), `pod-1`, `pod-2` (standby): se actualizează mai întâi `pod-2`, apoi `pod-1`, ultimul `pod-0`. Standby-urile sunt pregătite cu noua versiune înainte ca primary-ul să fie atins.
+
+---
+
+### ConfigMaps, Secrets și identitate
+
+**ConfigMap:** Date non-sensibile (fișiere config, variabile de mediu). Limită: **1MB per ConfigMap**. Montat ca volum: kubelet actualizează fișierele în container în **1-2 minute** fără restart — aplicațiile cu hot-reload prin `inotify` captează schimbarea live.
+
+**Secret — problema fundamentală:** Secretele sunt stocate în etcd **encodate base64, NU criptate implicit**. Un atacator cu acces la backup-ul etcd recuperează toate parolele din cluster. Soluția: **EncryptionConfiguration** pe kube-apiserver cu unul din providerii:
+- `aescbc`: AES-CBC, cheia local pe disc
+- `aesgcm`: AES-GCM cu nonce aleator per bloc
+- **KMS provider** (enterprise): Envelope Encryption — o DEK (Data Encryption Key) de 32 bytes criptează secretul, iar DEK-ul e criptat de AWS KMS/Azure Key Vault cu o KEK (Key Encryption Key) care nu iese niciodată din HSM. Chiar dacă etcd e compromis, fără accesul la KMS extern datele sunt indecriptabile.
+
+Alternative la Secrets native: External Secrets Operator (citește din AWS Secrets Manager/HashiCorp Vault direct), HashiCorp Vault Agent Injector.
+
+**ServiceAccount:** Identitate pentru pod la interacțiunea cu kube-apiserver. JWT token montat automat în `/var/run/secrets/kubernetes.io/serviceaccount/`. Pe AWS: **IRSA (IAM Roles for Service Accounts)** — prin OIDC, SDK-ul din container primește credențiale AWS temporare mapate la un IAM role, fără niciun fișier CSV cu chei hardcodate.
+
+**VolumeSnapshot via CSI:** CSI driver-ul emite un call direct la hypervisor pentru un snapshot incremental al discului, fără a trece prin stratul OS. Folosit pentru backup-uri rapide ale bazelor de date fără stop al aplicației.
+
+**Kubernetes Operators:** Pattern pentru aplicații stateful complexe. Un Operator e un controller custom (CRD + control loop) care înțelege semantica specifică aplicației. Exemplu: **CloudNativePG** pentru PostgreSQL — la failure primary, operatorul analizează WAL LSN pe toți standby-ii, promovează cel mai avansat (`pg_promote`), reconfigurează Service-ul de scriere, clonează noul standby via `pg_basebackup`. Logică imposibil de implementat cu un StatefulSet nativ.
+
+---
+
+### Autoscaling
+
+**HPA (Horizontal Pod Autoscaler):** Loop de 15 secunde. Formula:
+
+$$desiredReplicas = \lceil currentReplicas \times \frac{currentMetric}{desiredMetric} \rceil$$
+
+Scale-up: rapid, **~15s cooldown**. Scale-down: deliberat lent, **5 minute stabilization window** — evită oprirea pod-urilor exact când un val nou de trafic apare. Limitare: `kubectl scale --replicas=N` pe un Deployment cu HPA e suprascris automat de controller în câteva secunde.
+
+**KEDA (Kubernetes Event-Driven Autoscaling):** Extinde HPA cu **scale-to-zero**. Declanșatori externi: Kafka consumer lag, SQS queue depth, cron schedule. Pod-urile nu există când traficul e zero — imposibil cu HPA nativ.
+
+**VPA (Vertical Pod Autoscaler):** Ajustează requests/limits per container bazat pe utilizare istorică. Moduri: `Off` (recomandare dry-run), `Initial` (setare la prima pornire), `Auto` (ajustare continuă). Din **Kubernetes 1.35 (stable)**: **In-Place Pod Resize** — VPA modifică `cpu.max` și `memory.max` din cgroup **fără restart**. Procesul Java sau PostgreSQL primește mai multă memorie live, zero SIGTERM.
+
+**Cluster Autoscaler:** Adaugă/elimină noduri din cloud. Trigger: pod-uri în stare `Pending` din cauza `NodeResourcesFit` eșuat. Scale-down: nod cu utilizare < **50%** timp de **10 minute** continuu → cordon + drain → instanță cloud terminată.
+
+**Resource Quotas:** Plafon dur per namespace — limitează suma totală de CPU, memorie și numărul de obiecte (pod-uri, Services, Secrets) permise. Esențial în clustere multi-tenant: un namespace nu poate "mânca" tot cluster-ul.
+
+**LimitRange:** Forțează valori default pentru requests și limits per container în namespace. Un pod fără `resources:` specificat primește automat limitele definite în LimitRange. Previne pod-uri "unbounded" care consumă resursele întregului nod.
+
+<CosmoHint emotion="thinking">
+Secretele Kubernetes NU sunt criptate implicit — una dintre cele mai frecvente neînțelegeri din ecosistem. `kubectl get secret my-secret -o yaml` arată datele encodate base64, nu criptate. `echo "dXNlcm5hbWU=" | base64 -d` îți dă `username` în clar. Fără EncryptionConfiguration explicit configurat pe kube-apiserver, oricine cu acces la backup-ul etcd are toate credențialele clusterului tău.
+</CosmoHint>
+
+---
+
+### Rolling updates, rollbacks și deployment strategies
+
+**Rolling update (default Deployment):**
+- `maxSurge=25%`: câte pod-uri extra pot exista temporar (la 10 replici → max 13 concurrent)
+- `maxUnavailable=25%`: câte pod-uri pot fi offline simultan (min 75% mereu disponibile)
+
+Algoritmul: creează ReplicaSet V2, scalează up V2 și down V1 treptat. Un pod din V2 intră în trafic **doar după ce `readinessProbe` trece**. Fără readinessProbe: traficul ajunge la Tomcat/Spring neinițializat → 502/503 pentru utilizatori. Dacă `readinessProbe` eșuează consistent, rolling update se **blochează automat** — V1 rămâne online, V2 nu primește trafic, cluster în stare parțial actualizată dar funcțional.
+
+```
+kubectl rollout status deployment/app     # monitorizare progres
+kubectl rollout undo deployment/app       # rollback la versiunea anterioară
+kubectl rollout undo deployment/app --to-revision=3  # rollback specific
+```
+
+**Blue-Green:** Două Deployments paralele (V1 "Blue" + V2 "Green"). Schimbare instantanee prin modificarea `selector`-ului Service-ului. Downtime teoretic zero. Dezavantaj: necesită **dublu hardware** în momentul tranziției.
+
+**Canary cu Argo Rollouts:** K8s vanilla nu poate face traffic split procentual precis (2 pod-uri V1 + 1 pod V2 = 33%, nu 5%). Argo Rollouts înlocuiește Deployment standard cu un CRD propriu, controlează direct weight-urile HTTP în Ingress/ALB. Exemplu: 5% trafic la V2, 95% la V1. Dacă rata de erori din Prometheus depășește pragul → **rollback automat**. Dacă metricile sunt bune → creștere treptată spre 100%.
+
+---
+
+### Observabilitate și debugging
+
+**Failure patterns comune:**
+
+{/* TABLE */}
+
+| Status | Cauză | Debug |
+|---|---|---|
+| `CrashLoopBackOff` | Container restartează repetat (backoff: 10s→20s→40s→80s→160s→300s max) | `kubectl logs --previous` |
+| `OOMKilled` | memory.max depășit → OOM killer | `kubectl describe pod` + events |
+| `ImagePullBackOff` | Imagine inexistentă sau credențiale invalide | `kubectl describe pod` + events |
+| `Pending` | NodeResourcesFit eșuat, affinity, taints, PVC disponibil | `kubectl describe pod` — Events |
+| `Evicted` | Nod sub presiune de resurse | `kubectl describe node` |
+
+**Comenzi esențiale:**
+```
+kubectl describe pod <name>           # events, conditions, probe failures
+kubectl logs <pod> --previous        # logurile containerului anterior (post-crash)
+kubectl exec -it <pod> -- /bin/sh    # shell în container running
+kubectl debug <pod> --image=busybox  # ephemeral container fără restart
+kubectl top pod/node                  # utilizare CPU/memorie (necesită Metrics Server)
+```
+
+---
+
+## REVEAL
+
+Arhitectura completă a unui cluster Kubernetes în producție:
+
+{/* TABLE */}
+
+| Componentă | Rol | Failure impact |
+|---|---|---|
+| **etcd** | Sursa unică de adevăr, Raft consensus | Cluster paralizat (apiserver nu poate scrie) |
+| **kube-apiserver** | Gateway unic, RBAC, admission controllers | Toate operațiunile blochează |
+| **kube-scheduler** | Plasament pod-uri pe noduri | Pod-uri rămân în Pending |
+| **kube-controller-manager** | Reconciliere continuă desired vs actual | Pod-uri nu se recreează, Services nu se actualizează |
+| **kubelet** | Execuție containere pe nod, probes, GC | Pod-urile de pe nod nu pornesc/mor nedetectate |
+| **kube-proxy** | Implementare Services (iptables/IPVS/eBPF) | Traficul spre Services nu mai funcționează |
+| **CoreDNS** | Rezoluție DNS intern cluster | Service discovery eșuează |
+| **etcd (5 noduri)** | Tolerează 2 failure-uri | Best practice producție |
+
+Kubernetes rezolvă o problemă dificilă: cum menții sute de servicii funcționale pe infrastructură care eșuează inevitabil. Răspunsul: **reconciliere continuă** + **imutabilitate** + **declarative intent**. Nu repari ce s-a stricat. Declari ce vrei și sistemul se asigură permanent că realitatea corespunde declarației.
+
+---
+
+## ÎNCHEIERE
+
+etcd, kube-apiserver, scheduler, controllers, kubelet — fiecare componentă face un singur lucru bine și comunică prin watch streams. Nicio componentă nu presupune că alta e mereu disponibilă. Sistemul e construit pentru eșec parțial.
+
+Cele mai frecvente greșeli în producție: Secrets fără EncryptionConfiguration, Deployments fără readinessProbe, HPA fără LimitRange și ResourceQuota, etcd pe HDD, ndots:5 neoptimizat.
+
+`kubectl get events --sort-by='.lastTimestamp'` — prima comandă când ceva nu merge.

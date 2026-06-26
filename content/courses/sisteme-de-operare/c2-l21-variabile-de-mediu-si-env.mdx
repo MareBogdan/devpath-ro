@@ -1,0 +1,334 @@
+---
+title: "Variabile de mediu și .env: Unde trăiesc secretele aplicației tale"
+order: 21
+type: lesson
+module_index: 2
+duration: 15
+difficulty: 3
+---
+
+# Variabile de mediu și .env: Unde trăiesc secretele aplicației tale
+
+## HOOK
+
+În 2024, sistemul de secret scanning al GitHub a detectat **39 de milioane de secrete** expuse public — chei API, parole de baze de date, token-uri AWS. În 2025, alte 29 de milioane. Cele mai multe au ajuns acolo într-o secundă: un `git add .` care a prins și fișierul `.env`, urmat de `git push`.
+
+Costul mediu al unei breșe cauzate de credențiale compromise: **4,88 milioane de dolari** (raport IBM 2024).
+
+Iar partea cu adevărat dureroasă: chiar dacă ștergi fișierul în commit-ul următor, secretul rămâne **permanent** în istoricul Git. Un `git log --all --diff-filter=D -- .env` îl recuperează instant.
+
+Variabilele de mediu sunt mecanismul prin care configurarea ajunge în aplicația ta fără să fie hardcodată în cod. Înțelegi cum funcționează la nivel de kernel, înțelegi de ce sunt mai sigure decât argumentele de linie de comandă, dar și de ce nu sunt suficiente pentru secrete reale în producție.
+
+---
+
+## CONTEXT
+
+O variabilă de mediu nu e o abstracție de shell — e o structură de date ancorată în memoria procesului. Când shell-ul lansează un program prin `execve()`, mediul e transmis ca al treilea argument: `char *const envp[]`, un tablou de pointeri spre șiruri `CHEIE=valoare`, terminat cu NULL.
+
+Ai văzut deja `export` în lecția despre shell. Acum vezi de ce contează: doar variabilele exportate ajung în `envp[]` și se moștenesc la procesele copil. O variabilă locală (`VAR=value` fără export) trăiește doar în dicționarul intern al shell-ului.
+
+Fișierele `.env` au apărut ca soluție practică la întrebarea: cum setezi 20 de variabile fără să le tastezi manual la fiecare pornire? Standardul vine din **Twelve-Factor App** (2012, Heroku): configurarea trăiește în mediu, nu în cod. Codul rămâne invariant între dev, staging și producție — doar mediul se schimbă.
+
+---
+
+## MIEZUL
+
+### Mecanismul kernel exact
+
+Variabilele de mediu rezidă în partea de sus a stivei procesului, deasupra `argv[]`. Structura `mm_struct` din kernel le delimitează prin pointerii `env_start` și `env_end`. La `execve()`, kernel-ul scrie șirurile primite din `envp[]` în această zonă și actualizează pointerii.
+
+**Moștenirea — de ce `export` contează:**
+
+La `fork()`, procesul copil primește o copie a memoriei părintelui (prin Copy-on-Write). Moștenește pasiv întreaga structură `environ`. Dar:
+
+```bash
+VAR=value           # variabilă locală — doar în dicționarul shell-ului
+python script.py    # script.py NU vede VAR
+
+export VAR=value    # promovată în envp[]
+python script.py    # script.py vede VAR prin os.environ['VAR']
+```
+
+`export` mută variabila din dicționarul intern al shell-ului în zona `envp[]` care e transmisă la următorul `execve()`. Fără export, variabila nu există pentru procesele copil.
+
+**Limitele kernel:**
+- `ARG_MAX`: limita combinată argv+envp, dinamică (bazată pe `ulimit -s`), practic ~2MB
+- `MAX_ARG_STRLEN`: **131072 bytes (128KB)** per variabilă individuală
+- Depășire → eroare `E2BIG` (Argument list too long) înainte ca programul să pornească
+
+**Citirea mediului unui proces activ:**
+```bash
+cat /proc/1234/environ | tr '\0' '\n'   # delimiter null → newline pentru lizibilitate
+```
+Permisiuni `0400` — accesibil **doar de owner sau root**. Aceasta e o decizie de securitate critică, despre care vorbim mai jos.
+
+**Funcții glibc:** `getenv()` face căutare liniară O(N) prin `environ`. `setenv()` alocă memorie nouă pe heap. `putenv()` preia direct pointerul utilizatorului (periculos: dacă pointerul e pe stivă și funcția returnează, memoria devine invalidă).
+
+---
+
+### Variabile importante în Linux
+
+{/* TABLE */}
+
+| Variabilă | Rol |
+|---|---|
+| `PATH` | Ordinea directoarelor pentru căutarea executabilelor (cu hash cache în bash) |
+| `HOME` | Directorul home — baza pentru expansiunea `~` |
+| `USER` / `LOGNAME` | Numele utilizatorului (NU mecanism de autentificare — nu e sincronizat cu UID real) |
+| `SHELL` | Calea interpretorului implicit |
+| `TERM` | Tipul de terminal (`xterm-256color`) — dictează suportul ANSI |
+| `LANG` / `LC_*` | Localizare și encoding (UTF-8) |
+| `TZ` | Timezone (`Europe/Bucharest`, `UTC`) |
+| `PWD` | Directorul curent, actualizat de shell la fiecare `cd` |
+| `EDITOR` / `VISUAL` | Editorul pentru `git commit`, `crontab -e` |
+| `PYTHONPATH` | Calea de căutare pentru module Python |
+| `NODE_ENV` | `production` / `development` / `test` în Node.js |
+| `SSH_AUTH_SOCK` | Socket-ul agentului SSH (ai văzut în lecția SSH) |
+
+**`NODE_ENV=production`** are efecte concrete: suprimă logging-ul verbose, dezactivează aserțiunile costisitoare, activează cache-ul în librării, forțează minificarea. Sute de mii de module NPM se comportă diferit pe baza acestei variabile.
+
+---
+
+### Fișierele .env — formatul și parsarea
+
+```bash
+# Comentarii cu #
+DB_HOST=localhost
+DB_PORT=5432
+DB_PASSWORD=secret123
+API_KEY="key with spaces"          # ghilimele pentru valori cu spații
+PRIVATE_KEY="line1\nline2"         # \n în ghilimele duble = newline real
+JSON_CONFIG='{"key":"value"}'      # ghilimele simple = literal, fără escape
+```
+
+Atenție la ghilimele: fără ele, o valoare cu spațiu e trunchiată la primul spațiu — poate tăia silențios o cheie criptografică.
+
+**Librării standard per limbaj:**
+```python
+# Python
+from dotenv import load_dotenv
+load_dotenv()                       # citește .env, populează os.environ
+db_host = os.environ.get('DB_HOST', 'localhost')
+```
+```javascript
+// Node.js
+require('dotenv').config()          // populează process.env
+const port = parseInt(process.env.PORT, 10) || 3000
+```
+
+**Ce face `load_dotenv()` exact:**
+1. Localizează `.env` (în directorul curent sau urcând în arbore)
+2. Parsează liniile, ignoră comentariile și liniile goale
+3. Injectează fiecare `KEY=VALUE` în `os.environ`
+4. **Nu suprascrie** variabilele deja setate în mediu (cu `override=False`, default)
+
+Comportamentul de la pasul 4 e intenționat: permite platformei cloud (care injectează variabile reale) să aibă prioritate față de fișierul `.env` local.
+
+**Ierarhia de fișiere .env:**
+- `.env` — valorile default, **NU se comite în git**
+- `.env.local` — suprascrieri specifice mașinii, ignorat de git
+- `.env.development` / `.env.production` / `.env.test` — per environment
+- `.env.example` — template cu placeholder-uri, **SE comite** în git (documentație)
+
+<FactBox>
+**Variabile de mediu — cifre cheie:**
+- `MAX_ARG_STRLEN`: **128KB** per variabilă (32 pagini × 4KB)
+- `ARG_MAX`: dinamic, practic **~2MB** total argv+envp
+- `getenv()`: complexitate **O(N)** (căutare liniară)
+- `/proc/[pid]/environ`: permisiuni **0400** (doar owner/root)
+- GitHub secret scanning: **39M** secrete în 2024, **29M** în 2025
+- Cost mediu breșă (IBM 2024): **4,88M USD**
+- Vault default lease TTL: **768 ore** (32 zile)
+- AWS Secrets Manager: **~\$0,40/secret/lună** + \$0,05/10.000 apeluri
+- 12-Factor App: publicat **2012** de Adam Wiggins (Heroku)
+</FactBox>
+
+---
+
+### Securitatea — de ce .env nu intră niciodată în git
+
+**Istoricul Git e imuabil.** Odată comis, un secret rămâne accesibil chiar dacă ștergi fișierul:
+```bash
+git log --all --diff-filter=D -- .env    # recuperează fișiere șterse din istoric
+```
+Singura remediere reală: rotația imediată a secretului (îl consideri compromis) + rescrierea istoricului cu `git filter-repo`.
+
+**`.gitignore` obligatoriu:**
+```
+.env
+.env.local
+.env.*.local
+*.swp
+```
+
+**Scurgeri la runtime:**
+```python
+print(os.environ)          # DEZASTRU — trimite toate secretele în loguri
+```
+```javascript
+console.log(process.env)   // la fel — CloudWatch/DataDog/Splunk primesc tot
+```
+Aceste loguri rareori sunt mascate. Devin depozite necriptate accesibile multor angajați — vector clasic de insider threat.
+
+**Alte două anti-patterns frecvente:**
+- **Aceleași credențiale în toate mediile** (dev = staging = prod). O scurgere din dev-ul cuiva compromite producția. Fiecare environment trebuie să aibă propriile secrete, izolate.
+- **Secrete în `~/.bashrc`** sau alte fișiere de profil globale. Se încarcă pentru orice shell, inclusiv joburi cron sub altă identitate, și se propagă necontrolat. Secretele aparțin fișierelor `.env` per proiect sau secret managers, nu profilului global de shell.
+
+**Decizia de design `ps` vs `/proc`:** `ps aux` afișează argumentele (`argv`), deci `mysqld --password=secret` e vizibil tuturor. Dar `ps` **NU** afișează variabilele de mediu (`envp`). De aceea secretele în variabile de mediu sunt mai sigure decât pe linia de comandă — vizibile doar prin `/proc/[pid]/environ`, restricționat la owner/root.
+
+<CosmoHint emotion="thinking">
+Acesta e motivul tehnic pentru care nu pui niciodată parole ca argumente de linie de comandă. `ps aux | grep mysql` de pe orice cont de pe sistem îți arată `--password=secret` în clar. Variabilele de mediu sunt în memoria procesului, vizibile doar prin `/proc/[pid]/environ` cu permisiuni 0400 — owner sau root. Diferența dintre `argv` (public) și `envp` (privat) e o decizie deliberată de design a kernel-ului.
+</CosmoHint>
+
+---
+
+### Variabile de mediu în Docker și Kubernetes
+
+**Docker — moduri de a pasa variabile:**
+```bash
+docker run -e DB_HOST=localhost myapp          # inline
+docker run --env-file .env myapp               # din fișier
+```
+
+**Anti-pattern critic — `ENV` în Dockerfile:**
+```dockerfile
+ENV API_KEY=secret_production_key   # BAKED în imagine pentru totdeauna!
+```
+Secretul e stocat în metadatele layerelor, distribuit cu imaginea în registry. Oricine face:
+```bash
+docker inspect <image> | jq '.[].Config.Env'
+```
+vede toate variabilele în clar. `ENV` e doar pentru valori non-sensibile. Pentru build-time, folosește `ARG` (nu persistă în imaginea finală).
+
+**Docker Compose:**
+```yaml
+services:
+  app:
+    environment:                    # variabile inline
+      - LOG_LEVEL=info
+      - DB_HOST=${DB_HOST}          # interpolare din mediul operatorului
+      - DB_PORT=${DB_PORT:-5432}    # fallback la 5432 dacă nu e setat
+    env_file:
+      - .env                        # încarcă tot fișierul
+```
+Un fișier `.env` în același director cu `docker-compose.yml` e citit automat ca dicționar pentru interpolarea `${VAR}` — elegant, dar necesită prudență la versionare.
+
+**Kubernetes — trei moduri:**
+```yaml
+env:                          # valori hardcodate (doar non-sensibile)
+  - name: LOG_LEVEL
+    value: "info"
+envFrom:                      # tot conținutul unui ConfigMap/Secret
+  - secretRef:
+      name: db-credentials
+env:                          # o singură cheie dintr-un Secret
+  - name: DB_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: db-credentials
+        key: password
+```
+
+**Limitarea critică:** variabilele de mediu **NU se actualizează** la modificarea unui ConfigMap/Secret fără restart pod. Sunt fixate în `environ` la pornirea procesului. În contrast, un ConfigMap montat ca **volum** se actualizează în 1-2 minute fără restart (kubelet reface symlink-urile). Pentru config care se schimbă des, montează ca volum, nu ca env var.
+
+<CosmoHint emotion="thinking">
+Diferența env var vs volum în Kubernetes prinde mulți ingineri pe picior greșit. Modifici un ConfigMap cu `kubectl apply`, te aștepți ca pod-urile să preia valoarea nouă — dar variabilele de mediu rămân la valorile vechi până la restart. E o consecință directă a mecanismului kernel: `environ` se citește o singură dată, la `execve()`. Volume mounts ocolesc asta pentru că aplicația recitește fișierul de pe disc.
+</CosmoHint>
+
+---
+
+### Variabile de mediu în aplicații web
+
+**Totul e string.** Cea mai insidioasă capcană:
+```javascript
+// SSL_ENABLED=false în .env
+if (process.env.SSL_ENABLED) { ... }   // ÎNTOTDEAUNA true — "false" e string non-gol!
+```
+Trebuie conversie explicită:
+```javascript
+const sslEnabled = process.env.SSL_ENABLED === 'true'
+const port = parseInt(process.env.PORT, 10) || 3000
+```
+```python
+ssl_enabled = os.environ.get('SSL_ENABLED', 'false') == 'true'
+port = int(os.environ.get('PORT', 3000))
+```
+
+**`os.environ['KEY']` vs `.get()`:** Accesarea directă `os.environ['DB_HOST']` aruncă `KeyError` și oprește execuția dacă cheia lipsește. `os.environ.get('DB_HOST', 'localhost')` returnează valoarea default. Pentru variabile obligatorii vrei `KeyError`-ul (fail-fast); pentru opționale vrei `.get()` cu default.
+
+**Validare fail-fast la startup:** Cu `pydantic-settings` (Python) sau `zod` (Node.js), validezi schema la pornire. Dacă lipsește o variabilă obligatorie sau are tip greșit, aplicația crapă **imediat** — nu peste trei luni într-un flux rar care procesează date corupte.
+
+```python
+from pydantic_settings import BaseSettings
+
+class Settings(BaseSettings):
+    db_host: str
+    db_port: int          # validat ca int, crapă dacă nu e număr
+    api_key: str
+
+settings = Settings()     # ridică eroare la startup dacă lipsește ceva
+```
+
+---
+
+### Gestionarea secretelor în producție
+
+Variabilele de mediu au o limitare fundamentală: lipsă de rotație automată, lipsă de audit trail, lipsă de criptare. Pentru secrete reale, secret managers:
+
+{/* TABLE */}
+
+| Soluție | Mecanism | Caracteristică cheie |
+|---|---|---|
+| **AWS Secrets Manager** | SDK din aplicație, criptat KMS | Rotație automată RDS, audit CloudTrail, ~\$0,40/secret/lună |
+| **HashiCorp Vault** | Dynamic secrets | Generează user temporar per request, lease TTL (default 768h) |
+| **External Secrets Operator** | Sincronizează în Kubernetes Secrets | Bridge AWS/Vault/GCP → K8s, refreshInterval configurabil |
+
+**Vault dynamic secrets** sunt conceptul cheie: nu există o parolă statică de DB. La fiecare cerere, Vault creează un user temporar pe baza de date cu un lease (ex. 1 oră), după care îl revocă automat. Nu există credențiale de furat — doar token-uri tranzitorii cu audit complet.
+
+**Rotația zero-downtime** elimină fereastra în care un secret furat poate fi abuzat. Procedura corectă, secvențială: (1) generezi și stochezi noul secret, (2) îl validezi printr-un test izolat pe serviciul țintă, (3) faci swap în aplicație (noul secret devine activ), (4) abia apoi revoci secretul vechi. Inversarea ordinii — revocare înainte de swap — cauzează downtime. Credențialele tranzitorii (IAM Roles, Vault leases) elimină nevoia de rotație manuală complet.
+
+**Kubernetes Secrets** sunt doar base64 în etcd, **NU criptate** implicit (ai văzut în lecția Kubernetes). Necesită EncryptionConfiguration pentru criptare reală.
+
+---
+
+### Variabile cloud și CI/CD
+
+**AWS:** `AWS_ACCESS_KEY_ID` + `AWS_SECRET_ACCESS_KEY` sunt credențiale statice — **anti-pattern**. Alternativa: **IAM Roles** (instance profile pe EC2, IRSA pe EKS). Metadata API (`169.254.169.254`) furnizează credențiale temporare rotite automat — fără chei statice pe disc.
+
+**GCP:** `GOOGLE_APPLICATION_CREDENTIALS` → calea spre JSON. Alternativa: Workload Identity Federation.
+
+**Azure:** `AZURE_CLIENT_ID/TENANT_ID/CLIENT_SECRET`. Alternativa: Managed Identity.
+
+**CI/CD:** GitHub Actions `${{ secrets.MY_SECRET }}`, GitLab CI `$MY_SECRET` — stocate în UI, injectate la runtime, mascate automat în loguri.
+
+---
+
+## REVEAL
+
+Ierarhia de securitate pentru configurare, de la cel mai rău la cel mai bun:
+
+{/* TABLE */}
+
+| Metodă | Securitate | Când o folosești |
+|---|---|---|
+| Hardcodat în cod | ❌ Catastrofal | Niciodată |
+| `ENV` în Dockerfile | ❌ Baked în imagine, vizibil cu inspect | Niciodată pentru secrete |
+| Argument linie de comandă | ❌ Vizibil în `ps aux` | Niciodată pentru secrete |
+| `.env` comis în git | ❌ Permanent în istoric | Niciodată |
+| `.env` local + `.gitignore` | ⚠️ OK pentru dev local | Dezvoltare locală |
+| Env var injectată la runtime | ⚠️ Vizibil în /proc, fără rotație | Config non-sensibilă |
+| Kubernetes Secret + encryption | ✅ Criptat at rest | Producție K8s |
+| Secret Manager (Vault/AWS) | ✅ Rotație + audit + dynamic | Secrete critice producție |
+| IAM Roles / dynamic secrets | ✅ Fără credențiale statice | Ideal cloud-native |
+
+Regula 12-Factor: configurarea trăiește în mediu, codul rămâne invariant. Testul suprem — poți face codul open-source fără să expui niciun secret? Dacă da, configurarea e corectă.
+
+---
+
+## ÎNCHEIERE
+
+Variabilele de mediu sunt mecanismul universal de configurare: `envp[]` la `execve()`, moștenite prin export, vizibile doar prin `/proc` cu permisiuni 0400.
+
+Trei reguli: `.env` în `.gitignore` întotdeauna, `.env.example` comis cu placeholder-uri, validare fail-fast la startup. Pentru secrete reale în producție — secret managers cu rotație, nu env vars statice.
+
+Un secret comis în git e compromis pentru totdeauna. Rotește-l, nu doar șterge-l.

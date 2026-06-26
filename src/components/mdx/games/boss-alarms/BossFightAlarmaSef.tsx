@@ -772,11 +772,27 @@ export function BossFightAlarmaSef() {
     () => WAVE_CIRCUITS[state.currentWave - 1],
     [state.currentWave]
   );
-  const currentRows = state.truthTable[state.currentWave - 1];
-  const discoveredCount = currentRows.filter((r) => r.discovered).length;
-  const currentRowIdx = computeRowIdx(
-    state.inputValues,
-    currentCircuit.inputs.map((i) => i.id)
+  // Memoize the per-wave rows so the truth-table render and the
+  // discoveredCount derivation always read from the SAME array reference for
+  // a given (wave, truthTable) pair. Without this, every parent re-render
+  // (timer tick, hover, etc.) re-evaluated `state.truthTable[...]` —
+  // functionally identical, but it made the dependency graph harder to
+  // reason about and could mask reducer bugs during edits.
+  const currentRows = useMemo(
+    () => state.truthTable[state.currentWave - 1] ?? [],
+    [state.truthTable, state.currentWave]
+  );
+  const discoveredCount = useMemo(
+    () => currentRows.filter((r) => r.discovered).length,
+    [currentRows]
+  );
+  const currentRowIdx = useMemo(
+    () =>
+      computeRowIdx(
+        state.inputValues,
+        currentCircuit.inputs.map((i) => i.id)
+      ),
+    [state.inputValues, currentCircuit]
   );
 
   const handleInputToggle = useCallback((inputId: string) => {

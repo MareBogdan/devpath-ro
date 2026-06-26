@@ -1,0 +1,281 @@
+---
+title: "Garbage Collector: Cine curăță după tine"
+order: 12
+type: lesson
+module_index: 2
+duration: 14
+difficulty: 4
+---
+
+# Garbage Collector: Cine curăță după tine
+
+## HOOK
+
+Serverul de producție cade la 3 dimineața. Nu e un bug de logică. Nu e un SQL greșit. E un pointer care a trăit cu câteva milisecunde mai mult decât trebuia.
+
+Cineva a eliberat memoria. Altcineva a continuat să scrie în ea. Allocatorul a realocate acea adresă altei structuri. Scrierea prin vechiul pointer a corupt-o. Control-flow hijacking — textbook use-after-free.
+
+Nu e un caz izolat: **~70% din toate vulnerabilitățile CVE din produsele Microsoft din ultimul deceniu** au o singură rădăcină — memory safety issues. La Google Chrome, același procent. Jumătate sunt use-after-free.
+
+Limbajele moderne au rezolvat asta cu o idee simplă la suprafață, complexă în interior: **Garbage Collector**. Un subsistem care gestionează memoria în locul tău.
+
+Prețul? Latență. Pauze. Trade-off-uri reale. Și câțiva algoritmi care merită înțeleși în profunzime.
+
+---
+
+## CONTEXT
+
+Când scrii `malloc()` în C, kernelul mapează pagini virtuale în spațiul procesului tău. Când scrii `free()`, le eliberezi. Dacă uiți de `free()` — memory leak. Working set-ul crește necontrolat, ajungi la swap, thrashing, și în final OOM Killer-ul din kernel ucide procesul.
+
+Dacă eliberezi de două ori același pointer — double-free — structurile interne ale allocatorului se corup. Dacă eliberezi și continui să scrii prin același pointer — use-after-free — rescrii date ale altei structuri realocate la aceeași adresă fizică.
+
+GC-ul transferă această responsabilitate de la programator la runtime. Prețul e real: overhead CPU, pauze Stop-the-World, memorie suplimentară. Beneficiul e și el real: zero UAF, zero double-free, productivitate mult mai mare.
+
+Java, C#, Go, Python, JavaScript — toate rulează cu GC. C, C++ și Rust — nu. Rust rezolvă problema diferit, la compile time, fără niciun runtime overhead. Vom ajunge și acolo.
+
+---
+
+## MIEZUL
+
+### Reference Counting — cel mai simplu mecanism
+
+Prima soluție: fiecare obiect din heap își ține un contor intern de referințe.
+
+Regula e simplă: când un pointer spre obiect apare — increment. Când dispare — decrement. Când contorul ajunge la zero — eliberezi imediat memoria.
+
+În CPython, fiecare variabilă Python este un pointer la o structură C numită `PyObject`. Primul câmp al structurii este `ob_refcnt`, de tip `ssize_t` — tocmai acest contor. Poți inspecta direct:
+
+```python
+import sys
+x = []
+sys.getrefcount(x)  # returnează contorul + 1 (referința temporară a apelului)
+```
+
+Avantajul major al reference counting: eliberarea e **deterministă și incrementală**. Fără pauze globale. Memoria se curăță pe parcurs, pe măsură ce obiectele mor natural.
+
+Problema fatală: **ciclurile de referințe**.
+
+```python
+a = {}
+b = {}
+a['ref'] = b
+b['ref'] = a
+del a
+del b
+# ob_refcnt al ambelor obiecte rămâne 1, nu 0
+# niciodată eliberate prin reference counting pur
+```
+
+Chiar dacă ștergi `a` și `b`, referința internă menține contoarele la 1. Permanent. Memory leak garantat până la terminarea procesului.
+
+Python rezolvă asta cu un al doilea mecanism paralel — un Cyclic Garbage Collector generațional (modulul `gc`) care traversează periodic containerele și detectează insulele izolate circular. Costul pe multi-core e vizibil: fiecare increment/decrement al `ob_refcnt` trebuie să fie **atomic** (instrucțiuni cu prefix `LOCK` pe x86). Protocolul MESI invalidează repetat liniile de cache L1 între nuclee. Rezultat: overhead de **10-30% față de C++ manual** pe aplicații multi-threaded intensive — cache line bouncing.
+
+Swift folosește ARC (Automatic Reference Counting) — compilatorul LLVM injectează `retain`/`release` la compile time. Ciclurile trebuie sparte manual cu `weak` (referință prin Side Table cu zeroing automat) sau `unowned` (fără zeroing, crash dacă obiectul e distrus). Rust nu are GC — ownership la compile time. Detalii la final.
+
+---
+
+### Mark-and-Sweep — algoritmul clasic
+
+Al doilea mecanism fundamental. Schimbă complet paradigma: în loc să urmărești referințe individual, tratezi memoria alocată ca un **graf** și traversezi periodic tot ce e accesibil.
+
+**Faza Mark:** Pornești din **GC Roots** — registrele CPU (RSP, RBP etc.), variabilele globale statice, stivele tuturor thread-urilor active. Traversezi graful de pointeri cu DFS sau BFS. Fiecare obiect atins primește un bit de marcaj setat la 1.
+
+JVM-ul menține tabele de metadate numite **OopMaps** care știu exact ce adrese de pe stivă, la un anumit safepoint, conțin referințe heap versus valori numerice simple. Fără aceste tabele, un integer cu valoarea `0x00007F8A1C000000` ar fi indistinguibil de un pointer valid.
+
+**Faza Sweep:** Parcurgi liniar heap-ul. Orice obiect fără bit de marcaj — mort dovedit matematic. Se eliberează, se adaugă în free list. Biții de marcaj se resetează la zero pentru ciclul următor.
+
+**De ce Stop-the-World e obligatoriu?** Dacă mutatorul continuă să ruleze concurent în timp ce GC marchează, poate crea o referință nouă spre un obiect în zona deja procesată și poate șterge singura altă referință spre el. GC nu mai revine la zona procesată. La Sweep, obiectul viu va fi eliberat. Corupere tăcută de memorie — scenariul "missing object".
+
+Complexitate: Mark este `O(obiecte vii)`, Sweep este `O(dimensiunea heap-ului)`. Pe heap-uri mari dar slab populate, Sweep e scump independent de cât e viu.
+
+Problema structurală după Sweep: **fragmentare externă masivă**. Mii de găuri mici între obiecte vii. Alocatorul trebuie să caute blocuri contigue prin free lists — lent. Pe heap-uri gigantice, poți ajunge la `OutOfMemoryError` cu gigabytes liberi dar fragmentați.
+
+---
+
+### Mark-Compact — compactarea
+
+Răspunsul la fragmentare: după Mark, mută toate obiectele vii compact la începutul heap-ului. Elimini complet fragmentarea externă.
+
+Algoritmul clasic **LISP 2** face trei treceri complete:
+
+1. **Compute locations** — calculează adresa destinație pentru fiecare obiect viu, stochează-o într-un forwarding pointer în header-ul obiectului
+2. **Update references** — rescrie toți pointerii din tot programul (stive, registre, câmpuri de obiecte) să indice noile adrese
+3. **Move objects** — copiază fizic datele la noile adrese
+
+Pasul 2 face Mark-Compact scump: trebuie actualizate **absolut toate referințele** din sistem. Pe heap-uri de sute de GB, pauza poate dura zeci de secunde.
+
+Beneficiul imens după compactare: **bump pointer allocation**.
+
+```
+[obiecte vii compact] | ←——— tot spațiul liber ———→
+                      ↑ free_ptr
+```
+
+Alocare nouă = returnezi `free_ptr` și faci `free_ptr += size`. O singură instrucțiune de adunare. Complexitate `O(1)` pură.
+
+<FactBox>
+**Bump pointer vs malloc — benchmark pe 1 milion alocări:**
+- Bump pointer alocare: **~10 ns** per obiect
+- malloc clasic: **~100 ns** per obiect (traversare arbore roșu-negru de blocuri libere)
+- Dezalocare batch bump pointer: **~42 ns** total (reset pointer)
+- Dezalocare cumulată free(): **~15.07 ms** total
+
+Factor de viteză la alocare: **10×**. La dezalocare în batch: **sute de mii de ori**.
+</FactBox>
+
+Memoria compactă aduce un bonus suplimentar: localitate excelentă în cache. Obiectele create împreună stau fizic aproape. Prefetching-ul L1/L2 funcționează maxim.
+
+---
+
+### Generational GC — optimizarea fundamentală
+
+Observație empirică pe sute de milioane de execuții reale: **~99% din obiecte mor tinere**. String-uri temporare, obiecte HTTP request, iteratoare locale — apar în milisecunde, dispar în milisecunde.
+
+Aceasta e **Weak Generational Hypothesis**. Corolarul imediat: dacă colectezi separat obiectele tinere, scanezi mult mai puțin heap la fiecare ciclu.
+
+Soluția: împarți heap-ul în **generații**.
+
+**Young Generation** (HotSpot JVM):
+- **Eden** (~80% din Young) — toate obiectele noi, alocare bump pointer
+- **Survivor S0 + S1** (~10% fiecare) — zone de tranziție între Eden și Old
+
+Când Eden se umple — **Minor GC** prin Cheney's Copying Collector:
+1. Identifică obiectele vii din Eden + spațiul Survivor activ
+2. Le copiază compact în celălalt spațiu Survivor (gol)
+3. Eden + fostul Survivor devin instantaneu goale
+
+Copiere = bump pointer → zero fragmentare în Young Gen permanent. Obiectele moarte nu sunt procesate deloc — sunt pur și simplu ignorate.
+
+Fiecare obiect are un contor de vârstă. Dacă supraviețuiește **15 Minor GC-uri** (tenuring threshold implicit), se promovează în **Old Generation**.
+
+**Problema cross-generational:** Un obiect Old poate pointa spre un obiect Young. Dacă Minor GC nu verifică Old Gen (prea mare, ar anula tot beneficiul), ar putea elibera un obiect Young referit exclusiv din Old. Soluție: **Card Tables + Write Barriers**.
+
+Old Gen e împărțit în carduri de 512 bytes. Compilatorul JIT injectează o barieră de scriere la fiecare operație de modificare a unui pointer:
+
+```asm
+shr r10, 0x9        ; divide adresa la 512 → indexul cardului
+mov [card_table + r10], 0  ; marchează cardul ca "dirty"
+```
+
+La Minor GC, se scanează **doar cardurile dirty** din Old Gen în loc de toți gigabyte-ii. Cost total: **~1-5 nanosecunde per scriere**, overhead global ~1-3%.
+
+<CosmoHint emotion="thinking">
+Generational GC înseamnă că la 99% din cicluri scanezi doar 50-100MB de Young Gen, nu 4GB de heap total. De aceea pauzele Minor GC sunt de obicei sub 10ms chiar și pe aplicații server mari. Full GC pe Old Gen e evenimentul pe care îl eviți activ în producție.
+</CosmoHint>
+
+**Major GC (Full GC)** se declanșează când Old Gen se umple sau e prea fragmentat. Mark-Compact pe tot heap-ul. Pauze de sute de milisecunde sau secunde. Scopul oricărui tuning JVM e să nu ajungi niciodată aici în circumstanțe normale.
+
+---
+
+### Concurrent GC — G1 și algoritmul tri-color
+
+**G1GC** (Garbage First, default din Java 9) deconstruiește modelul geografic fix al generațiilor. Heap-ul e împărțit în sute de **micro-regiuni de 1-32MB** fiecare — unele sunt Eden, altele Survivor, altele Old. Pot fi re-etichetate dinamic.
+
+La curățare, G1 alege **regiunile cu cel mai mult gunoi** (de unde vine numele). Colectează Young + câteva regiuni Old simultan — Mixed Collections. Target implicit: `-XX:MaxGCPauseMillis=200`.
+
+Pentru a rula parțial concurent cu mutatorul, G1 folosește **tri-color marking**:
+- **Alb** — neprocesat sau mort
+- **Gri** — descoperit, pointerii interni neexplorați
+- **Negru** — complet procesat, viu garantat
+
+Invariantul de corectitudine: **un obiect negru nu poate pointa direct spre un obiect alb**. Dacă ar pointa, obiectul alb nu ar mai fi descoperit și ar fi eronat eliberat la Sweep.
+
+Write barriers mențin invariantul: la orice scriere de pointer, noul obiect țintă e colorat Gri imediat (bariera Dijkstra — insertion barrier) sau vechea referință e protejată înainte de ștergere (bariera Yuasa — SATB, Snapshot At The Beginning).
+
+JEP 522 (Java 26) a redus instrucțiunile write barrier G1 de la **~50 instrucțiuni x64 la 12**, câștigând **5-15% throughput** pe aplicații intensive la scrieri de pointeri.
+
+---
+
+### ZGC — pauze sub 1ms indiferent de heap
+
+G1GC îmbunătățește latența, dar pauzele rămân proporționale cu volumul de date vii. Pe 1TB de heap, 200ms devine mult mai mult.
+
+**ZGC** (Oracle) rezolvă asta la nivel arhitectural.
+
+Pe x86-64, pointerii sunt de 64 biți dar adresele virtuale folosesc doar 48 biți. Biții 42-45 rămân liberi. ZGC îi folosește pentru **colored pointers** — metadata stocat direct în adresă:
+
+- Bit 42: `Marked0`
+- Bit 43: `Marked1`
+- Bit 44: `Remapped`
+- Bit 45: `Finalizable`
+
+Pentru că aceleași pagini fizice trebuie accesibile la adrese virtual distincte (din cauza bitmask-ului diferit), ZGC cere OS-ului **multi-mapping** — aceleași pagini RAM mapate simultan la trei adrese virtuale diferite în spațiul procesului.
+
+Inovația centrală: ZGC înlocuiește write barriers cu **load barriers** — cod injectat la **fiecare citire** de referință din heap.
+
+Când mutatorul citește un pointer, load barrier-ul verifică bitul `Remapped`. Dacă obiectul a fost deja relocat:
+1. Citește noua adresă din **Remapping Table**
+2. Actualizează referința la locul ei original — **self-healing pointer**
+3. Returnează noua adresă
+
+La al doilea acces, pointerul e deja actualizat — fast path pur, fără overhead.
+
+**Fazele ZGC:**
+1. Mark Start — micro-pauză STW de sub 1ms
+2. Concurrent Mark — rulează în paralel cu mutatorul
+3. Mark End — micro-pauză STW de sub 1ms
+4. Concurrent Relocate — mută obiectele în fundal
+
+Rezultat: pauze tipice **sub 1ms**, garantat maxim **câțiva ms** — inclusiv pe heap-uri de **16TB**. Dimensiunea heap-ului crește durata fazelor concurente (și implicit throughput-ul utilizat), nu durata pauzelor.
+
+**Shenandoah** (Red Hat) atinge același obiectiv cu **Brooks Pointers** — un forwarding pointer suplimentar de **8 bytes per obiect**. Simplifică implementarea (fără bitmask în pointer), dar costul de memorie e constant per obiect în tot heap-ul.
+
+**Go GC:** concurrent tri-color mark-and-sweep cu Hybrid Write Barrier (combină Yuasa + Dijkstra). Pauze tipice sub 1ms în producție. `GOGC=100` default — GC se declanșează când heap-ul s-a dublat față de dimensiunea datelor vii din ciclul anterior. Din Go 1.19, `GOMEMLIMIT` setează un plafon total de memorie — critic în containere Docker pentru a preveni OOM Killer-ul din kernel care ucidea procesele Go fără avertisment.
+
+<CosmoHint emotion="excited">
+ZGC poate compacta un heap de 1TB cu pauze de sub 1ms. Un Full GC clasic Mark-Compact pe același heap ar dura zeci de secunde. Diferența nu vine din hardware mai rapid — vine exclusiv din arhitectura load barriers + colored pointers care permit relocarea concurentă fără a opri mutatorul.
+</CosmoHint>
+
+---
+
+### Rust — fără GC, cu siguranță garantată
+
+Rust elimină complet GC-ul rezolvând problema la compile time prin sistemul de **ownership**.
+
+Trei reguli impuse de **Borrow Checker**:
+
+**1. Ownership** — fiecare valoare din heap are exact un singur proprietar la orice moment.
+
+**2. Move semantics** — la assignment, ownership se transferă. Referința veche devine invalidă:
+
+```rust
+let v1 = vec![1, 2, 3];
+let v2 = v1;  // ownership mutat în v2
+// println!("{:?}", v1);  // eroare de compilare — use after move
+// use-after-free imposibil la compile time
+```
+
+**3. Lifetimes** — referințele împrumutate (`&T` pentru citire, `&mut T` pentru scriere exclusivă) nu pot supraviețui owner-ului lor. Verificat static de compilator.
+
+La ieșirea din scope, compilatorul injectează automat **Drop trait** — echivalentul unui `free()` determinist, zero overhead runtime. Fără GC, fără pauze, fără overhead.
+
+Heap allocation: `Box<T>` pentru un singur owner. Reference counting explicit dacă ai nevoie: `Rc<T>` (single-thread) sau `Arc<T>` (thread-safe, cu overhead atomic și cache line bouncing MESI — același cost ca ob_refcnt din Python, dar opt-in, nu default).
+
+Trade-off real: learning curve semnificativă. Borrow checker-ul refuză cod care pare corect dar care ar putea fi unsafe în anumite scenarii concurente. Câștigul: performanță de nivel C++, siguranță de nivel Java, zero GC pauses.
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Mecanism | Pauze STW | Cicluri | Fragmentare | Overhead runtime | Complexitate |
+|---|---|---|---|---|---|
+| **Reference Counting** | Zero | ❌ Problemă | Da | 10-30% (atomic ops) | Simplă |
+| **Mark-and-Sweep** | Mari (O heap) | ✅ | Da (externă) | 5-20% CPU | Moderată |
+| **Generational GC** | Mici (Minor) / Mari (Full) | ✅ | Mică (Old Gen) | ~1-3% barriers | Mare |
+| **G1GC** | ~200ms target | ✅ | Minimă | 5-15% + barriers | Foarte mare |
+| **ZGC / Shenandoah** | Sub 1ms garantat | ✅ | Nu | Load barriers | Extremă |
+| **Rust Ownership** | Zero | N/A | Controlată | Zero runtime | Compile-time |
+
+GC-ul nu e gratis și nu e magic. Fiecare mecanism optimizează un aspect sacrificând altul. Alegerea depinde de ce îți este mai dureros: latența worst-case sau complexitatea codului.
+
+Aplicații enterprise cu SLA relaxat (sub 100ms) — G1GC sau ZGC, productivitate maximă. Sisteme real-time cu SLA strict (sub 5ms garantat, p99.9) — Rust sau C++ cu management manual disciplinat.
+
+---
+
+## ÎNCHEIERE
+
+De la un simplu contor de referințe la ZGC care compactează terabytes fără să oprească aplicația — ai văzut acum spectrul complet al managementului automat al memoriei.
+
+Data viitoare când aplicația ta Java face un spike de latență inexplicabil la 3 dimineața, știi exact unde să cauți: `jstat -gcutil <pid> 1000` și un `-Xlog:gc*` în flags îți spun tot ce trebuie să știi despre ce face GC-ul tău în fundal.

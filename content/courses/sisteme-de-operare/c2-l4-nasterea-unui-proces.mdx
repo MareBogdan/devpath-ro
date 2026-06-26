@@ -1,0 +1,384 @@
+---
+title: "Nașterea unui Proces"
+order: 4
+type: lesson
+module_index: 2
+duration: 14
+difficulty: 3
+---
+
+# Nașterea unui Proces
+
+## HOOK
+
+Deschizi un terminal și scrii `python3 script.py`.
+
+În fracțiunea de secundă care urmează, kernelul a construit din nimic o entitate
+complet nouă: un spațiu de adrese virtual izolat, o stivă, o tabelă de fișiere
+deschise, un PID unic, un set de drepturi de acces — și a pornit execuția.
+
+Dar nu a construit-o din nimic. A copiat-o din shell. Și apoi a înlocuit tot
+conținutul copiei cu binarul Python.
+
+Asta e filozofia Unix: nu creezi procese, le clonezi și le transformi.
+
+## CONTEXT
+
+Știi deja că un proces e o instanță a unui program în execuție. Știi că fork()
+creează un copil și execve() înlocuiește imaginea unui proces. Știi că kernel-ul
+gestionează totul din Ring 0.
+
+Lecția asta deschide mecanismul exact: ce structuri construiește kernelul, ce se
+copiază și ce nu, cum funcționează Copy-on-Write la nivel de hardware, și cum
+arată spațiul de adrese al unui proces în memorie.
+
+## MIEZUL
+
+### task_struct: Cartea de Identitate a unui Proces
+
+Fiecare proces activ pe sistem e reprezentat în kernel printr-o structură C
+numită **`task_struct`**, definită în `include/linux/sched.h`. E echivalentul
+teoretic al Process Control Block (PCB) — tot ce știe kernelul despre un proces
+trăiește aici.
+
+Câmpurile principale:
+
+- `volatile long state` — starea curentă în mașina de stări (R/S/D/T/Z/X)
+- `void *stack` — pointer la stiva kernel a procesului
+- `struct mm_struct *mm` — descriptorul spațiului de memorie virtuală (conține
+  tabelele de pagini și toate `vm_area_struct`-urile)
+- `struct files_struct *files` — tabela descriptorilor de fișiere deschise
+- `struct signal_struct *signal` — semnale în așteptare și handlere
+- `pid_t pid` — identificatorul procesului
+- `pid_t tgid` — Thread Group ID (identic cu PID pentru procese single-threaded)
+- `uid_t`, `gid_t` — identitatea de securitate (Real, Effective, Saved)
+
+<FactBox>
+Pe kernelul Linux 6.x, `task_struct` ocupă între **6.872 și 7.168 bytes** în
+memorie (Slab Allocator), cu 155+ câmpuri distincte, aliniate la cacheline pentru
+a preveni false sharing între nuclee. Dimensiunea exactă depinde de configurația
+de compilare — suportul pentru NUMA, lockdep sau KASAN adaugă câmpuri
+suplimentare. Comparativ: primul kernel Linux din 1991 (10.239 linii total) nu
+avea nimic comparabil ca complexitate.
+</FactBox>
+
+`task_struct` trăiește exclusiv în kernel space (Ring 0). Accesul din user space
+e imposibil direct — `/proc/[PID]/` e interfața prin care kernelul expune selectiv
+informații despre procese.
+
+Orice cod din kernel care ține un pointer asincron la un proces trebuie să apeleze
+`get_task_struct()` (incrementează un contor de referințe) și `put_task_struct()`
+la final. Când contorul ajunge la zero, structura e returnată Slab Allocator-ului.
+O referință scăpată = memory leak în kernel space.
+
+### fork(): Clonare cu Copy-on-Write
+
+Când apelezi `fork()`, kernelul nu construiește un proces de la zero. Apelează
+intern `copy_process()`, care clonează selectiv `task_struct`-ul părintelui.
+
+**Ce se copiază:**
+
+| Resursă | Mecanism |
+|---|---|
+| Structura de bază (task_struct) | Copie nouă, PID nou |
+| Spațiul de adrese virtual | Shadow copy cu Copy-on-Write |
+| Descriptorii de fișiere | Referință incrementată (nu copie) |
+| Signal handlers | Copie |
+| Variabile de mediu, argv | Moștenite |
+
+**Ce NU se copiază:**
+
+- Semnalele în așteptare (copilul s-a născut acum, nu are istoric)
+- Timerele asincrone POSIX (alarmele părintelui nu trezesc copilul)
+- Memory locks (`mlock()` — paginile copilului pot fi swap-uite)
+- Mapările DMA asincrone
+- Timpul de CPU consumat (resetat la zero pentru copil)
+
+**Valorile returnate:**
+- `0` în procesul **copil**
+- `PID-ul copilului` în procesul **părinte**
+- `-1` la eroare (EAGAIN dacă s-a atins limita de procese, ENOMEM dacă lipsește memoria)
+
+### Copy-on-Write: Magia din Spatele fork()
+
+Dacă `fork()` ar copia fizic toată memoria unui proces cu 4GB de heap, latența
+ar fi catastrofală. Soluția: **Copy-on-Write (COW)**.
+
+La `fork()`, kernelul nu copiază paginile fizice. Parcurge tabelele de pagini ale
+părintelui și marchează **toate** paginile read/write drept **read-only** — atât
+pentru părinte, cât și pentru copil. Ambii primesc tabele de pagini care pointează
+la aceleași pagini fizice de RAM.
+
+Ce se întâmplă la prima scriere:
+
+1. Procesul încearcă să scrie într-o pagină marcată read-only
+2. MMU detectează încălcarea permisiunii → **Page Fault** (write protection)
+3. Kernelul analizează: pagina e marcată COW?
+4. Da → funcția `do_wp_page()` alocă o pagină fizică nouă
+5. Copiază conținutul original (4096 bytes) în noua pagină
+6. Actualizează PTE-ul procesului care a faultat → permisiuni restore read/write
+7. Instrucțiunea eșuată e reluată ca și cum nimic nu s-a întâmplat
+
+Overhead-ul COW per page fault: **~8.2 microsecunde** — față de ~200 nanosecunde
+pentru un acces normal la RAM. Un factor de 40×, dar plătit doar pentru paginile
+efectiv modificate. Dacă procesul copil face imediat `execve()`, majoritatea
+paginilor nu sunt niciodată scrise → overhead real aproape zero.
+
+**Descriptorii de fișiere** sunt tratați similar: tabela e copiată, dar structurile
+interne `file` din kernel nu — se incrementează un contor de referințe. Consecință
+importantă: offset-ul de citire/scriere e **partajat** între părinte și copil.
+Dacă copilul citește 10 bytes dintr-un fișier deschis înainte de fork, pointerul
+părintelui avansează și el.
+
+<CosmoHint emotion="thinking">
+`fork()` nu e un syscall real pe Linux modern. E un wrapper în glibc care apelează
+syscall-ul **`clone()`** cu un set specific de flaguri. La fel și `pthread_create()`.
+`clone()` e "super-syscall-ul" care controlează exact ce se partajează și ce se
+copiază: `CLONE_VM` (partajare memorie), `CLONE_FILES` (partajare FD-uri),
+`CLONE_SIGHAND` (partajare signal handlers). Un `clone()` fără niciun flag =
+`fork()`. Un `clone()` cu toate flagurile = thread nou.
+</CosmoHint>
+
+Latența pură a syscall-ului `fork()` în kernel: **~100 microsecunde**. Throughput-ul
+real măsurat în benchmark-uri e de ~2.400 fork-uri pe secundă per core — mai mic
+decât 1/100µs = 10.000 teoretic, pentru că cifra include overhead-ul glibc,
+tranziția Ring 3→Ring 0→Ring 3, și context switch-ul după crearea copilului.
+
+**vfork()** — conceput înainte ca COW să existe. La acea vreme, `fork()` copia
+fizic toată memoria, deci era catastrofal de lent. `vfork()` nu creează tabele
+de pagini și nu copiază nimic: copilul împrumută direct spațiul de adrese al
+părintelui. Kernelul **suspendă forțat părintele** până când copilul apelează
+`execve()` (construiește un spațiu nou de la zero) sau `_exit()` — nu `exit()`,
+care ar flush-ui buffer-ele stdio ale părintelui, corupând starea acestuia. Azi,
+cu COW implementat, `vfork()` e considerat periculos în cod multithreaded și
+menținut strict pentru compatibilitate cu aplicații de sistem critice.
+
+### execve(): Distrugere și Renaștere
+
+`fork()` creează o clonă a shell-ului. Dar vrem să rulăm Python, nu alt shell.
+`execve()` rezolvă asta: **distruge** spațiul de adrese al procesului curent și
+îl **înlocuiește** cu imaginea unui nou binar.
+
+**Ce distruge execve():**
+- Întregul spațiu de memorie virtuală (heap, stivă, mapări)
+- Toate thread-urile suplimentare (procesul redevine single-threaded)
+- Signal handlers custom (resetate la SIG_DFL)
+
+**Ce supraviețuiește execve():**
+- PID și PPID (procesul rămâne în același loc în arborele OS)
+- Descriptorii de fișiere deschiși (excepție: cei marcați cu `O_CLOEXEC`)
+- UID/GID (excepție: dacă binarul nou are bitul setuid activat)
+
+De ce supraviețuiesc FD-urile? E secretul din spatele redirectărilor în shell:
+`ls > out.txt` funcționează astfel: shell-ul deschide `out.txt`, redirecționează
+file descriptor-ul 1 (stdout) spre el, apoi `execve()` pe `ls`. `ls` moștenește
+fd-ul 1 → scrie pe disc fără să știe că scrie într-un fișier.
+
+**Parsarea binarului ELF:**
+
+Kernelul citește primii 4 bytes: **`0x7F 'E' 'L' 'F'`** — magic number-ul ELF.
+Dacă lipsesc → `execve()` returnează `ENOEXEC`.
+
+Segmentele unui binar ELF:
+
+{/* TABLE */}
+
+| Segment | Permisiuni | Conținut |
+|---|---|---|
+| `.text` | `r-x` | Cod mașină executabil, constante read-only |
+| `.data` | `rw-` | Variabile globale inițializate (`int x = 42;`) |
+| `.bss` | `rw-` | Variabile globale neinițializate (zero-filled, nu ocupă spațiu pe disc) |
+| Heap | `rw-` | Alocat dinamic via `malloc()`/`brk()`/`mmap()` |
+| Stack | `rw-` | Stiva procesului, argumente, variabile locale |
+| VDSO | `r-x` | Pagini kernel mapate în user space pentru syscalls rapide |
+
+Kernelul nu copiază segmentele byte cu byte în RAM. Le **mapează** cu `mmap()` —
+paginile fizice sunt încărcate abia când procesorul le accesează (demand paging).
+
+Dacă binarul e compilat dinamic (majoritatea sunt), ELF conține un segment
+`PT_INTERP` cu calea spre **dynamic linker** (`/lib64/ld-linux-x86-64.so.2`).
+Kernelul mapează și linker-ul și setează RIP la **entry point-ul linker-ului**,
+nu al programului. Linker-ul rezolvă dependențele (găsește `libc.so.6`, o mapează,
+completează PLT/GOT), apoi predă controlul funcției `_start` a programului.
+
+### Spațiul de Adrese al unui Proces
+
+Layout-ul memoriei virtuale pe x86-64 Linux, vizibil în `/proc/self/maps`:
+
+$$\text{Adrese mici} \xrightarrow{\text{crește heap}} \quad \cdots \quad \xleftarrow{\text{crește stack}} \text{Adrese mari}$$
+
+```
+0x400000          .text (cod executabil)
+0x600000          .data / .bss
+       ↕          [heap — crește în sus]
+  ...
+7f0000000000      biblioteci .so (libc, etc.)
+  ...
+7ffd00000000      [stack — crește în jos, 8MB default]
+7ffd...           [vvar]
+7ffe...           [vdso]
+```
+
+**VDSO** (Virtual Dynamically Shared Object) — o pagină de kernel mapată în user
+space cu permisiuni `r-x`. Conține implementări de syscall-uri frecvente
+(`gettimeofday`, `clock_gettime`) care pot fi executate fără tranziție Ring 3→Ring 0.
+Elimină overhead-ul de ~200–300ns per apel pentru operațiile de timp.
+
+**ASLR** (Address Space Layout Randomization) — randomizează adresele de bază la
+fiecare `execve()`. Pe Linux x86-64, parametrul `mmap_rnd_bits` controlează
+entropia pentru zona bibliotecilor: default **28 biți** → $2^{28}$ = 268 milioane
+locații posibile. Atenție: cu **Transparent Huge Pages** active (Linux 5.18+),
+alinierea la 2MB reduce efectiv entropia la **19 biți** — o degradare de securitate
+semnificativă. Controlat prin `/proc/sys/kernel/randomize_va_space`:
+`0` = dezactivat, `1` = parțial (fără heap), `2` = complet.
+
+### Stările unui Proces
+
+Câmpul `state` din `task_struct` poate lua valorile:
+
+{/* TABLE */}
+
+| Cod | Macro | Semnificație |
+|---|---|---|
+| `R` | TASK_RUNNING | Rulează pe CPU sau în coada runqueue |
+| `S` | TASK_INTERRUPTIBLE | Dormit, poate fi trezit de un semnal |
+| `D` | TASK_UNINTERRUPTIBLE | Dormit, **nu** poate fi trezit nici de SIGKILL |
+| `T` | TASK_STOPPED | Oprit (SIGSTOP / Ctrl+Z / debugger) |
+| `Z` | EXIT_ZOMBIE | Mort, dar task_struct-ul există până când părintele apelează wait() |
+| `X` | EXIT_DEAD | Micro-stare tranzitorie la distrugerea finală a task_struct |
+
+**Starea D** e periculoasă: un proces în I/O blocant pe disc sau NFS nu poate fi
+terminat — nici de root, nici cu `kill -9`. Dacă discul sau serverul NFS nu
+răspunde, procesul rămâne blocat la infinit. La shutdown, OS-ul se blochează
+așteptând procesele în starea D să se termine. Soluția modernă: `TASK_KILLABLE`
+— dormit, dar acceptă SIGKILL.
+
+**Zombie** nu consumă RAM sau CPU — e doar carcasa `task_struct` care păstrează
+exit code-ul pentru părinte. Problema: consumă un slot din tabela de PID-uri și
+~7KB în Slab Allocator. Un număr mare de zombi = bug în codul părintelui (nu
+apelează `wait()`).
+
+### PID-uri și Ierarhia Proceselor
+
+**PID maxim**: default **32768** pe Linux (moștenit din compatibilitate UNIX).
+Pe sisteme cu containere dense, poate fi extins la **4.194.304** (2²²), configurat
+via `/proc/sys/kernel/pid_max`.
+
+**PID 1** are prerogative unice hardcodate în kernel:
+- Ignoră SIGKILL trimis din exterior (kernelul refuză executarea)
+- Adoptă obligatoriu toți orfanii (procese al căror părinte a murit)
+
+**PID Namespace** — fiecare container Docker are propriul spațiu de PID-uri.
+Un proces vede PID 1 în interiorul containerului, dar pe host are PID-ul real
+(ex: 15320). Kernelul translatează automat între namespace-uri la fiecare syscall.
+
+**Orphan vs. Zombie:**
+
+*Orphan* — părintele a murit, copilul continuă. Kernelul îl reasignează
+automat la PID 1 (init/systemd). Inofensiv.
+
+*Zombie* — copilul a murit, părintele nu a apelat `wait()`. Carcasa
+`task_struct` rămâne în memorie. Dacă acumulezi mii de zombi, epuizezi PID-urile
+disponibile → `fork()` returnează EAGAIN → niciun proces nou nu mai poate fi creat.
+
+**Exit codes**: `0` = succes, `1–255` = eroare specifică, `128+N` = terminat de
+semnalul N (ex: `137` = 128+9 = terminat de SIGKILL).
+
+### Threads vs. Processes
+
+Threads partajează spațiul de adrese. Procese nu.
+
+La nivel de kernel Linux, nu există o distincție fundamentală între thread și
+proces — ambele sunt `task_struct`. Un thread e "un proces care partajează
+resursele": `pthread_create()` apelează `clone()` cu flagurile `CLONE_VM |
+CLONE_FS | CLONE_FILES | CLONE_SIGHAND`. Fiecare thread primește propria stivă
+și propriul **TLS** (Thread-Local Storage) — variabile globale vizibile doar
+thread-ului respectiv (ex: `errno` e thread-local).
+
+<CosmoHint emotion="thinking">
+De ce `errno` trebuie să fie thread-local? Dacă ar fi o variabilă globală
+obișnuită, două thread-uri care fac syscall-uri simultane ar suprascrie reciproc
+codul de eroare. Thread-ul A apelează `open()`, eșuează, dar înainte să citească
+`errno`, Thread-ul B apelează `read()` și suprascrie valoarea. Thread-local
+storage rezolvă asta: fiecare thread are propria copie a variabilei.
+</CosmoHint>
+
+Costul de creare:
+
+- **fork()**: ~100 µs (trebuie să copieze tabelele de pagini pentru COW)
+- **thread** (clone): ~10 µs (partajează mm_struct, nu copiază nimic)
+
+Pe sisteme cu milioane de task-uri concurente (servere web), diferența de 10× în
+latența de creare e esențială. Go folosește **goroutine-uri** (M:N threading):
+milioane de coroutine virtuale mapate peste un pool mic de thread-uri OS,
+evitând complet overhead-ul de context switch Ring 0/Ring 3 pentru fiecare task.
+
+### exit() vs. \_exit()
+
+Când un proces termină, are două opțiuni:
+
+**`exit()`** (din glibc): Face curățenie în user space înainte să moară — flush
+la toate buffer-ele stdio, execută funcțiile înregistrate cu `atexit()`, apoi
+apelează `_exit()`.
+
+**`_exit()`** (syscall direct): Ucide procesul imediat, fără flush, fără atexit.
+Critic în copii creați cu `vfork()` — care partajează stiva părintelui —
+`exit()` ar corupa buffer-ele stdio ale părintelui. Motiv pentru care `vfork()`
+impune explicit folosirea `_exit()`.
+
+La terminare, kernelul execută `do_exit()`:
+1. Eliberează memoria virtuală (`exit_mm()`)
+2. Închide file descriptor-urile (`exit_files()`)
+3. Trimite **SIGCHLD** părintelui
+4. Lasă `task_struct` ca zombie până când părintele apelează `wait()`
+5. La `wait()` din părinte → `task_struct` e distrus, PID-ul eliberat
+
+### Windows: CreateProcess() vs. fork()+execve()
+
+Pe Unix, nașterea unui proces e în doi pași: clonezi (`fork()`), apoi transformi
+(`execve()`). Pe Windows, e o singură operațiune atomică: **`CreateProcess()`**.
+
+`CreateProcess()` → `NtCreateUserProcess()` în kernel → creează EPROCESS, mapează
+binarul, setează PEB, pornește primul thread — totul într-o singură tranzacție.
+
+**Structurile interne Windows:**
+
+*EPROCESS* (Ring 0, ~1992 bytes pe Windows 10 x64 recent): echivalentul
+`task_struct`. Conține pointeri la tabelele de handle-uri, Access Token de
+securitate, UniqueProcessId.
+
+*PEB* (Ring 3, expus procesului): conține `BeingDebugged` (câmp verificat de
+malware pentru anti-analysis), lista DLL-urilor încărcate (`Ldr`), parametrii
+de linie de comandă.
+
+*TEB* (Ring 3, ~6200 bytes pe Windows 10 x64, per thread): conține TLS,
+handlere de excepții SEH, pointer la PEB. Adresat prin registrul GS (la fel ca
+pe Linux prin SWAPGS).
+
+Pe Windows, file descriptor-urile Unix devin **Handle-uri** — mai generice: un
+handle poate referi un fișier, un socket, un proces extern, un event, un mutex.
+Tabela de handle-uri e controlată din EPROCESS și vizibilă în kernel space.
+
+Un proces Windows poate fi creat în stare **suspendată** (`CREATE_SUSPENDED`):
+structura completă e construită, dar thread-ul principal nu pornește până când
+nu se apelează `ResumeThread()`. Util pentru debuggere și injecție de cod la
+start.
+
+## REVEAL
+
+Un proces e mai mult decât cod care rulează. E o entitate complexă cu identitate
+(PID, UID/GID), memorie izolată (mm_struct cu tabele de pagini), resurse (FD-uri),
+și stare (task_struct). Se naște prin clonarea altui proces (fork), se transformă
+prin înlocuirea imaginii (execve), și moare lăsând o carcasă zombie până când
+părintele colectează exit code-ul.
+
+Copy-on-Write e compromisul care face posibilă filozofia Unix: clonarea e rapidă
+pentru că nu copiezi nimic — plătești doar paginile pe care le modifici efectiv,
+la ~8.2 µs per pagină faulted.
+
+## ÎNCHEIERE
+
+Procesele există. Dar cum decide kernelul care proces rulează acum, pe care
+nucleu, și pentru cât timp? Lecția următoare intră în context switching — ce se
+întâmplă exact în microsecundele în care un proces e scos de pe CPU și altul e
+pus în loc.

@@ -6,7 +6,20 @@
       "Bash(find \"C:/DevPath RO/src/app/\\(dashboard\\)/onboarding\" -type f 2>/dev/null | head -20; echo \"---\"; find \"C:/DevPath RO/src/app/\\(dashboard\\)/settings\" -type f 2>/dev/null | head -20; echo \"---\"; find \"C:/DevPath RO/content/courses\" -name \"*.mdx\" 2>/dev/null | wc -l; echo \"---\"; find \"C:/DevPath RO/content/courses\" -name \"*.mdx\" 2>/dev/null | head -10)",
       "Bash(find \"C:/DevPath RO/content/courses\" -name \"*.mdx\" -not -name \"*-simple*\" 2>/dev/null | wc -l; echo \"standard lessons\"; find \"C:/DevPath RO/content/courses\" -name \"*-simple*\" 2>/dev/null | wc -l; echo \"simple variants\"; echo \"---\"; find \"C:/DevPath RO/content/courses\" -type d 2>/dev/null; echo \"---courses---\"; find \"C:/DevPath RO/src/app/\\(dashboard\\)\" -maxdepth 2 -name \"page.tsx\" 2>/dev/null | sort)",
       "Bash(find \"C:/DevPath RO/content/courses/ai-fundamentals\" -name \"*.mdx\" -not -name \"*-simple*\" 2>/dev/null | sort; echo \"===\"; find \"C:/DevPath RO/content/courses/prompt-engineering-practic\" -name \"*.mdx\" -not -name \"*-simple*\" 2>/dev/null | sort)",
-      "Bash(find \"C:/DevPath RO/content/courses/prompt-engineering-practic\" -name \"*-simple*\" 2>/dev/null | wc -l; echo \"PE simple variants\"; find \"C:/DevPath RO/src/app/api\" -name \"route.ts\" 2>/dev/null | sort)"
+      "Bash(find \"C:/DevPath RO/content/courses/prompt-engineering-practic\" -name \"*-simple*\" 2>/dev/null | wc -l; echo \"PE simple variants\"; find \"C:/DevPath RO/src/app/api\" -name \"route.ts\" 2>/dev/null | sort)",
+      "mcp__playwright__browser_navigate",
+      "mcp__playwright__browser_take_screenshot",
+      "Bash(curl *)",
+      "mcp__playwright__browser_wait_for",
+      "mcp__playwright__browser_snapshot",
+      "mcp__supabase__execute_sql",
+      "mcp__playwright__browser_fill_form",
+      "mcp__playwright__browser_click",
+      "mcp__playwright__browser_press_key",
+      "mcp__playwright__browser_console_messages",
+      "mcp__playwright__browser_drag",
+      "mcp__playwright__browser_evaluate",
+      "mcp__playwright__browser_resize"
     ]
   },
   "hooks": {

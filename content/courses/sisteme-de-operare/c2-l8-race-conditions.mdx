@@ -1,0 +1,434 @@
+---
+title: "Race Conditions"
+order: 8
+type: lesson
+module_index: 2
+duration: 15
+difficulty: 3
+---
+
+# Race Conditions
+
+## HOOK
+
+Două thread-uri. O variabilă. Nicio sincronizare.
+
+```c
+counter++;  // "o singură operație"
+```
+
+Nu e o singură operație. E trei. Load, increment, store. Dacă planificatorul
+comută thread-ul exact între load și store, al doilea thread scrie valoarea
+lui veche și prima incrementare dispare. Silențios. Fără eroare. Fără crash.
+
+Race condition-urile nu urlă. Ele corupe datele și lasă sistemul să ruleze ca
+și cum totul e în regulă. De aceea sunt mai periculoase decât deadlock-urile —
+cel puțin deadlock-ul oprește sistemul. Race condition-ul îl lasă să meargă
+mai departe cu date greșite.
+
+## CONTEXT
+
+Știi deja din L7 că Northeast Blackout 2003 a fost cauzat de un race condition,
+nu de un deadlock. Știi că `counter++` se dezasamblează în 3 instrucțiuni. Știi
+că TSan detectează race conditions cu 5–15× overhead.
+
+Lecția asta intră în profunzime: distincția precisă data race vs. race condition,
+mecanismul hardware care le face posibile, TOCTOU, memory model C++11, RCU în
+kernel, și cum fiecare limbaj modern tratează problema diferit.
+
+## MIEZUL
+
+### Data Race vs. Race Condition: Două Lucruri Diferite
+
+Sunt confundate constant. Sunt concepte distincte.
+
+**Data race** — definiție formală conform C++11:
+1. Două sau mai multe thread-uri accesează **aceeași locație de memorie**
+2. Cel puțin unul **scrie**
+3. Fără niciun mecanism de sincronizare (mutex, atomic, barrier)
+
+Un data race e **Undefined Behavior** în C/C++. Compilatorul poate genera
+orice cod presupunând că data race-ul nu există.
+
+**Race condition** — definiție semantică:
+Comportamentul programului este incorect când ordinea relativă a evenimentelor
+nu e cea așteptată — chiar dacă nu există data race.
+
+Pot exista independent:
+
+**Race condition FĂRĂ data race:**
+```cpp
+bool withdraw(int amount) {
+    mtx.lock();
+    int current = balance;  // Check
+    mtx.unlock();
+    // --- context switch --- alt thread retrage tot soldul
+    if (current >= amount) {
+        mtx.lock();
+        balance -= amount;  // Act pe informație învechită
+        mtx.unlock();
+        return true;
+    }
+    return false;
+}
+```
+Zero data races — mutex e luat corect la fiecare acces. Dar soldul poate
+deveni negativ. Race condition pur la nivel semantic (check-then-act).
+
+**Data race FĂRĂ race condition:**
+```cpp
+bool is_done = false;
+void worker() {
+    is_done = true;  // 100 thread-uri scriu simultan
+}
+```
+Data race clar (scrieri nesincronizate). Dar toți scriu aceeași valoare `true`
+— rezultatul logic e întotdeauna corect.
+
+**Taxonomia completă:**
+
+{/* TABLE */}
+
+| Tip | Mecanism | Exemplu |
+|---|---|---|
+| **Read-Write race** | Thread citește în timp ce altul scrie | Citire parțială — word tearing |
+| **Write-Write race** | Ambele thread-uri scriu, una suprascrie cealaltă | `counter++` neprotejat = lost update |
+| **TOCTOU** | Starea se schimbă între Check și Use | `access()` + `open()` cu symlink attack |
+| **Order race** | Dependentă de ordinea evenimentelor, nu de memorie | Semnal trimis înainte de inițializare |
+
+### Mecanismul Hardware: De Ce Apare la Nivel de Siliciu
+
+Race conditions nu vin doar din planificatorul OS. Vin din arhitectura
+procesorului însuși.
+
+**Out-of-Order Execution** — procesorul execută instrucțiunile în orice ordine
+care nu violează dependențele de date *locale*. Pe un singur core, iluzia
+secvențialității e menținută prin Reorder Buffer. Pe multi-core, reordonările
+devin vizibile celorlalte nuclee.
+
+**Store Buffers** — când CPU-ul scrie, plasează datele într-un Store Buffer
+privat și continuă execuția imediat. Scrierea ajunge în L1 Cache după câteva
+zeci de cicli. **Load Forwarding**: CPU-ul citește din propriul Store Buffer —
+vede propria scriere corect. Niciun alt nucleu nu vede Store Buffer-ul unui
+alt nucleu.
+
+Rezultat: Core 0 a scris o valoare. Core 1 citește imediat același loc și
+primește valoarea **veche** — pentru că scrierea stă încă în Store Buffer-ul
+lui Core 0, nevizibilă. Fereastra de invisibilitate: **~10–50 cicli CPU**
+(zeci de nanosecunde).
+
+**Protocolul MESI** gestionează coerența cache-urilor: o linie poate fi
+Modified, Exclusive, Shared sau Invalid. Când Core 0 vrea să scrie o linie
+Shared, trimite un semnal de Invalidate celorlalte nuclee. Până primesc
+confirmarea, scrierea nu e vizibilă. Cross-cache line penalty (scriere
+traversând două linii de cache): **10–23 cicli suplimentari**.
+
+**x86 vs. ARM — modele de memorie diferite:**
+
+x86 implementează **TSO (Total Store Order)** — model relativ strict. Singura
+reordonare permisă: Store-Load (o citire nouă poate precede o scriere mai
+veche). Codul nesincronizat funcționează aparent pe x86 dar se sparge pe ARM.
+
+ARM implementează **Weak Memory Model** — poate reordona orice Load și Store
+care nu au dependențe directe de registre. Codul portat de pe x86 pe ARM
+(ex: instanțe cloud AWS Graviton) poate corupe date instantaneu. Emularea
+TSO a x86 pe Apple M1 prin Rosetta 2 costă ~8.94% performanță.
+
+<CosmoHint emotion="thinking">
+**`volatile` în C/C++ ≠ `volatile` în Java** — și diferența e uriașă.
+C/C++ `volatile` previne doar compilatorul să optimizeze accesele — nu emite
+bariere hardware. CPU-ul continuă Store Buffers și Out-of-Order Execution
+nestingherit. În Java, `volatile` garantează vizibilitate (flush la main
+memory) și happens-before ordering — echivalentul lui `std::atomic` din C++.
+Codul Java cu `volatile` e corect pe multi-core; codul C/C++ cu `volatile`
+fără bariere e la fel de nesigur ca fără nimic.
+</CosmoHint>
+
+<FactBox>
+**Costul sincronizării hardware pe x86:**
+- Latența vizibilității scrierilor între nuclee: **~10–50 cicli** (~3–15 ns)
+- Cross-cache line penalty (scriere pe granița a două linii): **~10–23 cicli**
+- Un `mfence` (seq_cst): **~10–40 cicli** — golește Store Buffers, oprește pipeline
+- `memory_order_acquire/release` pe x86: **~0 cicli extra** (TSO garantează deja)
+- Emularea TSO pe ARM Apple M1 (Rosetta 2): **~8.94% overhead** de performanță
+</FactBox>
+
+### TOCTOU: Time-of-Check to Time-of-Use
+
+Formula temporală exactă: Check($t_1$) → ... → Use($t_2$), cu $t_1 < t_2$.
+Starea resursei se poate schimba în intervalul $[t_1, t_2]$.
+
+**Atacul symlink pe filesystem:**
+```c
+// t1: access() verifică dacă utilizatorul are drept de scriere
+if (access("/tmp/user_file", W_OK) == 0) {
+    // --- context switch ---
+    // Atacatorul șterge /tmp/user_file și creează symlink → /etc/shadow
+    
+    // t2: open() urmează symlink-ul, programul setuid scrie în /etc/shadow
+    FILE *f = fopen("/tmp/user_file", "w");
+}
+```
+Programul setuid root verifică permisiunea la $t_1$, dar folosește fișierul
+la $t_2$. Un atacator poate schimba `/tmp/user_file` într-un symlink spre
+`/etc/shadow` în fereastra dintre cele două apeluri.
+
+**Database TOCTOU:**
+```sql
+SELECT balance FROM accounts WHERE id = 42;  -- t1: Check
+-- altă sesiune retrage tot soldul
+UPDATE accounts SET balance = balance - 100 WHERE id = 42;  -- t2: Use
+```
+Fără `SELECT ... FOR UPDATE` sau tranzacție cu izolare strictă, soldul
+poate deveni negativ.
+
+**Memory allocator TOCTOU:**
+```c
+if (ptr != NULL) {    // t1: Check
+    // context switch — alt thread setează ptr = NULL și eliberează memoria
+    free(ptr);         // t2: Double-free → heap corruption
+}
+```
+
+**Soluție universală**: transformi Check + Use într-o operație atomică.
+Filesystem: `open(path, O_RDWR | O_CREAT | O_EXCL)` — flag-ul `O_EXCL`
+garantează atomic că eșuează dacă fișierul/symlink-ul există. Memorie: CAS.
+Baze de date: `UPDATE ... WHERE version = N`.
+
+### Double-Checked Locking: Race Condition Clasic
+
+```cpp
+// GREȘIT — race condition prin reordonare hardware
+static Singleton* getInstance() {
+    if (instance == nullptr) {
+        lock_guard<mutex> lock(mtx);
+        if (instance == nullptr) {
+            instance = new Singleton();  // A → C → B posibil!
+        }
+    }
+    return instance;
+}
+```
+
+`new Singleton()` se compilează în trei pași: A) aloca memorie, B) rulează
+constructorul, C) atribuie pointerul. Hardware-ul sau compilatorul pot reordona
+în A → C → B. Thread-ul T2 vede `instance != nullptr` după C, dar înainte de B
+— primește un pointer la un obiect neinițializat.
+
+**Fix corect cu C++11:**
+```cpp
+static atomic<Singleton*> instance;
+
+static Singleton* getInstance() {
+    Singleton* tmp = instance.load(memory_order_acquire);
+    if (tmp == nullptr) {
+        lock_guard<mutex> lock(mtx);
+        tmp = instance.load(memory_order_relaxed);
+        if (tmp == nullptr) {
+            tmp = new Singleton();
+            instance.store(tmp, memory_order_release);  // garantează B înainte de C
+        }
+    }
+    return tmp;
+}
+```
+`memory_order_release` la store garantează că constructorul (B) e vizibil
+global înainte ca pointerul să fie publicat. `memory_order_acquire` la load
+garantează că cititorul vede tot ce s-a întâmplat înainte de release.
+
+### Memory Model C++11: std::memory_order
+
+{/* TABLE */}
+
+| memory_order | Tip | Garanție | Cost pe x86 |
+|---|---|---|---|
+| `relaxed` | Load/Store | Doar atomicitate, fără ordonare | ~0 cicli extra |
+| `acquire` | Load | Nicio operație de după nu trece înainte | ~0 pe x86 (TSO) |
+| `release` | Store | Nicio operație de înainte nu trece după | ~0 pe x86 (TSO) |
+| `acq_rel` | RMW | Barieră bidirecțională | ~0 pe x86 |
+| `seq_cst` | Load/Store | Ordine totală globală între toate thread-urile | ~10–40 cicli (mfence) |
+
+`seq_cst` e implicit și cel mai sigur, dar emite `mfence` pe x86 — forțează
+golirea Store Buffer-elor și oprește pipeline-ul. Cost: **10–40 cicli extra**
+per operație. La miliarde de iterații într-un motor de înaltă performanță,
+diferența e catastrofală. De aceea codul lock-free ultra-optimizat folosește
+`acquire`/`release` — pe x86 (TSO) mapează pe instrucțiuni normale fără cost,
+pe ARM mapează pe `ldar`/`stlr` cu cost minim.
+
+**Happens-Before**: dacă A happens-before B (notat $A \to B$), toate efectele
+de memorie ale lui A sunt garantat vizibile pentru B. Se formează prin:
+eliberarea unui mutex happens-before blocarea lui, un `release` store
+happens-before un `acquire` load pe aceeași locație.
+
+### Race Conditions Specifice Kernel Linux
+
+**Signal handler race condition** — un singur thread, fără multi-core:
+```c
+void handler(int sig) {
+    malloc(...);  // GREȘIT — malloc nu e async-signal-safe
+}
+// Dacă main() era în malloc() când a venit semnalul → deadlock pe heap lock
+// sau corupere: "malloc(): unsorted double linked list corrupted"
+```
+Lista funcțiilor async-signal-safe e scurtă: `write()`, `_exit()`, operații
+atomice. `malloc`, `printf`, `mutex_lock` — toate interzise în signal handlers.
+
+**RCU (Read-Copy-Update)** — alternativa performantă la rwlock pentru
+structuri citite frecvent, scrise rar:
+
+Scriitorul: creează o copie, o modifică, folosește `rcu_assign_pointer()`
+(barrier release) să redirecționeze atomic pointerul global spre noua versiune.
+Varianta veche **rămâne în memorie**.
+
+Cititorii existenți continuă să citească varianta veche — fără niciun lock.
+
+Scriitorul apelează `synchronize_rcu()` sau `call_rcu()`. Sistemul RCU
+așteaptă **Grace Period** — momentul în care toți cititorii activi au terminat.
+Abia atunci memoria veche e eliberată cu `kfree()`.
+
+Cost pentru cititori: `rcu_read_lock()` / `rcu_read_unlock()` — **aproape zero**.
+Nicio instrucțiune atomică, nicio modificare a memoriei partajate, doar un
+flag de preemptare. Citirile cu `rcu_dereference()` generează load-uri banale.
+
+**Per-CPU Variables** — elimină complet contention-ul pe contoare globale:
+```c
+// FĂRĂ per-CPU: toate nucleele concurează pe aceeași adresă
+total_packets++;  // false sharing, invalidări MESI constante
+
+// CU per-CPU: fiecare nucleu scrie în zona sa privată
+per_cpu(packet_count, cpu_id)++;  // niciun lock, nicio atomicitate necesară
+```
+La citire, se iterează și sumează valorile din toate nucleele.
+
+**Seqlocks** — pentru structuri mici citite frecvent, scrise rar. Sunt
+esențiale pe arhitecturi **32-bit** unde citirea unui `u64` necesită **două
+instrucțiuni hardware separate** — creând risc de word tearing (jumătatea
+inferioară citită cu valoarea veche, jumătatea superioară cu cea nouă). Pe
+32-bit nu există o instrucțiune atomică pentru citire de 64 biți, deci
+seqlock-ul forțează retry dacă o scriere a intervenit între cele două citiri.
+Exemplul canonic: `jiffies_64`.
+```c
+u64 get_jiffies_64(void) {
+    unsigned long seq;
+    u64 ret;
+    do {
+        seq = read_seqbegin(&xtime_lock);
+        ret = jiffies_64;
+    } while (read_seqretry(&xtime_lock, seq));
+    return ret;
+}
+```
+Scriitorul incrementează un contor (impar = scriere în curs, par = liber).
+Cititorul verifică la final dacă contorul s-a schimbat — dacă da, reîncearcă.
+Cititorul nu blochează niciodată scriitorul.
+
+### Detectarea Race Conditions
+
+{/* TABLE */}
+
+| Unealtă | Mecanism | Overhead CPU | Overhead RAM | Unde rulează |
+|---|---|---|---|---|
+| **TSan** | Shadow memory + vector clocks, compile-time | 5–15× | 5–10× | User space, staging |
+| **KCSAN** | Watchpoint sampling, compile-time kernel | 1.1–2.8× | Minim | Kernel space, development |
+| **Helgrind** | Dynamic binary translation (Valgrind) | 20–50× | Mare | User space, debugging |
+| **Go race detector** | TSan adaptat pentru goroutine-uri, `-race` flag | 2–20× | 5–10× | User space, CI/test |
+
+**ThreadSanitizer (TSan)** — compilat cu `-fsanitize=thread`:
+
+*Shadow memory*: TSan alocă 4 shadow bytes per 8 bytes de memorie user
+(raport 1:2 cu compresia v3). Fiecare celulă shadow stochează: ID-ul
+thread-ului care a accesat (13 biți → max 8192 thread-uri) + timestamp
+vectorial pentru happens-before.
+
+*Vector clocks*: fiecare thread are propriul contor. La sincronizare
+(unlock → lock), TSan sincronizează tabelele de clock-uri. Când detectează
+un acces la o locație unde shadow memory arată un acces anterior al altui
+thread fără happens-before comun → raportează race condition.
+
+Output exact TSan:
+```
+WARNING: ThreadSanitizer: data race (pid=2193569)
+Write of size 4 at 0x555556a6dd28 by thread T27:
+  #0 counter_increment() counter.cpp:112
+
+Previous write of size 4 at 0x555556a6dd28 by thread T19:
+  #0 counter_increment() counter.cpp:112
+```
+
+Overhead: **5–15× CPU, 5–10× memorie**. Nu detectează race conditions
+pe căi de cod neexecutate în test (false negatives). Blind la TOCTOU pe
+fișiere. Exclusiv pentru staging/CI, nu producție.
+
+**Kernel KCSAN (Kernel Concurrency Sanitizer)** — echivalentul TSan pentru
+Ring 0. Nu poate folosi shadow memory masivă (ar provoca OOM în kernel space).
+Folosește **watchpoint-based sampling**: montează watchpoint-uri pe variabile
+monitorizate, verifică dacă o altă execuție concurentă modifică aceeași locație.
+Overhead: **~1.1–2.8× CPU** (față de 5–15× TSan) — fezabil pentru kerneluri
+de development.
+
+**Go race detector** (`go run -race`) — folosește același motor TSan adaptat
+pentru goroutine-uri:
+```
+WARNING: DATA RACE
+Read at 0x00c0000a01e8 by goroutine 9:
+  main.Counter.Increment() counter.go:11
+
+Previous write at 0x00c0000a01e8 by goroutine 7:
+  main.Counter.Increment() counter.go:11
+
+Goroutine 9 created at:
+  main.TestCounter() counter_test.go:15
+```
+
+<CosmoHint emotion="thinking">
+Map-urile din Go **nu sunt thread-safe** — design intenționat. Accesul concurent
+la un map Go (chiar două citiri simultane cu o scriere) declanșează un **panic
+nondeterministic** la runtime, nu un race condition silențios. Motivul: Go
+preferă să crașeze vizibil față de a corupe date în tăcere. `sync.Map` există
+pentru cazurile legitime de acces concurent, cu semantică lock-free pentru
+citiri frecvente.
+</CosmoHint>
+
+### Race Conditions în Limbaje Moderne
+
+**Rust** previne **data races la compile time** prin borrow checker: o locație
+acceptă fie `N` referințe imutabile (`&T`), fie exact **una** mutabilă (`&mut T`).
+Suprapunerea → eroare de compilare. Rust distruge data races, dar **nu
+deadlock-urile** și nici race conditions semantice.
+
+Marker traits: `Send` (valoarea poate fi transferată la alt thread), `Sync`
+(referința `&T` poate fi partajată între thread-uri). `Rc<T>` nu e `Send` —
+contorul de referințe nu e atomic. `Arc<T>` e `Send` — contor atomic.
+`Arc<Mutex<T>>` sau `Arc<RwLock<T>>` pentru acces mutable thread-safe.
+`UnsafeCell<T>` — singurul escape hatch din garanțiile de safety.
+
+**Java**: `volatile` în Java ≠ `volatile` în C/C++. Java `volatile` garantează
+**vizibilitate** (scrierile sunt imediat vizibile tuturor thread-urilor, flush
+la main memory) și **happens-before ordering**. Dar `counter++` rămâne race
+condition chiar cu `volatile` — e o operație compusă (read-modify-write).
+`AtomicInteger.incrementAndGet()` sau `synchronized` pentru operații atomice
+compuse. `ConcurrentHashMap` în loc de `HashMap` pentru acces concurent.
+
+## REVEAL
+
+Un race condition apare când comportamentul unui program depinde de ordinea
+non-deterministă a evenimentelor. Data race (acces nesincronizat) și race
+condition (logică defectă) sunt distincte — pot exista independent.
+
+Hardware-ul contribuie activ: Store Buffers, Out-of-Order Execution și modelul
+de memorie relaxat ARM fac ca scrierile să fie invizibile celorlalte nuclee
+zeci de nanosecunde. `volatile` în C/C++ nu rezolvă nimic. `memory_order_release`
++ `memory_order_acquire` creează happens-before fără bariere costisitoare.
+
+Kernel Linux a rezolvat elegant: RCU pentru structuri citite frecvent (cost
+aproape zero pentru cititori), per-CPU variables pentru contoare (zero
+contention), seqlocks pentru structuri mici și volatile.
+
+TSan detectează cu precizie la 5–15× overhead. KCSAN detectează în kernel la
+1.1–2.8×. Niciuna în producție.
+
+## ÎNCHEIERE
+
+Știi acum cum se corup datele la nivel de siliciu. Lecția următoare coboară un
+nivel mai jos în gestionarea memoriei: fragmentarea, paginarea, și cum kernelul
+gestionează spațiul virtual al proceselor.

@@ -30,6 +30,11 @@ export function AICoachChat({
   const [isMuted, setIsMuted] = useState(false);
   // Memory: context string built from past sessions, injected into system prompt
   const [sessionContext, setSessionContext] = useState("");
+  // Defer all browser-API-dependent UI (mic/mute buttons) until after hydration.
+  // Server render and first client render must match — `recognition.isSupported`
+  // and `tts.isSupported` are both `false` on SSR (no window object) but flip to
+  // `true` on the client, which would otherwise mismatch.
+  const [mounted, setMounted] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -70,6 +75,13 @@ export function AICoachChat({
 
   const recognition = useSpeechRecognition();
   const tts = useSpeechSynthesis();
+
+  // Flip `mounted` after first paint so SSR / first client render show the same
+  // tree (no mic button, no mute button). Voice UI then appears on the next
+  // render once we know the browser supports it.
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // ── Log errors and loading state changes ─────────────────────────────────
   useEffect(() => {
@@ -262,8 +274,8 @@ export function AICoachChat({
             </p>
           </div>
 
-          {/* TTS mute toggle */}
-          {tts.isSupported && (
+          {/* TTS mute toggle — gated by `mounted` to avoid SSR/client mismatch */}
+          {mounted && tts.isSupported && (
             <button
               onClick={() => {
                 if (!isMuted) tts.stop();
@@ -436,8 +448,8 @@ export function AICoachChat({
             )}
           />
 
-          {/* Toggle mic button — hidden if browser doesn't support Speech API */}
-          {recognition.isSupported && (
+          {/* Toggle mic button — gated by `mounted` to avoid SSR/client mismatch */}
+          {mounted && recognition.isSupported && (
             <button
               type="button"
               onClick={handleMicToggle}

@@ -1,0 +1,364 @@
+---
+title: "Fragmentarea Memoriei"
+order: 9
+type: lesson
+module_index: 2
+duration: 14
+difficulty: 3
+---
+
+# Fragmentarea Memoriei
+
+## HOOK
+
+Un server Redis rulează zile întregi. `htop` arată 8GB RAM liber. Dar Redis
+returnează eroare de memorie insuficientă.
+
+Cum? Memoria există. Problema e că nu e contiguă. E spargă în mii de bucăți
+mici între care se află date active, și niciuna dintre aceste bucăți nu e
+suficient de mare pentru cererea curentă.
+
+Asta e fragmentarea memoriei: nu îți lipsește memoria, îți lipsește topologia.
+Și spre deosebire de un memory leak, nu vei găsi nicio eroare în cod.
+
+## CONTEXT
+
+Știi deja că fiecare proces are un spațiu de adrese virtual gestionat prin
+`vm_area_struct`, că heap-ul crește cu `brk()`/`mmap()`, că paginile fizice
+sunt de 4KB, și că kernelul ține structuri interne ca `task_struct` și `inode`.
+Lecția asta explică de ce toate aceste alocare generează inevitabil degradare
+topologică — și cum o gestionezi.
+
+## MIEZUL
+
+### Fragmentare Externă vs. Internă
+
+Două fenomene complet diferite, ambele numite "fragmentare":
+
+**Fragmentare externă** — spațiul liber există dar nu e contiguu.
+
+Exemplu pas cu pas: heap inițial gol.
+1. `malloc(100)` → bloc A la adresa 0–100
+2. `malloc(200)` → bloc B la adresa 100–300
+3. `malloc(100)` → bloc C la adresa 300–400
+4. `free(A)` → gaură de 100B la 0–100
+5. `free(C)` → gaură de 100B la 300–400
+
+Acum avem 200B liberi total, dar în două bucăți de 100B. O cerere de
+`malloc(150)` eșuează — deși 200B liberi există, niciun bloc contiguu de
+150B nu e disponibil.
+
+Worst-case: **checker-board pattern** — date active și goluri alternând la
+fiecare bloc. Memoria liberă e 50% din total dar nicio alocare mai mare decât
+dimensiunea unui bloc nu poate fi satisfăcută.
+
+**Formulă:**
+$$\text{Fragmentation Ratio} = \left(1 - \frac{\text{Largest Free Block}}{\text{Total Free Memory}}\right) \times 100\%$$
+
+Un sistem cu 100MB liberi dar cel mai mare bloc de 10MB:
+$(1 - 10/100) \times 100 = 90\%$ fragmentare. Practic inutilizabil pentru
+alocări mari.
+
+**Fragmentare internă** — spațiul alocat dar neutilizat **înăuntrul** unui bloc.
+
+`malloc(17)` pe un sistem 64-bit returnează un bloc de 32B (rotunjit la
+puterea lui 2 pentru aliniere hardware). Cei **15B de diferență sunt
+irecuperabili** — nimeni altcineva nu îi poate folosi. 47% din alocare e
+pierdut.
+
+Sursa: procesoarele accesează memoria în cuvinte aliniate. Un `uint64_t` la
+o adresă nealiniată forță CPU-ul să execute 2 cicluri în loc de 1, sau pe
+arhitecturi stricte — bus error. Deci `malloc()` **trebuie** să returneze
+pointeri aliniați la 8 sau 16B pe 64-bit.
+
+<FactBox>
+Fragmentarea e **inevitabilă matematic** — demonstrat de J.M. Robson în 1970.
+Un alocator general trebuie să supradimensioneze memoria cu
+$N = M \cdot \left(1 + \frac{\log_2 n}{2}\right) - n + 1$
+unde $M$ e memoria maximă utilizată concomitent și $n$ e raportul dintre
+cea mai mare și cea mai mică alocare. Niciun algoritm nu poate elimina
+fragmentarea complet — poate doar s-o minimizeze.
+
+**Overhead header malloc pe 64-bit**: 16B per bloc (dimensiunea bloc curent +
+dimensiunea bloc anterior + flag-uri de stare). `malloc(8)` consumă 24–32B
+total. Pe aplicații cu milioane de obiecte mici, overhead-ul de metadata
+poate depăși datele utile.
+</FactBox>
+
+**Fragmentare vs. Memory Leak:**
+
+Memory leak: memoria e alocată, pointerul e pierdut, logica e greșită.
+Detectabil cu Valgrind/AddressSanitizer — raportează pointeri niciodată eliberați.
+
+Fragmentare: toate `free()`-urile sunt corecte, logica e impecabilă, dar
+topologia heap-ului se degradează. **Nu există nicio eroare de detectat.**
+Necesită profiling avansat al distribuției blocurilor libere în arenele malloc.
+
+### Padding în C: `sizeof(struct)` Surprize
+
+```c
+struct ExempluPadding {
+    uint8_t  byte1;   // 1B
+    uint16_t word1;   // 2B — trebuie la adresă pară → 1B padding înainte
+    uint8_t  byte2;   // 1B
+    uint16_t word2;   // 2B — trebuie la adresă pară → 1B padding înainte
+    uint8_t  byte3;   // 1B → 1B padding la final pentru aliniere struct
+};
+// sizeof = 10B, deși suma câmpurilor = 7B → 3B irosiți (43% overhead!)
+```
+
+Compilatorul injectează silențios padding pentru a respecta ABI-ul hardware.
+Un milion de astfel de structuri = 3MB irosite invizibil. Fix: reordonează
+câmpurile de la cel mai mare la cel mai mic — `uint16_t` întâi, `uint8_t` la final.
+
+### Algoritmii Clasici de Alocare
+
+{/* TABLE */}
+
+| Algoritm | Timp alocare | Fragmentare externă | Fragmentare internă | Note |
+|---|---|---|---|---|
+| **First Fit** | O(N) | Moderată (îngrămădită la bază) | Scăzută | Simplu, degradează în timp |
+| **Next Fit** | O(N) | Distribuită uniform | Scăzută | Evită îngrămădirea la bază |
+| **Best Fit** | O(N)–O(log N) | Severă (micro-fragmente) | Minimă | Paradox: lasă resturi de 2B |
+| **Worst Fit** | O(1) cu Max-Heap | Severă pe termen lung | Scăzută | Distruge blocurile mari |
+| **Buddy System** | O(1) amortizat | Foarte scăzută | Severă (~50%) | Kernelul Linux |
+
+**Paradoxul Best Fit**: ceri 98B dintr-un bloc de 100B → rest de 2B. Prea mic
+pentru orice alocare viitoare, prea mic chiar și pentru propriul header.
+Best Fit inundă heap-ul cu micro-fragmente inutilizabile.
+
+**Buddy System** — algoritmul kernelului Linux:
+
+Toate alocările sunt puteri ale lui 2. Dacă ceri un bloc de $2^k$ și nu există,
+kernelul ia un bloc de $2^{k+1}$ și îl **split**-uiește în doi "buddies" egali.
+La `free()`, verifică dacă buddyul e liber cu o operație XOR:
+
+$$\text{BuddyAddr} = \text{BlockAddr} \oplus \text{BlockSize}$$
+
+Dacă buddyul e liber → **coalesce** imediat în bloc $2^{k+1}$. Poate urca
+în cascadă până la reunificarea întregii memorii. Coalescing garantat O(1).
+
+Limitare: ceri 513KB → primești 1024KB. **511KB irosiți** — fragmentare
+internă de ~50%.
+
+### Alocatoarele Moderne
+
+{/* TABLE */}
+
+| Alocator | Mecanism | Fragmentare | Utilizat de |
+|---|---|---|---|
+| **ptmalloc2** (glibc default) | Arene (8×nr_nuclee) + tcache (7 obj/bin) | Medie | Linux standard |
+| **jemalloc** | Size classes fine-grained, extent-based | ~20–30% mai bună decât ptmalloc | Firefox, Facebook, Redis, FreeBSD |
+| **tcmalloc** | Per-thread cache masiv + batch transfer | Bună | Google, Chrome |
+| **mimalloc** | Free list sharding (3 liste distincte) | Excelentă, purjare asertivă | Microsoft Research |
+
+**ptmalloc2 (glibc):**
+- **Arene**: copii independente ale structurii de gestionare heap. Un proces
+  cu 8 nuclee are default **64 arene**. Fiecare thread se atașează dinamic
+  la o arenă liberă → alocări paralele. Prețul: memoria liberă din arena 1
+  nu poate deservi o cerere din arena 2.
+- **tcache**: introdus în glibc 2.26. Fiecare thread are un cache privat cu
+  **64 bin-uri de dimensiuni**, fiecare stocând implicit **7 obiecte**. La
+  `free()` → merge în tcache local. La `malloc()` → preluare din tcache fără
+  niciun lock atomic. Elimină complet contention-ul pe mutex-ul arenei.
+
+**dlmalloc** — fundamentul ptmalloc. Inovația cheie: **Boundary Tags** (etichete
+de graniță). Fiecare bloc stochează dimensiunea sa la început **și** la final.
+`free()` poate citi adresa `Curent_Ptr - 8B` și știe instant dimensiunea
+blocului precedent → coalescing garantat O(1) indiferent de numărul de fragmente.
+
+Structura bin-urilor dlmalloc:
+- **Fast bins**: liste LIFO pentru blocuri mici, fără coalescing (viteza primează)
+- **Small bins**: liste dublu înlănțuite, dimensiuni la distanță de 8B
+- **Large bins**: pentru blocuri mari, sortate logaritmic
+- **Unsorted bin**: tampon pentru blocuri recent eliberate, sortate lazy
+
+**jemalloc** — proiectat pentru FreeBSD, adoptat de Firefox în 2007 când
+ptmalloc genera degradare masivă în sesiuni prelungite. Diferența esențială:
+**size classes fine-grained**. ptmalloc rotunjește dur la puteri ale lui 2.
+jemalloc are clase intermediare (distanțate la 16–32B) → blocuri aproape
+perfect dimensionate → fragmentare internă cu **20–30% mai mică** pe
+workload-uri server.
+
+**mimalloc** — compact (~10.000 linii), propune **Free List Sharding**: fiecare
+pagină de 64KB are 3 liste distincte: activă (alocări rapide), `local_free`
+(eliberări locale), `thread_free` (eliberări de la alte thread-uri, o singură
+operație CAS pentru transfer batch). Purjare asertivă: când o pagină se
+golește complet → memoria e returnată imediat OS-ului. Throughput
+**~10% superior** față de tcmalloc pe benchmark-uri multi-threaded.
+
+### Fragmentarea în Kernel Linux
+
+**Buddy System pentru pagini fizice:**
+
+Kernelul gestionează RAM fizic în liste de blocuri libere pe 11 ordine:
+
+- Ordin 0: 1 pagină = 4KB
+- Ordin 1: 2 pagini = 8KB
+- ...
+- Ordin 10: 1024 pagini = **4MB**
+
+Diagnosticul fragmentării fizice: `cat /proc/buddyinfo`
+
+```
+Node 0, zone Normal  216  55  189  101  84  38  37  27  5  3  587
+```
+
+Ultima coloană (587) = 587 blocuri de 4MB disponibile. Sistem sănătos.
+
+Un sistem fragmentat terminal:
+```
+Node 0, zone Normal  12543  0  0  0  0  0  0  0  0  0  0
+```
+Mii de pagini de 4KB izolate, zero blocuri de ordin superior. Alocarea unui
+buffer DMA de 2MB devine imposibilă.
+
+<CosmoHint emotion="thinking">
+De ce contează blocurile de ordin înalt? Driverele hardware (GPU, NIC de mare
+viteză) necesită frecvent buffer-uri DMA **contigue fizic** de câțiva MB.
+MMU poate construi orice mapare virtuală din pagini dispersate, dar DMA-ul
+accesează direct RAM-ul fizic — nu știe de tabele de pagini. Un nucleu cu
+fragmentare fizică avansată nu poate livra buffer-uri DMA mari → driverele
+eșuează → hardware-ul nu funcționează corect, chiar cu GB de RAM "liberi".
+</CosmoHint>
+
+**SLAB, SLUB, SLOB:**
+
+{/* TABLE */}
+
+| Alocator | Mecanism | Avantaj | Folosit în |
+|---|---|---|---|
+| **SLAB** | Original, cozi per-CPU, cache coloring | Distribuție optimă pe cache lines | Kernele vechi, referință |
+| **SLUB** | Metadate simplificate, fără cozi complexe | Overhead redus, rapid pe SMP masiv | Kernele moderne (default) |
+| **SLOB** | First/Best Fit simplist, fără structuri per-CPU | Footprint minim | Sisteme embedded, IoT, routere |
+
+Kernelul creează `task_struct`, `inode`, `dentry`, `vm_area_struct` de zeci
+de mii de ori pe secundă. Cererile standard de pagini ar irosi masiv memoria.
+
+Slab Allocator soluționează prin **size classes**: o pagină de 4KB dedicată
+exclusiv obiectelor de 32B se feliază în 128 sloturi identice. Orice obiect
+de 32B eliberat se potrivește perfect pentru orice cerere viitoare de 32B →
+**fragmentare externă zero** la nivelul acestui cache.
+
+- **SLAB**: implementarea originală, cu "coloring" (deplasamente mici intentionate)
+  pentru a distribui obiectele pe cache lines diferite și a preveni thrashing-ul L1
+- **SLUB**: înlocuitorul modern, implicit în kernelele actuale. Metadate
+  simplificate, overhead redus, rapid pe sisteme cu sute de nuclee
+- **SLOB**: minimal, pentru sisteme embedded cu RAM redus (routere, IoT)
+
+Inspecție: `cat /proc/slabinfo`
+```
+task_struct  1480  1539  8384  3  8
+```
+`task_struct` ocupă 8384B (~8KB) per instanță, 3 obiecte per slab,
+8 pagini per slab. Pe un sistem cu 1500 procese → ~12MB doar pentru task_struct-uri.
+
+**Compactarea memoriei** — când fragmentarea fizică e extremă, daemonul
+`kcompactd` migrează paginile active spre adrese superioare, consolidând
+pagini libere contigue la bază. Cost: intense cicluri CPU, flush TLB complet,
+actualizarea tuturor Page Table Entry-urilor afectate.
+
+### Fragmentarea Memoriei Virtuale
+
+Spațiul virtual al unui proces se fragmentează prin `vm_area_struct`-uri
+(VMA-uri) multiple. Vizibil în `/proc/[pid]/maps`:
+
+```
+7f3a2b000000-7f3a2b200000 rw-p  [heap]
+7f3a2c000000-7f3a2c100000 r-xp  /lib/x86_64-linux-gnu/libc.so
+7ffd8a000000-7ffd8a200000 rw-p  [stack]
+```
+
+`/proc/[pid]/smaps` adaugă detalii per VMA: RSS (rezident fizic), PSS
+(proporțional partajat), pagini private vs. partajate.
+
+Limita critică: `vm.max_map_count` (default **65530** VMA-uri per proces).
+Epuizarea lui returnează `ENOMEM` — server-ul cade cu GB de RAM liberi.
+ElasticSearch, baze de date cu mulți shard-uri, și containerele Docker
+necesită frecvent `sysctl -w vm.max_map_count=262144`.
+
+### Tehnici de Reducere a Fragmentării
+
+**Memory Pools / Object Pools** — elimină complet fragmentarea externă:
+
+```c
+// Pre-alocare la startup
+Bullet pool[MAX_BULLETS];
+bool in_use[MAX_BULLETS] = {false};
+
+// Alocare O(1), fără malloc
+Bullet* acquire() {
+    for (int i = 0; i < MAX_BULLETS; i++)
+        if (!in_use[i]) { in_use[i] = true; return &pool[i]; }
+    return NULL;
+}
+```
+
+Obiectele sunt re-utilizate din spațiu pre-alocat contiguu. Standard în game
+engines, sisteme embedded, automotive (MISRA C interzice `malloc` dinamic).
+
+**Compactarea** — imposibilă în C/C++. Kernelul nu știe dacă valoarea
+`0x7ffeea` dintr-o variabilă este un număr calculat sau un pointer. Mutarea
+obiectului ar invalida pointerul → segfault. Posibilă în Java/C# unde GC
+controlează toți pointerii.
+
+**Huge Pages** — pagini de 2MB în loc de 4KB:
+- Reduce TLB miss rate cu **20–50%** pe workload-uri cu acces random la memorie mare
+- **THP (Transparent Huge Pages)**: kernelul convertește automat 512 pagini de
+  4KB într-o pagină de 2MB când zona e contiguă
+- Pericol Redis: un `SET` de 50B forțează THP să aloce 2MB → 99.9% fragmentare
+  internă → OOM. Redis **dezactivează explicit THP** în documentația sa.
+
+<CosmoHint emotion="thinking">
+**Garbage Collection și fragmentarea**: Mark-and-Sweep nu face compactare →
+fragmentare externă crește în timp. Mark-Compact face compactare dar cu
+**Stop-the-World** de 10–100ms pentru heap-uri de 1–10GB (G1GC vechi).
+**ZGC** (Java modern) rezolvă elegant: injectează read-barriers în JIT,
+relocarea obiectelor se face **paralel cu aplicația** → pauze sub 1ms chiar
+și pe heap-uri de sute de GB. Prețul: overhead de read-barrier la fiecare
+acces la obiect.
+</CosmoHint>
+
+### Redis și `mem_fragmentation_ratio`
+
+Redis folosește **jemalloc** implicit pe Linux. Diagnosticul fragmentării:
+
+```
+> INFO memory
+used_memory: 1073741824        # 1GB — cerut de datele Redis
+used_memory_rss: 1610612736    # 1.5GB — raportat de OS (RSS)
+mem_fragmentation_ratio: 1.50  # RSS / used_memory
+```
+
+Interpretarea ratio-ului:
+- **~1.0** — ideal, memorie continuă nefragmentată
+- **1.0–1.5** — fragmentare normală acceptabilă
+- **> 1.5** — problematic: OS ține cu 50%+ mai multă memorie decât datele utile
+- **< 1.0** — Redis a folosit swap (situație critică de performanță)
+
+Din Redis 4.0+: **Active Defragmentation** — background process care
+realocă incremental obiectele fragmentate folosind capabilitățile jemalloc
+de a returna paginile goale OS-ului, fără latențe catastrofale.
+
+## REVEAL
+
+Fragmentarea memoriei e o realitate matematică inevitabilă — demonstrată de
+Robson. Fragmentarea externă (spațiu liber necontiguu) și internă (spațiu
+alocat neutilizat) au mecanisme diferite și soluții diferite.
+
+Buddy System rezolvă elegant coalescing-ul în kernel O(1) prin XOR, dar
+produce fragmentare internă de ~50%. SLUB elimină fragmentarea externă
+pentru obiectele kernel prin size classes dedicate. ptmalloc2 cu arene și
+tcache reduce contention-ul multi-threaded. jemalloc câștigă pe fragmentare
+prin size classes fine-grained.
+
+Soluțiile practice: memory pools elimină fragmentarea pentru obiecte cu
+dimensiuni fixe. Huge Pages reduc TLB pressure dar creează fragmentare
+internă masivă pe acces sparse (Redis le dezactivează explicit). GC cu
+compactare (ZGC) elimină fragmentarea externă în medii managed.
+
+## ÎNCHEIERE
+
+Știi acum cum se degradează topologia memoriei în timp. Lecția următoare
+ridică abstracția: Memoria Virtuală și Swap — cum kernelul creează iluzia
+că fiecare proces are mai multă memorie decât există fizic.

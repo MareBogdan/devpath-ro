@@ -21,6 +21,25 @@ const V_STEP = 0.1;
 const V_THRESHOLD = 2.0;
 const V_PARTIAL = 1.5;
 
+// LIVE ANALYSIS messages — one per voltage band. The index is derived from
+// the current slider voltage and used as the AnimatePresence key so the
+// message swaps with a fade/slide transition when the player crosses a band.
+const ANALYSIS_MESSAGES: readonly string[] = [
+  "Joncțiunea B-E e blocată. Electronii nu pot trece. Tranzistorul = perete.",
+  "Tensiune sub prag. Curentul de bază e prea mic — tranzistorul rezistă.",
+  "Sub prag. Curentul de bază crește — joncțiunea simte tensiunea, dar nu cedează încă.",
+  "Prag atins! Un curent mic pe Bază controlează unul de 100× mai mare pe C→E.",
+  "Saturație completă. Tranzistorul e complet deschis — se comportă ca un fir.",
+];
+
+function analysisBand(v: number): number {
+  if (v < 0.5) return 0;
+  if (v < 1.4) return 1;
+  if (v < 2.0) return 2;
+  if (v < 3.5) return 3;
+  return 4;
+}
+
 // Geometry — viewBox 520 × 400.
 const C = {
   topY: 80,
@@ -155,14 +174,8 @@ function RegionBars({ region }: { region: Region }) {
             />
             <p
               className={cn(
-                "font-mono text-[9px] uppercase tracking-[0.18em] transition-colors duration-300",
-                active
-                  ? it.id === "off"
-                    ? "text-[#FF6B6B]"
-                    : it.id === "partial"
-                    ? "text-[#FDCB6E]"
-                    : "text-[#00CEC9]"
-                  : "text-white/30"
+                "font-mono text-[10px] uppercase tracking-[0.18em] transition-colors duration-300",
+                active ? "font-bold text-white" : "text-[#5a5e6e]"
               )}
             >
               {it.label}
@@ -180,7 +193,7 @@ function Oscilloscope({ isOn, reduced }: { isOn: boolean; reduced: boolean }) {
   const wavePath =
     "M -40 45 L -20 45 L -20 15 L 0 15 L 0 45 L 20 45 L 20 15 L 40 15 L 40 45 L 60 45 L 60 15 L 80 15 L 80 45 L 100 45 L 100 15 L 120 15 L 120 45 L 140 45 L 140 15 L 160 15 L 160 45 L 180 45 L 180 15 L 200 15 L 200 45 L 220 45 L 220 15 L 240 15";
   return (
-    <div className="rounded-sm border border-[#6C5CE7]/30 bg-[#0a0a14] p-3">
+    <div className="min-h-[90px] rounded-sm border border-[#6C5CE7]/30 bg-[#0a0a14] p-3">
       <div className="mb-2 flex items-center justify-between font-mono text-[9px] uppercase tracking-[0.18em] text-[#6C5CE7]/70">
         <span className="flex items-center gap-1.5">
           <Activity className="h-3 w-3" aria-hidden />
@@ -300,24 +313,62 @@ export function TransistorLab() {
 
   const readoutColor =
     region === "off"
-      ? "#5a5e6e"
+      ? "#a0a4b0"
       : region === "partial"
       ? "#FDCB6E"
       : "#00CEC9";
 
-  const stateLabel =
+  // STATE display: split label/value into two intentional lines so the
+  // `STATE: SATURATION` label never wraps with the `I_ce = MAX` value.
+  const stateName =
     region === "off"
-      ? "STATE: BLOCKED  //  I_ce ≈ 0"
+      ? "BLOCKED"
       : region === "partial"
-      ? "STATE: TRANSITION  //  V_be < V_th"
-      : "STATE: SATURATION  //  I_ce = MAX";
+      ? "PARTIAL"
+      : "SATURATION";
+  const stateValue =
+    region === "off"
+      ? "I_ce ≈ 0"
+      : region === "partial"
+      ? "V_be < V_th"
+      : "I_ce = MAX";
+  const stateColorClass =
+    region === "off"
+      ? "text-red-400"
+      : region === "partial"
+      ? "text-[#FDCB6E]"
+      : "text-[#00CEC9]";
+
+  // Voltage band index — drives the LIVE ANALYSIS panel and acts as the
+  // AnimatePresence key so the message swaps with a transition on each
+  // band crossing (cheap to derive inline; no memoization needed).
+  const analysisIdx = analysisBand(voltage);
+
+  // Electron-flow loop speed — formula from spec: duration = 2 - (v/5)*1.2.
+  // Clamped to [0.8s, 2.0s] and quantised to 0.2s buckets so SMIL's
+  // animateMotion only restarts when the visible speed actually changes.
+  const electronDurRaw = 2 - (voltage / V_MAX) * 1.2;
+  const electronDur = Math.max(
+    0.8,
+    Math.round(electronDurRaw * 5) / 5
+  );
+  const electronDurKey = Math.round(electronDur * 10); // stable integer
+
+  // Mini-challenge: reach SATURATION (>= 3.5V). Latches once reached so
+  // sliding back doesn't undo the reward.
+  const [challengeCompleted, setChallengeCompleted] = useState(false);
+  useEffect(() => {
+    if (voltage >= 3.5 && !challengeCompleted) {
+      setChallengeCompleted(true);
+    }
+  }, [voltage, challengeCompleted]);
 
   return (
-    <div className="my-10">
+    <div className="relative left-1/2 my-10 w-[90vw] max-w-[1200px] -translate-x-1/2 rounded-lg border border-[#6C5CE7]/30">
       <style>{CSS_STYLES}</style>
 
       <div
-        className="relative border-y border-[#6C5CE7]/40 bg-[#080810] text-foreground"
+        className="relative flex flex-col bg-[#080810] text-foreground lg:h-[560px] lg:overflow-hidden xl:h-[680px]"
         style={{ boxShadow: "0 0 40px rgba(108,92,231,0.15)" }}
       >
         {/* Scanlines overlay */}
@@ -354,13 +405,14 @@ export function TransistorLab() {
           <StatusIndicator isOn={isOn} reduced={reduced} />
         </div>
 
-        {/* Main grid */}
-        <div className="relative z-10 grid grid-cols-1 gap-6 px-5 pb-6 pt-5 lg:grid-cols-[1.4fr_1fr]">
+        {/* Main grid — full-bleed, fills remaining height on desktop */}
+        <div className="relative z-10 grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[55%_45%]">
           {/* ─── LEFT: SVG circuit ───────────────────────────────── */}
-          <div className="relative overflow-hidden border border-[#6C5CE7]/20 bg-[#06060c]">
+          <div className="relative flex items-center justify-center bg-[#06060c] p-2 lg:min-h-0">
             <svg
-              viewBox="0 0 520 400"
-              className="block h-auto w-full"
+              viewBox="50 55 460 310"
+              preserveAspectRatio="xMidYMid meet"
+              className="block h-auto w-full lg:h-full"
               role="img"
               aria-label={`Circuit cu tranzistor, V_gate ${voltage.toFixed(1)} volți, ${isOn ? "saturat" : region === "partial" ? "tranziție" : "blocat"}`}
             >
@@ -469,6 +521,35 @@ export function TransistorLab() {
                     }}
                   />
                 ))}
+
+              {/* Electron-flow dots — discrete carriers traveling along the
+                  current loop. Visible from V_PARTIAL up; speed scales with
+                  voltage via electronDur (quantised, see derivation). */}
+              {!reduced && (
+                <g
+                  style={{
+                    opacity: voltageActive ? 1 : 0,
+                    transition: "opacity 0.3s ease",
+                  }}
+                >
+                  {[0, 1, 2].map((i) => (
+                    <circle
+                      key={`${electronDurKey}-${i}`}
+                      r={3}
+                      fill="#00CEC9"
+                      style={{ filter: "drop-shadow(0 0 4px #00CEC9)" }}
+                    >
+                      <animateMotion
+                        dur={`${electronDur}s`}
+                        begin={`-${(i / 3) * electronDur}s`}
+                        repeatCount="indefinite"
+                      >
+                        <mpath href={`#${ids.loop}`} />
+                      </animateMotion>
+                    </circle>
+                  ))}
+                </g>
+              )}
 
               {/* ─── Base control wire (violet, distinct from current) ─── */}
               <line
@@ -1044,15 +1125,15 @@ export function TransistorLab() {
           </div>
 
           {/* ─── RIGHT: Control panel ────────────────────────────── */}
-          <div className="flex flex-col gap-4">
-            {/* Voltage readout */}
-            <div className="border border-[#6C5CE7]/20 bg-[#0a0a14] p-4">
-              <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[#6C5CE7]/65">
+          <div className="flex min-h-0 flex-col gap-3 border-t border-[#6C5CE7]/20 p-4 lg:overflow-hidden lg:border-l lg:border-t-0">
+            {/* V_GATE display */}
+            <div className="border border-[#6C5CE7]/20 bg-[#0a0a14] px-3 py-2">
+              <p className="font-mono text-[9px] uppercase tracking-[0.22em] text-[#6C5CE7]/65">
                 V_gate
               </p>
-              <div className="flex items-baseline gap-2">
+              <div className="flex items-baseline gap-1.5">
                 <motion.span
-                  className="font-mono text-6xl font-bold tabular-nums leading-none"
+                  className="font-mono text-7xl font-bold tabular-nums leading-none"
                   animate={{ color: readoutColor }}
                   transition={{ duration: 0.3 }}
                   style={{
@@ -1072,14 +1153,34 @@ export function TransistorLab() {
                   V
                 </span>
               </div>
-              <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.18em] text-white/40">
-                {stateLabel}
+            </div>
+
+            {/* STATE + I_CE — color-coded by region */}
+            <div className="border border-[#6C5CE7]/20 bg-[#0a0a14] px-3 py-2">
+              <p className="font-mono text-xs uppercase tracking-widest text-[#7a7d8a]">
+                STATE:
+              </p>
+              <p
+                className={cn(
+                  "mt-1 whitespace-nowrap font-mono text-lg font-bold transition-colors duration-300",
+                  stateColorClass
+                )}
+              >
+                {stateName}
+              </p>
+              <p
+                className={cn(
+                  "whitespace-nowrap font-mono text-sm transition-colors duration-300",
+                  stateColorClass
+                )}
+              >
+                {stateValue}
               </p>
             </div>
 
-            {/* Slider */}
-            <div className="border border-[#6C5CE7]/20 bg-[#0a0a14] p-4">
-              <div className="mb-3 flex items-center justify-between font-mono text-[9px] uppercase tracking-[0.18em] text-[#6C5CE7]/65">
+            {/* BIAS_CTRL slider — compact */}
+            <div className="border border-[#6C5CE7]/20 bg-[#0a0a14] px-3 py-2">
+              <div className="mb-2 flex items-center justify-between font-mono text-[9px] uppercase tracking-[0.18em] text-[#6C5CE7]/65">
                 <span>BIAS_CTRL</span>
                 <span>0.0V — 5.0V</span>
               </div>
@@ -1093,9 +1194,7 @@ export function TransistorLab() {
                   onChange={onChange}
                   aria-label="Voltaj la base (V_gate)"
                   className="tl-slider block w-full"
-                  style={
-                    { "--tl-fill": `${fillPct}%` } as CSSProperties
-                  }
+                  style={{ "--tl-fill": `${fillPct}%` } as CSSProperties}
                 />
                 {/* Threshold tick */}
                 <div
@@ -1108,62 +1207,91 @@ export function TransistorLab() {
                   }}
                 >
                   <div
-                    className="h-5 w-[2px] rounded-full bg-[#FF6B6B]"
-                    style={{
-                      boxShadow: "0 0 6px rgba(255,107,107,0.85)",
-                    }}
+                    className="h-6 w-[2px] rounded-full bg-[#FF6B6B]"
+                    style={{ boxShadow: "0 0 6px rgba(255,107,107,0.85)" }}
                   />
                 </div>
                 <div
                   aria-hidden
-                  className="pointer-events-none absolute mt-1 flex -translate-x-1/2 items-center gap-1 whitespace-nowrap font-mono text-[10px] text-[#FF6B6B]"
-                  style={{ left: `${thresholdPct}%`, top: 24 }}
+                  className="pointer-events-none absolute mt-1 flex -translate-x-1/2 items-center gap-1 whitespace-nowrap font-mono text-[9px] text-[#FF6B6B]"
+                  style={{ left: `${thresholdPct}%`, top: 18 }}
                 >
                   <AlertTriangle className="h-2.5 w-2.5" aria-hidden />
                   <span>2.0V</span>
                 </div>
               </div>
-              <div className="mt-12 flex justify-between font-mono text-[9px] text-white/35">
+              <div className="mt-8 flex justify-between font-mono text-[9px] text-white/35">
                 <span>0V</span>
                 <span>2.5V</span>
                 <span>5V</span>
               </div>
             </div>
 
-            {/* Region bars */}
+            {/* OFF / PARTIAL / SATURATION region bars */}
             <RegionBars region={region} />
 
             {/* Oscilloscope */}
             <Oscilloscope isOn={isOn} reduced={reduced} />
+          </div>
+        </div>
 
-            {/* Static explainer */}
-            <div className="border border-[#6C5CE7]/20 bg-[#0a0a14] p-4">
-              <p className="mb-2 font-mono text-[9px] uppercase tracking-[0.22em] text-[#6C5CE7]/65">
-                Principiu // NPN
-              </p>
-              <ul className="space-y-1.5 text-xs text-white/70">
-                <li className="flex gap-2">
-                  <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-[#6C5CE7]" />
-                  <span>
-                    Sub <span className="font-mono text-[#FDCB6E]">~2V</span> pe
-                    Base — joncțiunea nu conduce, I_ce = 0.
-                  </span>
-                </li>
-                <li className="flex gap-2">
-                  <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-[#6C5CE7]" />
-                  <span>
-                    Peste prag — Base deschide canalul C→E. Un curent mic pe B
-                    controlează unul mare pe C→E.
-                  </span>
-                </li>
-                <li className="flex gap-2">
-                  <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-[#6C5CE7]" />
-                  <span>
-                    Tranzistorul = robinet electric: V_be = poziția, I_ce =
-                    debitul.
-                  </span>
-                </li>
-              </ul>
+        {/* ─── MINI-CHALLENGE ──────────────────────────────────── */}
+        <div className="border-t border-[#6C5CE7]/20 px-6 py-3 font-mono text-xs">
+          <AnimatePresence mode="wait">
+            {challengeCompleted ? (
+              <motion.div
+                key="done"
+                initial={reduced ? false : { opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.25 }}
+                className="text-[#FDCB6E]"
+              >
+                <motion.span
+                  aria-hidden
+                  className="inline-block"
+                  initial={reduced ? false : { scale: 0.5 }}
+                  animate={{ scale: [0.5, 1.3, 1] }}
+                  transition={{ duration: 0.55, ease: "easeOut" }}
+                >
+                  ✅
+                </motion.span>{" "}
+                MISIUNE COMPLETĂ — Tranzistorul conduce la capacitate maximă!
+              </motion.div>
+            ) : (
+              <motion.div
+                key="pending"
+                initial={reduced ? false : { opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={reduced ? undefined : { opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="text-[#b0b4c0]"
+              >
+                <span aria-hidden>🎯</span> MISIUNE: Atinge starea SATURATION —
+                trage slider-ul la maxim
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* ─── LIVE ANALYSIS ───────────────────────────────────── */}
+        <div className="border-t border-[#6C5CE7]/20 px-6 py-4">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+            <span className="shrink-0 font-mono text-xs uppercase tracking-widest text-[#6C5CE7]">
+              ⚡ ANALIZĂ LIVE
+            </span>
+            <div className="relative min-h-[1.25rem] flex-1">
+              <AnimatePresence mode="wait">
+                <motion.p
+                  key={analysisIdx}
+                  initial={reduced ? false : { opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={reduced ? undefined : { opacity: 0, y: -4 }}
+                  transition={{ duration: 0.25, ease: "easeOut" }}
+                  className="font-mono text-sm leading-relaxed text-[#b0b4c0]"
+                >
+                  {ANALYSIS_MESSAGES[analysisIdx]}
+                </motion.p>
+              </AnimatePresence>
             </div>
           </div>
         </div>
@@ -1223,7 +1351,7 @@ const CSS_STYLES = `
 .tl-slider:focus { outline: none; }
 
 .tl-slider::-webkit-slider-runnable-track {
-  height: 6px;
+  height: 8px;
   border-radius: 9999px;
   background: linear-gradient(
     to right,
@@ -1236,7 +1364,7 @@ const CSS_STYLES = `
   border: 1px solid rgba(108, 92, 231, 0.25);
 }
 .tl-slider::-moz-range-track {
-  height: 6px;
+  height: 8px;
   border-radius: 9999px;
   background: linear-gradient(
     to right,
@@ -1252,12 +1380,12 @@ const CSS_STYLES = `
 .tl-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   border-radius: 9999px;
   background: radial-gradient(circle at 50% 40%, #ffffff 0%, #ffffff 30%, #6C5CE7 31%, #6C5CE7 100%);
   border: 2px solid #ffffff;
-  margin-top: -11px;
+  margin-top: -8px;
   cursor: grab;
   box-shadow:
     0 0 0 4px rgba(108, 92, 231, 0.15),
@@ -1276,8 +1404,8 @@ const CSS_STYLES = `
 .tl-slider:active::-webkit-slider-thumb { cursor: grabbing; }
 
 .tl-slider::-moz-range-thumb {
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   border-radius: 9999px;
   background: radial-gradient(circle at 50% 40%, #ffffff 0%, #ffffff 30%, #6C5CE7 31%, #6C5CE7 100%);
   border: 2px solid #ffffff;

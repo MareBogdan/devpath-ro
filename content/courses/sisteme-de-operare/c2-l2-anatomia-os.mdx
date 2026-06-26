@@ -1,0 +1,362 @@
+---
+title: "Anatomia OS-ului: Kernel vs. Shell"
+order: 2
+type: lesson
+module_index: 2
+duration: 13
+difficulty: 3
+---
+
+# Anatomia OS-ului: Kernel vs. Shell
+
+## HOOK
+
+Scrii `ls -la` în terminal. O fracțiune de secundă mai târziu, vezi o listă de fișiere.
+
+Pare simplu. Nu este.
+
+În acea fracțiune de secundă s-au întâmplat cel puțin șase lucruri distincte: textul
+a traversat un subsistem de kernel, a declanșat crearea unui nou proces, a forțat o
+tranziție hardware între niveluri de privilegiu, a traversat un sistem de fișiere
+virtual, a scris date printr-un pseudo-terminal, și un program grafic a randat pixeli
+pe ecran.
+
+Niciuna din astea nu e "sistemul de operare". Toate la un loc sunt sistemul de operare.
+
+## CONTEXT
+
+La boot, kernelul a fost primul lucru încărcat în RAM. PID 1 a pornit toate serviciile.
+Acum sistemul rulează. Dar ce înseamnă asta concret — ce structuri există în memorie,
+cine are voie să facă ce, și cum comunică toate componentele între ele?
+
+Lecția asta deschide cutia neagră a OS-ului și arată ce e înăuntru.
+
+## MIEZUL
+
+### Sistemul de Operare ca Strat de Abstractizare
+
+Definiția din dicționar ("software care gestionează hardware-ul") e corectă, dar
+inutilă. Definiția utilă e arhitecturală: OS-ul e un **strat de abstractizare,
+arbitraj și protecție** între hardware și aplicații.
+
+Trei roluri simultane:
+
+**Gestiunea resurselor** — cine primește timp de CPU, câtă RAM, acces la disc. Fără
+arbitraj, aplicațiile ar concura haotic pentru aceleași resurse fizice.
+
+**Abstractizarea hardware-ului** — transformă complexitatea fizică în interfețe
+uniforme. Același apel `write()` funcționează identic pe NVMe, HDD, USB sau iSCSI.
+
+**Interfața cu utilizatorul** — shell, GUI, sau API. Cel mai puțin esențial dintre
+cele trei; pe un server headless poate lipsi complet.
+
+Exemplu concret: ce ar presupune scrierea unui fișier pe NVMe *fără* OS?
+
+Aplicația ta ar trebui să identifice adresele PCIe ale dispozitivului prin Base Address
+Registers, să construiască manual Submission Queues și Completion Queues conform
+protocolului NVMe, să formateze o comandă de 64 de bytes cu adresele LBA corecte, să
+scrie în Doorbell Registers pentru a notifica controlerul, și să implementeze
+tratarea întreruperilor MSI-X pentru confirmare. Orice greșeală în calculul LBA
+suprascrie datele altei aplicații.
+
+OS-ul ascunde tot asta în: `write(fd, buffer, size)`.
+
+### Arhitectura în Straturi
+
+Sistemele de operare moderne sunt construite pe un principiu simplu: fiecare strat
+știe doar despre stratul de sub el.
+
+```
+Aplicații (browser, editor, server)
+        ↕  API calls
+Biblioteci de Sistem (glibc, ntdll.dll)
+        ↕  System Calls
+Kernel (scheduler, memory, VFS, drivers)
+        ↕  instrucțiuni hardware
+Hardware (CPU, RAM, disc, rețea)
+```
+
+**Hardware** — execută instrucțiuni, nu știe ce e un fișier sau un proces.
+
+**Kernel** — singurul strat care "vorbește" cu hardware-ul. Transformă resursele
+fizice în resurse logice: procese, fișiere, socket-uri.
+
+**Biblioteci de sistem** — trăiesc în user space, dar fac legătura între standardul
+de programare (C, C++) și syscall-urile specifice kernelului. `printf()` nu e un
+syscall — e o funcție din glibc care acumulează text în buffer și apelează `write()`
+abia când e necesar.
+
+**Aplicații** — ignoră complet hardware-ul fizic. Lucrează cu abstracțiunile
+furnizate de kernel.
+
+Ce se întâmplă când o aplicație încearcă să acceseze hardware direct, sărind peste
+kernel? MMU-ul detectează că pagina de memorie accesată e marcată "Supervisor only",
+generează un Page Fault sau General Protection Fault, kernelul preia controlul și
+trimite `SIGSEGV` procesului vinovat. Procesul moare. Sistemul continuă netulburat.
+
+### Anatomia Kernelului
+
+Kernelul e un program care rulează permanent în RAM, în zona superioară a spațiului
+de adrese virtuale (pe x86-64, adrese cu prefix `0xffff...`). Are privilegii absolute
+asupra procesorului. Nu știe nimic despre ferestre, butoane sau cursori — știe doar
+să ruteze întreruperi, să gestioneze pagini de memorie și să planifice fire de execuție.
+
+**Completely Fair Scheduler (CFS)**
+
+Planificatorul decide ce proces rulează pe ce nucleu și cât timp. CFS nu lucrează cu
+"felii de timp" fixe — lucrează cu o metrică numită `vruntime` (virtual runtime):
+cât timp de CPU a consumat un proces, ponderat de prioritatea lui.
+
+Procesele sunt stocate într-un **arbore roșu-negru** ordonat după `vruntime`. Când
+planificatorul trebuie să aleagă un proces, extrage nodul cel mai din stânga — cel
+cu cel mai mic `vruntime`, deci cel mai "defavorizat". Inserare și ștergere:
+$O(\log n)$. Predictibil chiar și cu zeci de mii de procese active.
+
+Începând cu Linux 6.6, CFS a început să fie înlocuit treptat cu **EEVDF** (Earliest
+Eligible Virtual Deadline First) — un algoritm mai precis pentru latențe scăzute,
+dar principiul arborelui roșu-negru și metrica de timp virtual rămân analoage.
+
+<FactBox>
+Kernelul Linux 6.14 (ianuarie 2025) a depășit **40.063.856 linii de cod**, față de
+doar **10.239 linii** în versiunea originală scrisă de Linus Torvalds în 1991. Ritmul
+actual: ~400.000 linii noi adăugate la fiecare două luni. Ciclul de dezvoltare 6.18
+a atras **2.134 contributori** — cel mai mare număr înregistrat vreodată într-un singur
+ciclu.
+</FactBox>
+
+**Virtual File System (VFS)**
+
+De ce funcționează `ls`, `cp` și `cat` identic pe ext4, NTFS, FAT32 și NFS? Prin
+VFS — un strat de abstractizare care definește o interfață comună pentru orice sistem
+de fișiere.
+
+VFS definește patru structuri logice universale:
+- `inode` — metadatele unui fișier (permisiuni, dimensiune, timestamps)
+- `dentry` — maparea dintre un nume și un inode
+- `file` — starea unui fișier deschis
+- `super_block` — starea întregului sistem de fișiere montat
+
+Fiecare driver de sistem de fișiere (ext4, NTFS, btrfs) se înregistrează în kernel
+și implementează pointeri la funcțiile specifice. Când execuți `open()`, VFS primește
+cererea generică și o rutează la funcția de implementare specifică sistemului de
+fișiere de pe partiția respectivă.
+
+**Celelalte subsisteme ale kernelului:**
+
+*Memory Manager* — implementează memoria virtuală și paginarea. Divide RAM-ul și
+spațiul virtual în pagini de 4KB. Construiește tabelele de pagini pe care MMU-ul le
+consultă la fiecare acces de memorie. Gestionează swap-ul: paginile inactive migrează
+pe disc, revin la un page fault.
+
+*Network Stack* — implementarea completă TCP/IP trăiește în kernel. Dezasamblează
+pachete, rutează IP, gestionează stările conexiunilor TCP (ferestre de glisare,
+retransmisie, timeout). Procesarea în kernel minimizează latența.
+
+*IPC (Inter-Process Communication)* — procesele sunt izolate prin MMU. Pentru
+colaborare, kernelul furnizează: **pipes** (flux unidirecțional de bytes, baza
+operatorului `|`), **sockets** (bidirecțional, local sau prin rețea), **shared
+memory** (cel mai rapid mecanism — kernelul mapează aceeași pagină fizică în spațiul
+virtual a două procese), **semaphore și mutex** pentru sincronizare.
+
+### Tipuri de Kernel
+
+Cum sunt organizate aceste subsisteme intern? Există patru filosofii arhitecturale.
+
+{/* TABLE */}
+
+| Tip | Ce stă în kernel | Performanță IPC | Fault isolation | Exemple |
+|---|---|---|---|---|
+| **Monolithic** | Tot (VFS, drivere, rețea, IPC) | ~1–5 ns (apel funcție) | Zero — un bug = Kernel Panic | Linux, FreeBSD |
+| **Microkernel** | Doar IPC, scheduler, memorie | 36–401 cicli CPU | Maximă — drivere restartabile | Minix 3, QNX, seL4 |
+| **Hybrid** | Module separate, dar în kernel space | Similar monolithic | Medie | Windows NT, macOS XNU |
+| **Exokernel** | Doar multiplexare securizată | Eliminat conceptual | N/A (academic) | MIT Exokernel |
+
+**Monolithic** (Linux): totul rulează în același spațiu de adrese privilegiat. Un
+apel intern între stiva de rețea și un driver de disc e un simplu apel de funcție
+C: 1–5 nanosecunde. Dezavantaj: un null pointer dereference într-un driver obscur
+corupte memoria kernelului → Kernel Panic.
+
+**Microkernel** (seL4, QNX): în kernel rămân doar IPC, scheduler minimal și memory
+management. Driverele rulează ca procese normale în user space. Dacă driverul de
+rețea cade, e restartat transparent — sistemul continuă. seL4 are ~9.000 linii de
+cod cu corectitudine demonstrată matematic (machine-checked proof). Prețul: orice
+comunicare inter-componentă trece prin IPC — 36–401 cicluri CPU pe fastpath.
+
+**Hybrid** are două implementări majore:
+
+*Windows NT*: arhitectura e stratificată în trei componente care rulează toate în
+Ring 0. **Microkernel-ul** gestionează thread scheduling de bază și tratarea
+întreruperilor. **Executive-ul** stă deasupra și conține managerii specializați:
+Virtual Memory Manager, I/O Manager, Security Reference Monitor. **HAL** (Hardware
+Abstraction Layer) e stratul cel mai de jos — ascunde diferențele hardware expunând
+funcții generice (`read_port_uchar` în loc de acces direct la port). Esențial în
+anii '90 când Windows NT rula și pe MIPS, DEC Alpha, PowerPC — nu doar x86. Astăzi,
+microkernel-ul, Executive-ul și HAL sunt compilate împreună în `ntoskrnl.exe`.
+
+*macOS XNU*: nucleul Mach gestionează memoria virtuală și IPC. Subsistemul BSD
+adaugă POSIX, semnale, stiva de rețea. Deși Mach a fost proiectat ca microkernel,
+Apple a colapsat totul în Ring 0 pentru performanță — avantajele de fault isolation
+au dispărut, performanța a rămas.
+
+### Shell, Terminal și TTY: Trei Lucruri Diferite
+
+Confuzia clasică: "terminalul e shell-ul". Nu e.
+
+**Terminal Emulator** (GNOME Terminal, Alacritty, iTerm2) — aplicație GUI. Desenează
+ferestre, captează evenimente de tastatură de la serverul grafic, randează fonturi.
+
+**TTY/PTY** (Pseudo-Terminal) — un subsistem de kernel. Funcționează ca o conductă
+bidirecțională tampon între emulatorul de terminal și programul care consumă textul.
+TTY-ul interceptează combinații speciale (Ctrl+C, Backspace), face ecoul caracterelor,
+convertește `\r` în `\n`. N_TTY e driverul care implementează asta în kernel.
+
+**Shell** (bash, zsh, dash) — un program obișnuit în user space, la capătul conductei
+TTY. Nu știe nimic despre ferestre sau pixeli. Primește text după ce utilizatorul
+apasă Enter (TTY e în modul canonic line-buffered), îl parsează, execută comenzi.
+
+De ce Ubuntu folosește `dash` pentru `/bin/sh` și `bash` pentru utilizator? Bash are
+~176.000 linii de cod. Dash are ~13.000 linii și se lansează de ~4× mai rapid,
+consumând sub 140KB pe disc. La boot, systemd instanțiază sute de scripturi shell.
+Diferența de viteză e semnificativă. Standardul POSIX garantează că scripturile
+de sistem scrise în POSIX pur rulează identic pe ambele.
+
+### Anatomia unei Comenzi: `ls -la`
+
+Înainte de orice: distincția fundamentală pe care o vei folosi tot cursul.
+
+**Program** = un fișier static pe disc. Un binar compilat (format ELF pe Linux,
+PE pe Windows) care stă inert în stocare, nu consumă RAM, nu rulează nimic.
+
+**Proces** = o instanță a unui program în execuție. Kernelul i-a alocat un PID,
+un spațiu de memorie virtuală, registre proprii, un Program Counter. Consumă RAM
+și timp de CPU. Când procesul moare, programul de pe disc rămâne intact.
+
+Același program poate genera zeci de procese simultane — zece tab-uri de browser
+sunt zece procese din același binar.
+
+Când scrii `ls -la` și apeși Enter, se întâmplă exact asta:
+
+**1. Parsare** — Shell-ul primește textul din bufferul TTY. Identifică comanda `ls`
+și argumentul `-la`. Consultă `$PATH` și găsește `/bin/ls`.
+
+**2. fork()** — Shell-ul apelează syscall-ul `fork()`. Kernelul creează un proces
+copil cu un PID nou. Memoria nu e copiată fizic — se folosește **Copy-on-Write**: copilul
+primește pointeri la aceleași pagini fizice ca părintele. Paginile sunt copiate fizic
+abia dacă unul din ei le modifică. fork() e extrem de rapid din această cauză.
+
+**3. execve()** — Procesul copil apelează `execve("/bin/ls", ["ls", "-la"], env)`.
+Kernelul șterge spațiul de memorie al copilului și încarcă binarul `/bin/ls` în loc.
+Procesul copil devine `ls`.
+
+**4. ls rulează** — Accesează directorul curent prin VFS, scrie rezultatul pe stdout.
+Kernelul rutează stdout înapoi la PTY. Emulatorul de terminal citește și randează textul.
+
+**5. wait()** — Shell-ul părinte a fost suspendat în wait() pe toată durata. Când
+`ls` termină, kernelul trezește shell-ul, îi transmite exit code-ul (0 = succes).
+Shell-ul redesează promptul.
+
+### System Calls: Traversarea Barierei
+
+Aplicațiile din user space nu pot accesa hardware direct — trăiesc în Ring 3, nivelul
+cel mai restrictiv. Pentru orice resursă fizică, cer permisiunea kernelului prin
+**system calls**.
+
+Un syscall nu e o funcție obișnuită. E o tranziție hardware forțată de la Ring 3 la
+Ring 0.
+
+Pe x86 pe 32 de biți: instrucțiunea `INT 0x80` genera o întrerupere software,
+traversa IDT (Interrupt Descriptor Table), schimba nivelul de privilegiu. Funcțional
+dar lent.
+
+Pe x86-64: instrucțiunea `SYSCALL` — mai rapidă, fără traversarea IDT. Adresa
+handler-ului din kernel e prestocată în MSR-uri (Model-Specific Registers). CPU-ul
+salvează adresa de întoarcere în RCX și R11, sare direct în kernel.
+
+Înainte de `SYSCALL`, aplicația scrie numărul syscall-ului în registrul **RAX**.
+Kernelul folosește acest număr ca index în `sys_call_table`.
+
+Syscall-urile fundamentale pe Linux x86-64:
+
+| Syscall | RAX | Descriere |
+|---|---|---|
+| read | 0 | Citește date de la un file descriptor |
+| write | 1 | Scrie date pe un file descriptor |
+| open | 2 | Deschide un fișier, returnează file descriptor |
+| close | 3 | Eliberează un file descriptor |
+| fork | 57 | Clonează procesul curent |
+| execve | 59 | Înlocuiește procesul cu un alt binar |
+| exit | 60 | Termină procesul, kernel dezalocă resursele |
+
+Linux x86-64 are în total ~462–471 syscall-uri în kernel 6.x. Costul unui syscall:
+~200–300 nanosecunde pe hardware modern (golit TLB, verificat permisiuni, schimbat
+context). Patch-ul KPTI împotriva Meltdown a crescut overhead-ul cu **30–40%** pe
+operațiuni intensive de I/O, forțând golirea TLB la fiecare tranziție.
+
+<CosmoHint emotion="thinking">
+De ce `printf("text")` nu apelează direct `write()`? Glibc acumulează textul
+într-un buffer în user space și apelează `write()` în bloc — la `\n` sau când
+bufferul e plin. Dacă fiecare caracter ar genera un syscall separat, overhead-ul
+de 200–300ns per tranziție ar sufoca orice aplicație care afișează text.
+</CosmoHint>
+
+### Ring 0 vs. Ring 3: Izolarea Hardware
+
+Pe x86 există teoretic 4 inele (Ring 0–3). În practică, OS-urile moderne folosesc
+doar două: **Ring 0** (kernel) și **Ring 3** (user space). Ring 1 și Ring 2 sunt
+ignorate — Long Mode pe 64 biți simplifică permisiunile la un bit binar
+User/Supervisor, eliminând relevanța inelelor intermediare.
+
+**Ring 0 poate:**
+- Scrie în CR3 (tabel de pagini), CR0, CR4
+- Executa instrucțiuni privilegiate (cli — blochează întreruperi, hlt)
+- Accesa direct porturi I/O
+- Modifica tabelele de pagini ale oricărui proces
+
+**Ring 3 nu poate face nimic din lista de sus.** Orice tentativă generează
+General Protection Fault → kernel trimite SIGSEGV → procesul moare.
+
+Izolarea memoriei: procesul A accesează adresa virtuală `0x1000`. MMU o translatează
+la RAM fizic `0x25000`. Procesul B accesează adresa virtuală `0x1000` — MMU o
+translatează la `0x50000`. Aceeași adresă virtuală, RAM fizic complet diferit. B nu
+poate vedea niciodată memoria lui A.
+
+**Consecința unui bug:**
+- Bug în **user space**: SIGSEGV, procesul moare, sistemul continuă.
+- Bug în **kernel space**: nimeni nu mai verifică. Kernel Panic — sistem oprit.
+
+**Ce se întâmplă la Ctrl+C:**
+Tastatura generează o întrerupere hardware. Kernelul (Ring 0) suspendă execuția
+curentă și apelează ISR-ul (Interrupt Service Routine). Driverul de tastatură
+decodifică bitul apăsat și trimite caracterul la subsistemul TTY (N_TTY din kernel).
+N_TTY observă că e configurat să trateze `^C` ca semnal de întrerupere — nu îl
+trimite ca text la shell, ci apelează funcții de kernel care găsesc Process Group
+ID-ul procesului din foreground și îi trimit `SIGINT`. Kernelul livrează semnalul.
+Dacă procesul nu are un signal handler custom, comportamentul default e terminarea.
+Shell-ul nici nu a aflat — totul s-a întâmplat în kernel.
+
+<CosmoHint emotion="thinking">
+Linux e strict vorbind doar un kernel, nu un sistem de operare complet. Fără
+utilitarele GNU (compilatorul GCC, shell-ul bash, coreutils), kernelul nu poate
+face nimic interactiv. De aceea numele corect e GNU/Linux — o combinație între
+kernelul lui Torvalds și ecosistemul utilitar al proiectului GNU. Distribuțiile
+(Ubuntu, Fedora, Arch) adaugă deasupra tot restul: package manager, desktop, librării.
+</CosmoHint>
+
+## REVEAL
+
+Sistemul de operare nu e un singur program. E o arhitectură stratificată în care
+fiecare nivel știe strict ce are nevoie: hardware-ul execută instrucțiuni, kernelul
+transformă resursele fizice în abstracțiuni logice, bibliotecile de sistem traduc
+standardele de programare în syscall-uri, aplicațiile lucrează cu iluzia că dețin
+mașina exclusiv.
+
+Shell-ul e un program obișnuit în user space. Terminal-ul e o aplicație grafică.
+TTY-ul e un subsistem de kernel. Fiecare `ls` creează un proces nou prin fork +
+execve. Fiecare acces la disc traversează VFS. Fiecare Ctrl+C e procesat de kernel
+înainte ca shell-ul să afle că s-a întâmplat ceva.
+
+## ÎNCHEIERE
+
+În lecția următoare coborâm la nivelul unde se nasc și mor procesele: ce înseamnă
+că un proces "există", ce structuri de date ține kernelul pentru el, și ce se
+întâmplă exact la acel `fork()`.

@@ -6,6 +6,7 @@ import {
   useMemo,
   useReducer,
   useRef,
+  useState,
   type CSSProperties,
 } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
@@ -22,6 +23,8 @@ import {
   Award,
   RotateCcw,
   ChevronRight,
+  Maximize2,
+  Minimize2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -599,7 +602,7 @@ function BitButton({
       }
       transition={{ duration: 0.22, ease: "easeOut" }}
       className={cn(
-        "relative flex aspect-square w-[14vw] max-w-[68px] min-w-[44px] flex-col items-center justify-center rounded-xl border-2 font-mono font-bold transition-colors",
+        "relative flex aspect-square w-[16vw] max-w-[80px] min-w-[52px] flex-col items-center justify-center rounded-xl border-2 font-mono font-bold transition-colors active:scale-95",
         on
           ? "border-[#6C5CE7] bg-[#6C5CE7] text-white shadow-[0_0_20px_3px_rgba(108,92,231,0.6)]"
           : "border-border/80 bg-muted/30 text-muted-foreground hover:border-[#6C5CE7]/50 hover:text-foreground",
@@ -608,10 +611,10 @@ function BitButton({
       aria-pressed={on}
       aria-label={`Bit cu valoarea ${weight}`}
     >
-      <span className="text-xl leading-none sm:text-2xl">{on ? "1" : "0"}</span>
+      <span className="text-2xl leading-none sm:text-3xl">{on ? "1" : "0"}</span>
       <span
         className={cn(
-          "mt-1 text-[10px] font-semibold leading-none sm:text-[11px]",
+          "mt-1 text-xs font-semibold leading-none sm:text-sm",
           on ? "text-white/85" : "text-muted-foreground/70"
         )}
       >
@@ -791,6 +794,29 @@ export function BinaryTranslator() {
   const reduced = useReducedMotion();
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showFullscreenHint, setShowFullscreenHint] = useState(true);
+
+  // Sync isFullscreen with the browser (covers ESC and F11 exits).
+  useEffect(() => {
+    const handler = () => {
+      setIsFullscreen(document.fullscreenElement === containerRef.current);
+    };
+    document.addEventListener("fullscreenchange", handler);
+    return () => document.removeEventListener("fullscreenchange", handler);
+  }, []);
+
+  const toggleFullscreen = useCallback(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    setShowFullscreenHint(false);
+    if (document.fullscreenElement) {
+      void document.exitFullscreen();
+    } else {
+      void el.requestFullscreen();
+    }
+  }, []);
 
   // Timer interval — only ticks while playing.
   useEffect(() => {
@@ -900,12 +926,50 @@ export function BinaryTranslator() {
     state.screenEffect?.type === "flash-green" ? state.screenEffect.key : null;
 
   return (
-    <div className="my-8">
+    <div
+      ref={containerRef}
+      className={cn(
+        "bg-[#080810]",
+        isFullscreen ? "flex h-screen w-screen items-stretch" : "my-8"
+      )}
+    >
       <style>{CSS_STYLES}</style>
+
+      {showFullscreenHint && !isFullscreen && (
+        <div className="mb-3 flex items-center justify-between rounded-lg border border-[#6C5CE7]/30 bg-[#6C5CE7]/10 px-4 py-2">
+          <span className="font-mono text-xs text-[#b0b4c0]">
+            ⛶ Pentru cea mai bună experiență, joacă în fullscreen
+          </span>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={toggleFullscreen}
+              className="rounded bg-[#6C5CE7] px-3 py-1 font-mono text-xs text-white transition-colors hover:bg-[#7d6ff0]"
+            >
+              Activează fullscreen
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowFullscreenHint(false)}
+              aria-label="Închide sugestia"
+              className="font-mono text-xs text-[#5a5e6e] transition-colors hover:text-[#b0b4c0]"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
 
       <div
         ref={cardRef}
-        className="relative overflow-hidden rounded-2xl border border-[#6C5CE7]/25 bg-[color:var(--aurora-bg-card)] shadow-[0_14px_44px_-20px_rgba(108,92,231,0.55)]"
+        className={cn(
+          "relative overflow-hidden border border-[#6C5CE7]/25 bg-[color:var(--aurora-bg-card)] shadow-[0_14px_44px_-20px_rgba(108,92,231,0.55)]",
+          isFullscreen
+            ? "flex h-screen w-full flex-col rounded-none"
+            : state.phase === "level-intro"
+            ? "rounded-2xl"
+            : "rounded-2xl min-h-[580px]"
+        )}
       >
         {/* Flash overlay for correct submission */}
         {showFlash !== null && (
@@ -932,126 +996,208 @@ export function BinaryTranslator() {
             </div>
           </div>
 
-          {(state.phase === "playing" || state.phase === "feedback") && (
-            <div className="flex items-center gap-4 text-right text-xs">
-              <div>
-                <p className="text-muted-foreground">Runda</p>
-                <p className="font-mono text-foreground">
-                  <span className="font-semibold">{state.currentRound + 1}</span>
-                  <span className="opacity-50"> / {levelCfg.rounds}</span>
-                </p>
+          <div className="flex items-center gap-3">
+            {(state.phase === "playing" || state.phase === "feedback") && (
+              <div className="flex items-center gap-4 text-right text-xs">
+                <div>
+                  <p className="text-muted-foreground">Runda</p>
+                  <p className="font-mono text-foreground">
+                    <span className="font-semibold">{state.currentRound + 1}</span>
+                    <span className="opacity-50"> / {levelCfg.rounds}</span>
+                  </p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Scor</p>
+                  <p className="font-mono font-semibold text-[#FDCB6E]">
+                    {state.totalScore}
+                  </p>
+                </div>
+                <LifeHearts
+                  lives={state.lives}
+                  maxLives={levelCfg.lives}
+                  losingHeartIndex={state.losingHeartIndex}
+                  losingHeartKey={state.losingHeartKey}
+                />
               </div>
-              <div>
-                <p className="text-muted-foreground">Scor</p>
-                <p className="font-mono font-semibold text-[#FDCB6E]">
-                  {state.totalScore}
-                </p>
-              </div>
-              <LifeHearts
-                lives={state.lives}
-                maxLives={levelCfg.lives}
-                losingHeartIndex={state.losingHeartIndex}
-                losingHeartKey={state.losingHeartKey}
-              />
-            </div>
-          )}
+            )}
+            <button
+              type="button"
+              onClick={toggleFullscreen}
+              aria-label={isFullscreen ? "Ieși din fullscreen" : "Intră în fullscreen"}
+              className="text-[#7a7d8a] transition-colors hover:text-white"
+            >
+              {isFullscreen ? (
+                <Minimize2 className="h-4 w-4" aria-hidden />
+              ) : (
+                <Maximize2 className="h-4 w-4" aria-hidden />
+              )}
+            </button>
+          </div>
         </div>
 
         {/* Body */}
-        <div className="relative min-h-[520px] p-6 sm:p-7">
+        <div
+          className={cn(
+            "relative flex flex-col",
+            isFullscreen
+              ? "min-h-0 flex-1 overflow-hidden p-5 sm:p-6"
+              : state.phase === "level-intro"
+              ? "p-5"
+              : "min-h-[520px] p-6 sm:p-7"
+          )}
+        >
           <AnimatePresence mode="wait">
             {state.phase === "level-intro" && (
               <motion.div
-                key={`intro-${state.currentLevel}`}
+                key={`intro-${state.currentLevel}-${isFullscreen ? "full" : "compact"}`}
                 initial={reduced ? false : { opacity: 0, x: 36 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={reduced ? undefined : { opacity: 0, x: -36 }}
                 transition={{ duration: 0.32, ease: "easeOut" }}
-                className="flex flex-col items-center text-center"
-              >
-                <p className="mb-1 text-[11px] uppercase tracking-[0.2em] text-[#6C5CE7]">
-                  Nivelul {state.currentLevel}
-                </p>
-                <h4 className="mb-2 text-3xl font-bold text-foreground sm:text-4xl">
-                  {levelCfg.name}
-                </h4>
-                <p className="mb-5 max-w-md text-sm text-muted-foreground">
-                  {levelCfg.flavor}
-                </p>
-
-                <div className="mb-6 grid grid-cols-3 gap-2 sm:gap-3 w-full max-w-md">
-                  <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                      Runde
-                    </p>
-                    <p className="mt-1 font-mono text-2xl font-bold text-foreground">
-                      {levelCfg.rounds}
-                    </p>
-                  </div>
-                  <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                      Timp/rundă
-                    </p>
-                    <p className="mt-1 font-mono text-2xl font-bold text-[#00CEC9]">
-                      {Math.round(levelCfg.timerMs / 1000)}s
-                    </p>
-                  </div>
-                  <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                      Vieți
-                    </p>
-                    <div className="mt-1 flex items-center justify-center gap-1">
-                      {Array.from({ length: levelCfg.lives }).map((_, i) => (
-                        <Heart
-                          key={i}
-                          className="h-5 w-5 fill-[#FF6B6B] text-[#FF6B6B]"
-                          aria-hidden
-                        />
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mb-6 flex w-full max-w-md items-start gap-2.5 rounded-xl border border-[#FF6B6B]/40 bg-[#FF6B6B]/[0.08] p-3.5 text-left">
-                  <AlertTriangle
-                    className="mt-0.5 h-4 w-4 shrink-0 text-[#FF6B6B]"
-                    aria-hidden
-                  />
-                  <p className="text-xs text-[#FF6B6B]">
-                    {levelCfg.untoggleKills ? (
-                      <>
-                        <span className="font-semibold">
-                          Atenție — fără greșeli:
-                        </span>{" "}
-                        dacă închizi un bit pe care l-ai pornit deja, pierzi
-                        instant. Gândește înainte de a apăsa.
-                      </>
-                    ) : (
-                      <>
-                        <span className="font-semibold">
-                          Fără pași înapoi:
-                        </span>{" "}
-                        dacă închizi un bit pe care l-ai pornit deja, pierzi o
-                        viață. Numerele țintă nu mai apar descompuse.
-                      </>
-                    )}
-                  </p>
-                </div>
-
-                {state.currentLevel === 1 && (
-                  <div className="mb-6 w-full max-w-md">
-                    <BinaryExplainer />
-                  </div>
+                className={cn(
+                  "flex flex-col items-center text-center",
+                  isFullscreen && "flex-1 justify-center"
                 )}
+              >
+                {isFullscreen ? (
+                  <div className="flex h-full w-full flex-col items-center justify-center gap-4">
+                    <div className="flex flex-col items-center gap-1">
+                      <p className="text-[11px] uppercase tracking-[0.2em] text-[#6C5CE7]">
+                        Nivelul {state.currentLevel}
+                      </p>
+                      <h4 className="text-3xl font-bold text-foreground sm:text-4xl">
+                        {levelCfg.name}
+                      </h4>
+                    </div>
 
-                <button
-                  type="button"
-                  onClick={onStartLevel}
-                  className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#6C5CE7] to-[#8B7CFA] px-7 py-3 text-sm font-semibold text-white shadow-lg shadow-[#6C5CE7]/40 transition-transform hover:scale-[1.03] active:scale-[0.98]"
-                >
-                  Începe
-                  <ChevronRight className="h-4 w-4" aria-hidden />
-                </button>
+                    <p className="max-w-md text-sm text-muted-foreground">
+                      {levelCfg.flavor}
+                    </p>
+
+                    <div className="grid w-full max-w-md grid-cols-3 gap-4">
+                      <div className="rounded-xl border border-border/70 bg-muted/20 px-4 py-3">
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                          Runde
+                        </p>
+                        <p className="mt-0.5 font-mono text-xl font-bold text-foreground">
+                          {levelCfg.rounds}
+                        </p>
+                      </div>
+                      <div className="rounded-xl border border-border/70 bg-muted/20 px-4 py-3">
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                          Timp/rundă
+                        </p>
+                        <p className="mt-0.5 font-mono text-xl font-bold text-[#00CEC9]">
+                          {Math.round(levelCfg.timerMs / 1000)}s
+                        </p>
+                      </div>
+                      <div className="rounded-xl border border-border/70 bg-muted/20 px-4 py-3">
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                          Vieți
+                        </p>
+                        <div className="mt-0.5 flex items-center justify-center gap-1">
+                          {Array.from({ length: levelCfg.lives }).map((_, i) => (
+                            <Heart
+                              key={i}
+                              className="h-5 w-5 fill-[#FF6B6B] text-[#FF6B6B]"
+                              aria-hidden
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex w-full max-w-md items-center gap-2 rounded-xl border border-[#FF6B6B]/40 bg-[#FF6B6B]/[0.08] px-4 py-3 text-left">
+                      <AlertTriangle
+                        className="h-4 w-4 shrink-0 text-[#FF6B6B]"
+                        aria-hidden
+                      />
+                      <p className="truncate text-xs text-[#FF6B6B]">
+                        {levelCfg.untoggleKills
+                          ? "Bit pornit = game over instant"
+                          : "Bit pornit = pierzi o viață"}
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={onStartLevel}
+                      className="mt-0 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#6C5CE7] to-[#8B7CFA] px-7 py-3 text-sm font-semibold text-white shadow-lg shadow-[#6C5CE7]/40 transition-transform hover:scale-[1.03] active:scale-[0.98]"
+                    >
+                      Începe
+                      <ChevronRight className="h-4 w-4" aria-hidden />
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="mb-2 flex items-center gap-2">
+                      <span className="rounded bg-[#6C5CE7]/15 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-[#6C5CE7]">
+                        Nivelul {state.currentLevel}
+                      </span>
+                      <span className="text-xl font-bold text-foreground">
+                        {levelCfg.name}
+                      </span>
+                    </div>
+
+                    <p className="mb-3 max-w-md text-xs text-muted-foreground">
+                      Construiește numere în binar pornind biții cu puteri ale lui 2.
+                    </p>
+
+                    <div className="mb-3 grid w-full max-w-md grid-cols-3 gap-2">
+                      <div className="rounded-lg border border-border/70 bg-muted/20 px-2 py-2 text-center">
+                        <p className="font-mono text-lg font-bold text-foreground">
+                          {levelCfg.rounds}
+                        </p>
+                        <p className="text-[9px] uppercase tracking-wider text-muted-foreground">
+                          Runde
+                        </p>
+                      </div>
+                      <div className="rounded-lg border border-border/70 bg-muted/20 px-2 py-2 text-center">
+                        <p className="font-mono text-lg font-bold text-[#00CEC9]">
+                          {Math.round(levelCfg.timerMs / 1000)}s
+                        </p>
+                        <p className="text-[9px] uppercase tracking-wider text-muted-foreground">
+                          Timp/Rundă
+                        </p>
+                      </div>
+                      <div className="rounded-lg border border-border/70 bg-muted/20 px-2 py-2 text-center">
+                        <div className="flex items-center justify-center gap-0.5">
+                          {Array.from({ length: levelCfg.lives }).map((_, i) => (
+                            <Heart
+                              key={i}
+                              className="h-4 w-4 fill-[#FF6B6B] text-[#FF6B6B]"
+                              aria-hidden
+                            />
+                          ))}
+                        </div>
+                        <p className="mt-0.5 text-[9px] uppercase tracking-wider text-muted-foreground">
+                          Vieți
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mb-3 flex w-full max-w-md items-center gap-2 rounded-lg border border-[#FF6B6B]/40 bg-[#FF6B6B]/[0.08] px-3 py-1.5 text-left">
+                      <AlertTriangle
+                        className="h-3.5 w-3.5 shrink-0 text-[#FF6B6B]"
+                        aria-hidden
+                      />
+                      <p className="truncate text-xs text-[#FF6B6B]">
+                        {levelCfg.untoggleKills
+                          ? "Bit pornit = game over instant"
+                          : "Bit pornit = pierzi o viață"}
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={onStartLevel}
+                      className="inline-flex w-full max-w-md items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#6C5CE7] to-[#8B7CFA] px-7 py-3 text-sm font-semibold text-white shadow-lg shadow-[#6C5CE7]/40 transition-transform hover:scale-[1.02] active:scale-[0.98]"
+                    >
+                      Începe
+                      <ChevronRight className="h-4 w-4" aria-hidden />
+                    </button>
+                  </>
+                )}
               </motion.div>
             )}
 

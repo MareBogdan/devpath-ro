@@ -1,0 +1,462 @@
+---
+title: "Shell-ul și primele comenzi: Terminalul explicat fără mistere"
+order: 18
+type: lesson
+module_index: 2
+duration: 15
+difficulty: 3
+---
+
+# Shell-ul și primele comenzi: Terminalul explicat fără mistere
+
+## HOOK
+
+Tastezi `rm -rf /` din greșeală pe un server de producție. Sau mai rău: un script rulează `rm -rf /$VAR` iar `$VAR` e gol. Pe un sistem fără protecție — totul dispare în secunde. Nu e o glumă academică. S-a întâmplat. De mai multe ori. În companii mari, cu ingineri seniori.
+
+Dar shell-ul e și instrumentul prin care un singur one-liner poate procesa 10 milioane de linii de log, poate configura o flotă de 500 de servere sau poate debug-a un proces care îngheață fără niciun output vizibil.
+
+Înțelegi cum funcționează intern shell-ul, înțelegi de ce unele lucruri sunt imposibil de anulat, de ce altele sunt instant și de ce `set -euo pipefail` la începutul oricărui script e prima linie de apărare reală. Nu există layer de protecție între comanda ta și kernel. Fiecare tastă poate apela direct un syscall.
+
+---
+
+## CONTEXT
+
+Shell-ul e un proces obișnuit în user-space, scris în C, care rulează într-o buclă: citește o linie de text, o interpretează conform unor reguli sintactice, cere kernel-ului să execute ceva, afișează rezultatul, repetă.
+
+**Tipuri de shell:** `bash` (default interactiv pe Linux), `zsh` (default pe macOS), `dash` (legat la `/bin/sh` pe Ubuntu/Debian — pornește în 0.33-0.9ms față de 50-100ms bash, folosit la boot pentru sute de scripturi de inițializare), `fish` (prietenos, non-POSIX).
+
+**Două moduri:** shell **interactiv** (atașat TTY/PTY, REPL, history, autocompletare, job control) și shell **non-interactiv** (rulează un script, fără prompt, fără overhead UI, se termină la EOF sau eroare fatală).
+
+Orice comandă tastată trece prin: tokenizare → expansiune variabile → globbing → quote removal → execuție.
+
+---
+
+## MIEZUL
+
+### Cum execută shell-ul o comandă
+
+Tastezi `ls -la /tmp`. Secvența exactă:
+
+1. **Tokenizare** — shell-ul sparge linia în cuvinte pe baza `IFS` (spații, tab-uri)
+2. **Expansiune** — variabile (`$HOME`), tilde (`~`), globbing (`*.log`)
+3. **Quote removal** — ghilimelele se elimină după ce și-au îndeplinit rolul de protecție
+4. **`fork()`** → kernel creează o copie a procesului shell (copy-on-write)
+5. În procesul copil: **`execve("/usr/bin/ls", ["ls", "-la", "/tmp"])`** → kernel înlocuiește memoria copilului cu binarul `ls`
+6. Shell-ul (parent) apelează **`wait()`** și se blochează
+7. `ls` termină → `exit(0)` → kernel trezește shell-ul, stochează codul în **`$?`**
+
+**Built-in vs external commands:**
+- **External**: `ls`, `grep`, `find`, `curl` — necesită `fork()` + `exec()` + căutare în `$PATH`
+- **Built-in**: `cd`, `echo`, `export`, `source`, `alias` — executate direct în procesul shell, fără fork
+
+De ce `cd` **nu poate** fi o comandă externă? `chdir(2)` modifică directorul curent **doar al procesului care îl apelează**. Dacă `cd` ar face `fork()`, copilul ar schimba directorul lui și ar ieși. Părintele (shell-ul) nu s-ar mișca niciunde. `cd` trebuie să ruleze în shell-ul însuși.
+
+**PATH hash cache în bash:** după prima execuție reușită, bash stochează locația binarului într-un hash table (O(1) la accesări ulterioare). Dacă muți un binar, `hash -r` curăță cache-ul.
+
+---
+
+### File descriptors și redirectări
+
+Orice proces pornește cu trei FD-uri moștenite de la shell:
+- **FD 0** — stdin | **FD 1** — stdout | **FD 2** — stderr
+
+Redirectările modifică acești FD-uri **între `fork()` și `execve()`**, înainte ca programul să pornească:
+
+```bash
+cmd > fisier      # open(O_WRONLY|O_CREAT|O_TRUNC) + dup2(fd,1) — trunchiază instant
+cmd >> fisier     # open(O_WRONLY|O_CREAT|O_APPEND) + dup2(fd,1) — atomic la write()
+cmd < fisier      # open(O_RDONLY) + dup2(fd,0)
+cmd 2> erori.log  # redirectare stderr
+cmd > out 2>&1    # ORDINEA CONTEAZĂ: mai întâi stdout→fisier, apoi stderr→stdout
+cmd 2>&1 > fisier # GREȘIT: stderr→ecran (fostul stdout), stdout→fisier
+cmd &> fisier     # shorthand corect pentru ambele
+cmd > /dev/null   # /dev/null: major 1, minor 3 — write=no-op, read=EOF imediat
+```
+
+**Pipe-uri:** `cmd1 | cmd2`
+- Kernel creează un buffer anonim de **64KB** (16 pagini × 4096 bytes, din kernel 2.6.35)
+- **Ambele procese rulează concurent** — nu secvențial
+- Dacă buffer-ul e plin, `cmd1` se blochează la `write()` până `cmd2` citește
+- `F_SETPIPE_SZ` mărește buffer-ul, limitat de `/proc/sys/fs/pipe-max-size`
+- **Named pipes (FIFO):** `mkfifo my_pipe` — inode persistent în filesystem (tip `p` în `ls -l`), permite comunicarea între procese independente
+
+```bash
+# Here-doc și here-string
+cat <<EOF
+linie 1
+linie 2
+EOF
+
+grep "pattern" <<< "string de căutat"  # here-string — fără proces auxiliar
+
+# Command substitution
+date=$(date +%Y-%m-%d)   # output-ul comenzii ca string
+files=$(ls /tmp)
+```
+
+<FactBox>
+**Cifre de reținut — shell internals:**
+- Pipe buffer Linux: **64KB** (16 pagini × 4KB, kernel 2.6.35+), configurabil via `F_SETPIPE_SZ`
+- dash startup: **0.33-0.9ms** | bash startup: **50-100ms**
+- `SIGKILL` (kill -9): **neinterceptabil** — kernel ucide fără handler, risc date corupte
+- `ARG_MAX`: **~2MB** limita totală pentru argumente la `execve()`
+- `HISTSIZE` default bash: **500** comenzi | `HISTFILESIZE`: **2000** pe disc
+- `strace` overhead: **50-100×** slowdown — interzis pe sisteme în producție sub load
+- `/dev/null`: major **1**, minor **3** — write = no-op, read = EOF imediat
+</FactBox>
+
+---
+
+### Navigare și filesystem
+
+```bash
+pwd                        # getcwd(2) — interogare kernel, nu variabila $PWD
+cd /path                   # chdir(2) — built-in obligatoriu
+ls -la                     # getdents64() + lstat() per fișier (lent pe directoare mari!)
+ls -lh                     # dimensiuni human-readable
+ls -lt                     # sort după mtime (recent sus)
+mkdir -p a/b/c             # creare recursivă, ignoră EEXIST
+rm -rf /path               # unlink() fișiere + rmdir() directoare — IRECUPERABIL
+cp -r src/ dst/            # copiere recursivă
+mv src dst                 # rename(2) dacă același FS (atomic, instant, orice dimensiune)
+                           # cross-filesystem: copy+delete — nu atomic, risc corupere
+touch fisier               # utimes(2) pentru update mtime, sau open(O_CREAT)+close()
+ln -s target link          # symlink(2) — inode nou cu calea ca date (fast symlink < 60 chars)
+ln target hardlink         # link(2) — incrementează i_nlink, același inode
+
+find /var/log -name "*.log" -mtime +7 -delete   # șterge loguri mai vechi de 7 zile
+find / -perm /4000 2>/dev/null                   # binarele setuid de pe sistem
+find /path -type f -size +100M                   # fișiere mari
+```
+
+**`mv` pe același filesystem** e atomic și instant indiferent de dimensiune — modifică doar dentry-ul, zero transfer de date. Un fișier de 1TB se "mută" în milisecunde. Cross-filesystem: copiere reală byte cu byte, nu atomică.
+
+---
+
+### Procesare text — pipeline-ul clasic
+
+```bash
+cat fisier                      # read() + write() în buclă
+less fisier                     # paginare — caută cu /, quit cu q
+head -n 20 / tail -n 20        # primele/ultimele N linii
+tail -f app.log                 # urmărire live via inotify (nu polling!)
+                                # fallback la polling pe NFS (inotify nu funcționează remote)
+wc -l fisier                    # număr linii | -w cuvinte | -c bytes
+```
+
+**grep:**
+```bash
+grep "ERROR" app.log            # linii care conțin
+grep -r "pattern" /etc/         # recursiv
+grep -i "error" app.log         # case insensitive
+grep -v "200 OK" access.log     # invert match (linii care NU conțin)
+grep -n "pattern" fisier        # cu numărul liniei
+grep -E "(ERROR|WARN)" app.log  # extended regex — OR logic fără backslash
+grep -c "ERROR" app.log         # numără liniile, nu le afișează
+```
+
+**sort / uniq — perechea obligatorie:**
+```bash
+sort -n fisier      # numeric (altfel "10" < "2" alphabetic)
+sort -r fisier      # reverse
+sort -k 2 fisier    # sortare după câmpul 2
+sort -u fisier      # elimină duplicate (sort + uniq într-un pas)
+sort | uniq -c | sort -rn       # frecvența elementelor
+```
+
+`uniq` detectează **doar linii consecutive** identice. Fără `sort` înainte, nu elimină toate duplicatele.
+
+**awk și sed:**
+```bash
+awk '{print $1, $3}' fisier         # câmpurile 1 și 3
+awk -F: '{print $1}' /etc/passwd    # delimiter custom
+awk '/ERROR/ {print $0}' app.log    # filtrare cu regex + acțiune
+awk '{sum += $1} END {print sum}'   # sumă coloană
+
+sed 's/old/new/g' fisier            # înlocuire globală
+sed -n '5p' fisier                  # printează doar linia 5
+sed '/pattern/d' fisier             # șterge linii cu pattern
+sed -i 's/localhost/prod/g' conf    # modificare în fișier (in-place)
+
+cut -d: -f1 /etc/passwd             # prima coloană delimitată de ':'
+echo "hello" | tr 'a-z' 'A-Z'      # transliterare uppercase
+```
+
+**Pipeline-uri de producție tipice:**
+```bash
+# Top 10 IP-uri din access log
+awk '{print $1}' access.log | sort | uniq -c | sort -rn | head -10
+
+# Distribuția codurilor HTTP
+awk '{print $9}' access.log | sort | uniq -c | sort -rn
+```
+
+<CosmoHint emotion="thinking">
+`sort | uniq -c | sort -rn` e unul dintre cele mai folosite pipeline-uri în administrare. `uniq` funcționează DOAR pe linii consecutive identice — dacă nu sortezi înainte, nu elimină duplicatele non-adiacente. Ordinea `sort` → `uniq` e obligatorie, nu opțională. Iar `-rn` pe al doilea sort înseamnă: reverse + numeric — vrei frecvențele mari sus, ca numere, nu ca string-uri.
+</CosmoHint>
+
+---
+
+### Procese, semnale și job control
+
+```bash
+ps aux                  # snapshot al tuturor proceselor (citește din /proc/)
+ps -ef --forest         # arbore de procese cu PPID
+top / htop              # monitorizare în timp real
+```
+
+**Load average** — cel mai greșit înțeles indicator:
+```
+load average: 0.45, 0.70, 1.20  (1 min, 5 min, 15 min)
+```
+Nu e procent de CPU. E **numărul mediu de procese** în stare **R** (running/runnable) + **D** (uninterruptible sleep — blocat pe I/O disc sau NFS). Pe un server cu 4 core-uri: load 4.0 = la limită, 8.0 = supraîncărcat. Starea D e mai periculoasă decât pare — un nod NFS care nu răspunde poate lăsa zeci de procese blocate în D, paralizând serverul fără să consume CPU.
+
+**Semnale:**
+```bash
+kill PID            # SIGTERM (15) — cerere elegantă de terminare, poate fi prinsă
+kill -9 PID         # SIGKILL — kernel ucide direct, fără handler, fără cleanup
+                    # risc: date corupte pentru baze de date, doar ultimă soluție
+kill -l             # lista tuturor semnalelor
+pkill nginx         # kill după nume de proces
+killall nginx       # kill toate procesele cu acel nume
+```
+
+Semnale de la tastatură: **Ctrl+Z** = SIGTSTP (20, suspendare), **Ctrl+C** = SIGINT (2, terminare), **Ctrl+\\** = SIGQUIT (3, terminare + core dump).
+
+**Job control:**
+```bash
+sleep 100 &         # pornire în background (& → fără wait())
+jobs                # lista job-urilor active ale shell-ului curent
+fg %1               # aduce job 1 în foreground
+bg %1               # reia job 1 în background după Ctrl+Z
+nohup ./script.sh & # imun la SIGHUP (terminarea terminalului) → output în nohup.out
+nice -n 10 cmd      # prioritate mai mică (-20 agresiv, 19 leneș)
+renice 10 -p PID    # schimbă prioritatea unui proces activ
+```
+
+**Debugging cu lsof și strace:**
+```bash
+lsof -p 1234                         # fișiere/socket-uri deschise de PID
+lsof -i :8080                        # ce proces ascultă pe portul 8080
+strace -e trace=open,read,write ls   # urmărire syscall-uri filtrate
+strace -p PID                        # attach la proces activ
+# Atenție: strace adaugă 50-100× overhead — nu pe sisteme în producție sub load
+```
+
+**`/proc` filesystem:**
+```bash
+cat /proc/1234/cmdline   # comanda de pornire (separator: byte null \0)
+ls /proc/1234/fd/        # symlinks spre toate FD-urile deschise
+cat /proc/1234/maps      # memory map (VMA-uri: cod, heap, stack, librării)
+cat /proc/1234/status    # detalii: threads, UID, state, memory
+cat /proc/loadavg        # load average curent
+cat /proc/meminfo        # utilizare RAM detaliată
+```
+
+---
+
+### Rețea din shell
+
+```bash
+curl -X POST -H "Content-Type: application/json" -d '{"k":"v"}' http://api/endpoint
+curl -o file.zip https://example.com/file.zip   # download
+curl -I https://example.com                      # HEAD request — headers only, fără body
+curl -v https://example.com                      # verbose: debug SSL, headers complete
+curl -s URL | jq .                               # silent + parse JSON
+curl --retry 3 --retry-delay 5 URL               # retry logic
+
+ss -tulnp           # porturi ascultate (TCP+UDP, numeric, cu PID) — înlocuiește netstat
+                    # mai rapid decât netstat: folosește Netlink sockets, nu /proc/net
+ip addr             # interfețe de rețea (înlocuiește ifconfig)
+ip route            # tabela de rutare
+
+dig +short google.com           # IP rapid
+dig google.com MX               # MX records pentru email routing
+ping google.com                 # ICMP echo (necesită CAP_NET_RAW sau net.ipv4.ping_group_range)
+
+ssh user@host -p 2222
+ssh -i ~/.ssh/key user@host
+ssh -L 8080:localhost:80 user@host   # port forwarding local: traficul pe localhost:8080
+                                      # e tunelat prin SSH și iese pe server:80
+ssh -R 8080:localhost:80 user@host   # port forwarding remote: portul 8080 de pe server
+                                      # e tunelat înapoi spre localhost:80 al clientului
+
+rsync -avz --progress src/ dst/      # sync cu delta transfer — transmite doar diferențele,
+                                      # nu fișierele întregi (ideal pentru backup incremental)
+```
+
+---
+
+### Variabile, environment și configurare
+
+```bash
+VAR=value           # variabilă locală — nu se moștenește la procese copil
+export VAR=value    # promovată în envp[] la execve() — moștenită de toți copiii
+env                 # afișează tot environment-ul
+printenv VAR        # valoarea unui singur var
+
+# Variabile speciale
+echo $?     # exit code ultima comandă (0=succes, ≠0=eroare)
+echo $$     # PID-ul shell-ului curent (util pentru lockfile-uri: /tmp/script.$$.lock)
+echo $0     # numele scriptului
+echo $@     # toți argumentele, păstrând granițele (recomandat în locul $*)
+echo $*     # toți argumentele ca un singur string
+echo $#     # numărul argumentelor
+
+# Aritmetică fără fork
+echo $((2 + 3 * 4))
+VAR=$((VAR + 1))
+
+# String operations
+echo ${#VAR}          # lungimea stringului
+echo ${VAR:2:5}       # substring: de la offset 2, lungime 5
+echo ${VAR/old/new}   # înlocuire prima apariție
+echo ${VAR:-default}  # dacă VAR e gol sau nedefinit, folosește "default"
+```
+
+**Arrays — diferența bash vs zsh:**
+```bash
+# bash: indexuri de la 0
+arr=(a b c)
+echo ${arr[0]}    # a
+echo ${arr[@]}    # toate elementele
+echo ${#arr[@]}   # numărul elementelor
+
+# zsh: indexuri de la 1 — același cod, comportament diferit!
+# ${arr[1]} în zsh = "a", dar în bash = "" (bash indexează de la 0)
+```
+
+**Fișierele de configurare:**
+- `.bash_profile` — **login shell** (SSH, console login) — setări de environment stabile
+- `.bashrc` — **interactive non-login shell** (terminal nou în GUI) — aliasuri, funcții
+- `.profile` — POSIX, orice shell — portabil cross-shell
+
+`source script.sh` sau `. script.sh` — execuție **în contextul curent** (fără fork). Modificările de variabile persistă în shell-ul activ. Fundament pentru `source venv/bin/activate` în Python.
+
+**Shell options pentru scripturi robuste:**
+```bash
+set -e              # exit la prima eroare
+set -u              # eroare la variabile nedefinite — PREVINE rm -rf /$VAR gol
+set -o pipefail     # pipeline eșuează dacă orice comandă din el eșuează
+set -x              # debug mode — afișează fiecare comandă expandată pe stderr
+# Combinat:
+set -euo pipefail
+```
+
+**History:**
+```bash
+history             # lista comenzilor
+Ctrl+R              # reverse search interactiv
+!!                  # repetă ultima comandă (util: sudo !!)
+!N                  # repetă comanda N din history
+```
+
+<CosmoHint emotion="sad">
+`set -u` e prima linie de apărare împotriva dezastrelor. Fără ea, `rm -rf /$DIR` cu `$DIR` nedefinit devine `rm -rf /`. Cu `set -u`, shell-ul se oprește cu eroare înainte să execute comanda. Pune `set -euo pipefail` la începutul oricărui script de producție. Fără excepție.
+</CosmoHint>
+
+---
+
+### Globbing, expansiune și quotes
+
+```bash
+*.log               # orice fișier cu extensia .log (zero sau mai multe caractere)
+file?.txt           # exact un caracter (file1.txt, dar nu file10.txt)
+[abc]*.sh           # fișiere care încep cu a, b, sau c
+[a-z]*.sh           # fișiere care încep cu literă mică
+[!0-9]*             # fișiere care NU încep cu cifră
+
+# Brace expansion — fără disc lookup, pur text generation
+mkdir -p /app/{logs,config,data}
+touch file{1..5}.txt                # file1.txt, file2.txt, ..., file5.txt
+echo {a..z}                         # a b c ... z
+```
+
+**Quote removal — trei tipuri:**
+- `'text'` — **single quotes**: literal absolut, nicio expansiune
+- `"text"` — **double quotes**: expandă `$VAR` și `$(cmd)`, protejează de word splitting
+- `\` — **backslash**: escape pentru caracterul următor
+
+```bash
+echo '$HOME'     # $HOME (literal)
+echo "$HOME"     # /home/user (expandat)
+echo $HOME       # /home/user (și subiect pentru word splitting și glob!)
+```
+
+**extglob (bash, activat cu `shopt -s extglob`):**
+```bash
+rm !(keep.txt)           # șterge tot EXCEPT keep.txt
+ls *.@(jpg|png)          # fișiere jpg sau png
+ls ?(draft-)report.pdf   # report.pdf sau draft-report.pdf
+```
+
+---
+
+### Comenzi de sistem
+
+```bash
+df -h               # spațiu pe filesystem-uri — citește superblock via statfs() (rapid)
+du -sh /path        # dimensiunea unui director — traversare recursivă cu stat() (lent)
+du -sh * | sort -h  # sortare după dimensiune
+
+# Diferența critică df vs du cu FD activ:
+# rm large.log → du raportează 0 (dentry șters)
+# Dar df raportează spațiu ocupat (blocurile fizice rămân alocate câtă vreme
+# există un FD deschis spre acel inode — eliberate abia la close() final)
+
+free -h             # RAM și swap
+uptime              # load average + timp pornit
+uname -a            # versiune kernel și arhitectură
+
+chmod 755 script.sh         # rwxr-xr-x
+chmod +x script.sh          # adaugă execute
+chown user:group file       # schimbă owner și group
+
+tar czf archive.tar.gz /path    # creare arhivă gzip
+tar xzf archive.tar.gz          # extragere
+tar tzf archive.tar.gz          # listare fără extragere
+sha256sum fisier                 # verificare integritate
+
+systemctl status/start/stop/restart nginx
+systemctl enable nginx          # pornire automată la boot
+journalctl -u nginx -f          # loguri în timp real
+
+crontab -e
+# format: minute oră zi_lună lună zi_săptămână comandă
+*/5 * * * * /home/user/backup.sh        # la fiecare 5 minute
+0 2 * * * /home/user/cleanup.sh         # la 02:00 noaptea
+```
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Comandă | Syscall intern | Notă critică |
+|---|---|---|
+| `cd` | `chdir(2)` | Built-in obligatoriu — extern nu funcționează |
+| `ls -la` | `getdents64()` + `lstat()` per fișier | `lstat()` per fișier = lent la zeci de mii de fișiere |
+| `mv` (same FS) | `rename(2)` | Atomic, instant, indiferent de dimensiune |
+| `mv` (cross FS) | `read()+write()+unlink()` | Nu atomic — risc corupere la crash |
+| `rm` | `unlink(2)` + `rmdir(2)` | Irecuperabil fără backup |
+| `touch` | `utimes(2)` sau `open(O_CREAT)+close()` | Scopul principal: update mtime |
+| `> fisier` | `open(O_TRUNC)+dup2()` | Trunchiază fișierul instant — chiar dacă comanda nu scrie nimic |
+| `>>` append | `open(O_APPEND)+dup2()` | Atomic la nivel de `write()` |
+| `pipe()` | `pipe(2)` | Buffer 64KB, procese concurente nu secvențiale |
+| `tail -f` | `inotify` (nu polling) | Fallback la polling pe NFS |
+| `strace` | `ptrace(2)` | 50-100× slowdown — interzis în producție sub load |
+| `df` | `statfs()` | Raportează spațiu ocupat chiar și pentru fișiere șterse cu FD activ |
+| `source` | — (fără fork) | Modificările de variabile persistă în shell-ul curent |
+
+Shell-ul nu e un limbaj exotic. E interfața directă cu syscall-urile kernel-ului, cu un strat de text processing deasupra. Fiecare comandă e o orchestrare de `fork()`, `exec()`, `dup2()` și `pipe()`.
+
+---
+
+## ÎNCHEIERE
+
+De la `ls` la `awk`, de la redirectări la job control — toate sunt variații pe aceeași temă: procese, file descriptors și syscall-uri.
+
+Pune `set -euo pipefail` la începutul oricărui script. Înțelege că `mv` pe același filesystem e atomic dar cross-filesystem nu. Știe că `kill -9` nu poate fi prins. Evită `sudo !!` fără să verifici mai întâi ce a rulat `!!`.
+
+Terminalul e cel mai bun prieten al unui inginer — și cel mai periculos dacă nu îl respecți.

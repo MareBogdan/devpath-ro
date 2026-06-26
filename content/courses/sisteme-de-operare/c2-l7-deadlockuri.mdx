@@ -1,0 +1,392 @@
+---
+title: "Deadlock-uri"
+order: 7
+type: lesson
+module_index: 2
+duration: 14
+difficulty: 3
+---
+
+# Deadlock-uri
+
+## HOOK
+
+9 august 2003, ora 14:02. Un server Unix din Ohio rulează software de management
+al rețelei electrice. Undeva în cod, un race condition face ca sistemul de alarme
+să nu mai trimită niciun avertisment. Operatorii nu văd nimic anormal.
+
+Până la miezul nopții, 55 de milioane de oameni din SUA și Canada sunt fără
+curent. Daune estimate: 6 miliarde de dolari.
+
+Ironia: dacă ar fi fost un deadlock, serverul s-ar fi blocat complet, watchdog-ul
+ar fi detectat și ar fi pornit serverul de backup. Race condition-ul a fost mai
+periculos — a lăsat sistemul să ruleze, corupt, fără să știe nimeni.
+
+Deadlock-ul e vizibil. Race condition-ul te omoară în tăcere.
+
+## CONTEXT
+
+Știi deja cele 4 condiții Coffman, mutex, semaphore, spinlock, race conditions
+și priority inversion. Știi că Mars Pathfinder s-a resetat din cauza priority
+inversion. Lecția asta adâncește deadlock-ul complet: formalizare matematică,
+detectare cu Resource Allocation Graph, strategiile de gestionare, lockdep în
+kernel Linux, și cum tratează Go, Rust și PostgreSQL problema.
+
+## MIEZUL
+
+### Definiție Formală: Mai Mult Decât "Se Blochează Reciproc"
+
+Un deadlock e o stare a sistemului în care un set de procese
+$D = \{p_1, p_2, \ldots, p_n\}$ se blochează **permanent** — fiecare $p_i$
+așteaptă un eveniment care poate fi generat doar de un alt $p_j \in D$.
+Deoarece toți sunt în așteptare, nimeni nu execută instrucțiuni, nimeni nu
+eliberează resurse. Sistemul nu se poate recupera fără intervenție externă.
+
+Diferența față de livelock și starvation:
+
+{/* TABLE */}
+
+| Anomalie | Mecanism | Utilizare CPU | Exemplu |
+|---|---|---|---|
+| **Deadlock** | Așteptare circulară permanentă, thread-uri dormind | 0% per thread blocat | T1 deține A, vrea B; T2 deține B, vrea A |
+| **Livelock** | Schimbare continuă de stare, fără progres util | ~100% (busy loop) | Doi oameni pe hol care se feresc mereu în aceeași direcție |
+| **Starvation** | Monopolizare sau planificare inechitabilă | Variabil | Sute de readers blochează indefinit un writer |
+
+**De ce deadlock-urile sunt greu de depistat în producție?** Non-determinismul
+planificatorului. O secvență fatală de achiziție a resurselor necesită o
+întrepătrundere precisă la nivel de microsecundă — poate apărea o dată la un
+milion de execuții, invizibilă în teste, vizibilă doar sub sarcină masivă în
+producție. Reproducerea post-mortem e adesea imposibilă.
+
+**Deadlock vs. race condition — care e mai periculos?** Deadlock-ul e vizibil
+și zgomotos: sistemul îngheață, watchdog-ul poate declanșa restart. Race
+condition-ul e silenționos: sistemul continuă să ruleze cu date corupte.
+Northeast Blackout 2003 demonstrează perfect: dacă ar fi fost deadlock, serverul
+de backup prelua imediat. Race condition-ul a lăsat sistemul să ruleze "normal"
+ignorând toate alarmele.
+
+### Cele 4 Condiții Coffman — Tehnic
+
+Cele 4 condiții sunt **necesare și suficiente** pentru deadlock. Eliminarea
+oricăreia previne matematic apariția lui.
+
+**1. Mutual Exclusion** — resursa e exclusivă, un singur deținător la un moment
+dat. Necesară pentru resurse fizice (port serial, dispozitiv de scriere) sau
+structuri de date care necesită multiple scrieri pentru a rămâne coerente.
+*Poate fi eliminată* prin algoritmi lock-free/wait-free sau pentru resurse
+strict read-only.
+
+**2. Hold and Wait** — thread-ul deține o resursă și cere alta:
+
+```c
+pthread_mutex_lock(&lock_user_account);  // HOLD
+// ...
+pthread_mutex_lock(&lock_transaction_log);  // WAIT — potențial deadlock
+```
+
+*Poate fi eliminată* dacă thread-ul cere toate resursele de care va avea
+nevoie înainte de a începe orice procesare (ineficient, reduce concurența).
+
+**3. No Preemption** — OS-ul nu poate lua forțat un mutex de la un thread.
+De ce? Dacă thread-ul e la mijlocul unei operații, structura de date e
+inconsistentă (ex: o listă dublu înlănțuită cu legătura inversă necompletată).
+A lua mutex-ul forțat → pointeri ruți → segfault sau date corupte. Spre
+deosebire de registrele CPU (care se salvează complet în `task_struct`), starea
+internă a unei structuri de date nu poate fi "checkpoint-ată" și restaurată.
+
+**4. Circular Wait** — $P_0$ așteaptă $P_1$, $P_1$ așteaptă $P_2$, ...,
+$P_n$ așteaptă $P_0$. *Se elimină* prin **lock ordering** — asociezi un rang
+numeric fiecărei resurse și impui că lock-urile se iau mereu în ordine
+crescătoare.
+
+### Resource Allocation Graph (RAG)
+
+RAG e graful orientat $G=(V,E)$ cu două tipuri de noduri:
+- **Procese** (cercuri): $P_1, P_2, P_3$
+- **Resurse** (dreptunghiuri cu puncte): $R_1, R_2, R_3$ — fiecare punct = o instanță
+
+Două tipuri de arce:
+- **Request edge** $P_i \rightarrow R_j$: $P_i$ cere resursa $R_j$ (blocked)
+- **Assignment edge** $R_j \rightarrow P_i$: $R_j$ e alocată lui $P_i$
+
+**Regula cu o instanță per resursă:** ciclu în graf = deadlock garantat.
+
+```
+Exemplu cu 3 procese și 3 resurse singulare:
+
+[P1] --cere--> (R1) --alocat--> [P2] --cere--> (R2)
+  ^                                              |
+  |                                         alocat
+  cere                                          |
+  |                                             v
+(R3) <--alocat-- [P3] <----cere----- (R2)
+```
+
+Ciclul: $P_1 \to R_1 \to P_2 \to R_2 \to P_3 \to R_3 \to P_1$ — deadlock garantat.
+
+**Regula cu multiple instanțe:** un ciclu nu mai garantează deadlock. Dacă
+$R_2$ are 2 instanțe și una e alocată unui $P_4$ care nu e în ciclu, $P_4$ se
+va termina și va elibera instanța — lanțul se rupe. Deadlock e garantat doar
+dacă există un **knot** — un subgraf din care nu iese nicio muchie orientată.
+
+### Strategiile de Gestionare
+
+{/* TABLE */}
+
+| Strategie | Când se aplică | Mecanism | Dezavantaj |
+|---|---|---|---|
+| **Prevention** | Design time | Elimini o condiție Coffman (lock ordering, try-lock) | Poate reduce concurența |
+| **Avoidance** | Runtime, dinamic | Banker: accepti cereri doar dacă starea rămâne "sigură" | Necesită maxim declarat în avans — impractică |
+| **Detection** | Runtime periodic | Traversezi RAG, lockdep în kernel | Overhead; deadlock deja apărut |
+| **Recovery** | Post-detectare | Termini procese, rollback, timeout-uri | Pierdere de progres |
+
+**1. Prevention — elimini o condiție Coffman la design time**
+
+Cea mai eficientă: **Lock Ordering**. Asociezi un rang tuturor mutex-urilor și
+impui că se iau mereu în ordine crescătoare.
+
+```c
+// ABBA deadlock — GREȘIT:
+// Thread 1: lock(A) → lock(B)
+// Thread 2: lock(B) → lock(A)
+
+// Fix prin lock ordering — CORECT:
+// Ambele thread-uri: lock(A) → lock(B) (A < B întotdeauna)
+pthread_mutex_lock(&lockA);  // rang 1
+pthread_mutex_lock(&lockB);  // rang 2 — niciodată invers
+```
+
+Kernelul Linux aplică asta: `i_mmap_rwsem` (rang înalt, protejează VMA-urile)
+se obține **înainte** de `mmap_lock` (rang inferior, per-VMA).
+
+**Try-lock cu timeout** (`pthread_mutex_trylock()`, `pthread_mutex_timedlock()`):
+returnează `EBUSY` în loc să blocheze. Dezavantaj: poate introduce livelock
+dacă nu e implementat cu back-off exponențial.
+
+**2. Avoidance — decizi dinamic dacă o alocare e sigură**
+
+**Algoritmul Banker** (Dijkstra): menține un inventar și acceptă cereri doar
+dacă starea rămâne "sigură" (există o ordine de execuție în care toți se pot
+termina). Exemplu cu 3 procese și 10 instanțe totale:
+
+- P0: 2 alocate, maxim 7 (mai vrea 5)
+- P1: 3 alocate, maxim 5 (mai vrea 2)
+- P2: 2 alocate, maxim 3 (mai vrea 1)
+- Disponibil: 10 - 7 = **3 instanțe**
+
+Secvența sigură: P1 (vrea 2, disponibil 3 ✓) → P2 (vrea 1, disponibil 6 ✓)
+→ P0 (vrea 5, disponibil 8 ✓). Starea e sigură.
+
+**De ce Banker e rar folosit în practică?** Necesită declararea resurselor
+maxime în avans. Serverele web primesc conexiuni infinite cu cerințe complet
+necunoscute — imposibil de aplicat.
+
+**3. Detection — lași deadlock-ul să apară, îl detectezi**
+
+Traversezi periodic RAG-ul căutând cicluri. Linux face asta în kernel prin
+**`lockdep`** (Lock Dependency Validator).
+
+`lockdep` nu urmărește instanțe individuale, ci **clase de lock-uri** (limită
+implicită: **8191 clase**). Dacă funcția X face `lock(A) → lock(B)`, lockdep
+înregistrează relația `A → B`. Mai târziu, dacă orice funcție face `lock(B) →
+lock(A)`, lockdep raportează **imediat**, chiar dacă deadlock-ul fizic nu s-a
+produs încă.
+
+Output-ul unui raport lockdep:
+```
+================================
+WARNING: possible circular locking dependency detected
+4.19.0+ #4 Tainted: G           O
+inconsistent {SOFTIRQ-ON-W} -> {IN-SOFTIRQ-W} usage.
+ksoftirqd/0/9 takes:
+(ptrval) (lock#4){+.?.}, at: timerfn+0x25/0x60
+{SOFTIRQ-ON-W} state was registered at:
+lock_acquire+0x93/0x190
+...
+Possible unsafe locking scenario:
+CPU0
+----
+lock(lock#4);
+...
+lock(lock#4);
+*** DEADLOCK ***
+```
+
+`lockdep` e activat cu `CONFIG_PROVE_LOCKING` / `CONFIG_DEBUG_LOCKDEP`.
+Dezactivat în producție — overhead de ~10% și limita de 8191 clase.
+
+<FactBox>
+Procesele blocate în kernel space intră în starea **D** (TASK_UNINTERRUPTIBLE).
+Nu pot fi ucise nici cu `kill -9`. Diagnostic în producție:
+`ps -eo state,pid,comm,wchan | grep '^D'`
+Coloana `wchan` arată funcția kernel unde s-a produs blocarea (ex: `nfs_wait`).
+`/proc/[pid]/stack` afișează întregul call stack din kernel.
+</FactBox>
+
+**4. Recovery — ce faci după detectare**
+
+- **Terminare procese**: sacrifici thread-uri din ciclu (toate odată sau pe rând
+  după prioritate) până ciclul dispare
+- **Preemptare cu rollback**: forțezi un thread să elibereze resursele și revii
+  la ultimul checkpoint
+- **Timeout-uri**: cel mai comun în producție — dacă așteptarea depășește N
+  secunde, abandonezi și reîncerci
+
+### Deadlock ABBA: Cod Complet
+
+```c
+#include <pthread.h>
+#include <unistd.h>
+pthread_mutex_t lockA = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t lockB = PTHREAD_MUTEX_INITIALIZER;
+
+void* thread1(void* arg) {
+    pthread_mutex_lock(&lockA);
+    usleep(1000);              // lărgește fereastra race condition-ului
+    pthread_mutex_lock(&lockB);  // se blochează dacă T2 deține B
+    pthread_mutex_unlock(&lockB);
+    pthread_mutex_unlock(&lockA);
+    return NULL;
+}
+
+void* thread2(void* arg) {
+    pthread_mutex_lock(&lockB);  // ordine inversată față de T1
+    usleep(1000);
+    pthread_mutex_lock(&lockA);  // se blochează dacă T1 deține A
+    pthread_mutex_unlock(&lockA);
+    pthread_mutex_unlock(&lockB);
+    return NULL;
+}
+```
+
+Fix: în `thread2`, schimbi ordinea — `lock(A)` înainte de `lock(B)`. Ambele
+thread-uri cer lock-urile în aceeași ordine → circular wait imposibil.
+
+### Deadlock în Kernel Linux
+
+ISR-urile (Interrupt Service Routines) nu pot dormi — nu au context de proces.
+Capcana clasică:
+
+1. Thread normal obține `spin_lock(&device_lock)`
+2. Timer interrupt apare, procesorul execută `timerfn()`
+3. `timerfn()` cere același `spin_lock(&device_lock)` → spins la infinit
+4. Thread-ul original nu va mai primi CPU-ul înapoi
+
+Soluție: `spin_lock_irqsave()` dezactivează întreruperile locale pe durata
+spinlock-ului, prevenind exact acest scenariu.
+
+<CosmoHint emotion="thinking">
+De ce nu poate OS-ul să ia forțat un mutex de la un thread blocat și să îl dea
+altuia? Timeout-ul ar rezolva totul, nu? Nu chiar. Dacă thread-ul e la mijlocul
+actualizării unui B-tree (a modificat nodul stâng, dar nu și cel drept), mutex-ul
+a fost luat tocmai ca să protejeze această stare tranzitorie. A-l lua forțat
+înseamnă că alt thread vede B-tree-ul pe jumătate actualizat — pointeri ruți,
+date corupte, crash garantat. Mutex-ul nu protejează doar accesul, protejează
+invariantul structural al datelor.
+</CosmoHint>
+
+### Deadlock în Baze de Date: PostgreSQL
+
+PostgreSQL nu verifică imediat dacă există deadlock la fiecare blocare — ar
+paraliza CPU-ul pe mii de tranzacții simultane. În schimb:
+
+1. Când o tranzacție nu poate obține un lock, **așteaptă** până la `deadlock_timeout`
+2. `deadlock_timeout` default: **1000ms (1 secundă)**
+3. La expirare, invocă `CheckDeadLock()` — construiește Wait-For Graph și
+   detectează cicluri
+4. Dacă găsește ciclu, alege o **victimă** și o ucide. PostgreSQL selectează
+   victima pe baza unor criterii interne de planificare — de obicei anulează
+   tranzacția care a declanșat detecția deadlock-ului
+5. Clientul victimei primește: `ERROR: deadlock detected (SQLSTATE 40P01)`
+6. Aplicația trebuie să captureze `40P01` și să reîncerce tranzacția
+
+MySQL/InnoDB folosește o euristică diferită: victima = tranzacția cu cel mai
+mic undo log (cel mai puțin de anulat → cel mai ieftin de sacrificat).
+
+### Livelock și Starvation
+
+**Livelock** — thread-urile nu sunt blocate, dar nu fac progres util:
+
+```c
+while (1) {
+    pthread_mutex_lock(&lockA);
+    if (pthread_mutex_trylock(&lockB) != 0) {
+        pthread_mutex_unlock(&lockA);  // cedează pentru a evita deadlock
+        sched_yield();
+        continue;  // încearcă din nou
+    }
+    break;
+}
+```
+
+Dacă T1 și T2 fac asta simetric, planificatorul le poate sincroniza perfect:
+ambele obțin primul lock, ambele eșuează pe al doilea, ambele eliberează și
+reîncearcă — la infinit. CPU: ~100%. Progres: zero.
+
+**Starvation** — un thread valid nu primește niciodată acces la resursă.
+Exemplu clasic: `pthread_rwlock_t` cu reader-bias. Un flux neîntrerupt de
+readers menține count-ul mereu > 0 → writer-ul așteaptă la infinit.
+
+Soluții:
+- **Aging**: crești prioritatea unui thread cu fiecare ciclu de așteptare,
+  până e forțat să ruleze
+- **Fair locks**: coadă FIFO — niciun request nou nu trece înaintea celor vechi,
+  indiferent de tip (read/write)
+
+### Deadlock în Limbaje Moderne
+
+**Rust** previne data races prin ownership + borrow checker, dar **nu previne
+deadlock-urile la compile time**. Un `Arc<Mutex<T>>` luat în ordine inversă
+se compilează fără eroare și generează deadlock la runtime. Exemplu real din
+ecosistemul Tokio: un mutex sincron luat într-un context async a blocat worker
+thread-ul principal al runtime-ului — nicio goroutine nu mai putea fi planificată.
+
+**Go** detectează deadlock-uri simple la runtime prin `checkdead()`: dacă **toate**
+goroutine-urile sunt adormite simultan, runtime-ul aruncă:
+
+```
+fatal error: all goroutines are asleep - deadlock!
+
+goroutine 1 [chan receive]:
+main.main()
+    /tmp/main.go:17 +0x1a0
+```
+
+Limitare importantă: funcționează doar când **toate** goroutine-urile dorm. Un
+server web real are mereu un goroutine care ascultă pe rețea → detectorul nu
+se declanșează pentru deadlock-uri parțiale din producție.
+
+**Java**: `ReentrantLock.tryLock(long timeout, TimeUnit unit)` returnează `false`
+dacă nu poate obține lock-ul în intervalul dat — elimină posibilitatea de
+așteptare circulară infinită. `synchronized` clasic nu are acest mecanism.
+
+<FactBox>
+**Overhead-ul uneltelor de detectare — niciuna nu merge în producție:**
+- **ThreadSanitizer (TSan)**: **5–15×** slowdown, **5–10×** memorie suplimentară
+- **Helgrind (Valgrind)**: **20–50×** slowdown (shadow memory per variabilă)
+- **lockdep (kernel)**: ~**10%** overhead, limitat la **8191 clase** de lock-uri
+- **Go race detector** (`-race`): ~**2–20×** slowdown, ~**5–10×** memorie
+
+Toate sunt rezervate pentru staging cu sarcină realistă sau pentru kerneluri de
+development (`CONFIG_PROVE_LOCKING`). Niciuna nu se activează în producție.
+</FactBox>
+
+## REVEAL
+
+Deadlock-ul e o stare de așteptare circulară permanentă — matematic formalizată
+de Coffman în 4 condiții, vizualizată prin Resource Allocation Graph. Patru
+strategii de gestionare: prevenire (lock ordering, try-lock), evitare (Banker,
+impractică), detectare (lockdep în kernel, Wait-For Graph în PostgreSQL) și
+recuperare (terminare procese, timeout-uri).
+
+Livelock și starvation sunt frații mai puțin vizibili: unul consumă CPU fără
+progres, celălalt înfometează indefinit un thread valid.
+
+Și da — un race condition silențios poate fi mai devastator decât un deadlock
+zgomotos. Nordul Americii a aflat asta în 2003.
+
+## ÎNCHEIERE
+
+Lecția următoare intră direct în race conditions — mecanismele exacte prin care
+datele se corup, detectarea cu TSan și Go race detector, și modelele de memorie
+care formalizează ce "vizibilitate" înseamnă pe hardware multi-core.

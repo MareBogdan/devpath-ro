@@ -58,6 +58,12 @@ interface LessonPageClientProps {
   lessonTitle: string;
   // Feedback
   feedbackAlreadySubmitted: boolean;
+  /**
+   * True when `content_md` is a single self-closing MDX component (e.g.
+   * `<BinaryTranslator />`) — no prose to scroll through, so the read-gate
+   * on the "Marchează completat" button must be skipped.
+   */
+  isGameOnly?: boolean;
 }
 
 export function LessonPageClient({
@@ -75,6 +81,7 @@ export function LessonPageClient({
   avatarUrl,
   lessonTitle,
   feedbackAlreadySubmitted,
+  isGameOnly = false,
 }: LessonPageClientProps) {
   const router = useRouter();
   const { hasReachedEnd } = useReadingProgress();
@@ -98,7 +105,10 @@ export function LessonPageClient({
   const [postGameNextId, setPostGameNextId] = useState<string | null>(null);
 
   const isTheory = lessonType === "theory" || lessonType === "lesson";
-  const effectiveReadingComplete = isTheory ? hasReachedEnd : true;
+  // Game-only lessons (single self-closing MDX component, no prose) skip the
+  // scroll-to-end read gate — there's nothing to read.
+  const effectiveReadingComplete =
+    isTheory && !isGameOnly ? hasReachedEnd : true;
   const effectiveGateComplete = isTheory ? gateComplete : true;
 
   function handleLessonComplete(result: MarkCompleteResult) {

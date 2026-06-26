@@ -1,0 +1,319 @@
+---
+title: "Procesul de Boot: Cum Prinde Viață un Calculator"
+order: 1
+type: lesson
+module_index: 2
+duration: 14
+difficulty: 3
+---
+
+# Procesul de Boot: Cum Prinde Viață un Calculator
+
+## HOOK
+
+Apasă butonul de pornire. Nimic nu se întâmplă.
+
+Nu imediat. Procesorul tău — un cip cu miliarde de tranzistori — stă blocat,
+inert, așteptând permisiunea să gândească. Tensiunea electrică e acolo,
+electronii circulă prin circuite, dar CPU-ul refuză să execute o singură
+instrucțiune.
+
+De ce? Pentru că nu i s-a dat voie.
+
+Există un semnal electric special, un fel de "tensiunile sunt stabile, poți
+porni" pe care sursa de alimentare trebuie să îl trimită explicit înainte ca
+procesorul să facă absolut orice. Fără acel semnal, CPU-ul rămâne blocat în
+reset forțat — o stare de suspendare hardware deliberată.
+
+Și asta e doar prima jumătate de secundă. Până când vezi desktopul, calculatorul
+tău execută una dintre cele mai complexe coregrafi din informatică.
+
+## CONTEXT
+
+Știi deja cum funcționează CPU-ul la nivel fundamental: ciclul
+Fetch-Decode-Execute, Program Counter-ul care ține adresa instrucțiunii curente,
+registrele, ALU-ul. Și știi principiul Von Neumann: programul trebuie să fie în
+memorie înainte să fie executat.
+
+Dar la boot apare o contradicție: la pornire, memoria RAM e complet goală. Nu
+există niciun program în ea. Totuși CPU-ul trebuie să execute ceva — imediat, în
+prima fracțiune de secundă.
+
+Cum se rezolvă această contradicție? Prin unul dintre cele mai elegante trucuri
+din istoria arhitecturii hardware. Și asta e exact ce urmează să dezlegăm.
+
+## MIEZUL
+
+### Permisiunea de a Gândi: Semnalul Power Good
+
+Când apeși butonul de pornire, trimiți un semnal electric (PS_ON#) sursei de
+alimentare. Sursa începe să genereze tensiunile de lucru: +12V, +5V, +3.3V.
+Procesoarele moderne lucrează la tensiuni de nucleu sub 1.2V — sunt extrem de
+sensibile la orice fluctuație.
+
+Dacă CPU-ul ar porni instantaneu, în primele milisecunde când tensiunile sunt
+instabile, flip-flop-urile din interior ar comuta aleatoriu. Registrele ar
+conține valori corupte. Prima instrucțiune executată ar produce gunoi.
+
+De aceea există semnalul **Power Good** (PWR_OK).
+
+Sursa generează acest semnal de +5V *abia după* ce tensiunile sale de ieșire
+s-au stabilizat și a trecut propriile verificări interne. Standardul ATX e
+precis: PWR_OK trebuie să devină activ între **100ms și 500ms** după stabilizarea
+tensiunilor. Sub 100ms înseamnă că sursa minte. Peste 500ms indică un defect.
+
+Abia când placa de bază primește PWR_OK valid, eliberează pinul de RESET al
+procesorului. CPU-ul primește voie să gândească.
+
+<FactBox>
+La o pană de curent, sursa de alimentare trebuie să mențină PWR_OK activ cel
+puțin **16 milisecunde** — suficient timp pentru a opri scrierile pe disc și a
+preveni coruperea datelor. Această fereastră de 16ms corespunde exact duratei
+unui ciclu complet de curent alternativ la 60Hz.
+</FactBox>
+
+### Reset Vector: Prima Adresă Imposibilă
+
+La eliberarea din RESET, CPU-ul face exact ce știi tu: setează Program Counter-ul
+și execută primul Fetch. Dar la ce adresă?
+
+Pe x86-64, prima instrucțiune e la adresa fizică **0xFFFFFFF0** — exact la
+16 bytes distanță de limita superioară a primilor 4GB de spațiu de adrese.
+
+Există o problemă imediată: procesorul pornește în **Real Mode**, modul de
+compatibilitate pe 16 biți, moștenit de la Intel 8086 din 1978. În Real Mode,
+adresele se calculează cu formula `segment × 16 + offset`, care produce adrese
+pe 20 biți — maximum 1MB adresabil. Cum poate un procesor în Real Mode să
+acceseze adresa 0xFFFFFFF0?
+
+Răspunsul e un artificiu hardware deliberat.
+
+Fiecare registru de segment are două componente: un **selector vizibil**
+programatorului (16 biți) și un **shadow register invizibil** care stochează
+adresa de bază reală. La reset, hardware-ul suprascrie calculul normal și setează
+forțat în silicon:
+
+- Selectorul CS vizibil: `0xF000`
+- Shadow register CS (baza reală): `0xFFFF0000`
+- Instruction Pointer: `0xFFF0`
+
+Adresa fizică = `0xFFFF0000 + 0xFFF0 = 0xFFFFFFF0` ✓
+
+Chipset-ul plăcii de bază e cablat să recunoască această zonă și să nu o
+direcționeze spre RAM (care e goală), ci direct spre cipul **SPI Flash** care
+conține firmware-ul. CPU-ul crede că citește din RAM — de fapt citește din ROM.
+Principiul Von Neumann e respectat prin înșelăciune elegantă.
+
+Ce găsește procesorul la 0xFFFFFFF0? Spațiu pentru o singură instrucțiune:
+`FAR JMP`. Un salt la codul principal al firmware-ului, unde există suficient
+spațiu pentru a continua inițializarea.
+
+### BIOS vs UEFI: Două Ere de Firmware
+
+**BIOS** (Basic Input/Output System) e arhitectura veche: cod în 16-bit, rulează
+exclusiv în Real Mode, acces limitat la 1MB de memorie RAM. A funcționat 30 de
+ani și a atins un zid.
+
+**UEFI** e înlocuitorul modern: scris în C, trece CPU-ul direct în Protected Mode
+sau Long Mode pe 64 biți, acces complet la toată memoria. Un firmware UEFI modern
+ocupă **16–32MB** pe cipul SPI Flash — față de 2–4MB pentru BIOS. Diferența de
+dimensiune reflectă o diferență de complexitate: UEFI e practic un mini-sistem
+de operare.
+
+UEFI pornește secvențial prin mai multe faze:
+
+**SEC (Security):** Prima fază, imediat după reset vector. RAM-ul nu e încă
+funcțional, deci firmware-ul folosește cache-ul L1/L2 al procesorului ca memorie
+temporară de lucru — o tehnică numită **Cache-As-RAM (CAR)**.
+
+**PEI (Pre-EFI Initialization):** Calibrează și inițializează controlerele de
+memorie RAM. Din acest moment, DRAM-ul e disponibil.
+
+**DXE (Driver Execution Environment):** Inima UEFI. Încarcă sute de drivere
+pentru PCIe, NVMe, USB, rețea. Funcționează ca un OS minimal complet.
+
+**BDS (Boot Device Selection):** Selectează dispozitivul de boot din lista
+stocată în NVRAM și aplică politicile de securitate.
+
+**POST** (Power-On Self Test) se desfășoară în fazele PEI/DXE: testează
+procesorul, verifică memoria RAM, mapează dispozitivele PCIe. Pe hardware modern
+cu Fast Boot activat — câteva secunde. Pe un server enterprise cu zeci de GB RAM
+și verificare ECC completă — câteva minute.
+
+**Secure Boot** adaugă verificări criptografice pentru fiecare componentă din
+secvența de boot. Totul trebuie semnat digital cu RSA-2048 și SHA-256. Ierarhia
+de chei:
+
+- **PK** (Platform Key): Cheia supremă, instalată de producătorul hardware-ului
+- **KEK** (Key Enrollment Key): Chei de încredere — Microsoft și parteneri
+- **db**: Lista albă — ce are voie să ruleze
+- **dbx**: Lista neagră — ce e revocat
+
+O regulă critică: dacă același binary apare atât în `db` cât și în `dbx`,
+**`dbx` câștigă întotdeauna**.
+
+<CosmoHint emotion="thinking">
+De ce pornesc toate procesoarele x86 în Real Mode pe 16 biți din 1978, chiar și
+un Ryzen 9 din 2024? Compatibilitate retrospectivă. Intel a luat decizia că
+orice software scris pentru 8086 trebuie să ruleze pe orice procesor x86
+ulterior. Prețul: fiecare procesor modern din lume face primii pași ca și cum ar
+fi din 1978.
+</CosmoHint>
+
+### MBR vs GPT: Harta Discului
+
+Firmware-ul trebuie să știe de pe ce disc și de pe ce partiție să încarce
+sistemul de operare. Această informație stă în **tabela de partiții**.
+
+{/* TABLE */}
+
+| Caracteristică | MBR | GPT |
+|---|---|---|
+| Locație | LBA 0, primii 512 bytes | LBA 1 + backup la ultimul sector |
+| Partiții maxime | 4 primare | 128 (implicit) |
+| Dimensiune maximă disc | 2 TB | ~9.4 ZB |
+| Adresare sectoare | 32 biți | 64 biți |
+| Redundanță | Zero | Header duplicat + tabel duplicat |
+| Identificare partiții | Tipuri numerice (0x07, 0x83) | GUIDs pe 128 biți |
+
+MBR e limitat la 2TB din cauza adresării pe 32 biți a sectoarelor:
+$$2^{32} \times 512 \text{ bytes} = 2 \text{ TB}$$
+
+GPT rezolvă asta cu adresare pe 64 biți și adaugă un header de rezervă stocat la
+**ultimul sector al discului** — dacă primul e corupt, sistemul poate recupera
+din backup.
+
+GPT include un **Protective MBR** pe LBA 0: o partiție fictivă cu tipul `0xEE`
+care "ocupă" tot discul, pentru ca utilitarele vechi ce nu înțeleg GPT să nu
+atingă accidental structura de date.
+
+### Bootloader: Puntea spre Kernel
+
+În mediul UEFI, firmware-ul caută pe o partiție specială — **EFI System
+Partition**, formatată FAT32 — un fișier `.efi` executabil. Pe Linux, acesta e
+`grubx64.efi`. Pe Windows, `bootmgfw.efi`.
+
+Pe sisteme legacy cu BIOS + MBR, **GRUB2** lucrează în trei etape forțate de
+constrângerile fizice:
+
+**Stage 1** (`boot.img`): Exact **440 bytes** injectați în MBR. Nu știe nimic
+despre sisteme de fișiere. Conține o singură informație hardcodată: adresa fizică
+a Stage 1.5.
+
+**Stage 1.5** (`core.img`): Stă în "MBR gap" — spațiul nefolosit dintre LBA 1
+și prima partiție (de obicei sectoarele 1–62). Conține drivere minimale pentru
+ext4, btrfs, xfs. Poate citi partiția unde trăiește Stage 2.
+
+**Stage 2** (`normal.mod`): Pe disc, în `/boot/grub/`. Afișează meniul de boot,
+citește `grub.cfg`, încarcă kernelul și initramfs în RAM.
+
+Pe UEFI modern, toate trei etape sunt unite într-un singur binar `grubx64.efi`.
+Limitarea de 440 bytes dispare complet.
+
+**Windows Boot Manager** (`bootmgfw.efi`) citește configurația dintr-o bază de
+date criptată numită **BCD** (Boot Configuration Data), localizată la
+`\EFI\Microsoft\Boot\BCD` pe partiția ESP. BCD conține adresele partiției Windows
+și opțiunile de boot. De acolo, controlul e predat lui `winload.efi` care
+încarcă `ntoskrnl.exe` în RAM.
+
+Ultimul act al oricărui bootloader: apelul `ExitBootServices()`. Din acest
+moment, toate driverele UEFI sunt evacuate din RAM. Kernelul preia controlul
+absolut.
+
+### Kernel Loading: Paradoxul Driverelor
+
+Kernelul Linux e distribuit ca fișier `bzImage` — o arhivă de **6–12MB**
+comprimată (LZ4, ZSTD sau xz). Decomprimat, ocupă **30–50MB** în RAM.
+
+Dar apare imediat o problemă fundamentală: kernelul e modular. Driverele pentru
+NVMe, SATA, LUKS sunt module separate (fișiere `.ko`) stocate pe disc. Cum
+montezi discul fără driverul de disc?
+
+Soluția se numește **initramfs** (initial RAM filesystem).
+
+Bootloader-ul încarcă în RAM, *lângă* kernel, o arhivă cpio de câțiva MB —
+practic un mini-sistem Linux. Kernelul extrage această arhivă ca sistem de
+fișiere temporar în memorie (pe un tmpfs volatil), rulează scriptul de
+inițializare, încarcă driverele necesare cu `modprobe`, montează partiția reală
+de pe disc, și în final apelează **`switch_root`** — se mută pe sistemul real și
+distruge RAM disk-ul temporar.
+
+### Trei Moduri în Câteva Secunde: Real → Protected → Long
+
+Kernelul pornește în Real Mode (16-bit). Trebuie să ridice CPU-ul prin trei
+moduri arhitecturale consecutive.
+
+**Real Mode → Protected Mode (32-bit):**
+Kernelul construiește un **GDT** (Global Descriptor Table) — un tabel de
+descriptori de segment cu drepturi de acces granulare. Îl încarcă în registrul
+intern GDTR cu instrucțiunea `lgdt`. Activează bitul **PE** (Protection Enable)
+în registrul de control **CR0**. Un `FAR JMP` imediat flushează pipeline-ul de
+instrucțiuni. Procesorul intră în Protected Mode: 4GB de RAM adresabil, izolarea
+memoriei între procese activă.
+
+**Protected Mode → Long Mode (64-bit):**
+Se configurează paginarea pe patru niveluri (PML4 → PDPT → PD → PT). Adresa
+tabelului PML4 e scrisă în **CR3**. Se activează **PAE** în CR4. Se setează
+bitul **LME** (Long Mode Enable) în registrul MSR EFER. Se activează bitul **PG**
+(Paging Enable) în CR0.
+
+CPU-ul e acum în Long Mode: adresare pe 64 biți, memorie virtuală completă.
+Fiecare proces va vedea propriul spațiu de adrese izolat.
+
+<CosmoHint emotion="thinking">
+Nu se poate sări direct la Long Mode, ocolind Protected Mode? Nu — arhitectura
+x86 impune că Long Mode poate fi activat *numai* din Protected Mode. E o
+constrângere de design, nu un accident. Ordinea e obligatorie: Real → Protected
+→ Long.
+</CosmoHint>
+
+### Init System: Primul Proces din User Space
+
+Kernelul pornește primul și singurul proces în user space: **PID 1**,
+executabilul din `/sbin/init`.
+
+PID 1 are un statut special în ierarhia Unix:
+- E părintele tuturor celorlalte procese din sistem
+- Adoptă orice proces orfan al cărui părinte a murit ("zombie reaping")
+- Dacă PID 1 moare, kernelul declanșează **Kernel Panic** — nu există
+  recuperare posibilă
+
+Pe sistemele moderne, PID 1 e **systemd**. Diferența față de vechiul SysVinit:
+
+SysVinit pornea serviciile **secvențial** — un script bash după altul, fiecare
+așteptând că precedentul a terminat. Dacă serviciul A dura 8 secunde, totul
+stătea blochat 8 secunde.
+
+systemd pornește serviciile **în paralel**, pe baza grafurilor de dependențe.
+Serviciul B pornește în același timp cu A, dacă nu depinde explicit de el.
+Rezultat: boot-uri de 2–3× mai rapide pe același hardware.
+
+Echivalențele față de vechile runlevels numerice ale SysVinit:
+
+- Runlevel 1 (single user, mentenanță) → `rescue.target`
+- Runlevel 3 (multi-user, fără GUI) → `multi-user.target`
+- Runlevel 5 (multi-user + interfață grafică) → `graphical.target`
+
+Pe NVMe modern, un Ubuntu 24.04 ajunge la desktop în **15–25 secunde** (POST
+inclus). Pe HDD mecanic: 60–90 secunde. Diferența e aproape exclusiv latența
+de citire a stocării.
+
+## REVEAL
+
+De fiecare dată când apeși butonul de pornire, calculatorul tău execută o
+coregrafie precisă: CPU-ul stă blocat până primește permisiunea electrică de la
+sursă, sare la o adresă imposibilă mapeată fizic în ROM, firmware-ul testează
+hardware-ul și localizează discul, bootloader-ul încarcă kernelul, kernelul
+schimbă modul CPU de trei ori și montează temporar un mini-sistem din RAM, iar
+în final pornește primul proces care naște toate celelalte.
+
+Totul în 15–30 de secunde.
+
+Data viitoare când vezi "No bootable device" sau "Kernel panic — not syncing",
+știi exact unde s-a rupt lanțul.
+
+## ÎNCHEIERE
+
+În lecția următoare deschidem cutia neagră a kernel-ului: ce e Kernel Mode, ce e
+User Mode, și de ce aplicațiile tale nu pot accesa hardware-ul direct — oricât
+de mult ar vrea.

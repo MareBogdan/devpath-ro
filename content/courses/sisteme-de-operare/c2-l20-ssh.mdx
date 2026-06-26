@@ -1,0 +1,381 @@
+---
+title: "SSH: Canalul criptat care ține internetul în viață"
+order: 20
+type: lesson
+module_index: 2
+duration: 15
+difficulty: 4
+---
+
+# SSH: Canalul criptat care ține internetul în viață
+
+## HOOK
+
+Un inginer de la o companie mare configurează `ForwardAgent yes` pentru toate host-urile din `~/.ssh/config Host *`. Pare o decizie de confort — nu mai trebuie să adauge manual cheia pe fiecare salt. Câteva luni mai târziu, un atacator cu root pe un bastion intermediar folosește socket-ul agentului SSH expus acolo pentru a se autentifica pe zeci de servere de producție. Fără parolă. Fără alertă. Ca utilizatorul inginerului. Datele clienților, codul sursă, secretele din CI/CD — totul accesibil printr-o singură linie greșită din fișierul de configurare.
+
+Nu e un scenariu ipotetic. E unul dintre cele mai frecvente vectori de lateral movement în atacurile reale. SSH e protocolul pe care rulează administrarea a peste 90% din serverele din lume. Înțelegi cum funcționează matematic, înțelegi de ce unele configurații sunt dezastre în așteptare și de ce altele îți oferă garanții criptografice reale — nu false.
+
+---
+
+## CONTEXT
+
+Înainte de SSH, administrarea la distanță se făcea prin **Telnet** — tot traficul, inclusiv parola, circula în plaintext. Oricine cu acces la rețea putea intercepta sesiunea. **The Morris Worm (1988)** a exploatat tocmai protocoalele `rsh` și `rexec`, care foloseau un mecanism de încredere bazat pe adresa IP sursă — fără criptografie, fără parolă.
+
+**SSH-1** a apărut în 1995, creat de Tatu Ylönen ca răspuns la un atac de tip password sniffing detectat în rețeaua universității sale. A cerut portul 22 de la IANA — atribuit strategic între FTP (21) și Telnet (23). SSH-1 a fost vulnerabil: algoritmul CRC-32 pentru integritate era liniar și previzibil, iar modulul de protecție împotriva atacurilor (`deattack.c`) conținea un integer overflow care permitea execuție de cod ca root.
+
+**SSH-2** (RFC 4251-4254, 2006): redesign complet, nicio compatibilitate retroactivă cu SSH-1. Algoritmi MAC robuști, arhitectură modulară în trei straturi. **OpenSSH** — fork din SSH original, creat de echipa OpenBSD — rulează pe >90% din serverele lumii.
+
+---
+
+## MIEZUL
+
+### Cele trei straturi ale protocolului SSH
+
+**Stratul 1 — Transport Layer (RFC 4253)**
+
+Imediat după TCP 3-way handshake, clientul și serverul schimbă în plaintext șirurile de versiune, apoi negociază algoritmii: key exchange (KEX), cifruri simetrice, MAC, compresie.
+
+**Diffie-Hellman Key Exchange** — cum se obține o cheie secretă fără a o transmite:
+
+Clientul alege secret `x`, calculează `e = g^x mod p`, trimite `e`. Serverul alege secret `y`, calculează `f = g^y mod p`, trimite `f`. Ambii calculează `K = f^x mod p = e^y mod p = g^xy mod p`. Un interceptor care vede `e`, `f`, `p`, `g` nu poate calcula `x` sau `y` fără a rezolva problema logaritmului discret — computațional imposibil pentru numere prime suficient de mari.
+
+**Host key verification:** Serverul semnează hash-ul negocierii (`H`) cu cheia sa privată. Compoziția exactă: `H = hash(Vc|Vs|Ic|Is|Ks|e|f|K)` unde `Vc/Vs` = stringurile de versiune, `Ic/Is` = payload-urile complete KEX, `Ks` = cheia publică a serverului, `e/f` = valorile DH publice, `K` = secretul partajat. Orice modificare a parametrilor de negociere invalidează H. Clientul verifică semnătura cu cheia publică `Ks` a serverului — garanție matematică că nu e victima unui MITM. Hash-ul primului schimb devine `session_id` — identificatorul unic al sesiunii, inclus în toate operațiunile de autentificare ulterioare pentru a preveni atacurile replay.
+
+**Cifruri simetrice după handshake:**
+- **AES-256-GCM**: AEAD (autentificare + confidențialitate într-o singură trecere), accelerat de instrucțiunile hardware AES-NI. Pe CPU cu AES-NI: >6.4 GB/s
+- **ChaCha20-Poly1305**: operații ARX (Adunare, Rotație, XOR), fără lookup tables → imun la cache-timing attacks, performanță constantă pe orice hardware. Pe hardware fără AES-NI: **4.2 GB/s** față de **1.8 GB/s** pentru AES-GCM — de 2.3× mai rapid pe Raspberry Pi, ARM embedded
+- **HMAC-SHA2-256/512**: MAC adăugat pentru cifruri fără autentificare integrată
+
+**Stratul 2 — Authentication Layer (RFC 4252)**
+
+Rulează peste tunelul criptat. `session_id` e inclus în fiecare operație de autentificare — un pachet capturat dintr-o altă sesiune nu e valid aici.
+
+**Autentificarea cu cheie publică — fluxul exact:**
+
+1. Clientul trimite cheia publică cu flag `FALSE` (verificare eligibilitate, fără semnătură)
+2. Serverul scanează `~/.ssh/authorized_keys` prin `stat()` + verificare permisiuni
+3. Dacă găsește cheia: răspunde cu `SSH_MSG_USERAUTH_PK_OK`
+4. Clientul semnează cu cheia privată un bloc care include: `session_id` + username + serviciu + algoritmul + cheia publică
+5. Clientul trimite același request cu flag `TRUE` + semnătura atașată
+6. Serverul reconstruiește același bloc de date și verifică semnătura cu cheia publică din `authorized_keys`
+
+Dacă verificarea trece → acces acordat. Cheia privată nu a părăsit niciodată clientul.
+
+**Metode de autentificare suportate:** `publickey` (recomandat), `password` (dezactivat în producție), `keyboard-interactive` (interactiv, baza pentru 2FA cu TOTP), `gssapi-with-mic` (Kerberos în medii enterprise).
+
+**De ce autentificarea cu parolă e mai slabă:** parole supuse brute force, phishing, interceptare. Cheia privată Ed25519 oferă 128 biți de securitate — forța brută e computațional imposibilă.
+
+**Copierea cheii publice pe server:**
+```bash
+ssh-copy-id user@host          # adaugă automat cheia în ~/.ssh/authorized_keys pe server
+ssh-copy-id -i ~/.ssh/id_ed25519.pub user@host   # specifică cheia explicită
+```
+
+**Stratul 3 — Connection Layer (RFC 4254)**
+
+Multiplexează mai multe canale logice pe o singură conexiune TCP. Tipuri de canale: `session` (shell, exec, SFTP), `direct-tcpip` (local port forwarding), `forwarded-tcpip` (remote port forwarding).
+
+**Channel flow control:** Fiecare canal are o fereastră de câți bytes poate trimite fără confirmare (inițial ~2MB). Când fereastra se umple, expeditorul se blochează și așteaptă `SSH_MSG_CHANNEL_WINDOW_ADJUST` de la receptor. Fără asta, un transfer SFTP masiv ar bloca total apăsările de taste pe un alt canal multiplexat.
+
+**Cum se crează un shell interactiv:** sshd (rulând ca root) apelează `posix_openpt()` → `fork()` → copilul face `setuid()/setgid()` → `setsid()` → `dup2()` pe FD 0/1/2 spre slave PTY → `execve("/bin/bash")`. Tastele venite prin rețea ajung la bash prin master PTY.
+
+---
+
+### Generarea și gestionarea cheilor
+
+**Algoritmi disponibili:**
+
+{/* TABLE */}
+
+| Algoritm | Securitate | Dimensiune cheie | Status 2024 |
+|---|---|---|---|
+| **DSA** | SHA-1 dependent | 1024 biți fix | ❌ Deprecat — OpenSSH 7.0+ refuză |
+| **RSA 2048** | ~112 biți efectivi | 256 bytes | ⚠️ Deprecat — NIST SP 800-57 interzice pentru sisteme noi |
+| **RSA 3072** | ~128 biți | 384 bytes | ✅ Minim acceptat NIST pentru sisteme noi |
+| **RSA 4096** | ~140 biți | 512 bytes | ✅ Acceptabil legacy, recomandat dacă ești blocat pe RSA |
+| **ECDSA** | 128 biți (P-256) | 64 bytes | ⚠️ Valid dar suspiciuni despre constantele NSA/NIST |
+| **Ed25519** | 128 biți | **32 bytes** | ✅ **Recomandat** — rapid, imun timing attacks, determinist |
+
+```bash
+ssh-keygen -t ed25519 -C "admin@example.com"
+ssh-keygen -t rsa -b 4096                    # fallback pentru sisteme legacy
+ssh-keygen -f key -y                          # extrage cheia publică din cea privată
+ssh-keygen -l -f ~/.ssh/id_ed25519           # fingerprint-ul cheii
+```
+
+Locații default: `~/.ssh/id_ed25519` (privată) și `~/.ssh/id_ed25519.pub` (publică).
+
+**Passphrase:** criptează cheia privată cu AES-256-CTR + bcrypt KDF. O cheie fără passphrase pe disc = compromiterea laptopului = compromiterea tuturor serverelor.
+
+**Permisiunile obligatorii** — SSH refuză cu `"bad ownership or modes"` dacă nu sunt respectate:
+
+```bash
+chmod 700 ~/.ssh/                    # drwx------
+chmod 600 ~/.ssh/id_ed25519          # -rw------- (privată)
+chmod 644 ~/.ssh/id_ed25519.pub      # -rw-r--r-- (publică)
+chmod 600 ~/.ssh/authorized_keys     # -rw-------
+chmod 644 ~/.ssh/known_hosts         # -rw-r--r--
+```
+
+Motivul: `sshd` apelează `stat()` pe `~`, `~/.ssh/` și `authorized_keys`. Dacă vreunul e world-writable sau group-writable, un actor local ar fi putut adăuga chei. Autentificarea e refuzată.
+
+**`authorized_keys` — format și restricții:**
+```
+# Format de bază:
+ssh-ed25519 AAAAC3... comentariu
+
+# Intrare restricționată pentru CI/CD:
+restrict,command="/opt/scripts/deploy.sh",from="192.168.10.50" ssh-ed25519 AAAAC3... ci-key
+```
+
+`restrict` dezactivează PTY, port forwarding, agent forwarding și X11 forwarding simultan. `command=` forțează execuția unui singur script — orice altă comandă trimisă de client e ignorată. `from=` verifică IP-ul sursă TCP.
+
+**`known_hosts` și TOFU (Trust On First Use):** Prima conectare → clientul descarcă host key, întreabă utilizatorul să aprobe fingerprint-ul → se stochează în `known_hosts`. La conectările ulterioare se verifică automat. `"Host key verification failed"` = fie serverul și-a schimbat cheia (reinstalare OS), fie atac MITM.
+
+`HashKnownHosts yes` stochează intrările ca `|1|salt_base64|hmac_base64` — un atacator care obține `known_hosts` nu poate enumera topologia rețelei tale.
+
+<CosmoHint emotion="thinking">
+TOFU (Trust On First Use) e o vulnerabilitate structurală: dacă ești victima unui MITM chiar la prima conectare, accepți cheia atacatorului și nu vei primi nicio alertă la conexiunile ulterioare. Soluția corectă: verifică fingerprint-ul cheii prin alt canal (telefon, Slack, documentație internă) înainte de a accepta. `ssh-keygen -l -f /etc/ssh/ssh_host_ed25519_key.pub` pe server îți dă fingerprint-ul exact de comparat.
+</CosmoHint>
+
+<FactBox>
+**SSH în cifre:**
+- OpenSSH market share: **>90%** din serverele SSH globale
+- Port 22: atribuit de IANA în **1995** lui Tatu Ylönen (între FTP:21 și Telnet:23)
+- RSA 2048 biți: **~112 biți** securitate efectivă — NIST SP 800-57 interzice pentru sisteme noi
+- Ed25519: **128 biți** securitate, cheie de **32 bytes** (vs 512 bytes RSA 4096)
+- ChaCha20 fără AES-NI: **4.2 GB/s** vs AES-GCM **1.8 GB/s**
+- `MaxAuthTries` default: **6** (logging verbose după 3)
+- `LoginGraceTime` default: **120 secunde**
+- `ssh-agent` socket: `/tmp/ssh-XXXXXXXX/agent.PID`
+- ProxyJump: introdus în **OpenSSH 7.3** (2016)
+</FactBox>
+
+---
+
+### Configurarea clientului — `~/.ssh/config`
+
+```
+Host bastion
+    HostName bastion.production.example.com
+    User sysadmin
+    Port 2222
+    IdentityFile ~/.ssh/id_ed25519_bastion
+    IdentitiesOnly yes
+    ServerAliveInterval 60
+    ServerAliveCountMax 3
+
+Host prod-db-*
+    User pgadmin
+    ProxyJump bastion
+    IdentityFile ~/.ssh/id_ed25519_prod
+    ControlMaster auto
+    ControlPath ~/.ssh/sockets/%r@%h:%p
+    ControlPersist 10m
+```
+
+**`IdentitiesOnly yes`:** Fără aceasta, SSH încearcă toate cheile din agent + locațiile default. Dacă serverul are `MaxAuthTries 3` și agentul tău are 5 chei, eșuezi cu "Too many authentication failures" înainte să ajungi la cheia corectă.
+
+**`ServerAliveInterval/CountMax`:** Firewall-urile stateful șterg sesiunile TCP inactive după ~1 oră. SSH trimite periodic mesaje nule criptate pentru a menține conexiunea vie.
+
+**`ControlMaster/ControlPath/ControlPersist`:** Prima conexiune deschide un socket Unix local (`~/.ssh/sockets/`). Conexiunile ulterioare la același host reutilizează tunelul existent — zero handshake DH, zero negociere algoritmi. Esențial pentru Ansible, rsync iterativ, git. `ControlPersist 10m` = socket-ul master rămâne activ 10 minute după ultima sesiune.
+
+**`ProxyJump`:** `ssh prod-db-01` → clientul se conectează la bastion → din bastion deschide un tunel TCP spre `prod-db-01` → face un al doilea handshake DH complet peste tunelul interior. Bastionul vede doar bytes criptați — nu tastele tale, nu comanda ta.
+
+---
+
+### Configurarea serverului — `/etc/ssh/sshd_config`
+
+```bash
+Port 2222                           # security through obscurity — reduce zgomotul în loguri
+PermitRootLogin prohibit-password   # root doar cu cheie publică, niciodată parolă
+PasswordAuthentication no           # elimină brute force pe parole complet
+PubkeyAuthentication yes
+AllowUsers sysadmin devops          # whitelist explicită — oricine altcineva e refuzat
+AllowGroups sysadmin devops         # alternativ: filtrare pe grup (util cu LDAP/AD)
+LogLevel VERBOSE                    # loghează tipul cheii și fingerprint-ul la autentificare
+                                    # obligatoriu pentru audit trail complet în producție
+MaxAuthTries 3                      # după 3 eșecuri, conexiunea e tăiată
+LoginGraceTime 30                   # 30s pentru autentificare (vs 120s default)
+MaxStartups 10:30:100               # 10 conexiuni pre-auth fără drop, 30% drop de la 11,
+                                    # 100% drop la 100 — protecție împotriva DDoS pe handshake
+ClientAliveInterval 60              # detectează clienți inactivi
+ClientAliveCountMax 3
+X11Forwarding no
+AllowTcpForwarding yes              # dezactivează doar dacă nu ai nevoie de tunneling
+```
+
+**Match block pentru utilizatori restricționați:**
+```bash
+Match Group sftp_only
+    ChrootDirectory /opt/secure-jail/%u
+    ForceCommand internal-sftp
+    AllowTcpForwarding no
+    X11Forwarding no
+```
+
+**Validare și reload:**
+```bash
+sshd -t          # verificare sintaxă fără restart
+sshd -T          # dump configurație efectivă
+systemctl reload sshd   # trimite SIGHUP — nu taie conexiunile active
+systemctl restart sshd  # taie toate conexiunile active — PERICULOS pe servere în producție
+```
+
+---
+
+### Port forwarding și tunneling
+
+**Local Port Forwarding (`-L`):** Portul local e legat la un serviciu de pe server.
+```bash
+ssh -L 5432:localhost:5432 pgadmin@db-prod
+# Acum psql -h localhost -p 5432 se conectează la PostgreSQL de pe db-prod
+# Fără VPN, fără expunere publică a bazei de date
+```
+
+**Remote Port Forwarding (`-R`):** Serverul expune un port care tunelează înapoi la tine.
+```bash
+ssh -R 8080:localhost:3000 user@cloud-server.com
+# cloud-server.com:8080 → laptopul tău:3000
+# Util pentru demo-uri rapide, webhooks locale, debugging
+```
+
+**Dynamic Port Forwarding (`-D`):** SSH devine un proxy SOCKS5.
+```bash
+ssh -D 1080 user@jump-server
+# Configurezi browser-ul pe SOCKS5 localhost:1080
+# Tot traficul trece prin jump-server — util pentru acces la VPC-uri private
+```
+
+**ProxyJump (bastion host):**
+```bash
+ssh -J user@bastion user@internal-server  # linie de comandă
+# sau în config (recomandat):
+Host internal-server
+    ProxyJump bastion
+```
+
+<CosmoHint emotion="sad">
+`ForwardAgent yes` în `Host *` din `~/.ssh/config` e una dintre cele mai periculoase configurații SSH. Un admin cu root pe orice server intermediar poate accesa socket-ul agentului tău (`/tmp/ssh-XXX/agent.PID`) și se autentifica oriunde ca tine — fără să îți vadă cheia privată, fără alertă. Folosește `ProxyJump` în loc de bastion+ForwardAgent. ProxyJump criptează end-to-end și nu expune agentul pe serverul intermediar.
+</CosmoHint>
+
+---
+
+### SSH Agent — chei în memorie, nu pe disc
+
+```bash
+eval $(ssh-agent)               # pornește agentul, setează SSH_AUTH_SOCK
+ssh-add ~/.ssh/id_ed25519       # adaugă cheia (cere passphrase o singură dată)
+ssh-add -l                      # listează cheile încărcate
+ssh-add -t 3600 ~/.ssh/id_ed25519   # cheie cu TTL de 1 oră
+ssh-add -D                      # șterge toate cheile din agent
+```
+
+**Cum funcționează:** `SSH_AUTH_SOCK` conține calea spre un Unix Domain Socket (`/tmp/ssh-XXXXXXXX/agent.PID`). La autentificare, clientul SSH trimite challenge-ul prin socket → agentul semnează cu cheia privată din memorie → returnează semnătura. Cheia privată nu a traversat rețeaua, nu a părăsit procesul agent.
+
+**Hardware security keys (FIDO2/U2F — YubiKey, Nitrokey):**
+```bash
+ssh-keygen -t ed25519-sk -O resident -O verify-required
+```
+Cheia privată nu există pe disc și nu poate fi exportată — e în secure enclave-ul hardware. La autentificare e necesară prezența fizică (touch pe token). `-O resident` stochează cheia pe token (portabil). `-O verify-required` cere PIN în plus față de touch — protecție la furt fizic.
+
+---
+
+### SCP, SFTP și rsync
+
+**SCP — deprecat:** Protocolul vechi executa comenzi pe server-ul remote pentru construirea listei de fișiere, cu evaluare de globbing pe server — vector de injectare de comenzi (CVE-2020-15778). Nu gestiona corect symlink-urile. Din OpenSSH 8.7+ și RHEL 9: scp folosește intern SFTP ca backend.
+
+**SFTP — subsistem SSH modern:**
+```bash
+sftp user@host
+sftp -b batchfile user@host     # execuție non-interactivă (scripturi)
+# Comenzi interactive: get, put, ls, mkdir, rm, rename
+```
+
+**rsync peste SSH — delta transfer:**
+```bash
+rsync -avz -e "ssh -p 2222" src/ user@host:/dst/
+rsync -avz --delete --exclude=".git" src/ user@host:/dst/
+rsync --bwlimit=1000 src/ user@host:/dst/     # limitare lățime de bandă (KB/s)
+rsync --checksum src/ user@host:/dst/         # verificare prin hash, nu mtime
+```
+
+Algoritmul delta: rsync împarte fișierele existente la destinație în blocuri, calculează rolling checksum (Adler-32) + MD5 per bloc. Trimite doar blocurile diferite. Un fișier de 10GB cu o modificare de 1KB → se transferă câteva KB, nu 10GB.
+
+---
+
+### Securizarea SSH în producție
+
+**SSH Certificate Authority — alternativa la `authorized_keys` la scară:**
+
+```bash
+# Generare CA key (o dată, offline, stocat securizat)
+ssh-keygen -t ed25519 -f /secure/ca_key
+
+# Semnarea cheii unui utilizator (valabilă 52 săptămâni)
+ssh-keygen -s ca_key -I "alice_cert" -n "alice,deploy" -z 1234 -V +52w alice_key.pub
+
+# Pe server (în loc de authorized_keys per utilizator):
+TrustedUserCAKeys /etc/ssh/ca.pub
+```
+
+Avantaje față de `authorized_keys`: expirare automată (nu mai există chei "zombie" ale foștilor angajați), revocare centralizată prin KRL (Key Revocation List), audit complet cu serial number.
+
+**Revocare cu KRL:**
+```bash
+ssh-keygen -k -f revoked_keys.krl -s ca_key lista_chei_revocate.txt
+# În sshd_config:
+RevokedKeys /etc/ssh/revoked_keys.krl
+```
+
+**2FA cu TOTP:**
+```bash
+# În sshd_config:
+AuthenticationMethods publickey,keyboard-interactive
+# Cheie publică validă + cod TOTP (RFC 6238) = acces
+```
+
+**Fail2ban împotriva brute force:**
+```bash
+# Fail2ban citește /var/log/auth.log, adaugă reguli iptables/nftables la eșecuri repetate
+# Cu MaxAuthTries 3 în sshd_config: 3 eșecuri → connexiune tăiată → Fail2ban bans IP-ul
+```
+
+**Monitorizare:**
+```bash
+journalctl -u sshd -f                    # loguri SSH în timp real
+grep "Failed password" /var/log/auth.log | awk '{print $11}' | sort | uniq -c | sort -rn
+# Top IP-uri care atacă
+```
+
+---
+
+## REVEAL
+
+Fluxul complet al unei conexiuni SSH — de la TCP la bash:
+
+{/* TABLE */}
+
+| Fază | Ce se întâmplă | Unde |
+|---|---|---|
+| **TCP handshake** | Port 22, 3-way handshake | Kernel (Layer 4) |
+| **Version exchange** | Client și server schimbă versiunile protocolului | Plaintext |
+| **KEX + DH** | Negociere algoritmi + Diffie-Hellman → cheie de sesiune K | Plaintext → criptat |
+| **Host key verification** | Server semnează H cu cheia privată, clientul verifică | Prevenire MITM |
+| **Symmetric encryption** | AES-256-GCM sau ChaCha20-Poly1305 activat | Tot ce urmează e criptat |
+| **Authentication** | Cheie publică: challenge → semnătură cu cheia privată | Stratul Auth |
+| **Channel open** | Cerere session channel + PTY allocation | Stratul Connection |
+| **PTY + shell** | sshd: fork() → setuid() → dup2() → execve("/bin/bash") | Syscall-uri kernel |
+| **Shell activ** | Taste → rețea → sshd → PTY master → bash stdin | Tunelul SSH |
+
+SSH nu e doar "terminal remote". E infrastructura pe care rulează orchestrarea serverelor (Ansible), sincronizarea codului (git), backup-ul (rsync), tunelarea serviciilor interne și autentificarea în CD/CI pipelines.
+
+---
+
+## ÎNCHEIERE
+
+Diffie-Hellman asigură că cheia de sesiune nu traversează rețeaua. Cheia publică asigură că cheia privată nu traversează rețeaua. `session_id` asigură că un pachet capturat dintr-o sesiune nu poate fi refolosit în alta.
+
+Trei reguli de bază pentru SSH securizat: `PasswordAuthentication no` în sshd_config, Ed25519 în loc de RSA 2048, `ProxyJump` în loc de `ForwardAgent` pentru bastion hosts.
+
+`ssh-keygen -l -f /etc/ssh/ssh_host_ed25519_key.pub` — verifică fingerprint-ul serverului la prima conectare. Întotdeauna.

@@ -1,0 +1,419 @@
+---
+title: "Firele de Execuție (Threads)"
+order: 6
+type: lesson
+module_index: 2
+duration: 15
+difficulty: 3
+---
+
+# Firele de Execuție (Threads)
+
+## HOOK
+
+Un server web primește 10.000 de cereri simultane. Dacă creezi un proces nou
+pentru fiecare cerere — 10.000 × 8MB stack = 80GB RAM. Serverul se prăbușește
+înainte să răspundă la prima cerere.
+
+Soluția nu e să procesezi cererile pe rând. E să le procesezi cu thread-uri —
+entități care partajează memoria procesului, coexistă în 8MB total, și se
+comută între ele de 10× mai rapid decât procesele.
+
+Dar partajarea memoriei vine cu un preț: când două thread-uri scriu în același
+loc în același timp, datele se corup. Silențios, aleatoriu, imposibil de reprodus
+în debugging.
+
+Bine ai venit în lumea concurenței.
+
+## CONTEXT
+
+Știi deja că thread-urile sunt create cu `clone()` cu flaguri specifice, că
+partajează `mm_struct` și că un thread switch nu rescrie CR3. Știi că `errno`
+e thread-local și că goroutine-urile Go sunt mai ieftine decât OS threads.
+
+Lecția asta intră în detaliile complete: ce partajează thread-urile, cum
+funcționează sincronizarea la nivel hardware, și de ce `counter++` poate distruge
+o aplicație în producție.
+
+## MIEZUL
+
+### Thread vs. Proces: Ce Se Partajează
+
+Un thread e un `task_struct` creat cu `clone()` care partajează intenționat
+structurile majore cu procesul părinte. Linux nu face distincție între "thread"
+și "proces" la nivel de planificator — ambele sunt `task_struct`.
+
+{/* TABLE */}
+
+| Resursă | Partajată? | Flag clone() | Detaliu |
+|---|---|---|---|
+| Spațiul de adrese virtual | **DA** | `CLONE_VM` | Pointer comun la `mm_struct` → .text, .data, heap accesibile tuturor |
+| Descriptori de fișiere | **DA** | `CLONE_FILES` | `files_struct` partajat → orice fd deschis e vizibil în toate thread-urile |
+| Signal handlers | **DA** | `CLONE_SIGHAND` | Handler-ele `sigaction()` sunt comune |
+| PID/TGID | **DA** | `CLONE_THREAD` | `getpid()` returnează același TGID din user space |
+| Stiva (stack) | **NU** | N/A | Fiecare thread are VMA propriu; default **8MB pe Linux, 1MB pe Windows** |
+| Registre CPU | **NU** | N/A | RIP, RSP, registre generale — salvate separat per thread în `task_struct` |
+| TLS | **NU** | `CLONE_SETTLS` | Variabile `__thread` — copie izolată per thread, adresate prin registrul FS |
+
+Stiva e alocată de glibc cu `mmap(MAP_PRIVATE | MAP_ANONYMOUS)`. La capătul
+inferior al stivei, `mprotect()` setează o **guard page** cu `PROT_NONE` —
+orice depășire a stivei generează imediat Page Fault → SIGSEGV, în loc să
+corupă silențios memoria vecină.
+
+**TLS (Thread-Local Storage)** folosește registrul FS pe x86-64. La crearea
+unui thread, glibc alocă un Thread Control Block (TCB) și setează baza FS prin
+`arch_prctl(ARCH_SET_FS, adresa)`. Compilatorul transformă `errno` în
+`mov %fs:offset, %eax`. Rezultat: fiecare thread are propria copie a lui `errno`,
+`OpenSSL` contexts, buffere stdio — fără race conditions pe variabilele globale
+frecvent accesate.
+
+### Modelele de Threading
+
+Trei filozofii arhitecturale pentru a mapa fire logice pe nuclee fizice:
+
+{/* TABLE */}
+
+| Model | Mapare | Avantaj | Dezavantaj | Exemple |
+|---|---|---|---|---|
+| **1:1** (Kernel threads) | 1 user thread = 1 kernel thread | Paralelism real, I/O blocant izolat | ~10µs creare, 8MB stack | Linux (NPTL), Windows |
+| **M:1** (Green threads) | M user threads pe 1 OS thread | Lightweight, switch rapid | Un blocking syscall blochează tot | Java vechi, Python greenlets |
+| **M:N** (Hybrid) | M goroutine/virtual threads pe N OS threads | Scalare la milioane, ~300ns creare | Complexitate scheduler, pinning | Go goroutines, Java Virtual Threads |
+
+**M:1** a eșuat din cauza unui defect fundamental: dacă oricare din cele M
+thread-uri apelează `recv()` blocant, kernelul vede **un singur OS thread**
+și îl pune pe el să doarmă — blocând toate celelalte M thread-uri simultan.
+
+**Go GMP** rezolvă elegant: `G` (goroutine, ~2KB stack), `M` (OS thread),
+`P` (processor logic, maxim `GOMAXPROCS`). Fiecare P are o Local Run Queue
+(LRQ, max 256 goroutine). Când LRQ-ul unui P se golește, **work stealing**
+fură jumătate din LRQ-ul unui alt P. La fiecare 61 de ticks, P-ul e obligat
+să preia o goroutine din Global Run Queue (GRQ) pentru a preveni starvation.
+
+**Java Virtual Threads** (Project Loom, Java 21) funcționează prin
+**continuations**: când un virtual thread se blochează pe I/O, JVM-ul îl
+demontează — copiază stack frames pe heap — și eliberează carrier thread-ul.
+La revenirea datelor, remontează pe orice carrier thread disponibil. Problema
+critică: **pinning** — dacă codul apelează `synchronized` sau JNI în timpul
+blocării, virtual thread-ul e lipit de carrier thread pe toată durata. Suficient
+pinning = starvation deadlock.
+
+### pthread_create() și Gestionarea Ciclului de Viață
+
+```c
+pthread_create(pthread_t *thread, const pthread_attr_t *attr,
+               void *(*start_routine)(void *), void *arg);
+```
+
+Intern, glibc apelează `clone()` cu:
+`CLONE_VM | CLONE_FILES | CLONE_SIGHAND | CLONE_THREAD | CLONE_SETTLS | ...`
+
+<FactBox>
+**Limitele practice ale thread-urilor pe Linux** sunt controlate de trei parametri
+sysctl: `kernel.threads-max` (limita globală, calculată ca `pages/4`),
+`kernel.pid_max` (fiecare thread primește un PID unic, default 32768),
+`vm.max_map_count` (fiecare thread consumă 2 VMA-uri pentru stivă + guard page;
+default 65530 → max ~32.765 thread-uri per proces). Depășirea oricăruia returnează
+`EAGAIN` din `clone()`.
+</FactBox>
+
+**Thread leak** — cel mai frecvent bug:
+
+```c
+// GREȘIT: thread-ul devine zombie după finalizare
+pthread_create(&tid, NULL, worker, NULL);
+// ... niciun join sau detach
+
+// CORECT: join blochează până la finalizare, eliberează memoria
+pthread_join(tid, &retval);
+
+// CORECT: detach pentru fire-and-forget (daemon threads)
+pthread_detach(tid);
+```
+
+Fără `join` sau `detach`, `task_struct`-ul rămâne în starea Z (zombie), stiva
+de 8MB nu e eliberată. Pe un server care creează mii de thread-uri/oră → OOM
+Killer.
+
+`pthread_exit(NULL)` din `main()` are un comportament special: thread-ul
+principal moare, dar celelalte thread-uri supraviețuiesc și continuă execuția
+— util pentru aplicații daemon.
+
+### Race Condition: Când `counter++` Distruge Totul
+
+```c
+int counter = 0;
+// Thread T1 și T2 execută simultan:
+counter++; // "o singură operație"
+```
+
+Pe x86, `counter++` se compilează în **trei instrucțiuni**:
+
+```asm
+MOV EAX, [counter]   ; 1. Load: citește valoarea din RAM în registru
+INC EAX              ; 2. Add: incrementează registrul
+MOV [counter], EAX   ; 3. Store: scrie înapoi în RAM
+```
+
+Scenariul dezastrului:
+1. T1 execută Load: citește `0` în EAX
+2. **Timer interrupt** — T1 e preemptat, T2 primește CPU
+3. T2 execută Load→Inc→Store: `counter` devine `1`
+4. T1 revine, continuă din EAX=0: execută Inc→Store: `counter` = `1`
+
+Rezultat: două incrementări, un singur increment efectiv. **Lost update**,
+imposibil de detectat în debugging (nu reproduce consistent).
+
+Pe arhitecturi multi-core, problema e și mai profundă: **memory reordering**.
+Procesoarele moderne au Store Buffers — scrierile pot rămâne locale unui nucleu
+zeci de nanosecunde înainte de a fi vizibile celorlalte nuclee. Compilatorul
+reordonează și el instrucțiunile "independente". Codul care pare corect secvențial
+poate produce rezultate haotice pe SMP.
+
+**Memory Model** (C++11, Java Memory Model) formalizează garanțiile:
+relația **happens-before** specifică că tot ce s-a scris înainte de eliberarea
+unui lock este garantat vizibil celui care îl preia. Fără această garanție
+explicită, scrierile pot fi invizibile pentru alte nuclee.
+
+### Mutex: Excluziunea Mutuală cu Futex
+
+Mutex-ul garantează că doar un thread execută o secțiune critică la un moment dat:
+
+```c
+pthread_mutex_lock(&mutex);
+counter++;   // secțiunea critică — acum atomic din perspectiva logicii
+pthread_mutex_unlock(&mutex);
+```
+
+Trei tipuri de `pthread_mutex_t`:
+
+- `PTHREAD_MUTEX_NORMAL` — ultraoptimizat, fără tracking de ownership. Re-lock
+  din același thread = deadlock imediat fără eroare.
+- `PTHREAD_MUTEX_ERRORCHECK` — urmărește ownership, returnează eroare la re-lock.
+  Util în debugging.
+- `PTHREAD_MUTEX_RECURSIVE` — permite re-lock din același thread (incrementează
+  un contor intern). Deblocare completă necesită același număr de unlock-uri.
+
+**Futex** (Fast Userspace muTEX) — inovația din 2002 care a transformat
+performanța mutex-urilor pe Linux:
+
+*Fast path* (cazul fericit, ~95% din accese): un `CMPXCHG` atomic în user
+space verifică și setează lock-ul. **~25–50 nanosecunde**. Kernelul nu știe că
+s-a întâmplat ceva.
+
+*Slow path* (contention): dacă lock-ul e ocupat, schimbă starea în `2`
+(contended) și apelează syscall-ul `futex(FUTEX_WAIT)`. Kernelul suspendă
+thread-ul pe un hash table intern. La unlock, `futex(FUTEX_WAKE)` trezește
+un waiter. **~200–1000 nanosecunde**.
+
+<CosmoHint emotion="thinking">
+De ce `CMPXCHG` are nevoie de prefixul `LOCK` pe multi-core? Pe sisteme SMP,
+fără `LOCK`, două nuclee pot executa simultan `CMPXCHG` pe aceeași adresă —
+ambele văd lock-ul ca liber și ambele îl iau. `LOCK CMPXCHG` blochează
+bus-ul de date (sau în sistemele moderne MESI, face cache line-ul `Exclusive`)
+pentru durata instrucțiunii, garantând atomicitate hardware.
+</CosmoHint>
+
+**Spinlock vs. Mutex:**
+Mutex-ul pune thread-ul să doarmă (yield CPU). Spinlock face busy-wait —
+thread-ul consumă 100% CPU în buclă până lock-ul devine liber. În kernel space,
+ISR-urile nu pot dormi → folosesc `spin_lock_irqsave()` care apelează
+`preempt_disable()` — oprește scheduler-ul pe durata secțiunii critice.
+
+**Priority Inversion — Bugul de pe Marte (1997):**
+Mars Pathfinder suferea reset-uri repetate din cauza unui deadlock indirect:
+- Task meteorologic (prioritate mică) deținea un mutex pe data bus
+- Task de colectare date (prioritate mare) bloca așteptând mutex-ul
+- Task de transfer (prioritate medie) preempta task-ul mic → acesta nu mai
+  elibera mutex-ul → task-ul înalt aștepta la infinit
+
+Watchdog-ul detecta lipsa de progres → system reset. Soluția: **Priority
+Inheritance** — când un task înalt așteaptă un mutex deținut de unul mic,
+task-ul mic primește temporar prioritatea celui înalt până eliberează mutex-ul.
+
+**Cele 4 condiții Coffman pentru Deadlock:**
+1. **Mutual exclusion** — resursa e exclusivă (un singur deținător)
+2. **Hold and wait** — thread-ul deține o resursă și cere alta
+3. **No preemption** — resursa nu poate fi luată forțat
+4. **Circular wait** — T1 așteaptă T2, T2 așteaptă T1
+
+Eliminarea oricăreia previne deadlock-ul. Cel mai simplu: ordonarea resurselor
+(lock A întotdeauna înainte de lock B → imposibil de ciclu circular).
+
+### Semafoare și Variabile de Condiție
+
+**Semaphore vs. Mutex:** mutex-ul are ownership (cel care l-a luat îl eliberează).
+Semaphore-ul nu — orice thread poate face `sem_post()`, indiferent de cine a
+făcut `sem_wait()`. Ideal pentru **signaling** între producători și consumatori.
+
+Operații POSIX:
+- `sem_init(&sem, 0, N)` — inițializează cu valoarea N (numărul de resurse disponibile)
+- `sem_wait(&sem)` — dacă N > 0: decrementează și continuă; dacă N = 0: dormit
+- `sem_post(&sem)` — incrementează N atomic, trezește un waiter dacă există
+
+Pattern Producer-Consumer cu semaphore:
+```c
+sem_t empty;  // câte locuri libere în buffer (inițial N)
+sem_t full;   // câte elemente disponibile (inițial 0)
+
+// Producer:
+sem_wait(&empty);   // ocupa un loc
+buffer[i] = item;
+sem_post(&full);    // semnalează că un element e disponibil
+
+// Consumer:
+sem_wait(&full);    // așteaptă un element
+item = buffer[i];
+sem_post(&empty);   // eliberează un loc
+```
+
+**Condition Variables** — pentru condiții complexe (`buffer_size > 100 AND mode == active`):
+
+```c
+pthread_mutex_lock(&mutex);
+while (!conditia) {              // OBLIGATORIU while, nu if!
+    pthread_cond_wait(&cond, &mutex);  // eliberează mutex atomic + dormit
+}
+// condiția e garantat adevărată
+pthread_mutex_unlock(&mutex);
+```
+
+`pthread_cond_wait()` face atomic: unlock mutex + sleep. Dacă ar fi operații
+separate, alt thread ar putea schimba condiția în intervalul dintre ele.
+
+**Spurious wakeups** — standardul POSIX permite ca un thread să fie trezit din
+`cond_wait()` fără ca nimeni să fi apelat `signal()`. Motivul: constrângeri
+hardware (semnale asincrone, implementări SMP). De aceea condiția se verifică
+**întotdeauna** într-un `while`, nu `if`.
+
+Distincția critică între cele două funcții de trezire:
+- `pthread_cond_signal()` — trezește **un singur** waiter din coadă. Folosit
+  când orice thread din coadă poate rezolva situația (ex: un loc liber în buffer).
+- `pthread_cond_broadcast()` — trezește **toți** waiters simultan. Folosit
+  când condiția schimbată este relevantă pentru mai mulți consumatori diferit
+  (ex: un flag global s-a schimbat, toți trebuie să reevalueze). Cost: toți
+  revin să încerce mutex-ul — doar unul câștigă, restul se întorc la `cond_wait`.
+
+### Operații Atomice și Lock-Free Programming
+
+```c
+// Race condition:
+counter++;
+
+// Atomic — fără mutex, fără kernel:
+__atomic_fetch_add(&counter, 1, __ATOMIC_SEQ_CST);  // C11
+// sau în C++:
+std::atomic<int> counter;
+counter.fetch_add(1);
+```
+
+**Compare-And-Swap (CAS)** — primitiva fundamentală a algoritmilor lock-free:
+
+```
+CMPXCHG [mem], expected, new_value:
+  if *mem == expected:
+    *mem = new_value
+    return true
+  else:
+    expected = *mem
+    return false
+```
+
+Pe multi-core: `LOCK CMPXCHG` garantează atomicitate hardware.
+
+**ABA Problem** — capcana clasică în structuri lock-free:
+1. T1 citește pointer → valoarea A
+2. T1 e preemptat; T2 schimbă A→B→A (dealocă A, alocă un A nou la aceeași adresă)
+3. T1 revine, CAS reușește (vede A=A) — dar A-ul "nou" are conținut diferit → corupere
+
+Soluție: **tagged pointers** — stochează un contor de versiune în biții superiori
+ai pointerului (x86-64 are 16 biți liberi în adresele canonice). CAS verifică
+atât adresa cât și versiunea.
+
+**Memory Barriers** — previn reordonarea instrucțiunilor de CPU și compilator:
+
+- `mfence` — barieră completă: toate Load și Store înainte sunt vizibile înainte
+  de orice operație ulterioară
+- `sfence` — ordonează doar Store-urile
+- `lfence` — ordonează doar Load-urile
+
+**Lock-free vs. Wait-free** — două garanții diferite de progres:
+
+- **Lock-free**: cel puțin un thread din sistem face progres garantat la orice
+  moment. Alte thread-uri pot fi amânate, dar nu la infinit. Algoritmii cu CAS
+  sunt de obicei lock-free — dacă CAS eșuează, un alt thread a reușit.
+- **Wait-free**: *fiecare* thread individual finalizează operația în număr finit
+  de pași, indiferent de ce fac celelalte thread-uri. Garanție mai puternică,
+  mult mai greu de implementat. Exemplu: `fetch_add()` cu instrucțiune hardware
+  dedicată (`LOCK XADD`) e wait-free pe x86.
+
+**Operații atomice în kernelul Linux** — kernel-ul nu poate folosi `std::atomic`
+(C++), deci definește propriile tipuri portabile:
+
+```c
+atomic_t counter;         // întreg atomic pe 32 biți
+atomic64_t counter64;     // întreg atomic pe 64 biți
+
+atomic_set(&counter, 0);
+atomic_inc(&counter);     // echivalent ++, dar atomic
+atomic_dec(&counter);     // echivalent --
+int val = atomic_read(&counter);
+```
+
+Sub capotă, `atomic_inc()` se expandează în `LOCK XADD` sau instrucțiunea
+specifică arhitecturii. Folosit extensiv în kernelul Linux pentru reference
+counting (ex: `task_struct.usage`, `mm_struct.mm_users`).
+
+**False Sharing** — performanța killer invizibilă:
+
+```c
+struct {
+    int counter_A;   // modificat de Thread 0
+    int counter_B;   // modificat de Thread 1
+} data;
+```
+
+Dacă `counter_A` și `counter_B` sunt pe aceeași **cache line** (64 bytes pe x86),
+Thread 0 și Thread 1 se "bat" constant pe aceeași linie prin protocolul MESI —
+Thread 0 scrie → invalidează cache-ul lui Thread 1 → Thread 1 trebuie să refacă
+page walk → și invers, la infinit.
+
+<CosmoHint emotion="thinking">
+Cum detectezi false sharing? `perf c2c` raportează metrica **HITM** (Hit In
+Modified) — câte accesuri la memorie au găsit cache line-ul modificat de un
+alt nucleu. O valoare mare de remote HITM pe un câmp specific indică false
+sharing. Soluția: `alignas(64)` în C++ sau padding manual pentru a forța
+fiecare câmp pe o cache line separată.
+</CosmoHint>
+
+```c
+// PROBLEMA: false sharing
+struct { int a; int b; } data;  // a și b pe aceeași cache line
+
+// SOLUȚIA: padding la 64 bytes
+struct alignas(64) { int a; } data_a;
+struct alignas(64) { int b; } data_b;
+```
+
+## REVEAL
+
+Thread-urile partajează memoria procesului — rapid și eficient. Dar partajarea
+fără sincronizare produce race conditions: `counter++` se dezasamblează în trei
+instrucțiuni, iar un timer interrupt între oricare două dintre ele produce lost
+updates, imposibil de reprodus.
+
+Mutex-ul rezolvă asta prin futex: 25ns când e liber (CAS atomic în user space),
+200–1000ns când e contended (kernel intervine). Semaphore-ul semnalizează între
+thread-uri fără ownership. Condition variable-urile permit așteptarea unor
+condiții complexe, dar **întotdeauna cu while, niciodată cu if**, din cauza
+spurious wakeups.
+
+La nivel hardware, `LOCK CMPXCHG` garantează atomicitate pe multi-core,
+memory barriers previn reordonarea instrucțiunilor, și false sharing poate
+distruge performanța fără nicio eroare vizibilă.
+
+## ÎNCHEIERE
+
+Știi cum funcționează thread-urile și cum le sincronizezi. Lecția următoare
+ridică miza: ce se întâmplă când sincronizarea merge prost și două thread-uri
+se blochează reciproc așteptând resurse pe care celălalt le deține — deadlock-ul
+și race conditions la scară.

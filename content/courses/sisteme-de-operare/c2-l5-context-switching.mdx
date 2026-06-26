@@ -1,0 +1,322 @@
+---
+title: "Context Switching"
+order: 5
+type: lesson
+module_index: 2
+duration: 13
+difficulty: 3
+---
+
+# Context Switching
+
+## HOOK
+
+Ai 47 de tab-uri deschise în browser, un editor de cod, Spotify și un terminal.
+Toate "rulează" simultan. Procesorul tău are 8 nuclee fizice.
+
+Matematica nu iese. 47 tab-uri pe 8 nuclee înseamnă că la orice moment dat,
+cel puțin 39 de procese nu rulează deloc — dar tu nu observi asta. Spotify nu
+se oprește. Tab-urile nu îngheață. Editorul răspunde instant.
+
+Cum? Kernelul comută procesorul între procese de mii de ori pe secundă. Fiecare
+comutare durează ~1–3 microsecunde. Tu percepi continuitate; realitatea e un
+carusel ameșit de porniri și opriri.
+
+Asta e context switching.
+
+## CONTEXT
+
+Știi deja că CFS folosește un arbore roșu-negru cu `vruntime` pentru a decide
+ce proces rulează. Știi că `task_struct` conține toată starea unui proces. Știi
+că Ring 0 și Ring 3 sunt separate hardware.
+
+Lecția asta răspunde la întrebarea: ce se întâmplă exact în microsecundele unui
+context switch — ce se salvează, unde, de ce e costisitor, și cum a evoluat
+mecanismul pe hardware modern.
+
+## MIEZUL
+
+### Contextul: Fotografia Completă a unui Proces
+
+Ca să poți opri un proces și să-l reiei mai târziu exact de unde a rămas,
+trebuie să salvezi **tot** ce definește starea lui în CPU. Asta înseamnă:
+
+{/* TABLE */}
+
+| Categorie | Registre | De ce contează |
+|---|---|---|
+| Generale (GPRs) | RAX, RBX, RCX, RDX, RSI, RDI, RSP, RBP, R8–R15 | Variabile locale, parametri, pointeri; RAX = valoare de retur |
+| Control & Status | RIP, RFLAGS, orig_ax | RIP = adresa de reluare; RFLAGS = flag-urile ALU (Zero, Carry) |
+| Segmente | CS, SS, DS, ES, FS, GS | Nivelul de privilegiu (CPL în CS); FS/GS pentru TLS și date per-CPU |
+| FPU / SIMD | x87, XMM (SSE), YMM (AVX), ZMM (AVX-512) | Salvate cu `xsave`/`xrstor`; chei criptografice, calcule vectoriale |
+| MMU | CR3 (adresa PML4) | **Cel mai costisitor** — schimbarea lui golește TLB-ul complet |
+
+Registrele generale și de control sunt salvate în structura **`pt_regs`**, stocată
+la baza superioară a stivei kernel a fiecărui proces. Când un syscall sau o
+întrerupere forțează tranziția Ring 3→Ring 0, `entry_SYSCALL_64` execută
+`SWAPGS` și împinge sistematic registrele pe stiva kernel, completând `pt_regs`.
+
+**CR3** e cazul special. Conține adresa fizică a tabelului de pagini al procesului
+(PML4). Schimbarea lui nu e o simplă atribuire — pe arhitectura clasică x86,
+rescrierea CR3 golește complet **TLB-ul** (Translation Lookaside Buffer). Tot
+cache-ul de traduceri adresă virtuală→fizică dispare. Procesul care preia CPU-ul
+va suferi un val de TLB miss-uri pentru fiecare acces la memorie, forțând
+Page Walk-uri costisitoare prin structurile PML4→PDPT→PD→PT din RAM.
+
+**FPU/SIMD** are propriul mecanism. Starea vectorială e masivă:
+
+$$\text{SSE (legacy)} = 512 \text{ bytes} \quad \text{AVX} = 832+ \text{ bytes} \quad \text{AVX-512} = 2688+ \text{ bytes}$$
+
+Kernelele vechi foloseau **lazy FPU switching**: nu salvau starea FPU la fiecare
+context switch, ci setau bitul TS în CR0. La prima instrucțiune FPU a procesului
+următor → excepție #NM → kernel salvează/restaurează atunci. Eficient în teorie.
+Compromis în 2018: **CVE-2018-3665** (Lazy FP state leak) a demonstrat că execuția
+speculativă putea citi cheile AES-NI lăsate în registrele FPU de procesul anterior.
+Răspunsul: din kernel 4.6, **eager FPU switching** — salvare obligatorie la
+fiecare switch, protejată de `xsaveopt` care scrie doar porțiunile modificate.
+
+### Voluntar vs. Involuntar
+
+Context switch-urile se produc din două motive:
+
+**Voluntar** — procesul cedează CPU-ul singur. Apelează o funcție de I/O blocantă
+(`read()` pe disc, `recv()` pe rețea), așteaptă un mutex, sau apelează explicit
+`sched_yield()`. Procesul intră în starea S sau D și kernelul alege altceva de
+rulat.
+
+**Involuntar (preemption)** — kernelul îl scoate forțat. Timer-ul hardware
+(APIC) declanșează o întrerupere periodic, definită de macro-ul **HZ**:
+
+- **HZ = 100** → întrerupere la 10ms → granularitate mare, overhead mic
+- **HZ = 250** → întrerupere la 4ms → compromis bun pentru servere
+- **HZ = 1000** → întrerupere la 1ms → reactivitate maximă, overhead crescut
+
+La fiecare timer interrupt, kernelul verifică dacă procesul curent și-a depășit
+felia de timp. Dacă da, setează flag-ul intern `TIF_NEED_RESCHED` în `task_struct`.
+La întoarcerea spre Ring 3, kernelul vede flag-ul și apelează `schedule()`.
+
+Câte context switch-uri voluntare vs. involuntare a avut un proces? Direct în
+`/proc/[PID]/status`: `voluntary_ctxt_switches` și `nonvoluntary_ctxt_switches`.
+Multe involuntare = proces CPU-bound care e mereu preemptat. Multe voluntare =
+proces I/O-bound care cedează singur așteptând date.
+
+### Mecanismul Complet: schedule() → context_switch()
+
+Când `schedule()` identifică procesul următor (`next`) și îl compară cu cel
+curent (`prev`), apelează `context_switch()`. Patru faze precise:
+
+**1. `prepare_task_switch()`** — bariere de memorie pentru SMP, notificări
+pentru subsistemele de perf, pregătirea watchdog-urilor. Nu atinge registrele.
+
+**2. `switch_mm()`** — compară `prev->mm` cu `next->mm`. Dacă diferă (schimbare
+de proces), scrie noua adresă PML4 în CR3. Dacă sunt identice (schimbare de
+thread din același proces) → **CR3 nu e rescris, TLB rămâne valid**.
+
+**3. `switch_to()` → `__switch_to_asm`** — inima comutării, scrisă în assembly:
+- Registrele callee-saved (RBP, RBX, R12–R15) ale procesului `prev` sunt
+  împinse pe stiva sa kernel
+- RSP curent e salvat în `thread_struct` al lui `prev`
+- RSP e suprascris cu valoarea din `thread_struct` al lui `next` → CPU-ul
+  rulează acum pe stiva kernel a noului proces
+- Registrele callee-saved sunt extrase de pe noua stivă
+- `__switch_to` (în C) reîncarcă `rsp0` în TSS și comută FS/GS pentru TLS
+- Un `ret` final reia execuția noului proces exact de unde fusese întrerupt
+
+**4. `finish_task_switch()`** — eliberează spinlock-urile lăsate blocate,
+gestionează zombie-urile care trebuie distruse.
+
+<CosmoHint emotion="thinking">
+Comutarea nu salvează explicit RIP. Cum știe procesul de unde să reia? Prin
+mecanismul normal al stivei: când `switch_to()` face un `call __switch_to`,
+adresa de retur e împinsă pe stivă. Când `__switch_to` execută `ret`, sare la
+adresa de retur de pe stiva **noului** proces — adresa unde fusese la rândul său
+întrerupt. Pentru un proces nou creat prin `fork()`, `copy_thread()` plasează
+adresa `ret_from_fork` pe stivă, dirijând prima execuție spre inițializarea
+corectă în Ring 3.
+</CosmoHint>
+
+### Costul Real al unui Context Switch
+
+Costul direct — cicluri CPU pentru logica `schedule()`, push/pop registre,
+actualizarea TSS: **~1000–2000 cicli**. Pe un CPU la 3GHz = ~500ns teoretic.
+
+Dar costul indirect e de 5–10× mai mare:
+
+**TLB flush** — la rescrierea CR3 (schimbare de proces), toate traducerile din
+TLB devin invalide. Un singur `INVLPG` (invalidare manuală a unei pagini)
+costă **250–350+ cicli**. Un full TLB flush impune Page Walk-uri pentru fiecare
+acces ulterior — **10.000+ cicli** agregat din pipeline stall-uri.
+
+**Cold cache** — noul proces găsește L1/L2 populate cu datele procesului anterior.
+Fiecare accesare a propriilor date → cache miss → latența RAM (~50–100ns la DDR4).
+
+**Branch predictor flush** — BTB (Branch Target Buffer) conține predicțiile
+procesului anterior. Pe noul proces generează predicții greșite → pipeline flush
+de 15–20 etape la fiecare ramificație.
+
+<FactBox>
+**Latențe reale măsurate cu `lmbench lat_ctx`:**
+- Fără KPTI: **~1.0–1.8 µs** per context switch
+- Cu KPTI activ: **~3.0–5.0 µs** (din cauza dublei scrieri CR3)
+- Thread switch (fără schimbare CR3): **~500 ns**
+
+Un server Linux activ sub sarcină: **100.000–500.000 context switch-uri/secundă**.
+La 5µs per switch cu KPTI → 2.5 secunde din fiecare 10 secunde CPU consumate
+doar în context switching, pe sisteme I/O intensive.
+</FactBox>
+
+**PCID** (Process Context Identifiers) — soluția hardware. Folosește 12 biți din
+CR3 pentru a eticheta intrările TLB cu ID-ul procesului. La rescrierea CR3 cu
+bitul `no-flush` (bitul 63) setat, TLB-ul **nu e golit** — intrările vechi
+rămân valide și sunt refolosite când procesul revine pe CPU. Reduce dramatic
+costul context switch-ului pe sisteme cu KPTI activ.
+
+### Thread Switch vs. Process Switch
+
+Diferența fundamentală: thread-urile din același proces partajează `mm_struct`.
+
+La `switch_mm()`, kernelul compară `prev->mm` cu `next->mm`:
+- **Procese diferite**: `mm` diferă → rescrie CR3 → TLB flush → toate
+  penalizările de mai sus
+- **Thread-uri din același proces**: `mm` identic → CR3 nu e rescris →
+  TLB rămâne valid → cost redus la ~500ns
+
+De aceea costul unui thread switch e de **3–6×** mai mic decât un process switch.
+Și de aceea serverele moderne evită procesele multiple în favoarea thread pools.
+
+**Kernel threads** (kworker, ksoftirqd) au `mm = NULL` — nu au user space.
+Folosesc **Lazy TLB**: adoptă `mm_struct`-ul ultimului proces rulat
+(stocat în `active_mm`) pentru că rulează exclusiv în adresele kernel globale,
+fără să rescrie CR3 inutil.
+
+### CFS și EEVDF: Cât Timp Primește un Proces?
+
+CFS nu are timeslice-uri fixe. Fereastra de planificare (`sched_latency_ns`,
+default **6ms** pe un core, se scalează cu `6ms × (1 + ilog(ncpus))`) se
+împarte echitabil între toate procesele din runqueue.
+
+Dacă sunt 4 procese → fiecare primește 1.5ms. Dacă sunt 100 → fiecare primește
+minimum `min_granularity_ns` = **0.75ms** (nu mai puțin, pentru a evita ca
+overhead-ul de context switch să depășească munca utilă).
+
+Relația dintre parametri:
+
+$$\text{timeslice} = \frac{\text{sched\_latency\_ns}}{\text{nr\_running}} \quad \text{dar} \geq \text{min\_granularity\_ns}$$
+
+Din **Linux 6.6**, CFS e înlocuit treptat cu **EEVDF** (Earliest Eligible Virtual
+Deadline First). EEVDF adaugă conceptul de `virtual deadline` per task: procesele
+care au așteptat mai mult devin "eligibile" și sunt prioritizate pe baza
+deadline-ului cel mai apropiat, nu doar a `vruntime`-ului minim. Rezultat:
+latențe mai predictibile pentru procese interactive.
+
+**CONFIG_PREEMPT** variants — alegerea influențează latența și throughput-ul:
+
+{/* TABLE */}
+
+| Variantă | Comportament kernel | Latență | Folosit pentru |
+|---|---|---|---|
+| `PREEMPT_NONE` | Nepreemptibil în Ring 0 | Mare | Servere, maxim throughput |
+| `PREEMPT_VOLUNTARY` | Puncte de cedare manuale (`cond_resched()`) | Medie | Desktop general |
+| `PREEMPT` | Complet preemptibil (excepție: spinlock-uri) | Mică | Desktop low-latency |
+| `PREEMPT_RT` | Chiar și IRQ-uri și spinlock-uri preemptibile | Minimă (garantată) | Sisteme industriale, aeronautică |
+
+### Hardware Modern: Multi-core, NUMA, Hyperthreading
+
+**Multi-core**: fiecare nucleu are propriul runqueue și planificator. Un server
+cu 64 de nuclee nu poate folosi un runqueue global — contention-ul pe
+spinlock-ul cozii ar paraliza totul. Load balancer-ul mută `task_struct`-uri
+între runqueue-uri când dezechilibrul e prea mare.
+
+**Migrarea între nuclee** are un cost ascuns: protocolul MESI de coerență a
+cache-ului. Când procesul migrat de pe Core 0 pe Core 1 scrie o variabilă,
+Core 0 primește un semnal de invalidare → linia sa cache devine `Invalid` →
+evacuare spre L3. **CPU Affinity** (`taskset`, `sched_setaffinity`) previne
+migrarea, păstrând cache-ul cald pe un singur nucleu.
+
+**NUMA**: pe servere multi-socket, RAM-ul e local unui procesor. Dacă un proces
+inițializat pe Socket 0 migrează pe Socket 1, toate accesele la RAM traversează
+legătura inter-procesor (Intel QPI, AMD Infinity Fabric) — latența triplează
+de la ~50ns la ~150ns. Kernelul organizează planificarea pe `sched_domains`
+pentru a minimiza migrările cross-NUMA.
+
+<CosmoHint emotion="thinking">
+Hyperthreading prezintă OS-ului două nuclee logice dintr-un singur nucleu fizic.
+Partajează ALU-uri, L1/L2 cache și TLB. Dacă planificatorul pune două procese
+intensive pe același nucleu fizic, se bat pe resursele partajate — thrashing pe
+L1, stall-uri constante. Un context switch între cele două thread-uri HT e rapid
+(500ns) dar util dacă unul e I/O-bound și celălalt CPU-bound. Doi cpu-bound pe
+același core fizic = mai lent decât pe nuclee separate.
+</CosmoHint>
+
+### Optimizări Practice: Evitarea Context Switch-ului
+
+Când ai 10.000 de conexiuni TCP active, nu creezi 10.000 de thread-uri. Costul
+ar fi: 10.000 × 5µs per switch × mii de switch-uri/secundă = CPU complet blocat
+în overhead.
+
+**epoll (event-driven I/O)**: un singur thread declară toți file descriptorii
+prin `epoll_ctl`. Kernelul trezește thread-ul doar când date sunt disponibile.
+Mii de conexiuni, un singur context switch per batch de date.
+
+**Go goroutines (M:N threading)**: milioane de goroutine de ~2KB fiecare,
+mapate peste un pool mic de OS threads. Planificatorul Go face switch-uri între
+goroutine la nivel Ring 3 — fără syscall, fără CR3, fără TLB flush. Costul:
+câteva sute de nanosecunde, nu microsecunde.
+
+**io_uring**: două ring buffer-uri partajate (Submission Queue + Completion Queue)
+vizibile simultan din user space și kernel. Un kernel thread în polling preia
+comenzile I/O fără syscall-uri. Cu `IORING_SETUP_SQPOLL`: **zero syscall-uri**
+pentru operațiuni de disc — elimină complet tranziția Ring 3→Ring 0 per operație.
+
+### Windows: Priority Queues și Quantum
+
+Windows folosește o filozofie diferită față de CFS: **priority-based preemptive
+scheduling** cu 32 de niveluri fixe (0–31). Nivelurile 16–31 sunt rezervate
+proceselor real-time. Un thread la nivelul 20 preemptează imediat orice thread
+de la 1 la 19, indiferent de cât a așteptat.
+
+Echivalentul `sched_latency_ns` pe Windows se numește **Quantum** — cât timp
+rulează un thread înainte ca Windows să verifice dacă există altul la același
+nivel de prioritate (round-robin între egali). Valoarea variază per tip de produs:
+
+- **Windows Desktop** (10/11): quantum scurt de **2 clock ticks** → ~30ms.
+  Foreground Window Boost ridică artificial quantumul la 6 ticks (~90ms) pentru
+  fereastra activă, menținând UI-ul responsiv.
+- **Windows Server**: quantum lung de **12 clock ticks** → ~150ms. Procesele
+  de baze de date și servere web rulează neîntrerupt mai mult timp, reducând
+  overhead-ul de context switch pe workload-uri continue.
+
+Echivalentul `switch_to()` din Linux se numește **`KiSwapContext`**, apelat din
+`KiSwapThread`. Salvează registrele non-volatile conform ABI-ului AMD64, comută
+stiva kernel, actualizează Trap Frame-urile necesare întoarcerii în Ring 3 și
+rescrie CR3 (cu KVAS — echivalentul KPTI pe Windows — impunând același overhead
+de dublă scriere CR3 ca pe Linux).
+
+Trezirile asincrone sunt orchestrate prin două mecanisme specifice Windows:
+
+**DPC (Deferred Procedure Call)** — rulează la `IRQL DISPATCH_LEVEL` (nivelul 2).
+Când o placă de rețea sau un disc termină o operație I/O, codul ISR generează un
+DPC. Acesta se execută cu prioritate față de orice cod la `PASSIVE_LEVEL` (0),
+blocând efectiv planificatorul obișnuit pe durata sa.
+
+**APC (Asynchronous Procedure Call)** — rulează la `APC_LEVEL` (nivelul 1).
+Execută o rutină direct pe thread-ul țintă, preluând fluxul acestuia înainte ca
+planificatorul să-l reia — mecanism folosit pentru I/O completion callbacks.
+
+## REVEAL
+
+Context switching e prețul iluzie de multitasking. Pe un singur nucleu, kernelul
+comută procesorul de mii de ori pe secundă, salvând și restaurând starea completă
+a fiecărui proces: registre generale, RFLAGS, RIP, starea FPU/SIMD, și — cel mai
+costisitor — tabelele de pagini prin CR3.
+
+Costul real nu e în ciclurile de salvare a registrelor (1000–2000 cicli), ci în
+efectele de avalanșă: TLB flush (10.000+ cicli), cold cache și branch predictor
+corupt. PCID, thread pools, epoll și io_uring există tocmai pentru a minimiza
+sau elimina aceste tranziții.
+
+## ÎNCHEIERE
+
+Acum știi cum comută kernelul între procese. Lecția următoare explorează ce se
+întâmplă când mai multe procese rulează **cu adevărat** în paralel — pe thread-uri
+multiple — și ce probleme apar când partajează aceeași memorie fără sincronizare.

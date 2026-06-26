@@ -1,0 +1,223 @@
+---
+title: "Arhitectura Sistemelor de Fișiere: Ce se întâmplă când scrii un fișier"
+order: 13
+type: lesson
+module_index: 2
+duration: 16
+difficulty: 4
+---
+
+# Arhitectura Sistemelor de Fișiere: Ce se întâmplă când scrii un fișier
+
+## HOOK
+
+Rulezi `rm -rf /var/log/nginx/` și în 200 de milisecunde ai șters 4 milioane de fișiere. Nicio eroare. Nicio așteptare.
+
+Sau tastezi `echo "hello" > test.txt` și te aștepți că datele sunt pe disc. Sunt? Poate. Poate nu. Kernel-ul a scris în RAM și ți-a returnat controlul. Pe disc ajung când decide el.
+
+Un disc fără filesystem este un șir liniar amorf de sectoare — nu știe ce e un fișier, un director sau o permisiune. Filesystem-ul transformă blocuri numerotate în obiecte cu sens: nume, ierarhie, proprietar, timestamp, durabilitate la crash.
+
+Dar în spatele acestei abstracții stă o arhitectură stratificată cu structuri de date precise pe disc, patru obiecte în kernel și un mecanism de cache care explică de ce serverele tale rulează bine — sau de ce cad exact la 3 dimineața.
+
+---
+
+## CONTEXT
+
+La nivel hardware, un SSD sau HDD expune un spațiu liniar de sectoare adresabile. Sectorul clasic are 512B; discurile moderne Advanced Format folosesc 4096B fizic. Filesystem-ul operează cu **blocuri logice** de tipic 4KB — aceeași dimensiune cu o pagină virtuală din kernel, nu întâmplător.
+
+Fără filesystem: `dd if=/dev/urandom of=/dev/nvme0n1 bs=4M` distruge instant orice structură. Ce rămâne e entropie.
+
+Filesystem-ul adaugă deasupra blocurilor brute: naming, ierarhie, metadate (owner, permisiuni, timestamps) și **durabilitate tranzacțională** la pane de curent.
+
+Granularitatea fixă a blocurilor produce două tipuri de fragmentare. **Fragmentarea internă**: un fișier de 100B consumă un bloc întreg de 4KB — 3996B irisipiți. **Fragmentarea externă**: blocurile unui fișier mare sunt dispersate necontiguu pe disc, alternând cu blocurile altor fișiere. Pe HDD degradează masiv performanța din cauza seek time mecanic. Pe NVMe epuizează tabelele de mapare ale controlerului.
+
+Abstracția centrală UNIX este **inode-ul** — entitatea reală a fișierului în viziunea kernel-ului. Ce nu stochează: **numele fișierului**. Numele trăiește în directorul părinte. Această separare permite hardlink-urile să existe.
+
+---
+
+## MIEZUL
+
+### Ext4 pe disc: ce e acolo fizic
+
+Când formatezi o partiție ext4, kernelul scrie o structură precisă.
+
+**Superblock-ul** trăiește la offset fix de 1024B de la începutul partiției. Conține parametrii globali: magic number `0xEF53` la offset intern 0x38 din superblock (offset absolut 0x438 față de începutul partiției), stocat little-endian pe disc ca `53 EF`. Mai conține dimensiunea blocului, numărul total de inode-uri, blocuri libere, starea montării. Ext4 păstrează copii de backup în fiecare block group — dacă superblock-ul primar e corupt, partiția tot se poate repara.
+
+Discul e împărțit în **Block Groups** de câte 128MB (la block size 4KB — 32.768 blocuri per grup). Fiecare grup are propria sa pereche de bitmap-uri: **Block Bitmap** (1 bit per bloc, `0`=liber, `1`=alocat) și **Inode Bitmap** (1 bit per inode).
+
+Structura inode ext4 modernă ocupă **256 de bytes** pe disc (față de 128B în ext2). Spațiul extra (`i_extra_isize=32`) susține timestamp-uri cu precizie nanosecundă (atime, mtime, ctime) plus `crtime` — câmp absent din UNIX clasic. Restul spațiului e folosit pentru atribute extinse inline (xattrs, etichete SELinux) fără scriere suplimentară pe disc.
+
+**Block pointers** — modelul vechi ext2/ext3 folosea 15 pointeri de 32 biți: 12 direcți (48KB), 1 indirect (4MB), 1 dublu indirect (4GB), 1 triplu indirect (4TB). Ineficient: un fișier video de 10GB contiguu necesita mii de blocuri indirecte doar pentru a memora pointeri consecutivi previzibili.
+
+Ext4 modern înlocuiește totul cu **extents**. Un extent mapează o plajă de blocuri logice consecutive la o plajă de blocuri fizice contigue. Structura `ext4_extent` ocupă 12 bytes. Cei 60 de bytes din inode (fostul array de 15 pointeri × 4B) conțin acum un header de 12 bytes + **4 extents directe** (48 bytes / 12 = 4). Un singur extent acoperă până la **128MB contigui**. Fișierul video de 10GB se descrie cu câteva extents — față de mii de blocuri indirecte.
+
+<FactBox>
+**Structura ext4 în cifre:**
+- Superblock: offset 1024B, magic `0xEF53` (le: `53 EF`), offset absolut 0x438
+- Inode: 256 bytes (modern) vs 128 bytes (ext2 legacy)
+- Max extents directe în inode: 4, fiecare până la 128MB contiguu
+- Block Group: 128MB (32.768 blocuri × 4KB)
+- Max fișier: 16TB | Max filesystem: 1 Exabyte
+- Journal JBD2: ~128MB default
+</FactBox>
+
+---
+
+### VFS: stratul de abstractizare al kernel-ului
+
+Kernel-ul Linux suportă ext4, XFS, Btrfs, NFS, tmpfs, procfs — toate prin același strat: **Virtual Filesystem Switch (VFS)**. Orice syscall I/O intră mai întâi în VFS, care definește un contract pe care orice driver de filesystem trebuie să-l implementeze.
+
+VFS gravitează în jurul a **patru obiecte** în memoria kernel:
+
+**`super_block`** — o instanță montată de filesystem. Conține `s_op` (super_block_operations): funcții virtuale pentru alocare inode-uri, flush, umount.
+
+**`inode`** — obiectul kernel al unui fișier. Conține metadatele curente și două seturi de operații: `i_op` (inode_operations: mkdir, rename, lookup) și `i_fop` (file_operations: read, write, mmap).
+
+**`dentry`** — liantul dintre un nume de fișier și numărul său de inode. Nu are corespondent direct pe disc — e un obiect pur în RAM, reținut în **dcache** (dentry cache). Sub presiunea memoriei, dentries sunt evacuate.
+
+**`file`** — instanță deschisă per proces. Conține `f_pos` (cursorul curent) și `f_op`. Două procese pot deschide același fișier cu cursoare independente — două obiecte `file` diferite, același `inode`.
+
+**Cum funcționează `open("/var/log/syslog", O_RDONLY)`:**
+
+Kernel-ul apelează `link_path_walk()`. Tokenizează calea pe `/`. Pentru fiecare componentă apelează `walk_component()`. Aceasta încearcă mai întâi **RCU-walk** — lookup ultra-rapid în dcache fără niciun lock, bazat pe sequence locks. Dacă componenta e în dcache (hit) → continuă. Dacă nu (miss) → cade în **REF-walk**: ia spinlock pe dentry, incrementează reference counts, apelează driverul specific (ex. `ext4_lookup`) pentru a citi blocul de director de pe disc și a popula dcache-ul.
+
+La final, alocă un `struct file`, îl inserează în `file descriptor table` a procesului (`task_struct→files_struct`), returnează cel mai mic index liber ≥ 3 (0=stdin, 1=stdout, 2=stderr).
+
+Limita FD per proces: `ulimit -n` (default 1024). Limita globală: `/proc/sys/fs/file-max` (configurable > 1M pe servere de baze de date).
+
+<CosmoHint emotion="thinking">
+Cele trei niveluri de indirectare (FD table → open file table → inode table) nu sunt birocrație — fiecare rezolvă ceva concret. FD table izolează procesele. Open file table (struct file) permite cursoruri independente și sharing la fork(). Inode table garantează o singură sursă de adevăr pentru metadate. Fără separarea asta, fork() + read() concurent pe același fișier ar fi imposibil de implementat corect.
+</CosmoHint>
+
+---
+
+### Page Cache: de ce write() nu scrie pe disc
+
+Memoria RAM neutilizată de procese nu stă liberă — kernelul o folosește agresiv ca **Page Cache**: cache de pagini de date de pe disc.
+
+**Read path:** `read()` → VFS → lookup în Page Cache (Radix Tree / XArray) → hit: copiere RAM-la-RAM, fără I/O fizic; miss: construiește `struct bio`, DMA transferă sectorul în kernel memory, inserează pagina în Page Cache. Rata de hit pe servere de producție: **90-99%**.
+
+**Write path — write-back implicit:** `write()` copiază datele în Page Cache, marchează pagina cu flag `PG_dirty` și returnează **imediat**. Datele nu sunt pe disc.
+
+Flush-ul e asincron, executat de **flusher threads** per dispozitiv. Doi parametri sysctl controlează comportamentul:
+- `vm.dirty_background_ratio` (default **10%**): flusher threads pornesc în background, invizibil
+- `vm.dirty_ratio` (default **20%**): **dirty throttling** — orice `write()` devine blocat, forțând scriere sincronă
+
+**mmap():** mapare directă din Page Cache în VAS al procesului prin Page Table Entries. Zero copieri CPU. `libc.so` încărcată de 10.000 de procese simultan = **o singură copie fizică** în Page Cache, cu 10.000 de PTE-uri pointing spre ea.
+
+**O_DIRECT:** bypass total Page Cache, DMA direct în user space buffer. Constrângere dură: buffer-ul și cursorul trebuie aliniate la 512B sau 4096B. Folosit de baze de date (PostgreSQL, MySQL/InnoDB, Oracle DB) care implementează propriul buffer pool — nu vor double caching.
+
+**fsync() vs fdatasync():** `fsync()` flush-uiește date + toate metadatele (inclusiv atime). `fdatasync()` flush-uiește date + doar metadatele structurale necesare pentru recovery (ex. size la creșterea fișierului). Latență: **~100µs pe NVMe**, **~5-10ms pe HDD**.
+
+---
+
+### Hardlinks vs symlinks
+
+Directoarele sunt fișiere speciale care stochează un tabel `(nume → număr inode)`. Structura `ext4_dir_entry_2` pe disc: `inode(4B) | rec_len(2B) | name_len(1B) | file_type(1B) | name`. Câmpul `file_type` permite lui `ls` să știe tipul intrării fără a deschide inode-ul.
+
+Pentru directoare cu mii de fișiere, ext4 activează automat **HTree** (hash tree). Algoritmii disponibili: Half-MD4 (standard ext3, notat 0x1), Tea (0x2), SipHash (0x6). Lookup scade de la O(N) la **O(log N)**.
+
+**Hardlink:** intrare nouă în director pointing la **același număr de inode**, incrementează `i_nlink`. Nu cross-filesystem, nu pe directoare. Limita: **65.000 subdirectoare** per director (i_nlink = uint16).
+
+**Symlink:** inode separat `S_IFLNK` care stochează path-ul ca date. **Fast symlink**: dacă path < 60 chars, e stocat direct în spațiul fostelor block pointers din inode — zero alocare de bloc suplimentar.
+
+**`unlink()`:** decrementează `i_nlink`. Inode-ul și blocurile se șterg **doar la i_nlink = 0**. **`rename()`:** atomic POSIX, 1 syscall, 1 update dentry — pattern clasic pentru scriere sigură: write temp → fsync → rename.
+
+---
+
+### Jurnalizarea: cum supraviețuiești unui crash
+
+Crearea unui singur fișier în ext4 implică **5 scrieri separate** pe disc: inode bitmap, block bitmap, inode table, directory entry, date. O pană de curent între scrierile 2 și 3 lasă pointer-ii inconsistenți.
+
+Fără journal: rulezi `e2fsck` — scanează complet partiția. Pe 1TB: **ore de downtime**.
+
+**Journal ext4** (JBD2, ~128MB default): scrie intenția atomic în jurnal înainte de a modifica structurile reale. La reboot se face log replay. Durată: secunde.
+
+**Trei moduri:**
+- **`writeback`**: metadata în jurnal, date scrise oricând. Risc: fișier conține conținut vechi din sectoare reciclate. Cel mai rapid.
+- **`ordered`** (default): date scrise pe disc **înainte** de commit metadata în jurnal. Nicio expunere de conținut vechi.
+- **`data`**: date + metadata în jurnal. 2× scrieri. Cel mai lent și sigur.
+
+**F2FS** (Flash-Friendly File System): filesystem log-structured proiectat specific pentru memorii NAND flash. Toate scrierile sunt aliniate la 4KB — aceeași granularitate cu celulele flash. Evită ciclul devastator read-modify-write al flash-ului. Reduce write amplification și uzura celulelor față de un ext4 standard pe același SSD.
+
+<CosmoHint emotion="thinking">
+rename() atomic + journaling ordered este fundația pe care rulează PostgreSQL, SQLite și orice bază de date serioasă. Pattern-ul: scrie pe fișier temp → fsync() → rename() peste destinație. Dacă serverul cade înainte de rename: fișierul original intact. Dacă cade după: noul fișier complet. Nu există stare intermediară pe disc — o garanție pe care o obții gratuit din semantica VFS.
+</CosmoHint>
+
+---
+
+### I/O stack și latențele reale
+
+Calea completă a unui `write()`:
+
+```
+aplicație → syscall → VFS → Page Cache → Block Layer → I/O Scheduler → driver → hardware
+```
+
+La nivelul Block Layer, cererile sunt ambalate în structuri **`struct bio`**. Câmpurile cheie: `bi_io_vec` (array de segmente de memorie — perechi pagină + offset) și `bi_vcnt` (numărul de segmente). **Request merging (plugging)**: kernelul acumulează bio-uri spre sectoare adiacente, le descarcă în batch printr-un singur transfer DMA, reducând de zeci de ori numărul de apeluri hardware.
+
+**I/O Schedulers:** CFQ (deprecated, HDD single-queue), mq-deadline (latențe garantate), BFQ (fairness multi-process), **none** (NVMe — controllerul hardware face ordonarea intern, software scheduling e overhead pur).
+
+**Latențe reale per dispozitiv:**
+
+{/* TABLE */}
+
+| Dispozitiv | Latență random | Throughput | IOPS 4K random |
+|---|---|---|---|
+| **NVMe SSD** | ~100µs | 3–7 GB/s | 500K–1M |
+| **SATA SSD** | ~100µs | ~550 MB/s | ~100K |
+| **HDD 7200 RPM** | 5–10ms | 150–200 MB/s | 100–200 |
+
+HDD: 200 IOPS. NVMe: 1.000.000. Nu e o diferență de viteză — e o diferență de arhitectură.
+
+**`fallocate()`**: pre-alocă spațiu fizic fără a scrie date. Garantează blocuri contigue înainte de scrierile mari, elimină fragmentarea viitoare. **`FALLOC_FL_PUNCH_HOLE`**: eliberează fizic blocuri din mijlocul unui fișier (sparse files) fără a-i schimba dimensiunea logică.
+
+**`/proc/sys/vm/drop_caches`**: curățare manuală a cache-ului kernel. `echo 1` eliberează Page Cache; `echo 2` eliberează dentries + inode cache; `echo 3` face ambele. Util la benchmarking pentru a testa performanța reală fără warmup. Nu e recomandat în producție — kernelul gestionează evicția automat mai eficient.
+
+---
+
+### Mount și namespace-ul de fișiere
+
+Syscall-ul `mount()` atașează un superblock activ la un punct gol din arborele VFS (mount point). Toate accesele ulterioare la acel path sunt redirecționate transparent la noul filesystem. Starea curentă a montărilor e vizibilă în `/proc/mounts` (runtime); configurația persistentă la reboot în `/etc/fstab`.
+
+**Bind mounts**: montează un director existent la o a doua locație din VFS tree, fără a implica niciun device hardware. `mount --bind /data/app /mnt/app` — ambele path-uri văd aceleași inode-uri.
+
+**Mount namespaces**: fiecare namespace are propria viziune a arborelui VFS, complet izolată de restul sistemului. Fundament al volumelor Docker. Un container rulează cu un mount namespace propriu — vede `/` ca pe root-ul imaginii sale, fără acces la filesystem-ul host-ului. `unshare --mount` creează un namespace nou din shell.
+
+**Pseudo-filesystems** — nu există pe disc:
+- **`tmpfs`**: stocat în RAM + swap la presiune. Folosit pentru `/tmp` și `/dev/shm` (shared memory POSIX). Dispare la reboot.
+- **`procfs`** (`/proc`): fișiere generate live din `task_struct` și structurile kernel. `cat /proc/1234/status` citește din memorie, nu de pe disc.
+- **`sysfs`** (`/sys`): exportă atributele kobject-urilor din driverele hardware ca fișiere text ASCII. Baza interacțiunii cu hardware-ul la nivel userspace.
+- **`devtmpfs`** (`/dev`): gestionează nodurile de device. Populat automat de kernel la detectarea hardware-ului, gestionat de udev.
+
+---
+
+## REVEAL
+
+Cele cinci filesystem-uri pe care le vei întâlni în producție:
+
+{/* TABLE */}
+
+| | ext4 | XFS | Btrfs | ZFS | tmpfs |
+|---|---|---|---|---|---|
+| **Structură alocare** | Extents + delayed alloc | B+ trees per Allocation Group | Copy-on-Write | CoW + transaction groups | RAM |
+| **Scalabilitate multi-core** | Block Groups cu lock | AG independente, lock contention ≈ 0 | Limitată | Pool-uri | N/A |
+| **Journal** | writeback / ordered / data | Metadata only | N/A (CoW = journal) | N/A (CoW) | N/A |
+| **Snapshots** | Nu nativ | Nu nativ | O(1) shared subvolume tree | O(1) | Nu |
+| **Checksums** | Nu | Nu | CRC32C date + metadata | SHA256 / BLAKE3 end-to-end | Nu |
+| **RAID integrat** | Nu | Nu | RAID 0/1/10 (evită 5/6) | RAIDZ1/2/3 (fără write hole) | Nu |
+| **Cache special** | Page Cache LRU | Page Cache LRU | Page Cache LRU | ARC (LFU + LRU adaptiv) | — |
+| **Max fișier / FS** | 16TB / 1EB | 8EB / 8EB | 16EB / 16EB | 16EB / 16EB | RAM+swap |
+| **Ideal pentru** | Desktop, cloud general | Fișiere mari, I/O paralel | VM, dev, snapshots | Enterprise storage | /tmp, /dev/shm |
+
+Ext4: stabil, predictibil, default safe. XFS: scalează excelent pe multi-core cu Allocation Groups independente — ideal pentru streaming masiv de fișiere mari. Btrfs: snapshots O(1) excelente, dar evită RAID 5/6 în producție (bug-uri istorice write hole). ZFS: cel mai complet din punct de vedere al integrității — RAIDZ elimină write hole-ul clasic al RAID-5, ARC înlocuiește Page Cache LRU cu un algoritm adaptiv LFU+LRU.
+
+---
+
+## ÎNCHEIERE
+
+Un simplu `write()` traversează VFS, Page Cache, Block Layer și un scheduler de I/O înainte să atingă hardware-ul — poate după secunde dacă write-back-ul decide că nu e urgent.
+
+Când contează durabilitatea: `fdatasync()` după scriere. Când contează latența: NVMe cu scheduler `none`. Când contează structura: ext4 cu journaling `ordered` și `fallocate()` înainte de scrierile mari. Când contează izolarea: mount namespaces.
+
+Filesystem-ul nu e o cutie neagră. E o arhitectură cu prețuri cunoscute și garanții precise.

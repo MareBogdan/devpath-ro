@@ -1,0 +1,669 @@
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - generic [ref=e4]:
+      - link "DevPath.ro" [ref=e5] [cursor=pointer]:
+        - /url: /dashboard
+        - generic [ref=e6]: DevPath.ro
+      - generic [ref=e7]:
+        - generic [ref=e8]: 0 XP
+        - button "Schimbă tema" [ref=e9] [cursor=pointer]:
+          - img [ref=e10]
+        - button "T" [ref=e12] [cursor=pointer]:
+          - generic [ref=e14]: T
+  - main [ref=e15]:
+    - generic [ref=e17]:
+      - generic [ref=e18]:
+        - img
+        - generic [ref=e19]:
+          - heading "Hai să învățăm, test!" [level=2] [ref=e20]:
+            - generic [ref=e21]: Hai să învățăm, test!
+          - paragraph [ref=e22]: Azi e ziua perfectă să începi.
+          - generic [ref=e23]:
+            - generic [ref=e24]:
+              - generic [ref=e25]:
+                - img [ref=e27]
+                - generic [ref=e33]: XP
+              - paragraph [ref=e34]:
+                - generic [ref=e35]: "0"
+            - generic [ref=e36]:
+              - generic [ref=e37]:
+                - img [ref=e39]
+                - generic [ref=e41]: Streak
+              - paragraph [ref=e42]:
+                - generic [ref=e43]: "0"
+            - generic [ref=e44]:
+              - generic [ref=e45]:
+                - img [ref=e47]
+                - generic [ref=e49]: Lecții
+              - paragraph [ref=e50]: 0/321
+            - generic [ref=e51]:
+              - generic [ref=e52]:
+                - img [ref=e54]
+                - generic [ref=e56]: Nivel
+              - paragraph [ref=e57]: Curios
+          - generic [ref=e59]:
+            - generic [ref=e60]: Nivel 1 — Curios
+            - generic [ref=e62]: 0 / 200 XP
+          - generic [ref=e64]:
+            - generic [ref=e67]: L
+            - generic [ref=e70]: Ma
+            - generic [ref=e73]: Mi
+            - generic [ref=e76]: J
+            - generic [ref=e79]: V
+            - generic [ref=e82]: S
+            - generic [ref=e85]: D
+      - generic [ref=e87]:
+        - heading "Ce poți face pe DevPath" [level=2] [ref=e88]
+        - paragraph [ref=e89]: Tot ce ai nevoie ca să înțelegi tech-ul și să treci interviurile.
+        - generic [ref=e90]:
+          - button "Cursuri Interactive Lecții cu explicații clare, quiz-uri și exerciții practice. Fără jargon, fără plictiseală." [ref=e92] [cursor=pointer]:
+            - generic [ref=e97]:
+              - img [ref=e99]
+              - heading "Cursuri Interactive" [level=3] [ref=e101]
+              - paragraph [ref=e102]: Lecții cu explicații clare, quiz-uri și exerciții practice. Fără jargon, fără plictiseală.
+              - img [ref=e104]
+          - button "AI Coach Personal Întreabă orice despre lecție. AI-ul îți răspunde în română, instant." [ref=e107] [cursor=pointer]:
+            - generic [ref=e112]:
+              - img [ref=e114]
+              - heading "AI Coach Personal" [level=3] [ref=e117]
+              - paragraph [ref=e118]: Întreabă orice despre lecție. AI-ul îți răspunde în română, instant.
+              - img [ref=e120]
+          - button "Pregătire Interviu Flashcarduri, simulări și exerciții pentru interviul tău tech." [ref=e123] [cursor=pointer]:
+            - generic [ref=e128]:
+              - img [ref=e130]
+              - heading "Pregătire Interviu" [level=3] [ref=e132]
+              - paragraph [ref=e133]: Flashcarduri, simulări și exerciții pentru interviul tău tech.
+              - img [ref=e135]
+          - button "Portofoliu Automat Pe măsură ce înveți, portofoliul tău se construiește singur. Gata de trimis la angajatori." [ref=e138] [cursor=pointer]:
+            - generic [ref=e143]:
+              - img [ref=e145]
+              - heading "Portofoliu Automat" [level=3] [ref=e148]
+              - paragraph [ref=e149]: Pe măsură ce înveți, portofoliul tău se construiește singur. Gata de trimis la angajatori.
+              - img [ref=e151]
+      - generic [ref=e154]:
+        - heading "Cursurile tale" [level=2] [ref=e155]
+        - generic [ref=e156]:
+          - 'link "Hardware & Fizică Începător 0% completat De la electronul fizic la primul procesor virtual asamblat de tine 0/30 lecții ~5h total · Începător Continuă: Cum funcționează ecranul tel…" [ref=e158] [cursor=pointer]':
+            - /url: /courses/hardware-fizica
+            - generic [ref=e163]:
+              - generic [ref=e164]:
+                - generic [ref=e165]:
+                  - heading "Hardware & Fizică" [level=3] [ref=e167]
+                  - generic [ref=e169]: Începător
+                - generic [ref=e176]:
+                  - paragraph [ref=e177]: 0%
+                  - paragraph [ref=e178]: completat
+              - paragraph [ref=e179]: De la electronul fizic la primul procesor virtual asamblat de tine
+              - generic [ref=e180]:
+                - generic [ref=e181]: 0/30 lecții
+                - generic [ref=e182]: ~5h total · Începător
+              - generic [ref=e184]:
+                - img [ref=e185]
+                - generic [ref=e188]: "Continuă: Cum funcționează ecranul tel…"
+          - 'link "Sisteme de Operare Intermediar 0% completat Ce se întâmplă în interiorul mașinii tale după ce apeși butonul de pornire 0/22 lecții ~3.7h total · Intermediar Continuă: Procesul de Boot" [ref=e190] [cursor=pointer]':
+            - /url: /courses/sisteme-de-operare
+            - generic [ref=e195]:
+              - generic [ref=e196]:
+                - generic [ref=e197]:
+                  - heading "Sisteme de Operare" [level=3] [ref=e199]
+                  - generic [ref=e201]: Intermediar
+                - generic [ref=e208]:
+                  - paragraph [ref=e209]: 0%
+                  - paragraph [ref=e210]: completat
+              - paragraph [ref=e211]: Ce se întâmplă în interiorul mașinii tale după ce apeși butonul de pornire
+              - generic [ref=e212]:
+                - generic [ref=e213]: 0/22 lecții
+                - generic [ref=e214]: ~3.7h total · Intermediar
+              - generic [ref=e216]:
+                - img [ref=e217]
+                - generic [ref=e220]: "Continuă: Procesul de Boot"
+          - 'link "Rețele & Internet Intermediar 0% completat Cum ajunge un pachet de date de la tastatura ta la un server din Tokyo în 80ms 0/26 lecții ~4.3h total · Intermediar Continuă: Trimiți un mesaj pe WhatsApp…" [ref=e222] [cursor=pointer]':
+            - /url: /courses/retele-internet
+            - generic [ref=e227]:
+              - generic [ref=e228]:
+                - generic [ref=e229]:
+                  - heading "Rețele & Internet" [level=3] [ref=e231]
+                  - generic [ref=e233]: Intermediar
+                - generic [ref=e240]:
+                  - paragraph [ref=e241]: 0%
+                  - paragraph [ref=e242]: completat
+              - paragraph [ref=e243]: Cum ajunge un pachet de date de la tastatura ta la un server din Tokyo în 80ms
+              - generic [ref=e244]:
+                - generic [ref=e245]: 0/26 lecții
+                - generic [ref=e246]: ~4.3h total · Intermediar
+              - generic [ref=e248]:
+                - img [ref=e249]
+                - generic [ref=e252]: "Continuă: Trimiți un mesaj pe WhatsApp…"
+          - 'link "Python & Inginerie Software Intermediar 0% completat Gândire algoritmică, cod curat și uneltele cu care lucrează orice inginer în 2026 0/38 lecții ~6.3h total · Intermediar Continuă: 3 linii de Python care ating…" [ref=e254] [cursor=pointer]':
+            - /url: /courses/python-inginerie-software
+            - generic [ref=e259]:
+              - generic [ref=e260]:
+                - generic [ref=e261]:
+                  - heading "Python & Inginerie Software" [level=3] [ref=e263]
+                  - generic [ref=e265]: Intermediar
+                - generic [ref=e272]:
+                  - paragraph [ref=e273]: 0%
+                  - paragraph [ref=e274]: completat
+              - paragraph [ref=e275]: Gândire algoritmică, cod curat și uneltele cu care lucrează orice inginer în 2026
+              - generic [ref=e276]:
+                - generic [ref=e277]: 0/38 lecții
+                - generic [ref=e278]: ~6.3h total · Intermediar
+              - generic [ref=e280]:
+                - img [ref=e281]
+                - generic [ref=e284]: "Continuă: 3 linii de Python care ating…"
+          - 'link "Algoritmi & Structuri de Date Intermediar 0% completat Diferența dintre cod care merge și cod care scalează la milioane de utilizatori 0/20 lecții ~3.3h total · Intermediar Continuă: De ce aplicația ta îngheață …" [ref=e286] [cursor=pointer]':
+            - /url: /courses/algoritmi-structuri-date
+            - generic [ref=e291]:
+              - generic [ref=e292]:
+                - generic [ref=e293]:
+                  - heading "Algoritmi & Structuri de Date" [level=3] [ref=e295]
+                  - generic [ref=e297]: Intermediar
+                - generic [ref=e304]:
+                  - paragraph [ref=e305]: 0%
+                  - paragraph [ref=e306]: completat
+              - paragraph [ref=e307]: Diferența dintre cod care merge și cod care scalează la milioane de utilizatori
+              - generic [ref=e308]:
+                - generic [ref=e309]: 0/20 lecții
+                - generic [ref=e310]: ~3.3h total · Intermediar
+              - generic [ref=e312]:
+                - img [ref=e313]
+                - generic [ref=e316]: "Continuă: De ce aplicația ta îngheață …"
+          - 'link "Baze de Date & Ingineria Datelor Intermediar 0% completat De la un tabel Excel la un pipeline care alimentează un model AI 0/27 lecții ~4.5h total · Intermediar Continuă: Excel vs. Server Database" [ref=e318] [cursor=pointer]':
+            - /url: /courses/baze-date-ingineria-datelor
+            - generic [ref=e323]:
+              - generic [ref=e324]:
+                - generic [ref=e325]:
+                  - heading "Baze de Date & Ingineria Datelor" [level=3] [ref=e327]
+                  - generic [ref=e329]: Intermediar
+                - generic [ref=e336]:
+                  - paragraph [ref=e337]: 0%
+                  - paragraph [ref=e338]: completat
+              - paragraph [ref=e339]: De la un tabel Excel la un pipeline care alimentează un model AI
+              - generic [ref=e340]:
+                - generic [ref=e341]: 0/27 lecții
+                - generic [ref=e342]: ~4.5h total · Intermediar
+              - generic [ref=e344]:
+                - img [ref=e345]
+                - generic [ref=e348]: "Continuă: Excel vs. Server Database"
+          - 'link "Matematică pentru AI Intermediar 0% completat Transformi ecuațiile din manual în instrumente vizuale pe care le simți 0/21 lecții ~3.5h total · Intermediar Continuă: De ce AI-ul nu înțelege cuvi…" [ref=e350] [cursor=pointer]':
+            - /url: /courses/matematica-ai
+            - generic [ref=e355]:
+              - generic [ref=e356]:
+                - generic [ref=e357]:
+                  - heading "Matematică pentru AI" [level=3] [ref=e359]
+                  - generic [ref=e361]: Intermediar
+                - generic [ref=e368]:
+                  - paragraph [ref=e369]: 0%
+                  - paragraph [ref=e370]: completat
+              - paragraph [ref=e371]: Transformi ecuațiile din manual în instrumente vizuale pe care le simți
+              - generic [ref=e372]:
+                - generic [ref=e373]: 0/21 lecții
+                - generic [ref=e374]: ~3.5h total · Intermediar
+              - generic [ref=e376]:
+                - img [ref=e377]
+                - generic [ref=e380]: "Continuă: De ce AI-ul nu înțelege cuvi…"
+          - 'link "Machine Learning Intermediar 0% completat Primul tău model care învață din date, fără reguli scrise de tine 0/22 lecții ~3.7h total · Intermediar Continuă: De la IF/ELSE la Predicție" [ref=e382] [cursor=pointer]':
+            - /url: /courses/machine-learning
+            - generic [ref=e387]:
+              - generic [ref=e388]:
+                - generic [ref=e389]:
+                  - heading "Machine Learning" [level=3] [ref=e391]
+                  - generic [ref=e393]: Intermediar
+                - generic [ref=e400]:
+                  - paragraph [ref=e401]: 0%
+                  - paragraph [ref=e402]: completat
+              - paragraph [ref=e403]: Primul tău model care învață din date, fără reguli scrise de tine
+              - generic [ref=e404]:
+                - generic [ref=e405]: 0/22 lecții
+                - generic [ref=e406]: ~3.7h total · Intermediar
+              - generic [ref=e408]:
+                - img [ref=e409]
+                - generic [ref=e412]: "Continuă: De la IF/ELSE la Predicție"
+          - 'link "Deep Learning & Computer Vision Avansat 0% completat De la perceptronul simplu la arhitecturile care au schimbat lumea 0/22 lecții ~3.7h total · Avansat Continuă: De ce 2012 a schimbat totul" [ref=e414] [cursor=pointer]':
+            - /url: /courses/deep-learning-computer-vision
+            - generic [ref=e419]:
+              - generic [ref=e420]:
+                - generic [ref=e421]:
+                  - heading "Deep Learning & Computer Vision" [level=3] [ref=e423]
+                  - generic [ref=e425]: Avansat
+                - generic [ref=e432]:
+                  - paragraph [ref=e433]: 0%
+                  - paragraph [ref=e434]: completat
+              - paragraph [ref=e435]: De la perceptronul simplu la arhitecturile care au schimbat lumea
+              - generic [ref=e436]:
+                - generic [ref=e437]: 0/22 lecții
+                - generic [ref=e438]: ~3.7h total · Avansat
+              - generic [ref=e440]:
+                - img [ref=e441]
+                - generic [ref=e444]: "Continuă: De ce 2012 a schimbat totul"
+          - 'link "AI Generativ & LLMs Avansat 0% completat Cum gândește, vorbește și creează un model de limbaj modern 0/38 lecții ~6.3h total · Avansat Continuă: De ce ChatGPT nu știe să num…" [ref=e446] [cursor=pointer]':
+            - /url: /courses/ai-generativ-llms
+            - generic [ref=e451]:
+              - generic [ref=e452]:
+                - generic [ref=e453]:
+                  - heading "AI Generativ & LLMs" [level=3] [ref=e455]
+                  - generic [ref=e457]: Avansat
+                - generic [ref=e464]:
+                  - paragraph [ref=e465]: 0%
+                  - paragraph [ref=e466]: completat
+              - paragraph [ref=e467]: Cum gândește, vorbește și creează un model de limbaj modern
+              - generic [ref=e468]:
+                - generic [ref=e469]: 0/38 lecții
+                - generic [ref=e470]: ~6.3h total · Avansat
+              - generic [ref=e472]:
+                - img [ref=e473]
+                - generic [ref=e476]: "Continuă: De ce ChatGPT nu știe să num…"
+          - 'link "Agentic AI & MCP Avansat 0% completat Modelele care planifică, acționează și se corectează singure 0/29 lecții ~4.8h total · Avansat Continuă: Creierul în Borcan" [ref=e478] [cursor=pointer]':
+            - /url: /courses/agentic-ai-mcp
+            - generic [ref=e483]:
+              - generic [ref=e484]:
+                - generic [ref=e485]:
+                  - heading "Agentic AI & MCP" [level=3] [ref=e487]
+                  - generic [ref=e489]: Avansat
+                - generic [ref=e496]:
+                  - paragraph [ref=e497]: 0%
+                  - paragraph [ref=e498]: completat
+              - paragraph [ref=e499]: Modelele care planifică, acționează și se corectează singure
+              - generic [ref=e500]:
+                - generic [ref=e501]: 0/29 lecții
+                - generic [ref=e502]: ~4.8h total · Avansat
+              - generic [ref=e504]:
+                - img [ref=e505]
+                - generic [ref=e508]: "Continuă: Creierul în Borcan"
+          - 'link "AI în Producție Avansat 0% completat De la experimentul local la sistemul care rulează 24/7 fără să cadă 0/26 lecții ~4.3h total · Avansat Continuă: De ce modelele eșuează în pr…" [ref=e510] [cursor=pointer]':
+            - /url: /courses/ai-in-productie
+            - generic [ref=e515]:
+              - generic [ref=e516]:
+                - generic [ref=e517]:
+                  - heading "AI în Producție" [level=3] [ref=e519]
+                  - generic [ref=e521]: Avansat
+                - generic [ref=e528]:
+                  - paragraph [ref=e529]: 0%
+                  - paragraph [ref=e530]: completat
+              - paragraph [ref=e531]: De la experimentul local la sistemul care rulează 24/7 fără să cadă
+              - generic [ref=e532]:
+                - generic [ref=e533]: 0/26 lecții
+                - generic [ref=e534]: ~4.3h total · Avansat
+              - generic [ref=e536]:
+                - img [ref=e537]
+                - generic [ref=e540]: "Continuă: De ce modelele eșuează în pr…"
+        - link "Vezi toate cursurile" [ref=e542] [cursor=pointer]:
+          - /url: /courses
+          - text: Vezi toate cursurile
+          - img [ref=e543]
+      - generic [ref=e546]:
+        - heading "Realizările tale" [level=2] [ref=e547]
+        - generic [ref=e548]:
+          - generic [ref=e549]:
+            - img [ref=e552]
+            - generic [ref=e558]:
+              - generic [ref=e559]: "0"
+              - generic [ref=e560]: Total XP
+          - generic [ref=e561]:
+            - img [ref=e564]
+            - generic [ref=e566]:
+              - generic [ref=e567]: "0"
+              - generic [ref=e568]: Streak curent
+              - generic [ref=e569]: zile consecutive
+          - generic [ref=e570]:
+            - img [ref=e573]
+            - generic [ref=e576]:
+              - generic [ref=e577]: "0"
+              - generic [ref=e578]: Insigne
+        - generic [ref=e579]:
+          - paragraph [ref=e580]: 🏆
+          - paragraph [ref=e581]: Începe primul curs!
+          - paragraph [ref=e582]: Completează lecții și badge-urile vor apărea aici.
+      - generic [ref=e584]:
+        - heading "Roadmap" [level=2] [ref=e585]
+        - generic [ref=e586]:
+          - generic [ref=e587]:
+            - generic [ref=e588]: Progres total
+            - generic [ref=e589]: 0/12 cursuri
+          - paragraph [ref=e591]: 0% din drumul tău spre Maestrul AI
+        - generic [ref=e592]:
+          - link "Hardware & Fizică + XP 0/30 lecții La 2 lecții/zi → gata în ~15 zile" [ref=e593] [cursor=pointer]:
+            - /url: /roadmap
+            - generic [ref=e600]:
+              - generic [ref=e601]:
+                - heading "Hardware & Fizică" [level=3] [ref=e603]
+                - generic [ref=e604]: + XP
+              - generic [ref=e607]: 0/30 lecții
+              - paragraph [ref=e608]:
+                - img [ref=e609]
+                - text: La 2 lecții/zi → gata în ~15 zile
+          - generic [ref=e613]:
+            - img [ref=e616]
+            - generic [ref=e619]:
+              - generic [ref=e620]:
+                - generic [ref=e621]:
+                  - heading "Sisteme de Operare" [level=3] [ref=e622]
+                  - generic [ref=e623]: Completează cursul anterior
+                - generic [ref=e624]: + XP
+              - generic [ref=e625]:
+                - img [ref=e626]
+                - text: 22 lecții
+          - generic [ref=e629]:
+            - img [ref=e632]
+            - generic [ref=e635]:
+              - generic [ref=e636]:
+                - generic [ref=e637]:
+                  - heading "Rețele & Internet" [level=3] [ref=e638]
+                  - generic [ref=e639]: Completează cursul anterior
+                - generic [ref=e640]: + XP
+              - generic [ref=e641]:
+                - img [ref=e642]
+                - text: 26 lecții
+          - generic [ref=e645]:
+            - img [ref=e648]
+            - generic [ref=e651]:
+              - generic [ref=e652]:
+                - generic [ref=e653]:
+                  - heading "Python & Inginerie Software" [level=3] [ref=e654]
+                  - generic [ref=e655]: Completează cursul anterior
+                - generic [ref=e656]: + XP
+              - generic [ref=e657]:
+                - img [ref=e658]
+                - text: 38 lecții
+          - generic [ref=e661]:
+            - img [ref=e664]
+            - generic [ref=e667]:
+              - generic [ref=e668]:
+                - generic [ref=e669]:
+                  - heading "Algoritmi & Structuri de Date" [level=3] [ref=e670]
+                  - generic [ref=e671]: Completează cursul anterior
+                - generic [ref=e672]: + XP
+              - generic [ref=e673]:
+                - img [ref=e674]
+                - text: 20 lecții
+          - generic [ref=e677]:
+            - img [ref=e680]
+            - generic [ref=e683]:
+              - generic [ref=e684]:
+                - generic [ref=e685]:
+                  - heading "Baze de Date & Ingineria Datelor" [level=3] [ref=e686]
+                  - generic [ref=e687]: Completează cursul anterior
+                - generic [ref=e688]: + XP
+              - generic [ref=e689]:
+                - img [ref=e690]
+                - text: 27 lecții
+          - generic [ref=e693]:
+            - img [ref=e696]
+            - generic [ref=e699]:
+              - generic [ref=e700]:
+                - generic [ref=e701]:
+                  - heading "Matematică pentru AI" [level=3] [ref=e702]
+                  - generic [ref=e703]: Completează cursul anterior
+                - generic [ref=e704]: + XP
+              - generic [ref=e705]:
+                - img [ref=e706]
+                - text: 21 lecții
+          - generic [ref=e709]:
+            - img [ref=e712]
+            - generic [ref=e715]:
+              - generic [ref=e716]:
+                - generic [ref=e717]:
+                  - heading "Machine Learning" [level=3] [ref=e718]
+                  - generic [ref=e719]: Completează cursul anterior
+                - generic [ref=e720]: + XP
+              - generic [ref=e721]:
+                - img [ref=e722]
+                - text: 22 lecții
+          - generic [ref=e725]:
+            - img [ref=e728]
+            - generic [ref=e731]:
+              - generic [ref=e732]:
+                - generic [ref=e733]:
+                  - heading "Deep Learning & Computer Vision" [level=3] [ref=e734]
+                  - generic [ref=e735]: Completează cursul anterior
+                - generic [ref=e736]: + XP
+              - generic [ref=e737]:
+                - img [ref=e738]
+                - text: 22 lecții
+          - generic [ref=e741]:
+            - img [ref=e744]
+            - generic [ref=e747]:
+              - generic [ref=e748]:
+                - generic [ref=e749]:
+                  - heading "AI Generativ & LLMs" [level=3] [ref=e750]
+                  - generic [ref=e751]: Completează cursul anterior
+                - generic [ref=e752]: + XP
+              - generic [ref=e753]:
+                - img [ref=e754]
+                - text: 38 lecții
+          - generic [ref=e757]:
+            - img [ref=e760]
+            - generic [ref=e763]:
+              - generic [ref=e764]:
+                - generic [ref=e765]:
+                  - heading "Agentic AI & MCP" [level=3] [ref=e766]
+                  - generic [ref=e767]: Completează cursul anterior
+                - generic [ref=e768]: + XP
+              - generic [ref=e769]:
+                - img [ref=e770]
+                - text: 29 lecții
+          - generic [ref=e773]:
+            - img [ref=e776]
+            - generic [ref=e779]:
+              - generic [ref=e780]:
+                - generic [ref=e781]:
+                  - heading "AI în Producție" [level=3] [ref=e782]
+                  - generic [ref=e783]: Completează cursul anterior
+                - generic [ref=e784]: + XP
+              - generic [ref=e785]:
+                - img [ref=e786]
+                - text: 26 lecții
+          - generic [ref=e788]:
+            - img [ref=e791]
+            - generic [ref=e794]:
+              - paragraph [ref=e795]: Mai multe cursuri în curând
+              - paragraph [ref=e796]: Curriculum-ul complet — de la matematică pentru AI până la transformere — este în dezvoltare.
+        - link "Vezi roadmap complet" [ref=e798] [cursor=pointer]:
+          - /url: /roadmap
+          - img [ref=e799]
+          - text: Vezi roadmap complet
+          - img [ref=e801]
+      - generic [ref=e804]:
+        - heading "Simulare interviu" [level=2] [ref=e805]
+        - generic [ref=e806]:
+          - generic [ref=e807]:
+            - paragraph [ref=e808]: "0"
+            - paragraph [ref=e809]: Flashcarduri
+            - link "Începe →" [ref=e810] [cursor=pointer]:
+              - /url: /interview
+          - generic [ref=e811]:
+            - paragraph [ref=e812]: "0"
+            - paragraph [ref=e813]: Simulări
+            - link "Începe →" [ref=e814] [cursor=pointer]:
+              - /url: /interview
+          - generic [ref=e815]:
+            - paragraph [ref=e816]: "12"
+            - paragraph [ref=e817]: Domenii
+        - link "Pregătește-te pentru interviu Simulează un interviu tehnic AI cu asistentul nostru. Primești întrebări reale din domeniul inteligenței artificiale și feedback instant pe răspunsuri. Începe interviul" [ref=e818] [cursor=pointer]:
+          - /url: /interview
+          - generic [ref=e820]:
+            - img [ref=e822]
+            - generic [ref=e824]:
+              - heading "Pregătește-te pentru interviu" [level=3] [ref=e825]
+              - paragraph [ref=e826]: Simulează un interviu tehnic AI cu asistentul nostru. Primești întrebări reale din domeniul inteligenței artificiale și feedback instant pe răspunsuri.
+              - generic [ref=e827]:
+                - text: Începe interviul
+                - img [ref=e828]
+        - generic [ref=e830]:
+          - link "Python" [ref=e831] [cursor=pointer]:
+            - /url: /interview
+            - img [ref=e832]
+            - text: Python
+          - link "Machine Learning" [ref=e836] [cursor=pointer]:
+            - /url: /interview
+            - img [ref=e837]
+            - text: Machine Learning
+          - link "React" [ref=e845] [cursor=pointer]:
+            - /url: /interview
+            - img [ref=e846]
+            - text: React
+          - link "SQL" [ref=e850] [cursor=pointer]:
+            - /url: /interview
+            - img [ref=e851]
+            - text: SQL
+          - link "Computer Vision" [ref=e855] [cursor=pointer]:
+            - /url: /interview
+            - img [ref=e856]
+            - text: Computer Vision
+        - generic [ref=e859]:
+          - link "Flashcard Ce este un \"transformer\" în contextul NLP?" [ref=e860] [cursor=pointer]:
+            - /url: /interview
+            - generic [ref=e861]:
+              - img [ref=e862]
+              - generic [ref=e864]: Flashcard
+            - paragraph [ref=e865]: Ce este un "transformer" în contextul NLP?
+          - link "Flashcard Explică diferența între supervised și unsupervised learning." [ref=e866] [cursor=pointer]:
+            - /url: /interview
+            - generic [ref=e867]:
+              - img [ref=e868]
+              - generic [ref=e876]: Flashcard
+            - paragraph [ref=e877]: Explică diferența între supervised și unsupervised learning.
+      - generic [ref=e879]:
+        - heading "Comunitatea DevPath" [level=2] [ref=e880]
+        - generic [ref=e881]:
+          - paragraph [ref=e882]: 🌱
+          - paragraph [ref=e883]: Fii printre primii care învață pe DevPath RO!
+          - paragraph [ref=e884]: Early Adopter — ești printre primii utilizatori ai platformei.
+        - generic [ref=e886]:
+          - paragraph [ref=e887]:
+            - generic [ref=e888]: "0"
+          - paragraph [ref=e889]: Utilizatori
+        - generic [ref=e890]:
+          - paragraph [ref=e892]: Activitate live
+          - generic [ref=e893]: Pe măsură ce comunitatea crește, vei vedea aici activitatea celorlalți.
+        - paragraph [ref=e894]: Înveți împreună cu alți români pasionați de tech.
+      - generic [ref=e896]:
+        - heading "Clasament" [level=2] [ref=e897]
+        - generic [ref=e898]:
+          - link "BM Locul 1 Bogdan Mare Nivel 3 0 XP" [ref=e899] [cursor=pointer]:
+            - /url: /leaderboard
+            - generic [ref=e903]:
+              - generic [ref=e904]:
+                - generic: 👑
+                - generic [ref=e906]: BM
+              - generic [ref=e907]:
+                - generic [ref=e909]:
+                  - img [ref=e910]
+                  - text: Locul 1
+                - heading "Bogdan Mare" [level=3] [ref=e912]
+                - paragraph [ref=e913]: Nivel 3
+              - generic [ref=e914]:
+                - paragraph [ref=e915]:
+                  - generic [ref=e916]: "0"
+                - paragraph [ref=e917]: XP
+          - link "2 MB Mare Bogdan Lv.1 0 XP 3 ? Lv.1 0 XP 4 ? Anonim (tu) Lv.1 0 XP" [ref=e918] [cursor=pointer]:
+            - /url: /leaderboard
+            - generic [ref=e919]:
+              - generic [ref=e920]: "2"
+              - generic [ref=e922]: MB
+              - generic [ref=e923]:
+                - generic [ref=e924]: Mare Bogdan
+                - generic [ref=e925]: Lv.1
+              - generic [ref=e926]:
+                - generic [ref=e927]: "0"
+                - text: XP
+            - generic [ref=e928]:
+              - generic [ref=e929]: "3"
+              - generic [ref=e931]: "?"
+              - generic [ref=e933]: Lv.1
+              - generic [ref=e934]:
+                - generic [ref=e935]: "0"
+                - text: XP
+            - generic [ref=e936]:
+              - generic [ref=e937]: "4"
+              - generic [ref=e939]: "?"
+              - generic [ref=e940]:
+                - generic [ref=e941]: Anonim (tu)
+                - generic [ref=e942]: Lv.1
+              - generic [ref=e943]:
+                - generic [ref=e944]: "0"
+                - text: XP
+        - paragraph [ref=e945]: Resetare săptămânală
+        - link "Vezi clasamentul complet" [ref=e947] [cursor=pointer]:
+          - /url: /leaderboard
+          - text: Vezi clasamentul complet
+          - img [ref=e948]
+      - generic [ref=e951]:
+        - heading "Portofoliu" [level=2] [ref=e952]
+        - link "T test Niv. 1 Curios 0 XP 0 Streak 0/25 Badge-uri 1 Nivel Deschide portofoliul" [ref=e953] [cursor=pointer]:
+          - /url: /profile
+          - generic [ref=e958]:
+            - generic [ref=e959]:
+              - generic [ref=e962]: T
+              - generic [ref=e963]:
+                - generic [ref=e964]:
+                  - heading "test" [level=3] [ref=e965]
+                  - generic [ref=e966]:
+                    - img [ref=e967]
+                    - text: Niv. 1
+                - paragraph [ref=e969]: Curios
+            - generic [ref=e970]:
+              - generic [ref=e971]:
+                - img [ref=e972]
+                - paragraph [ref=e978]: "0"
+                - paragraph [ref=e979]: XP
+              - generic [ref=e980]:
+                - img [ref=e981]
+                - paragraph [ref=e983]: "0"
+                - paragraph [ref=e984]: Streak
+              - generic [ref=e985]:
+                - img [ref=e986]
+                - paragraph [ref=e989]: 0/25
+                - paragraph [ref=e990]: Badge-uri
+              - generic [ref=e991]:
+                - img [ref=e992]
+                - paragraph [ref=e994]: "1"
+                - paragraph [ref=e995]: Nivel
+            - generic [ref=e997]:
+              - text: Deschide portofoliul
+              - img [ref=e998]
+      - generic [ref=e1001]:
+        - heading "Profil & Setări" [level=2] [ref=e1002]
+        - generic [ref=e1003]:
+          - link "Setări profil" [ref=e1005] [cursor=pointer]:
+            - /url: /profile
+            - img [ref=e1007]
+            - generic [ref=e1011]: Setări profil
+          - link "Badge-uri 0/25 câștigate" [ref=e1013] [cursor=pointer]:
+            - /url: /profile
+            - img [ref=e1015]
+            - generic [ref=e1018]:
+              - generic [ref=e1019]: Badge-uri
+              - generic [ref=e1020]: 0/25 câștigate
+          - link "Glosar" [ref=e1022] [cursor=pointer]:
+            - /url: /glossar
+            - img [ref=e1024]
+            - generic [ref=e1027]: Glosar
+          - link "Notificări" [ref=e1029] [cursor=pointer]:
+            - /url: /settings/notifications
+            - img [ref=e1031]
+            - generic [ref=e1035]: Notificări
+          - generic [ref=e1036]:
+            - generic [ref=e1041]: Temă
+            - button "Schimbă tema" [ref=e1042] [cursor=pointer]:
+              - img [ref=e1043]
+          - button "Deconectare" [ref=e1046] [cursor=pointer]:
+            - img [ref=e1048]
+            - generic [ref=e1051]: Deconectare
+  - navigation "Navigare principală" [ref=e1052]:
+    - generic [ref=e1053]:
+      - button "Acasă" [ref=e1054] [cursor=pointer]:
+        - img [ref=e1056]
+        - generic [ref=e1059]: Acasă
+      - button "Cursuri" [ref=e1060] [cursor=pointer]:
+        - img [ref=e1061]
+        - generic [ref=e1063]: Cursuri
+      - button "Interviu" [ref=e1064] [cursor=pointer]:
+        - img [ref=e1065]
+        - generic [ref=e1067]: Interviu
+      - button "Clasament" [ref=e1068] [cursor=pointer]:
+        - img [ref=e1069]
+        - generic [ref=e1071]: Clasament
+      - button "Profil" [ref=e1072] [cursor=pointer]:
+        - img [ref=e1073]
+        - generic [ref=e1076]: Profil

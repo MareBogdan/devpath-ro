@@ -153,6 +153,14 @@ export default async function LessonPage({ params }: PageProps) {
   const isComingSoon =
     lesson.is_published === false && (lesson.content_md ?? "").trim() === "";
 
+  // Game-only lessons: content_md is a single self-closing MDX component tag
+  // (e.g. `<BinaryTranslator />`). These have no prose to read, so the
+  // "Marchează completat" button must skip the read-scroll gate that normal
+  // theory/lesson pages use.
+  const isGameOnly = /^<[A-Z][a-zA-Z]+\s*\/>$/.test(
+    (lesson.content_md ?? "").trim()
+  );
+
   // Fetch gate questions (theory-like lessons only)
   // Dual-mode retired: load technical + both-mode questions, skip simple-only.
   const { data: gateQuestionsRaw } = isTheoryLike
@@ -195,9 +203,11 @@ export default async function LessonPage({ params }: PageProps) {
   const avatarUrl =
     (user?.user_metadata?.avatar_url as string | null | undefined) ?? null;
 
-  // Fetch existing project submission (project-like lessons only)
+  // Fetch existing project submission (only for actual `project` lessons —
+  // `boss` lessons reuse the project-like rendering path for game content
+  // but never show the portfolio submission form, so no fetch needed).
   const { data: existingProject } =
-    isProjectLike && user
+    lesson.type === "project" && user
       ? await supabase
           .from("projects")
           .select("id")
@@ -321,6 +331,7 @@ export default async function LessonPage({ params }: PageProps) {
                   avatarUrl={avatarUrl}
                   lessonTitle={lesson.title}
                   feedbackAlreadySubmitted={!!existingFeedback}
+                  isGameOnly={isGameOnly}
                 />
               )}
 
@@ -360,8 +371,11 @@ export default async function LessonPage({ params }: PageProps) {
                 />
               )}
 
-              {/* Project submission form (project + boss) */}
-              {isProjectLike && user && (
+              {/* Portfolio submission form — only on actual `project`
+                  lessons. `boss` lessons render their own game component
+                  via <LessonPageClient> above and don't take portfolio
+                  submissions. */}
+              {lesson.type === "project" && user && (
                 <ProjectSubmissionForm
                   courseId={course.id}
                   existingProjectId={existingProject?.id ?? null}

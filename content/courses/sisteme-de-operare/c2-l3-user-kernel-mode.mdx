@@ -1,0 +1,355 @@
+---
+title: "User Mode vs. Kernel Mode"
+order: 3
+type: lesson
+module_index: 2
+duration: 14
+difficulty: 3
+---
+
+# User Mode vs. Kernel Mode
+
+## HOOK
+
+Deschizi un fișier text în editor. Apeși Ctrl+S. Fișierul se salvează.
+
+Ceea ce nu vezi: editorul tău nu a atins niciodată discul. Nu poate. Fizic,
+hardware-ul i-a interzis. A trebuit să ceară permisiunea unui alt program —
+kernelul — care a verificat că ai dreptul să scrii acolo, a selectat driverul
+potrivit, a scris datele și ți-a raportat că totul a mers bine.
+
+Tot asta s-a întâmplat în câteva microsecunde. Și e de fapt o caracteristică,
+nu un bug. Dacă editorul tău ar putea scrie direct pe disc, la fel ar putea și
+orice malware de pe sistemul tău.
+
+Separarea asta — cine poate face ce — e implementată în siliciu. Nu în cod.
+În tranzistori.
+
+## CONTEXT
+
+Știi deja că procesele trăiesc în user space și că un syscall forțează o
+tranziție spre kernel. Știi că Ring 0 are privilegii complete și Ring 3 are
+restricții dure.
+
+Lecția asta deschide mecanismul exact: cum știe procesorul în ce mod rulează,
+ce e blocat și de ce, cum se schimbă modul, și ce catastrofe se pot întâmpla
+când lucrurile merg prost.
+
+## MIEZUL
+
+### CPL: Pașaportul Procesorului
+
+Un "mod de execuție" nu e o variabilă software. E o stare fizică a procesorului,
+impusă de hardware la fiecare ciclu de ceas.
+
+Pe arhitectura x86, nivelul curent de privilegiu se numește **CPL (Current
+Privilege Level)** și e stocat în biții 0–1 ai registrului **CS** (Code Segment).
+Doi biți → patru valori posibile → patru inele de protecție:
+
+{/* TABLE */}
+
+| Ring | CPL | Folosit de | Acces |
+|---|---|---|---|
+| Ring 0 | `00` | Kernel | Complet — toate instrucțiunile, toată memoria |
+| Ring 1 | `01` | Nefolosit | Conceput pentru drivere, abandonat |
+| Ring 2 | `10` | Nefolosit | Conceput pentru servicii OS, abandonat |
+| Ring 3 | `11` | Aplicații user | Restricționat — instrucțiuni ne-privilegiate |
+
+Ring 1 și Ring 2 există în specificație, dar sistemele de operare moderne nu le
+folosesc. Motivul: tranziția la Long Mode pe 64 de biți simplifică permisiunile
+la un singur bit binar User/Supervisor în paginare — Ring 1 și 2 devin irelevante.
+Rezultat: doar Ring 0 și Ring 3 contează în practică.
+
+La fiecare instrucțiune executată, hardware-ul verifică CPL. Dacă instrucțiunea
+e privilegiată și CPL ≠ 0 → **General Protection Fault** (#GP) imediat. Fără
+excepție, fără negociere.
+
+### User Mode: Viața în Cuști de Aur
+
+Un proces în Ring 3 trăiește într-o iluzie frumoasă: crede că are procesorul
+pentru el singur și că deține un bloc imens de memorie continuă. Amândouă sunt
+false — kernel-ul și MMU-ul le fabrica constant.
+
+**Ce poate face Ring 3:**
+instrucțiuni aritmetice (ADD, MUL), manipulare de date (MOV între registre
+generale), controlul fluxului local (JMP, CALL, RET), operații pe stivă (PUSH, POP).
+
+**Ce nu poate face Ring 3:**
+- `HLT` — oprirea procesorului
+- `CLI` / `STI` — dezactivarea/activarea întreruperilor
+- `LGDT` / `LIDT` — încărcarea tabelelor de descriptori
+- `MOV CR0/CR3/CR4` — modificarea registrelor de control
+- `WRMSR` / `RDMSR` — accesul la Model-Specific Registers
+- `IN` / `OUT` — comunicarea directă cu porturile hardware
+- `INVLPG` — invalidarea intrărilor din TLB
+
+De ce `IN`/`OUT` sunt blocate? Dacă o aplicație ar putea scrie direct pe
+porturile plăcii de rețea, ar putea trimite pachete ocolind complet firewall-ul
+și sistemul de permisiuni. Dacă ar putea citi direct din porturile tastaturii,
+ar fi un keylogger hardware gratuit.
+
+**Spațiul de adrese virtuale pe x86-64:**
+
+Adresele virtuale pe 64 de biți trebuie să fie "canonice" — biții 48–63 trebuie
+să fie copii exacte ale bitului 47. Asta împarte spațiul virtual în două regiuni:
+
+$$\text{User space: } 0x0000000000000000 \rightarrow 0x00007FFFFFFFFFFF \quad (128 \text{ TB})$$
+$$\text{Kernel space: } 0xFFFF800000000000 \rightarrow 0xFFFFFFFFFFFFFFFF \quad (128 \text{ TB})$$
+
+Procesul tău trăiește în cei 128 TB inferiori. Kernelul trăiește în cei 128 TB
+superiori. Dacă un proces din Ring 3 încearcă să acceseze o adresă din zona
+superioară — Page Fault → SIGSEGV → proces mort.
+
+**Lanțul complet la acces invalid:**
+1. Procesul accesează adresa interzisă
+2. MMU consultă Page Table Entry — bitul U/S = 0 (Supervisor only)
+3. CPU generează **Page Fault** (#14), salvează adresa vinovată în **CR2**
+4. Tranziție hardware la Ring 0 → handler `do_page_fault()` în kernel
+5. Kernelul analizează: acces legitim (demand paging)? → mapează pagina, retry
+6. Acces eronat (NULL pointer, zona kernel)? → `send_sig_fault()` → **SIGSEGV**
+7. Procesul moare. Sistemul continuă.
+
+### Kernel Mode: Privilegii Absolute, Responsabilitate Absolută
+
+Ring 0 nu are gardian. Codul din kernel space poate face orice — și orice
+greșeală e fatală.
+
+<FactBox>
+Instrucțiunea **CLI** (Clear Interrupt Flag) dezactivează toate întreruperile
+hardware mascabile. Dacă un proces Ring 3 ar putea executa CLI și intra apoi
+într-o buclă infinită, timer-ul OS-ului (care declanșează preemptarea CFS) ar
+fi ignorat de hardware. Procesorul ar fi blocat pentru totdeauna în acea buclă.
+Nicio intervenție software nu ar mai fi posibilă. Resetare hardware obligatorie.
+De aceea CLI e strict privilegiată Ring 0.
+</FactBox>
+
+**Kernel Stack vs. User Stack:**
+
+Fiecare proces are două stive complet separate:
+
+*User Stack* — în zona inferioară a spațiului virtual al procesului. Accesibilă
+din Ring 3. Crește dinamic (până la zeci de MB). Stack overflow → Page Fault →
+OS extinde stiva automat.
+
+*Kernel Stack* — în zona superioară, accesibilă doar din Ring 0. Dimensiuni fixe:
+**8KB pe 32-bit, 16KB pe 64-bit** (4 pagini). De ce fixă și mică? Kernelul
+evită recursivitate adâncă și alocări mari pe stivă. Stack overflow în kernel
+space = corupere silențioasă a structurilor de date alăturate → Kernel Panic sau
+privilege escalation greu detectabil.
+
+Soluția modernă: **CONFIG_VMAP_STACK** — stiva kernel e alocată virtual cu o
+"guard page" nealocată la capăt. Dacă kernelul depășește 16KB, MMU-ul detectează
+pagina nealocată → Page Fault → **Double Fault** (#8) → hardware comutat pe IST
+(stivă de urgență din TSS) → Kernel Panic curat cu stack trace.
+
+**Kernel preemption:**
+Un kernel non-preemptibil: odată intrat în Ring 0, procesul rămâne acolo până
+termină sau cedează voluntar. Latențe mari. Un kernel preemptibil (Linux cu
+`CONFIG_PREEMPT`): un fir în Ring 0 poate fi suspendat forțat de planificator
+în favoarea unui proces cu prioritate mai mare. Câștig: latențe mici, esențial
+pentru real-time. Preț: complexitate masivă — zonele critice din kernel dezactivează
+preemptarea temporar pentru a preveni deadlock-uri.
+
+### Tranziția User Mode → Kernel Mode
+
+Există exact trei căi de a intra în Ring 0:
+
+**1. System Call (voluntar, sincron)**
+Procesul cere explicit un serviciu kernelului. Pe x86-64: instrucțiunea
+`SYSCALL`. Hardware-ul face automat, fără a executa nicio linie de cod software:
+- Salvează **RIP** (adresa de întoarcere) în **RCX**
+- Salvează **RFLAGS** în **R11**
+- Maschează anumite flag-uri din RFLAGS (dezactivează întreruperile)
+- Încarcă noul **CS** cu CPL=0 (din MSR_STAR)
+- Sare la adresa din **MSR_LSTAR** → pe Linux: `entry_SYSCALL_64`
+
+Stiva e **încă** stiva user-ului. Prima operațiune critică a kernelului: `SWAPGS`.
+
+**2. Hardware Interrupt (asincron, forțat de hardware)**
+O placă de rețea primește un pachet. Timer-ul sistemului declanșează un tick.
+Tastatura înregistrează o apăsare. Controlerul APIC trimite un semnal electric.
+CPU suspendă orice rula și consultă **IDT**.
+
+**3. Exception / Fault (sincron, forțat de eroare)**
+CPU-ul detectează o anomalie în instrucțiunea curentă: Division by Zero (#0),
+Page Fault (#14), General Protection Fault (#13). Consultă IDT, transferă
+controlul handler-ului specific.
+
+**IDT (Interrupt Descriptor Table):**
+Tabelă cu fix **256 intrări** (vectori 0–255). Fiecare intrare: **16 bytes**
+(gate descriptor cu adresa ISR pe 64 de biți, selector de segment Ring 0, index
+IST). Total: $256 \times 16 = 4096 \text{ bytes} = \text{exact 4KB}$.
+
+Adresa bazei IDT e stocată în registrul **IDTR** (încărcat cu `LIDT`).
+
+**TSS (Task State Segment):**
+La întreruperi și excepții (căile 2 și 3), hardware-ul trebuie să schimbe
+stiva automat — spre deosebire de SYSCALL care lasă asta pe seama software-ului.
+CPU-ul citește din **TSS** (Task State Segment, 104 bytes pe 64-bit) adresa
+stivei de kernel din câmpul **RSP0** și o încarcă în RSP. Abia atunci împinge
+pe stivă contextul vechi: SS, RSP, RFLAGS, CS, RIP.
+
+**SWAPGS:**
+Primul lucru executat de `entry_SYSCALL_64` după SYSCALL. Schimbă valoarea din
+GS (folosit în user space pentru TLS) cu valoarea secretă din **MSR_KERNEL_GS_BASE**.
+Acum GS pointează la structurile **per-CPU** ale kernelului — inclusiv adresa
+kernel stack-ului procesului curent. Fără SWAPGS, kernelul n-ar putea găsi
+propriile structuri fără să corupă registrele user-ului.
+
+<CosmoHint emotion="thinking">
+De ce SYSCALL nu face și comutarea de stivă automat, cum fac întreruperile prin
+TSS? SYSCALL a fost proiectat de AMD pentru performanță maximă — orice acțiune
+hardware suplimentară adaugă cicluri. Comutarea stivei e lăsată pe seama
+software-ului (SWAPGS + câteva instrucțiuni assembly) pentru că e mai flexibilă
+și kernelul poate face validări suplimentare. Prețul: primele nanosecunde în
+kernel sunt critice — stiva user-ului e activă, orice întrerupere ar fi
+catastrofală fără protecție suplimentară.
+</CosmoHint>
+
+### Tranziția Kernel Mode → User Mode
+
+Ieșirea din Ring 0 are două mecanisme:
+
+**IRETQ** (Interrupt Return, 64-bit): instrucțiunea istorică, perechea pentru
+tranziții prin IDT. Preia de pe stiva kernel 5 valori: RIP, CS, RFLAGS, RSP, SS.
+5 accesări de memorie + verificări de permisiuni pe descriptori GDT/SS. Lentă
+dar completă.
+
+**SYSRET**: perechea optimizată a SYSCALL. Nu atinge memoria. Restaurează RIP
+din RCX, RFLAGS din R11, reîncarcă CS și SS din MSR_STAR. Totul din registre.
+De 3–4× mai rapid decât IRETQ.
+
+**Vulnerabilitatea CVE-2012-0217 (ret2user via SYSRET):**
+
+SYSRET trebuie să verifice că adresa de întoarcere din RCX e canonică înainte
+de a face tranziția. AMD și Intel au implementat această verificare în ordine
+inversată.
+
+AMD: verifică canonicitatea *înainte* de a coborî la CPL=3. Adresă necanonică
+→ #GP din Ring 0 → handler sigur.
+
+Intel: coboară la CPL=3 *prima*, *apoi* verifică. Adresă necanonică → #GP din
+Ring 3 → CPU trebuie să ridice din nou la Ring 0 prin IDT → stiva de kernel e
+parțial coruptă de contextul aruncat orbește.
+
+Rezultat: pe procesoare Intel, un proces putea furniza o adresă de întoarcere
+necanonică, corupe stiva kernel-ului și redirecționa execuția spre propriul cod
+din user space (ret2user) cu privilegii Ring 0. A afectat Xen, Windows 7,
+FreeBSD, Solaris, Linux. Mitigarea: kernelul verifică manual canonicitatea și
+cade pe IRETQ (lent dar sigur) dacă adresa e suspectă.
+
+### Protecția Memoriei: Bitul U/S și Extensiile de Securitate
+
+**Bitul U/S în Page Table Entry:**
+
+Fiecare intrare din tabelul de pagini (PTE) are un bit la poziția 2: **U/S
+(User/Supervisor)**. Valori:
+- `U/S = 0` → pagina aparține kernelului (Supervisor). Orice acces din CPL=3
+  generează Page Fault.
+- `U/S = 1` → pagina e accesibilă din user space.
+
+Kernelul mapează tot RAM-ul fizic în zona sa superioară (direct mapping) cu
+U/S=0. Aplicațiile nu pot vedea niciodată memoria fizică brută.
+
+**KASLR (Kernel Address Space Layout Randomization):**
+
+Fără randomizare, kernelul e mereu la aceleași adrese. Un atacator știe exact
+unde e funcția `commit_creds()` și poate construi atacuri ROP precise. KASLR
+randomizează adresa de bază a kernelului la boot.
+
+Limitare pe Linux: offset-ul e aliniat la pagini de 2MB într-un interval de 1GB
+→ doar **9 biți de entropie** → 512 locații posibile. Pe Windows 10 x64:
+**13 biți** → 8192 locații posibile. Dacă un atacator găsește un singur pointer
+kernel scurs (info leak), poate calcula adresele tuturor celorlalte funcții prin
+offset-uri fixe din imaginea compilată.
+
+**KPTI (Kernel Page Table Isolation) — răspunsul la Meltdown:**
+
+Meltdown (CVE-2017-5754) a exploatat execuția speculativă: CPU-ul executa
+speculative citiri din memoria kernel (protejată U/S=0) *înainte* de a verifica
+permisiunile. Datele ajungeau în cache L1. Procesul user putea citi latențele
+cache-ului (Flush+Reload) și reconstrui conținutul memoriei kernel la
+~500 KB/s. Patch-ul KPTI menține două seturi de tabele de pagini:
+
+- *User mode*: pagini user + o singură pagină kernel pentru `entry_SYSCALL_64`
+- *Kernel mode*: toate paginile kernel + mapare completă
+
+La fiecare tranziție user↔kernel, CPU-ul scrie în **CR3** (adresa tabelului de
+pagini). Asta golește **TLB**-ul complet.
+
+<FactBox>
+Overhead syscall **înainte** de KPTI: ~100–150 cicluri / ~1.40 µs. **După**
+KPTI: ~400–500 cicluri / >2.16 µs. O creștere de 3–4× pe operațiuni intensive
+de I/O. Pe servere web, degradarea poate atinge 30% din throughput. Mitigare
+parțială: **PCID** (Process-Context Identifiers) — evită golirea completă a
+TLB-ului prin tagarea intrărilor cu ID-ul procesului.
+</FactBox>
+
+**SMEP și SMAP:**
+
+*SMEP* (Supervisor Mode Execution Prevention) — activat prin bitul 20 din CR4.
+Dacă kernelul (CPL=0) încearcă să execute cod dintr-o pagină marcată U/S=1
+(user space), CPU-ul blochează fetch-ul și generează un fault. Neutralizează
+atacurile ret2user: kernelul nu mai poate fi redirecționat spre payload-uri din
+memorie user.
+
+*SMAP* (Supervisor Mode Access Prevention) — activat prin bitul 21 din CR4.
+Mai agresiv: blochează chiar și *citirea/scrierea* din paginile user când CPL=0.
+Kernelul legitim dezactivează temporar SMAP cu instrucțiunea `STAC` (Set AC
+Flag) înainte de `copy_from_user()`, apoi reactivează cu `CLAC` (Clear AC Flag).
+Orice acces accidental la memorie user în kernel space devine fault imediat.
+
+<CosmoHint emotion="thinking">
+Meltdown și Spectre sunt fundamental diferite. Meltdown era un bug de
+implementare specific Intel: CPU-ul nu verifica bitul U/S *înainte* de execuție
+speculativă. Se putea patch-ui complet prin KPTI. Spectre e o problemă de
+design arhitectural: antrenează *branch predictor-ul* procesorului să speculeze
+pe ramuri greșite, scurgând date prin timing de cache. Eliminator Spectre e
+aproape imposibil fără penalizări masive de performanță — e o caracteristică
+fundamentală a modului în care funcționează execuția speculativă modernă. Toate
+procesoarele out-of-order sunt vulnerabile la forme ale lui Spectre.
+</CosmoHint>
+
+### Seccomp și Syscall Filtering
+
+Izolarea la nivel de hardware (Ring 0/Ring 3) protejează kernel-ul de procese.
+Dar cine protejează un proces de el însuși?
+
+**seccomp-BPF** (Secure Computing with Berkeley Packet Filter) — un filtru de
+syscall-uri rulat în kernel înainte de fiecare syscall. Procesul poate instala
+o politică BPF care permite doar o listă albă de syscall-uri. Orice altceva →
+SIGKILL sau SIGSYS.
+
+Docker folosește seccomp pentru a bloca ~44 syscall-uri periculoase din cele
+~460+ disponibile (ex: `kexec_load`, `mount`, `create_module`). Chrome rulează
+procesele de renderer cu seccomp activat: dacă un site malițios exploatează un
+bug în motorul JavaScript, codul din renderer nu poate apela decât `read`,
+`write`, `exit` și câteva altele — sandbox escape e masiv îngreunat.
+
+Pe Windows, echivalentul e **Win32k.sys syscall filtering**: Microsoft a blocat
+accesul proceselor sandboxate la driverul grafic Win32k.sys din Ring 0 — sursa
+a zeci de zero-day-uri în trecut — prin politici de "token privileges" la
+crearea procesului.
+
+## REVEAL
+
+Separarea User Mode / Kernel Mode nu e o convenție software. E o proprietate
+fizică a procesorului, aplicată de hardware la fiecare instrucțiune prin biții
+CPL din registrul CS, prin bitul U/S din fiecare intrare de tabelă de pagini,
+și prin mecanisme ca SMEP și SMAP din CR4.
+
+Orice tranziție între moduri e costisitoare și controlată: SYSCALL/SYSRET pentru
+performanță, IRETQ pentru corectitudine, IDT + TSS pentru întreruperi și
+excepții. SWAPGS conectează kernel-ul la propriile structuri. KPTI plătește un
+cost de 3–4× la syscall-uri pentru a împiedica scurgerea memoriei kernel prin
+execuție speculativă.
+
+Și când mecanismele astea au găuri — CVE-2012-0217, Meltdown, Dirty COW — lumea
+descoperă că frontiera dintre Ring 0 și Ring 3 e mai fragilă decât pare.
+
+## ÎNCHEIERE
+
+Știi acum cum izolează hardware-ul procesele de kernel. Lecția următoare
+coboară un nivel mai jos: cum se naște un proces, ce structuri construiește
+kernelul pentru el, și ce se întâmplă exact în acele microsecunde dintre
+`fork()` și prima instrucțiune executată de noul proces.

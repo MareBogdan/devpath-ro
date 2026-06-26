@@ -1,0 +1,248 @@
+---
+title: "Permisiuni Unix: Cei 12 biți care controlează totul"
+order: 14
+type: lesson
+module_index: 2
+duration: 15
+difficulty: 4
+---
+
+# Permisiuni Unix: Cei 12 biți care controlează totul
+
+## HOOK
+
+Un fișier cu permisiuni `000`, deținut de root, poate fi șters de un utilizator obișnuit. Fără `sudo`. Fără niciun privilegiu special.
+
+Nu e un bug. E arhitectură intenționată — și dacă nu înțelegi de ce, vei face greșeli de securitate pe care nu le vei găsi niciodată prin `ls -la`.
+
+Un serviciu web care rulează ca root pentru că "altfel nu poate asculta pe portul 80" — greșit. Un script shell cu `setuid` care pare o soluție elegantă — periculos prin design. Un `/tmp` fără sticky bit — oricine poate șterge fișierele oricui.
+
+Modelul de permisiuni Unix are 50 de ani. Tot ce rulează pe Linux azi, de la containerele Docker la kernel-ul însuși, se bazează pe cei 12 biți din inode. Merită înțeleși complet.
+
+---
+
+## CONTEXT
+
+Fiecare obiect din filesystem — fișier, director, symlink, socket — are în inode un câmp de 16 biți numit `i_mode`. Patru biți definesc **tipul** obiectului (fișier regulat, director, symlink etc.). Restul de **12 biți** sunt matricea de securitate.
+
+Acești 12 biți se împart în două grupuri: 9 biți pentru permisiunile clasice `rwxrwxrwx` (trei clase × trei permisiuni) și 3 biți speciali — `setuid` (bit 11), `setgid` (bit 10), `sticky` (bit 9).
+
+Reprezentarea octală pe care o știi deja (`chmod 755`) folosește patru cifre, prima fiind biții speciali: `4755` = setuid + rwxr-xr-x, `2755` = setgid + rwxr-xr-x, `1777` = sticky + rwxrwxrwx.
+
+Cele trei clase: **owner** (u), **group** (g), **others** (o). Verificarea e ierarhică și se oprește la prima potrivire.
+
+---
+
+## MIEZUL
+
+### Cum verifică kernel-ul permisiunile
+
+Când un proces apelează `open()`, kernel-ul apelează `inode_permission()` → `do_inode_permission()` → `generic_permission()` → `acl_permission_check()`. Ordinea exactă din `acl_permission_check()`:
+
+**1. Bypass pentru capabilități:** Kernel-ul nu mai verifică pur și simplu `UID == 0`. Verifică dacă procesul are `CAP_DAC_OVERRIDE` sau `CAP_DAC_READ_SEARCH`. Dacă are `CAP_DAC_OVERRIDE`, verificările rwx sunt ignorate complet pentru citire și scriere. Excepție: dacă fișierul nu are **niciun** bit de execuție setat (`S_IXUGO == 0`), kernel-ul refuză execuția chiar și cu `CAP_DAC_OVERRIDE`. Root nu poate executa un fișier text întâmplător.
+
+**2. Clasa owner:** Compară `fsuid` al procesului cu `i_uid` din inode. Dacă se potrivesc, se aplică **doar** biții owner (deplasare cu 6 poziții la dreapta). Dacă biții owner nu permit operațiunea, acces refuzat cu `-EACCES` — chiar dacă `others` ar permite. Clasele nu se combină.
+
+**3. Clasa group:** Verifică dacă `fsgid` sau oricare din grupurile suplimentare ale procesului corespunde cu `i_gid` din inode. Dacă da, se aplică biții group (deplasare cu 3 poziții).
+
+**4. Clasa others:** Dacă procesul nu e nici owner, nici în grup, se aplică ultimii 3 biți.
+
+Identitatea procesului nu trăiește în `task_struct` direct — trăiește în `struct cred`, la care `task_struct` are un pointer. Separarea permite modificări atomice prin RCU (verificările de permisiuni sunt lockless).
+
+Structura `cred` conține opt identificatori în patru perechi UID/GID:
+
+{/* TABLE */}
+
+| Identificator | Rol |
+|---|---|
+| **ruid / rgid** (real) | Cine a lansat procesul. Folosit pentru semnale inter-proces și resource accounting. |
+| **euid / egid** (effective) | Identitatea de lucru. Verificată la majority syscall-uri și capabilities. Se schimbă la execuție setuid. |
+| **suid / sgid** (saved) | Valoarea anterioară a euid, salvată la execuția unui binar setuid. Permite renunțarea temporară la privilegii și redobândirea lor. |
+| **fsuid / fsgid** (filesystem) | Folosit **exclusiv** de VFS la verificarea permisiunilor pe disc. Linux-specific, apărut în kernel 1.2 pentru NFS. |
+
+`fsuid` există din cauza unui bug arhitectural vechi al NFS. Daemon-ul NFS trebuia să acceseze fișiere în numele unui client cu UID 1000. Dacă schimba `euid` la 1000, devenea vulnerabil la `SIGKILL` de la orice proces cu UID 1000 (regulile POSIX de semnale folosesc `euid`). Cu `fsuid` separat: menține `euid=0` (protecție la semnale), schimbă doar `fsuid=1000` (verificare corectă în VFS).
+
+---
+
+### Semantica directorului — diferit față de fișiere
+
+Pe directoare, `rwx` înseamnă altceva:
+
+- **r**: poate lista conținutul (`readdir`, `getdents`). Fără `r`, `ls` eșuează.
+- **x**: poate traversa directorul — adică poate accesa fișierele din el dacă îi cunoaște numele, poate face `cd`. Fără `x`, link_path_walk() din VFS se oprește la acel director indiferent de permisiunile fișierelor din interior.
+- **w**: poate modifica structura directorului — creare, ștergere, redenumire.
+
+Acum revin la exemplul din hook: **poți șterge un fișier `chmod 000` dacă ai `w` pe directorul părinte**. `rm` apelează `unlink()`. Operațiunea șterge **intrarea din director** (asocierea nume→inode), nu datele fișierului. Kernel-ul verifică permisiunile **directorului**, nu ale fișierului. Inode-ul și blocurile de date sunt eliberate abia când `i_nlink` ajunge la zero și niciun proces nu mai are fișierul deschis.
+
+**Sticky bit pe directoare** (`1777` pe `/tmp`): chiar dacă ai `w` pe director, poți șterge sau redenumi un fișier **doar dacă ești owner-ul fișierului**, owner-ul directorului, sau ai `CAP_FOWNER`. `vfs_unlink()` verifică explicit sticky bit înainte de a permite ștergerea. Fără sticky bit pe `/tmp`, orice utilizator poate șterge fișierele oricui.
+
+**Sticky bit pe fișiere executabile** — ignorat complet pe Linux modern. Istoric, pe sistemele Unix timpurii, activa menținerea segmentului de cod al executabilului în zona de swap după terminare, reducând timpul de re-lansare ("lipindu-l" acolo). Page cache-ul modern face acest mecanism redundant, iar kernel-ul Linux îl ignoră silențios pe fișiere regulate.
+
+<FactBox>
+**/tmp în cifre:**
+- Permisiuni: `1777` (sticky + world-writable)
+- Fără sticky bit: orice user cu `w` pe director poate șterge fișierele altora
+- Cu sticky bit: ștergerea e permisă doar owner-ului fișierului, owner-ului directorului, sau proceselor cu `CAP_FOWNER`
+- Protecție suplimentară: `fs.protected_symlinks=1` (default modern) — previne symlink attacks în directoare sticky world-writable
+</FactBox>
+
+---
+
+### setuid, setgid și umask
+
+**setuid pe executabile:** La `execve()`, kernel-ul apelează `cap_bprm_set_creds()` din `security/commoncap.c`. Dacă găsește `S_ISUID` în `i_mode` și partiția nu e montată cu `nosuid`, setează `euid` și `fsuid` ale noului proces la `i_uid` al fișierului.
+
+Exemplul canonic: `/usr/bin/passwd` — owned by root, permisiuni `4755`. Orice utilizator poate rula `passwd`. La execuție, `euid` devine 0, procesul poate scrie în `/etc/shadow` (permisiuni `640`, accesibil doar root și grupul shadow). Securitatea: codul `passwd` este hardcodat să modifice doar linia corespunzătoare `ruid`-ului apelantului, nu orice linie.
+
+**setuid pe shell scripts — ignorat deliberat:** Kernel-ul ignoră complet setuid pe scripturi. Motivul: race condition TOCTOU structurală. Kernel-ul deschide scriptul, citește shebang-ul, lansează interpretorul cu privilegii. Între lansare și momentul în care interpretorul **citește** scriptul, un atacator poate înlocui fișierul cu un symlink spre conținut controlat de el. Interpretorul privilegiat execută conținutul atacatorului. Loader-ul `load_script()` dezactivează suid/sgid pe orice fișier text.
+
+**setgid pe directoare:** Când un director are `S_ISGID`, orice fișier creat în el moștenește `GID`-ul directorului (nu `egid`-ul procesului creator). Subdirectoarele moștenesc și bitul setgid. Util pentru directoare de echipă — toți membrii grupului au acces, indiferent de `gid`-ul primar al creatorului.
+
+**umask:** Filtru substractiv aplicat la orice creare de fișier sau director:
+
+```
+permisiuni_finale = mod_cerut AND (NOT umask)
+```
+
+Default `0022`: `NOT(022) = 0755`. Fișier creat cu `0666` → `0666 AND 0755 = 0644`. Director creat cu `0777` → `0777 AND 0755 = 0755`.
+
+Umask e stocat per-proces în `task_struct→fs→umask`. Moștenit la `fork()`, supraviețuiește `execve()`. Daemon-urile apelează `umask(0)` la inițializare — nu știu cu ce umask au fost lansate și vor control complet asupra permisiunilor fișierelor pe care le creează.
+
+Din kernel 4.7, umask-ul unui proces e vizibil în `/proc/[pid]/status` la linia `Umask:`. Înainte: singura metodă era `umask(0)` urmat imediat de `umask(old_value)` — race condition pe multithreading cu `fs_struct` partajat.
+
+---
+
+### ACL-uri POSIX — când trei clase nu sunt suficiente
+
+Modelul rwx eșuează când vrei: Alice poate citi, Bob poate scrie, nimeni altcineva nu vede fișierul. Cu trei clase statice, asta e imposibil fără trucuri cu grupuri artificiale.
+
+ACL-urile POSIX adaugă intrări granulare: `user:alice:rw-`, `group:dev:r-x`, `mask::rwx`. Stocate ca extended attributes pe inode: `system.posix_acl_access` (pentru fișierul curent) și `system.posix_acl_default` (pe directoare, moștenit de fișierele noi create).
+
+**Câmpul `mask`** e critic: limitează efectiv permisiunile pentru toți named users și named groups. Dacă `mask::r--`, Alice cu `user:alice:rw-` primește efectiv doar `r--`. Owner și others nu sunt afectați de mask.
+
+Ordinea verificării în `posix_acl_permission()`:
+1. Owner match → aplică direct permisiunile owner
+2. Named user match (`ACL_USER`) → aplică permisiunile AND mask
+3. Owning group + named groups (OR logic între toate grupurile procesului) → aplică rezultatul AND mask
+4. Fallback la `others`
+
+Suport: ext4, XFS, Btrfs. Nu: FAT32, exFAT. Prezența unui ACL e indicată în `ls -l` prin `+` după permisiuni: `-rw-rw-r--+`.
+
+Comenzi practice: `getfacl fisier` afișează toate intrările ACL. `setfacl -m u:alice:rw- fisier` adaugă o intrare. `setfacl -x u:alice fisier` o șterge. `setfacl -d -m g:dev:rx director` setează ACL default pe director (moștenit de fișierele noi).
+
+<CosmoHint emotion="thinking">
+Câmpul `mask` din ACL pare redundant la prima vedere, dar rezolvă o problemă reală: utilitarele vechi care fac `chmod` pe un fișier cu ACL modifică implicit și `mask`-ul. Fără `mask`, un `chmod g-w` ar trebui să știe de toți named users și named groups și să-i modifice pe fiecare. Cu `mask`, un singur `chmod` schimbă efectiv plafon-ul pentru toată clasa intermediară dintr-o singură operație.
+</CosmoHint>
+
+---
+
+### Linux Capabilities — granularitatea modernă
+
+**Problema setuid root:** totul sau nimic. Un serviciu care are nevoie să asculte pe portul 80 primea toate privilegiile root. Orice vulnerabilitate în acel serviciu = compromitere completă a sistemului.
+
+Din kernel 2.2, privilegiile root sunt fragmentate în ~41 capabilities discrete (`CAP_LAST_CAP = 40` în kernel 5.x/6.x). Fiecare syscall privilegiat verifică capability-ul specific, nu UID 0.
+
+Capabilities esențiale de știut:
+
+{/* TABLE */}
+
+| Capability | Ce permite | Risc |
+|---|---|---|
+| `CAP_NET_BIND_SERVICE` | Bind pe porturi < 1024 | Scăzut |
+| `CAP_NET_RAW` | Raw sockets (ping, tcpdump) | Mediu |
+| `CAP_DAC_OVERRIDE` | Bypass complet verificări rwx | **Critic** |
+| `CAP_SETUID / CAP_SETGID` | Modificare UID/GID propriu | Înalt |
+| `CAP_SYS_PTRACE` | ptrace() pe orice proces | Înalt |
+| `CAP_KILL` | Semnale la orice proces | Mediu |
+| `CAP_CHOWN` | Schimbă owner-ul oricărui fișier | Înalt |
+| `CAP_SYS_ADMIN` | Meta-capability, >200 operații (mount, ioctl...) | **Echivalent root** |
+
+Fiecare proces are **5 seturi** de capabilities (măști de 64 biți în `struct cred`):
+
+- **Permitted (Pp):** Plafonul maxim. Ce nu e aici nu poate fi activat niciodată.
+- **Effective (Ep):** Ce e activ acum. Kernel-ul verifică acest set la fiecare syscall privilegiat.
+- **Inheritable (Ip):** Ce se poate propaga la `execve()` conform formulei de tranziție.
+- **Bounding (Bp):** Plafon absolut pentru tot arborele de procese descendent. Nu poate fi crescut.
+- **Ambient (Ap):** Introdus în kernel 4.3. Propagat automat la `execve()` fără a necesita file capabilities sau setuid.
+
+Formula de tranziție la `execve()`:
+```
+P'(permitted)  = (P(inheritable) AND F(inheritable)) OR (F(permitted) AND cap_bset) OR P(ambient)
+P'(effective)  = F(effective) ? P'(permitted) : P'(ambient)
+```
+
+Un serviciu web neprivilegiat care are nevoie doar de portul 80: `setcap cap_net_bind_service+ep /usr/bin/nginx`. Auditezi cu `getcap /usr/bin/nginx`. Nicio altă capability. Dacă nginx e compromis, atacatorul nu are `CAP_DAC_OVERRIDE`, nu poate citi `/etc/shadow`, nu poate monta sisteme de fișiere.
+
+Docker folosește acest model: `--cap-drop ALL --cap-add NET_BIND_SERVICE`. Containerul rulează cu UID 0 **intern** dar fără capabilities periculoase — compromiterea containerului nu dă acces la host.
+
+---
+
+### User Namespaces și rootless containers
+
+Un proces poate fi UID 0 în namespace-ul său dar UID 1000 pe host. Maparea e definită în `/proc/[pid]/uid_map` și `/proc/[pid]/gid_map`, cu sintaxa:
+
+```
+start_container_id   start_host_id   count
+0                    1000            1
+1                    100000          65536
+```
+
+Semantica: UID 0 din container = UID 1000 pe host. UID 1 din container = UID 100000 pe host. Când procesul "root" din container accesează un fișier, VFS vede `fsuid=1000` — utilizator obișnuit pe host.
+
+Dacă "root" din container încearcă să acceseze un fișier owned by UID 0 pe host, iar maparea nu include host UID 0, VFS tratează fișierul ca owned by `overflowuid` (65534 = nobody). Procesul primește doar permisiunile clasei `others`.
+
+Distincția cheie în kernel: `capable(CAP_SYS_ADMIN)` verifică capability-ul în `init_user_ns` (namespace-ul inițial al host-ului). `ns_capable(current_user_ns(), CAP_SYS_ADMIN)` verifică în namespace-ul curent. Driverele refactorizate modern folosesc `ns_capable` — permit operații izolate în namespace fără a acorda privilegii pe host.
+
+**Limitări importante:** Anumite capabilities rămân blocate în user namespaces neprivilegiate indiferent de mapări — `CAP_SYS_MODULE` (`init_module`, `delete_module`) și `CAP_MKNOD` pentru device nodes sunt interzise deliberat. Operațiile respective ar afecta kernel-ul global, dincolo de izolarea namespace-ului.
+
+<CosmoHint emotion="thinking">
+CVE-2021-4034 (PwnKit, CVSS 7.8) — o vulnerabilitate în `pkexec` activă nedetectată timp de 12 ani pe toate distro-urile Linux. Mecanismul: dacă execuți `pkexec` cu `argc=0` (fără argumente, posibil prin execve() direct), programul citea din `envp[0]` în loc de `argv[0]` — out-of-bounds pe stivă. Rezultatul: injectarea unei variabile `GCONV_PATH` în mediu, care forța `ld.so` să încarce o bibliotecă controlată de atacator cu privilegii root. Patch-ul a venit în ianuarie 2022. Orice sistem cu `polkit` instalat și neactualizat rămânea vulnerabil.
+</CosmoHint>
+
+---
+
+### Atacuri clasice pe permisiuni
+
+**TOCTOU pe permisiuni:** Un proces privilegiat face `access()` (check), apoi `open()` (use). Între cele două, atacatorul înlocuiește fișierul cu un symlink spre `/etc/shadow`. Trei parametri sysctl formează apărarea completă în directoare world-writable cu sticky bit:
+- `fs.protected_symlinks=1` (default): blochează urmărirea symlink-urilor dacă owner-ul symlink-ului diferă de owner-ul țintei
+- `fs.protected_regular=2`: blochează `open(O_CREAT)` pe fișiere regulate existente owned de alt user
+- `fs.protected_fifos=2`: același comportament pentru FIFO-uri (named pipes)
+
+Toate trei sunt activate implicit pe distribuțiile moderne. Verifici cu `sysctl fs.protected_symlinks fs.protected_regular fs.protected_fifos`.
+
+**PATH hijacking cu setuid binaries:** Un binar setuid root apelează intern `grep` fără cale absolută (`/bin/grep`). Atacatorul pune în `PATH` propriul director cu un fals `grep` compilat să lanseze un shell. Bitul setuid propagă `euid=0` la execuție. Fix: în codul binarelor setuid, reset `PATH` la valori sigure la start.
+
+**`find / -perm -4000 2>/dev/null`**: Găsește toate binarele setuid pe sistem. Primul pas în orice audit de securitate și în orice escaladare de privilegii post-compromise.
+
+**sudo CVE-2019-14287:** Regula `(ALL,!root) ALL` interzice explicit execuția ca root. Bypass: `sudo -u#-1 command`. Parser-ul converti `-1` în `0` (uint32 overflow). Patch: validare explicită a valorilor speciale de UID.
+
+**sudo CVE-2021-3156 (Baron Samedit):** Heap buffer overflow în `sudoedit -s`. Un argument terminat cu `\` singur (fără spațiu) depășea buffer-ul `user_args`, suprascriind variabile de mediu adiacente pe heap. Exploatabil pe 10 ani de versiuni sudo. CVSS 7.0.
+
+---
+
+## REVEAL
+
+Modelul complet de control al accesului în Linux, de la simplu la complex:
+
+{/* TABLE */}
+
+| Mecanism | Granularitate | Stocat în | Când se folosește |
+|---|---|---|---|
+| **rwx + setuid/setgid/sticky** | 3 clase (owner/group/others) | inode `i_mode` (12 biți) | Cazul general, 99% din sisteme |
+| **umask** | Per-creare de fișier | `task_struct→fs→umask` | Filtru implicit la orice `open(O_CREAT)` sau `mkdir` |
+| **ACL POSIX** | Per utilizator/grup individual | xattr pe inode (`system.posix_acl_*`) | Acces granular fără proliferare de grupuri |
+| **Capabilities** | ~41 privilegii discrete | `struct cred` (5 seturi × 64 biți) | Servicii care au nevoie de un singur privilegiu root |
+| **User Namespaces** | UID/GID mapping per namespace | `/proc/[pid]/uid_map` | Rootless containers, izolare completă |
+| **LSM (SELinux/AppArmor)** | Politici mandatory (MAC) | Module kernel + politici pe disc | Sisteme cu cerințe stricte de compliance |
+
+Ierarhia de evaluare la orice syscall: LSM (mandatory) → capabilities → rwx/ACL (discretionary). Discretionary Access Control (DAC) înseamnă că owner-ul unui obiect **decide** permisiunile. Mandatory Access Control (MAC) înseamnă că o politică centrală le impune, indiferent de dorința owner-ului.
+
+---
+
+## ÎNCHEIERE
+
+Cei 12 biți din inode sunt fundația. Capabilities sunt rafinamentul. User namespaces sunt izolarea completă.
+
+Un sistem securizat nu rulează servicii ca root "că e mai simplu". Rulează cu exact capabilitățile necesare, cu umask corect, cu sticky bit pe directoarele partajate și cu ACL-uri unde trei clase nu sunt suficiente.
+
+`find / -perm -4000 2>/dev/null` pe orice sistem nou. Dacă lista e lungă, ai de lucru.

@@ -574,6 +574,7 @@ function CPUBootAnimation({
           cy={d.cy}
           r={2}
           fill="#6C5CE7"
+          initial={false}
           animate={
             animate
               ? { opacity: [0.25, 1, 0.25] }
