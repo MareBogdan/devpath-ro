@@ -45,7 +45,11 @@ export function WowNote({ n }: { n: number | string }) {
 
 function WowNoteCard({ note }: { note: WowNoteRow }) {
   return (
-    <div className="relative my-7">
+    // data-wow-note: on desktop-with-notes the prose div becomes a grid and this card
+    // is excluded from the col-1 pin and lands in the right gutter (col 2). Below xl:
+    // or outside a grid these classes are inert and the card renders inline as before.
+    // self-start so a tall note doesn't stretch its grid row.
+    <div data-wow-note className="relative my-7 xl:col-start-2 xl:self-start">
       {/* teal glow on the left edge — Wow Notes' accent (vs FactBox's violet) */}
       <span
         aria-hidden

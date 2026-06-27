@@ -65,6 +65,12 @@ interface LessonPageClientProps {
    * inline cards by the MDX-embedded <WowNote> components.
    */
   wowNotes?: LessonWowNotes | null;
+  /**
+   * Desktop gutter switch (threaded from page.tsx as the single source of truth).
+   * When true AND at xl:, the reading chrome below the prose is held to the 680px
+   * reading column so it stays aligned with the text (the gutter sits to its right).
+   */
+  hasWowNotes?: boolean;
 }
 
 export function LessonPageClient({
@@ -84,6 +90,7 @@ export function LessonPageClient({
   isGameOnly = false,
   interactiveState,
   wowNotes,
+  hasWowNotes = false,
 }: LessonPageClientProps) {
   const router = useRouter();
   const { hasReachedEnd } = useReadingProgress();
@@ -158,9 +165,15 @@ export function LessonPageClient({
         lessonOrder={lessonOrder}
         interactiveState={interactiveState}
         wowNotes={wowNotes}
+        hasWowNotes={hasWowNotes}
         onGatingChange={setInlineComplete}
       />
 
+      {/* Reading chrome below the prose. On desktop-with-notes it is held to the
+          680px reading column (xl:pr-[332px] reserves the gutter) so the complete
+          button / next-CTA stay aligned with the text, not floated under the gutter.
+          Below xl: or 0-note lessons => no padding, identical to before. */}
+      <div className={hasWowNotes ? "xl:pr-[332px]" : undefined}>
       {/* Completion row */}
       <div className="mt-8 pt-6 border-t border-border flex items-center justify-between gap-4 flex-wrap">
         <LessonPresence
@@ -204,6 +217,7 @@ export function LessonPageClient({
           <ArrowRight className="h-5 w-5 shrink-0 text-[#6C5CE7] transition-transform duration-200 group-hover:translate-x-1" />
         </Link>
       )}
+      </div>
 
       {/* ─── Celebration layer ──────────────────────────────────────────── */}
       <MascotCelebrationOverlay

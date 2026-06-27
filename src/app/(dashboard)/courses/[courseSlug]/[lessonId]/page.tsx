@@ -165,6 +165,21 @@ export default async function LessonPage({ params }: PageProps) {
   const wowNotes =
     isTheoryLike && user ? await getLessonWowNotes(lessonId) : null;
 
+  // ── Desktop Wow-Note gutter (Sub-part B) ──────────────────────────────────
+  // ONE source of truth for the gutter switch. The 680px reading column widens to a
+  // shared 1012px shell (680 + 32 gap + 300 gutter) ONLY at xl: AND only when the
+  // lesson actually has notes — so every 0-note lesson (all live lessons today) and
+  // everything below xl: stays byte-identical to before. `railShellClass` reserves
+  // the gutter on the right (xl:pr-[332px]) so the non-grid blocks (header / footer /
+  // comments / completion chrome) keep their content over the 680px reading column.
+  const hasWowNotes = (wowNotes?.notes?.length ?? 0) > 0;
+  const shellClass = hasWowNotes
+    ? "max-w-[680px] xl:max-w-[1012px]"
+    : "max-w-[680px]";
+  const railShellClass = hasWowNotes
+    ? "max-w-[680px] xl:max-w-[1012px] xl:pr-[332px]"
+    : "max-w-[680px]";
+
   // Fetch bookmark status
   const { data: bookmark } = user
     ? await supabase
@@ -231,7 +246,7 @@ export default async function LessonPage({ params }: PageProps) {
     <div className="flex flex-col min-h-full">
       {/* Sticky lesson header */}
       <div className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b border-border px-6 py-3">
-        <div className="max-w-[680px] mx-auto flex items-center justify-between gap-4">
+        <div className={`${railShellClass} mx-auto flex items-center justify-between gap-4`}>
           {/* ← Back to course + breadcrumb */}
           <nav className="flex items-center gap-1.5 text-sm text-muted-foreground min-w-0">
             <Link
@@ -285,7 +300,7 @@ export default async function LessonPage({ params }: PageProps) {
 
       {/* Lesson content */}
       <div className="flex-1 px-6 py-8">
-        <div className="max-w-[680px] mx-auto">
+        <div className={`${shellClass} mx-auto`}>
           <h1 className="mb-8 text-balance bg-gradient-to-r from-[#6C5CE7] to-[#00CEC9] bg-clip-text pb-1 text-3xl font-bold leading-[1.15] text-transparent">
             {lesson.title}
           </h1>
@@ -324,6 +339,7 @@ export default async function LessonPage({ params }: PageProps) {
                   isGameOnly={isGameOnly}
                   interactiveState={interactiveState}
                   wowNotes={wowNotes}
+                  hasWowNotes={hasWowNotes}
                 />
               )}
 
@@ -380,7 +396,7 @@ export default async function LessonPage({ params }: PageProps) {
       {/* Lesson comments — hidden for coming-soon lessons */}
       {user && !isComingSoon && (
         <div className="px-6 pb-8">
-          <div className="max-w-[680px] mx-auto">
+          <div className={`${railShellClass} mx-auto`}>
             <Suspense fallback={<div className="h-32 rounded-xl bg-muted/40 animate-pulse" />}>
               <LessonComments
                 lessonId={lessonId}
@@ -411,7 +427,7 @@ export default async function LessonPage({ params }: PageProps) {
 
       {/* Sticky bottom — prev/next navigation only */}
       <div className="sticky bottom-0 border-t border-border bg-background/95 backdrop-blur px-6 py-4">
-        <div className="max-w-[680px] mx-auto flex items-center justify-between gap-4">
+        <div className={`${railShellClass} mx-auto flex items-center justify-between gap-4`}>
           {/* Prev navigation */}
           <div>
             {prevLesson ? (

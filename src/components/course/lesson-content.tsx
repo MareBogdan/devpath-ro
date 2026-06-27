@@ -21,6 +21,8 @@ interface LessonContentProps {
   interactiveState?: LessonInteractiveState | null;
   /** Contextual Wow Notes (theory path); empty/omitted otherwise. */
   wowNotes?: LessonWowNotes | null;
+  /** Desktop gutter switch (threaded from page.tsx; single source of truth). */
+  hasWowNotes?: boolean;
   /** Lifts the Variant-A inline gating signal up to LessonPageClient. */
   onGatingChange?: (allAnswered: boolean) => void;
 }
@@ -31,6 +33,7 @@ export function LessonContent({
   lessonOrder,
   interactiveState,
   wowNotes,
+  hasWowNotes = false,
   onGatingChange,
 }: LessonContentProps) {
   const isExercise = lessonType === "exercise" || lessonType === "project";
@@ -52,7 +55,7 @@ export function LessonContent({
   return (
     <div id="lesson-content">
       <div
-        className="animate-in fade-in duration-300 prose prose-slate dark:prose-invert max-w-none
+        className={`animate-in fade-in duration-300 prose prose-slate dark:prose-invert max-w-none
           prose-headings:font-bold prose-headings:tracking-tight
           prose-h2:text-[1.7rem] prose-h2:mt-12 prose-h2:mb-4
           [&_h2]:relative [&_h2]:pb-3
@@ -78,7 +81,11 @@ export function LessonContent({
           [&_td]:px-4 [&_td]:py-2.5 [&_td]:border [&_td]:border-[#6C5CE7]/[0.15]
           [&_tbody_tr:nth-child(odd)]:bg-white/[0.02]
           [&_tbody_tr:nth-child(even)]:bg-[#6C5CE7]/[0.05]
-          prose-li:text-[17px] prose-li:leading-[1.8] prose-li:text-foreground/90 prose-li:marker:text-primary"
+          prose-li:text-[17px] prose-li:leading-[1.8] prose-li:text-foreground/90 prose-li:marker:text-primary ${
+          hasWowNotes
+            ? "xl:grid xl:grid-cols-[680px_300px] xl:gap-x-8 xl:gap-y-0 [&>*:not([data-wow-note])]:xl:col-start-1"
+            : ""
+        }`}
       >
         <InteractiveLessonProvider
           interactiveState={state}
