@@ -4,6 +4,11 @@ import { useMemo } from "react";
 import { MDXRemote, type MDXRemoteSerializeResult } from "next-mdx-remote";
 import "highlight.js/styles/github-dark.css";
 import { getMdxComponents } from "@/components/mdx/mdx-components";
+import {
+  InteractiveLessonProvider,
+  emptyInteractiveState,
+} from "@/components/interactive/interactive-lesson-context";
+import type { LessonInteractiveState } from "@/types";
 
 interface LessonContentProps {
   /** MDX compiled on the server via next-mdx-remote/serialize in the lesson page. */
@@ -11,12 +16,18 @@ interface LessonContentProps {
   lessonType?: string;
   /** Lesson order number — used to determine Piston routing (lesson 13). */
   lessonOrder?: number;
+  /** Per-user inline-question state (theory path); empty/omitted otherwise. */
+  interactiveState?: LessonInteractiveState | null;
+  /** Lifts the Variant-A inline gating signal up to LessonPageClient. */
+  onGatingChange?: (allAnswered: boolean) => void;
 }
 
 export function LessonContent({
   mdxSource,
   lessonType = "theory",
   lessonOrder,
+  interactiveState,
+  onGatingChange,
 }: LessonContentProps) {
   const isExercise = lessonType === "exercise" || lessonType === "project";
   // Lesson 13 uses PyTorch/sklearn — must route through Piston server proxy.
@@ -26,6 +37,12 @@ export function LessonContent({
   const components = useMemo(
     () => getMdxComponents({ isExercise, executionMode }),
     [isExercise, executionMode]
+  );
+
+  // Stable empty state for lessons without inline questions (never blocks).
+  const state = useMemo(
+    () => interactiveState ?? emptyInteractiveState(),
+    [interactiveState]
   );
 
   return (
@@ -59,7 +76,12 @@ export function LessonContent({
           [&_tbody_tr:nth-child(even)]:bg-[#6C5CE7]/[0.05]
           prose-li:text-[17px] prose-li:leading-[1.8] prose-li:text-foreground/90 prose-li:marker:text-primary"
       >
-        <MDXRemote {...mdxSource} components={components} />
+        <InteractiveLessonProvider
+          interactiveState={state}
+          onGatingChange={onGatingChange}
+        >
+          <MDXRemote {...mdxSource} components={components} />
+        </InteractiveLessonProvider>
       </div>
     </div>
   );

@@ -6,7 +6,7 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { LessonContent } from "@/components/course/lesson-content";
 import type { MDXRemoteSerializeResult } from "next-mdx-remote";
-import { LessonGate } from "@/components/course/lesson-gate";
+import type { LessonInteractiveState } from "@/types";
 import { CompleteButton } from "@/components/course/complete-button";
 import { LessonFeedback } from "@/components/course/lesson-feedback";
 import {
@@ -64,6 +64,11 @@ interface LessonPageClientProps {
    * on the "Marchează completat" button must be skipped.
    */
   isGameOnly?: boolean;
+  /**
+   * Per-user inline-question state (theory path only). Drives the MDX-embedded
+   * <InlineQuestion> components and the Variant-A engagement gate.
+   */
+  interactiveState?: LessonInteractiveState | null;
 }
 
 export function LessonPageClient({
@@ -75,21 +80,28 @@ export function LessonPageClient({
   mdxSource,
   lessonType,
   lessonOrder,
-  gateQuestions,
+  // gateQuestions retained on the prop type for compatibility, but the old
+  // <LessonGate> render is retired — inline questions are the engagement gate now.
   userId,
   displayName,
   avatarUrl,
   lessonTitle,
   feedbackAlreadySubmitted,
   isGameOnly = false,
+  interactiveState,
 }: LessonPageClientProps) {
   const router = useRouter();
   const { hasReachedEnd } = useReadingProgress();
   const { requestPermissionAfterComplete } = usePushNotifications();
-  const [gateComplete, setGateComplete] = useState(
-    gateQuestions.length === 0
-  );
   const [lessonCompleted, setLessonCompleted] = useState(isCompleted);
+
+  // Variant-A inline gating: complete when every non-essay_ai question has been
+  // attempted (>= 1), regardless of correctness. Seed from prior attempts so a
+  // returning user (or a lesson with no inline questions) isn't forced to act.
+  const initialInlineComplete = (interactiveState?.questions ?? [])
+    .filter((q) => q.type !== "essay_ai")
+    .every((q) => (interactiveState?.attempts[q.id]?.attempts ?? 0) >= 1);
+  const [inlineComplete, setInlineComplete] = useState(initialInlineComplete);
 
   // ─── Celebration state ────────────────────────────────────────────────────
   const [celebrationState, setCelebrationState] =
@@ -109,7 +121,8 @@ export function LessonPageClient({
   // scroll-to-end read gate — there's nothing to read.
   const effectiveReadingComplete =
     isTheory && !isGameOnly ? hasReachedEnd : true;
-  const effectiveGateComplete = isTheory ? gateComplete : true;
+  // Inline questions are the engagement gate now (the old <LessonGate> is retired).
+  const effectiveInlineComplete = isTheory ? inlineComplete : true;
 
   function handleLessonComplete(result: MarkCompleteResult) {
     setLessonCompleted(true);
@@ -148,16 +161,9 @@ export function LessonPageClient({
         mdxSource={mdxSource}
         lessonType={lessonType}
         lessonOrder={lessonOrder}
+        interactiveState={interactiveState}
+        onGatingChange={setInlineComplete}
       />
-
-      {isTheory && (
-        <LessonGate
-          questions={gateQuestions}
-          lessonId={lessonId}
-          visible={hasReachedEnd}
-          onAllCorrect={() => setGateComplete(true)}
-        />
-      )}
 
       {/* Completion row */}
       <div className="mt-8 pt-6 border-t border-border flex items-center justify-between gap-4 flex-wrap">
@@ -174,7 +180,7 @@ export function LessonPageClient({
           isCompleted={lessonCompleted}
           nextLessonId={nextLessonId}
           isReadingComplete={effectiveReadingComplete}
-          isGateComplete={effectiveGateComplete}
+          isInlineComplete={effectiveInlineComplete}
           onCompleted={handleLessonComplete}
         />
       </div>

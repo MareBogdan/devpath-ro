@@ -21,6 +21,7 @@ import {
   Lock,
 } from "lucide-react";
 import { LessonPageClient } from "@/components/course/lesson-page-client";
+import { getLessonInteractiveState } from "@/app/(dashboard)/courses/inline-loaders";
 import { BookmarkButton } from "@/components/course/bookmark-button";
 import { QuizSection } from "@/components/course/quiz-section";
 import { AICoachChat } from "@/components/course/ai-coach-chat";
@@ -173,6 +174,10 @@ export default async function LessonPage({ params }: PageProps) {
     : { data: [] };
 
   const gateQuestions = (gateQuestionsRaw ?? []) as GateQuestion[];
+
+  // Inline-question interactive state (theory-like lessons only; RLS-scoped).
+  const interactiveState =
+    isTheoryLike && user ? await getLessonInteractiveState(lessonId) : null;
 
   // Fetch bookmark status
   const { data: bookmark } = user
@@ -332,6 +337,7 @@ export default async function LessonPage({ params }: PageProps) {
                   lessonTitle={lesson.title}
                   feedbackAlreadySubmitted={!!existingFeedback}
                   isGameOnly={isGameOnly}
+                  interactiveState={interactiveState}
                 />
               )}
 
