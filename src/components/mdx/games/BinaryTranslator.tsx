@@ -647,55 +647,6 @@ function BitButton({
   );
 }
 
-function BinaryExplainer() {
-  const example = 42;
-  const exampleBits = numberToBits(example);
-  return (
-    <div className="rounded-xl border border-[#6C5CE7]/25 bg-[#6C5CE7]/[0.06] p-4">
-      <div className="mb-2 flex items-baseline justify-center gap-2 font-mono text-sm">
-        <span className="text-2xl font-bold text-foreground">{example}</span>
-        <span className="text-muted-foreground">=</span>
-        <span className="text-[#6C5CE7] font-semibold">32</span>
-        <span className="text-muted-foreground">+</span>
-        <span className="text-[#6C5CE7] font-semibold">8</span>
-        <span className="text-muted-foreground">+</span>
-        <span className="text-[#6C5CE7] font-semibold">2</span>
-      </div>
-      <div className="grid grid-cols-8 gap-1.5">
-        {BIT_WEIGHTS.map((w, i) => {
-          const on = exampleBits[i];
-          return (
-            <div
-              key={w}
-              className={cn(
-                "flex aspect-square flex-col items-center justify-center rounded-md border text-xs font-mono",
-                on
-                  ? "border-[#6C5CE7] bg-[#6C5CE7] text-white shadow-[0_0_10px_rgba(108,92,231,0.45)]"
-                  : "border-border bg-muted/30 text-muted-foreground"
-              )}
-            >
-              <span className="text-sm font-bold leading-none">
-                {on ? "1" : "0"}
-              </span>
-              <span
-                className={cn(
-                  "mt-0.5 text-[9px] leading-none",
-                  on ? "text-white/80" : "text-muted-foreground/70"
-                )}
-              >
-                {w}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-      <p className="mt-3 text-center text-xs text-muted-foreground">
-        Pornește biții ale căror valori se adună la numărul țintă.
-      </p>
-    </div>
-  );
-}
-
 function Stars({ count }: { count: number }) {
   return (
     <div className="flex items-center justify-center gap-1.5" aria-label={`${count} din 3 stele`}>

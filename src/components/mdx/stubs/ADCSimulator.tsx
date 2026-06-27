@@ -1,5 +1,3 @@
-import type { ReactNode } from "react";
-
 /**
  * ADCSimulator — stub placeholder.
  *
@@ -10,7 +8,7 @@ import type { ReactNode } from "react";
  *
  * Replace with the real component when it is implemented.
  */
-export function ADCSimulator(_props: { children?: ReactNode }) {
+export function ADCSimulator() {
   return (
     <div className="my-6 rounded-xl border border-[#00CEC9]/40 bg-[#00CEC9]/5 p-4 text-sm text-[#00CEC9]">
       🚧 ADCSimulator — în curând

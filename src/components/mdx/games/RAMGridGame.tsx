@@ -1044,12 +1044,12 @@ export function RAMGridGame() {
                     <div className="border border-white/[0.08] bg-white/[0.02] p-3 font-mono text-[10px] text-white/55 leading-relaxed">
                       {currentInstr?.kind === "write" ? (
                         <>
-                          <span className="text-[#00CEC9]">// WRITE</span> —
+                          <span className="text-[#00CEC9]">{"// WRITE"}</span> —
                           click pe celula evidențiată în teal.
                         </>
                       ) : currentInstr?.kind === "read" ? (
                         <>
-                          <span className="text-[#6C5CE7]">// READ</span> —
+                          <span className="text-[#6C5CE7]">{"// READ"}</span> —
                           găsește celula de la adresa{" "}
                           <span className="text-white">
                             {formatHexAddr(currentInstr.address)}
