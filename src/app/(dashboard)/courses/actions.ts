@@ -200,44 +200,6 @@ export async function markLessonComplete(
   };
 }
 
-// ─── Award Gate XP ────────────────────────────────────────────────────────────
-
-export async function awardGateXP(
-  _questionId: string,
-  lessonId: string
-): Promise<void> {
-  const supabase = createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return;
-
-  // Increment score in user_progress for this lesson
-  const { data: progress } = await supabase
-    .from("user_progress")
-    .select("score")
-    .eq("user_id", user.id)
-    .eq("lesson_id", lessonId)
-    .single();
-
-  const currentScore = progress?.score ?? 0;
-  await supabase.from("user_progress").upsert(
-    {
-      user_id: user.id,
-      lesson_id: lessonId,
-      score: currentScore + 5,
-    },
-    { onConflict: "user_id,lesson_id" }
-  );
-
-  // Increment user XP via Postgres function
-  await supabase.rpc("increment_user_xp", {
-    user_id_param: user.id,
-    xp_amount: 5,
-  });
-
-}
-
 // ─── Toggle Bookmark ──────────────────────────────────────────────────────────
 
 export async function toggleBookmark(
