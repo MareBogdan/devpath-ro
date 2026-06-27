@@ -16,7 +16,6 @@ interface CompleteButtonProps {
   isCompleted: boolean;
   nextLessonId: string | null;
   isReadingComplete?: boolean; // defaults true for quiz/exercise/project
-  isGateComplete?: boolean;    // defaults true when no gate questions
   isInlineComplete?: boolean;  // defaults true when no inline questions (Variant A: all attempted)
   onCompleted?: (result: MarkCompleteResult) => void;
 }
@@ -27,7 +26,6 @@ export function CompleteButton({
   isCompleted: initialCompleted,
   nextLessonId: initialNextId,
   isReadingComplete = true,
-  isGateComplete = true,
   isInlineComplete = true,
   onCompleted,
 }: CompleteButtonProps) {
@@ -36,11 +34,10 @@ export function CompleteButton({
   const [isCompleted, setIsCompleted] = useState(initialCompleted);
   const [nextLessonId, setNextLessonId] = useState(initialNextId);
 
-  const isUnlocked = isReadingComplete && isGateComplete && isInlineComplete;
+  const isUnlocked = isReadingComplete && isInlineComplete;
 
   let tooltipText = "";
   if (!isReadingComplete) tooltipText = "Citește lecția mai întâi 📖";
-  else if (!isGateComplete) tooltipText = "Răspunde la întrebările de mai jos";
   else if (!isInlineComplete) tooltipText = "Răspunde la întrebările din lecție";
 
   function fireConfetti() {
@@ -122,7 +119,7 @@ export function CompleteButton({
             <BookOpen className="h-4 w-4" />
             Marchează completat
           </>
-        ) : !isGateComplete || !isInlineComplete ? (
+        ) : !isInlineComplete ? (
           <>
             <Brain className="h-4 w-4" />
             Marchează completat

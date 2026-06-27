@@ -23,14 +23,6 @@ import type { MarkCompleteResult, MinigameType } from "@/app/(dashboard)/courses
 import type { AwardedBadge } from "@/lib/gamification-constants";
 import { usePushNotifications } from "@/hooks/use-push-notifications";
 
-interface GateQuestion {
-  id: string;
-  question: string;
-  options: string[];
-  correct_answer: number;
-  explanation: string;
-}
-
 interface CelebrationState {
   show: boolean;
   xp: number;
@@ -50,7 +42,6 @@ interface LessonPageClientProps {
   mdxSource: MDXRemoteSerializeResult;
   lessonType: string;
   lessonOrder?: number;
-  gateQuestions: GateQuestion[];
   // Presence
   userId: string;
   displayName: string;
@@ -80,8 +71,6 @@ export function LessonPageClient({
   mdxSource,
   lessonType,
   lessonOrder,
-  // gateQuestions retained on the prop type for compatibility, but the old
-  // <LessonGate> render is retired — inline questions are the engagement gate now.
   userId,
   displayName,
   avatarUrl,

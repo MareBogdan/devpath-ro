@@ -66,14 +66,6 @@ const lessonTypeLabels: Record<string, string> = {
   boss: "Boss Fight",
 };
 
-interface GateQuestion {
-  id: string;
-  question: string;
-  options: string[];
-  correct_answer: number;
-  explanation: string;
-}
-
 export default async function LessonPage({ params }: PageProps) {
   const { courseSlug, lessonId } = params;
   const supabase = createSupabaseServerClient();
@@ -161,19 +153,6 @@ export default async function LessonPage({ params }: PageProps) {
   const isGameOnly = /^<[A-Z][a-zA-Z]+\s*\/>$/.test(
     (lesson.content_md ?? "").trim()
   );
-
-  // Fetch gate questions (theory-like lessons only)
-  // Dual-mode retired: load technical + both-mode questions, skip simple-only.
-  const { data: gateQuestionsRaw } = isTheoryLike
-    ? await supabase
-        .from("lesson_gate_questions")
-        .select("id, question, options, correct_answer, explanation")
-        .eq("lesson_id", lessonId)
-        .in("mode", ["technical", "both"])
-        .order("display_order")
-    : { data: [] };
-
-  const gateQuestions = (gateQuestionsRaw ?? []) as GateQuestion[];
 
   // Inline-question interactive state (theory-like lessons only; RLS-scoped).
   const interactiveState =
@@ -330,7 +309,6 @@ export default async function LessonPage({ params }: PageProps) {
                   mdxSource={mdxSource}
                   lessonType={lesson.type}
                   lessonOrder={lesson.order_index}
-                  gateQuestions={gateQuestions}
                   userId={user.id}
                   displayName={displayName}
                   avatarUrl={avatarUrl}
@@ -368,7 +346,6 @@ export default async function LessonPage({ params }: PageProps) {
                   mdxSource={mdxSource}
                   lessonType={lesson.type}
                   lessonOrder={lesson.order_index}
-                  gateQuestions={[]}
                   userId={user.id}
                   displayName={displayName}
                   avatarUrl={avatarUrl}
