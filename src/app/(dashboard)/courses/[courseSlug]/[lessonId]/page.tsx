@@ -21,7 +21,10 @@ import {
   Lock,
 } from "lucide-react";
 import { LessonPageClient } from "@/components/course/lesson-page-client";
-import { getLessonInteractiveState } from "@/app/(dashboard)/courses/inline-loaders";
+import {
+  getLessonInteractiveState,
+  getLessonWowNotes,
+} from "@/app/(dashboard)/courses/inline-loaders";
 import { BookmarkButton } from "@/components/course/bookmark-button";
 import { QuizSection } from "@/components/course/quiz-section";
 import { AICoachChat } from "@/components/course/ai-coach-chat";
@@ -157,6 +160,10 @@ export default async function LessonPage({ params }: PageProps) {
   // Inline-question interactive state (theory-like lessons only; RLS-scoped).
   const interactiveState =
     isTheoryLike && user ? await getLessonInteractiveState(lessonId) : null;
+
+  // Wow Notes — contextual side-notes (theory-like lessons only; auth-read).
+  const wowNotes =
+    isTheoryLike && user ? await getLessonWowNotes(lessonId) : null;
 
   // Fetch bookmark status
   const { data: bookmark } = user
@@ -316,6 +323,7 @@ export default async function LessonPage({ params }: PageProps) {
                   feedbackAlreadySubmitted={!!existingFeedback}
                   isGameOnly={isGameOnly}
                   interactiveState={interactiveState}
+                  wowNotes={wowNotes}
                 />
               )}
 

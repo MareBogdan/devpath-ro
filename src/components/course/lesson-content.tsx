@@ -8,7 +8,8 @@ import {
   InteractiveLessonProvider,
   emptyInteractiveState,
 } from "@/components/interactive/interactive-lesson-context";
-import type { LessonInteractiveState } from "@/types";
+import { WowNotesProvider } from "@/components/interactive/wow-notes-context";
+import type { LessonInteractiveState, LessonWowNotes } from "@/types";
 
 interface LessonContentProps {
   /** MDX compiled on the server via next-mdx-remote/serialize in the lesson page. */
@@ -18,6 +19,8 @@ interface LessonContentProps {
   lessonOrder?: number;
   /** Per-user inline-question state (theory path); empty/omitted otherwise. */
   interactiveState?: LessonInteractiveState | null;
+  /** Contextual Wow Notes (theory path); empty/omitted otherwise. */
+  wowNotes?: LessonWowNotes | null;
   /** Lifts the Variant-A inline gating signal up to LessonPageClient. */
   onGatingChange?: (allAnswered: boolean) => void;
 }
@@ -27,6 +30,7 @@ export function LessonContent({
   lessonType = "theory",
   lessonOrder,
   interactiveState,
+  wowNotes,
   onGatingChange,
 }: LessonContentProps) {
   const isExercise = lessonType === "exercise" || lessonType === "project";
@@ -80,7 +84,9 @@ export function LessonContent({
           interactiveState={state}
           onGatingChange={onGatingChange}
         >
-          <MDXRemote {...mdxSource} components={components} />
+          <WowNotesProvider notes={wowNotes?.notes ?? null}>
+            <MDXRemote {...mdxSource} components={components} />
+          </WowNotesProvider>
         </InteractiveLessonProvider>
       </div>
     </div>

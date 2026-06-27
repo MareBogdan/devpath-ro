@@ -14,6 +14,7 @@ import { RAMGridGame } from "@/components/mdx/games/RAMGridGame";
 import { BossFightAlarmaSef } from "@/components/mdx/games/boss-alarms/BossFightAlarmaSef";
 import { BossFightAsambleazaCPU } from "@/components/mdx/games/boss-cpu/BossFightAsambleazaCPU";
 import { InlineQuestion } from "@/components/interactive/inline-question";
+import { WowNote } from "@/components/interactive/wow-note";
 
 // Monaco needs browser globals — never SSR it.
 const CodeEditor = dynamic(
@@ -73,6 +74,7 @@ export function getMdxComponents({
     CosmoHint,
     LabBox,
     InlineQuestion,
+    WowNote,
 
     // ── Stub components (placeholders — real component not built yet) ──
     ADCSimulator,

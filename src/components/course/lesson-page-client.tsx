@@ -6,7 +6,7 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { LessonContent } from "@/components/course/lesson-content";
 import type { MDXRemoteSerializeResult } from "next-mdx-remote";
-import type { LessonInteractiveState } from "@/types";
+import type { LessonInteractiveState, LessonWowNotes } from "@/types";
 import { CompleteButton } from "@/components/course/complete-button";
 import { LessonFeedback } from "@/components/course/lesson-feedback";
 import {
@@ -60,6 +60,11 @@ interface LessonPageClientProps {
    * <InlineQuestion> components and the Variant-A engagement gate.
    */
   interactiveState?: LessonInteractiveState | null;
+  /**
+   * Contextual Wow Notes (theory path; auth-read, no per-user state). Rendered as
+   * inline cards by the MDX-embedded <WowNote> components.
+   */
+  wowNotes?: LessonWowNotes | null;
 }
 
 export function LessonPageClient({
@@ -78,6 +83,7 @@ export function LessonPageClient({
   feedbackAlreadySubmitted,
   isGameOnly = false,
   interactiveState,
+  wowNotes,
 }: LessonPageClientProps) {
   const router = useRouter();
   const { hasReachedEnd } = useReadingProgress();
@@ -151,6 +157,7 @@ export function LessonPageClient({
         lessonType={lessonType}
         lessonOrder={lessonOrder}
         interactiveState={interactiveState}
+        wowNotes={wowNotes}
         onGatingChange={setInlineComplete}
       />
 
