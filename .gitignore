@@ -36,3 +36,20 @@ yarn-error.log*
 next-env.d.ts
 
 .claude/settings.json
+
+# ── Local QA / test artifacts (Playwright MCP) ──────────────────────────────
+# Session residue (console logs + page-snapshot .yml files)
+.playwright-mcp/
+# Throwaway QA verification screenshots — prefer .qa-screenshots/ going forward.
+# The root-anchored globs catch the ephemeral naming we generate; they do NOT
+# match the intentionally-tracked qa-l*.png documentation screenshots.
+.qa-screenshots/
+/gutter*.png
+/wownote-*.png
+/q[0-9]-*.png
+/gating-*.png
+/fix-bug*.png
+
+# Claude Code local settings (per-machine MCP permission allowlist; mirrors the
+# already-ignored .claude/settings.json above)
+.claude/settings.local.json
