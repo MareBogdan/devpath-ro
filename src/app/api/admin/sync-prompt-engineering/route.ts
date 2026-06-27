@@ -108,8 +108,7 @@ export async function POST(): Promise<NextResponse> {
         continue;
       }
 
-      // Dual-mode retired: only sync the standard MDX file. Existing
-      // content_simple_md column is left untouched in the DB.
+      // Dual-mode retired: sync the standard content_md only.
       const lessonData = {
         course_id: course.id,
         title: frontmatter.title,

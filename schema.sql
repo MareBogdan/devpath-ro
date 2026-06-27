@@ -29,7 +29,6 @@ create table public.users (
   role                   text not null default 'student' check (role in ('student', 'admin')),
   -- Onboarding
   onboarding_completed   boolean not null default false,
-  learning_mode          text not null default 'simple' check (learning_mode in ('simple', 'technical')),
   profile_type           text,
   learning_goal          text,
   skill_level            integer,
@@ -297,27 +296,6 @@ create policy "Users can manage own feedback"
   on public.lesson_feedback for all
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
-
--- ============================================================
--- LESSON GATE QUESTIONS TABLE
--- ============================================================
-create table public.lesson_gate_questions (
-  id            uuid primary key default uuid_generate_v4(),
-  lesson_id     uuid references public.lessons(id) on delete cascade not null,
-  question      text not null,
-  options       jsonb not null default '[]'::jsonb,
-  correct_answer integer not null,
-  explanation   text not null default '',
-  mode          text not null default 'both' check (mode in ('simple', 'technical', 'both')),
-  display_order integer not null default 0
-);
-
-alter table public.lesson_gate_questions enable row level security;
-
-create policy "Gate questions viewable by authenticated users"
-  on public.lesson_gate_questions for select
-  to authenticated
-  using (true);
 
 -- ============================================================
 -- FLASHCARDS TABLE

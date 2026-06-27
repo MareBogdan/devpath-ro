@@ -93,20 +93,10 @@ async function main() {
         continue;
       }
 
-      // Simple variant
-      const simpleFile = file.replace(/\.mdx$/, "-simple.mdx");
-      const simplePath = path.join(contentDir, simpleFile);
-      let simpleContent = null;
-      if (fs.existsSync(simplePath)) {
-        const rawSimple = fs.readFileSync(simplePath, "utf-8");
-        simpleContent = parseFrontmatter(rawSimple).content.trim();
-      }
-
       const lessonData = {
         course_id: course.id,
         title: fm.title,
         content_md: content.trim(),
-        content_simple_md: simpleContent,
         type: fm.type,
         order_index: fm.order,
       };
@@ -128,7 +118,7 @@ async function main() {
           .eq("id", existing.id);
         if (upErr) throw new Error(upErr.message);
         lessonId = existing.id;
-        console.log(`  ✅  Updated  L${String(fm.order).padStart(2, "0")} — ${fm.title}${simpleContent ? " (+simple)" : ""}`);
+        console.log(`  ✅  Updated  L${String(fm.order).padStart(2, "0")} — ${fm.title}`);
       } else {
         const { data: inserted, error: insErr } = await supabase
           .from("lessons")
@@ -137,7 +127,7 @@ async function main() {
           .single();
         if (insErr || !inserted) throw new Error(insErr?.message ?? "insert failed");
         lessonId = inserted.id;
-        console.log(`  ✅  Inserted L${String(fm.order).padStart(2, "0")} — ${fm.title}${simpleContent ? " (+simple)" : ""}`);
+        console.log(`  ✅  Inserted L${String(fm.order).padStart(2, "0")} — ${fm.title}`);
       }
 
       // Quiz questions
