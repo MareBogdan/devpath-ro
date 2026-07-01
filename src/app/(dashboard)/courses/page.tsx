@@ -96,6 +96,12 @@ export default async function CoursesPage({ searchParams }: CoursesPageProps) {
 
   // ─── Hero stats ─────────────────────────────────────────────────────────
   const totalLessonsCompleted = completedSet.size;
+  // Full curriculum size — derived from the lessons actually seeded, never
+  // hardcoded, so the hero can't go stale when the curriculum is restructured.
+  const totalLessonsAll = selectorOptions.reduce(
+    (sum, c) => sum + c.totalLessons,
+    0
+  );
 
   // Per-course state for the hero's 12 course badges.
   const courseStates: ("completed" | "started" | "locked")[] =
@@ -174,6 +180,7 @@ export default async function CoursesPage({ searchParams }: CoursesPageProps) {
       {!isEmpty && (
         <CoursesHero
           completedCount={totalLessonsCompleted}
+          totalLessons={totalLessonsAll}
           courseStates={courseStates}
           continueLessonHref={continueLessonHref}
           continueLessonTitle={continueLessonTitle}

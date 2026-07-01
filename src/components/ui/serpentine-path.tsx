@@ -81,19 +81,19 @@ const COURSE_DIFFICULTY = [
 //   amp       — horizontal swing as a fraction of the max edge span (0–1)
 //   modH      — vertical-spacing multiplier on the base module height
 //   startLeft — the course's first sweep goes right→left instead of left→right
-// Index = course position. Long courses (C4, C10 — 38 lessons) are kept tighter
-// so they don't sprawl; C11 (hardest) is the widest, most dramatic.
+// Index = course position. The originally-longest courses (C4, C10) are kept
+// tighter so they don't sprawl; C11 (hardest) is the widest, most dramatic.
 const COURSE_GEOMETRY = [
   { amp: 1.0, modH: 1.06, startLeft: false }, // C1  Hardware — wide, classic
   { amp: 0.81, modH: 0.96, startLeft: true }, // C2  OS — tight, flipped
   { amp: 0.95, modH: 1.11, startLeft: false }, // C3  Rețele — wide, tall
-  { amp: 0.84, modH: 0.97, startLeft: false }, // C4  Python (38) — kept tight
+  { amp: 0.84, modH: 0.97, startLeft: false }, // C4  Python (26) — kept tight
   { amp: 1.0, modH: 1.08, startLeft: true }, // C5  Algoritmi — wide
-  { amp: 0.88, modH: 1.0, startLeft: true }, // C6  Baze de Date — medium
-  { amp: 0.93, modH: 1.1, startLeft: false }, // C7  Matematică — wide-ish
+  { amp: 0.88, modH: 1.0, startLeft: true }, // C6  Matematică — medium
+  { amp: 0.93, modH: 1.1, startLeft: false }, // C7  Date & Embeddings — wide-ish
   { amp: 0.8, modH: 0.95, startLeft: true }, // C8  ML — tight, snappy
   { amp: 0.99, modH: 1.07, startLeft: false }, // C9  Deep Learning — wide
-  { amp: 0.85, modH: 0.96, startLeft: false }, // C10 LLMs (38) — kept tight
+  { amp: 0.85, modH: 0.96, startLeft: false }, // C10 LLMs (36) — kept tight
   { amp: 1.0, modH: 1.12, startLeft: true }, // C11 Agentic — widest, dramatic
   { amp: 0.9, modH: 1.02, startLeft: false }, // C12 Producție — moderate finale
 ];

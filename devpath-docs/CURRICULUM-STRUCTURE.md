@@ -1,6 +1,6 @@
 # CURRICULUM-STRUCTURE.md
 > Structura curriculară DevPath RO — referință pentru implementare
-> 12 cursuri · 321 lecții · Citit de Claude Code la seed/implementare
+> 12 cursuri · 289 lecții · Citit de Claude Code la seed/implementare
 
 ---
 

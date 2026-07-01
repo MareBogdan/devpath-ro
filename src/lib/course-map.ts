@@ -56,8 +56,8 @@ export const COURSE_PALETTE = [
   "#4A8FE8", // C3  Rețele & Internet       — blue
   "#2BA8E0", // C4  Python                  — sky
   "#1FBFC9", // C5  Algoritmi               — cyan
-  "#1ECCA0", // C6  Baze de Date            — teal
-  "#2BCE78", // C7  Matematică pentru AI    — green
+  "#1ECCA0", // C6  Matematică pentru AI    — teal
+  "#2BCE78", // C7  Date & Embeddings       — green
   "#4FCB54", // C8  Machine Learning        — spring green
   "#84C93C", // C9  Deep Learning           — lime
   "#AFC52E", // C10 AI Generativ & LLMs     — yellow-lime
@@ -79,9 +79,9 @@ export const COURSE_BANNERS: Record<string, string[]> = {
   "hardware-fizica": ["Electroni", "tranzistori", "CPU", "Assembly"],
   "sisteme-de-operare": ["Boot", "procese", "memorie", "containere"],
   "retele-internet": ["TCP/IP", "DNS", "HTTP", "securitate"],
-  "python-inginerie-software": ["Sintaxă", "OOP", "async", "FastAPI"],
+  "python-inginerie-software": ["Sintaxă", "clase", "async", "Pydantic"],
   "algoritmi-structuri-date": ["Big O", "sortare", "grafuri", "DP"],
-  "baze-date-ingineria-datelor": ["SQL", "NoSQL", "Redis", "pgvector"],
+  "baze-date-ingineria-datelor": ["SQL", "Pandas", "embeddings", "pgvector"],
   "matematica-ai": ["Algebră liniară", "calcul", "statistică"],
   "machine-learning": ["Regresie", "clasificare", "RL", "GPU"],
   "deep-learning-computer-vision": ["CNN", "Transformers", "ViT", "HuggingFace"],
@@ -96,9 +96,9 @@ const COURSE_DESCRIPTIONS: Record<string, string> = {
   "hardware-fizica": "De la electron la primul tău procesor",
   "sisteme-de-operare": "Ce se întâmplă când apeși butonul de pornire",
   "retele-internet": "Cum ajunge un pachet de la tine la Tokyo",
-  "python-inginerie-software": "Codul care face totul să funcționeze",
+  "python-inginerie-software": "Minimul de Python cât să citești și scrii cod AI",
   "algoritmi-structuri-date": "Diferența dintre cod care merge și cod care scalează",
-  "baze-date-ingineria-datelor": "De la Excel la pipeline-ul unui model AI",
+  "baze-date-ingineria-datelor": "De la baze de date la embeddings — meaning is math",
   "matematica-ai": "Ecuațiile care stau în spatele inteligenței",
   "machine-learning": "Primul model care învață din date",
   "deep-learning-computer-vision": "De la perceptron la arhitecturile care au schimbat lumea",

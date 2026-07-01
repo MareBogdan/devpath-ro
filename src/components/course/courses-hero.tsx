@@ -6,23 +6,18 @@ import { ArrowRight, BookOpen, Check } from "lucide-react";
 import { COURSE_PALETTE } from "@/lib/course-map";
 
 // Curriculum constants — the full DevPath RO roadmap (see CURRICULUM-STRUCTURE.md).
-// These describe the complete 12-course vision, independent of how many courses
-// happen to be seeded in the DB right now.
-const TOTAL_LESSONS = 321;
+// TOTAL_COURSES is fixed at 12 (the roadmap is 12 courses). The lesson total is
+// NOT hardcoded — it's derived from the seeded curriculum and passed in as the
+// `totalLessons` prop, so it can never go stale when the curriculum is restructured.
 const TOTAL_COURSES = 12;
-
-const STAT_PILLS: { icon: string; label: string }[] = [
-  { icon: "🎓", label: "12 cursuri" },
-  { icon: "📚", label: "321 lecții" },
-  { icon: "⚡", label: "~60h de conținut" },
-  { icon: "🏆", label: "12 Boss Fights" },
-];
 
 type CourseState = "completed" | "started" | "locked";
 
 interface CoursesHeroProps {
   /** Real completed-lesson count across every course. */
   completedCount: number;
+  /** Total lessons across the whole seeded curriculum (derived, never hardcoded). */
+  totalLessons: number;
   /** Per-course state, in course order. Fewer than 12 → remaining badges locked. */
   courseStates: CourseState[];
   continueLessonHref: string | null;
@@ -54,16 +49,27 @@ function GradientWord({ children }: { children: ReactNode }) {
 
 /**
  * Motivational hero for the courses page — communicates the full roadmap
- * (12 courses · 321 lessons · one path). Replaces the old mission header; the
- * XP/Level/Streak/Lessons stat cards now live only on the Profile page.
+ * (12 courses · one path). Replaces the old mission header; the XP/Level/Streak/
+ * Lessons stat cards now live only on the Profile page.
  */
 export function CoursesHero({
   completedCount,
+  totalLessons,
   courseStates,
   continueLessonHref,
   continueLessonTitle,
 }: CoursesHeroProps) {
-  const pct = Math.min(100, Math.round((completedCount / TOTAL_LESSONS) * 100));
+  const pct =
+    totalLessons > 0
+      ? Math.min(100, Math.round((completedCount / totalLessons) * 100))
+      : 0;
+
+  const statPills: { icon: string; label: string }[] = [
+    { icon: "🎓", label: `${TOTAL_COURSES} cursuri` },
+    { icon: "📚", label: `${totalLessons} lecții` },
+    { icon: "⚡", label: "~60h de conținut" },
+    { icon: "🏆", label: `${TOTAL_COURSES} Boss Fights` },
+  ];
 
   return (
     <section className="relative overflow-hidden">
@@ -119,7 +125,7 @@ export function CoursesHero({
             transition={{ duration: 0.5, delay: 0.3, ease: EASE }}
             className="flex flex-wrap gap-2"
           >
-            {STAT_PILLS.map((pill) => (
+            {statPills.map((pill) => (
               <span
                 key={pill.label}
                 className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/50 px-3 py-1.5 text-xs font-medium text-foreground sm:text-sm"
@@ -167,7 +173,7 @@ export function CoursesHero({
           <div className="mb-1.5 flex items-center justify-between text-xs">
             <span className="font-medium text-muted-foreground">Progresul tău</span>
             <span className="font-semibold tabular-nums text-foreground">
-              {completedCount} / {TOTAL_LESSONS} lecții
+              {completedCount} / {totalLessons} lecții
             </span>
           </div>
           <div className="h-1 w-full overflow-hidden rounded-full bg-muted">
