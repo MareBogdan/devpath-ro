@@ -1,16 +1,32 @@
 /**
- * seed-curriculum.mjs — seeds all 12 courses + 321 lessons as empty placeholders.
+ * seed-curriculum.mjs — restructure-safe curriculum seeder for Courses 4-12.
  *
  * Source of truth: devpath-docs/CURRICULUM-STRUCTURE.md (parsed at runtime).
- * Each lesson is inserted as an empty placeholder: content_md = "" (the column
- * is NOT NULL, so an empty string is the placeholder), is_published = false;
- * the title/type/order_index come from the curriculum doc.
+ * Each lesson is written as an empty placeholder: content_md = "" (the column is
+ * NOT NULL, so an empty string is the placeholder), is_published = false; the
+ * title/type/order_index come from the curriculum doc.
  *
- * SAFETY:
- *   - Idempotent. Courses are skipped if a row with that slug already exists.
- *   - Lessons are skipped if a row with that (course_id, order_index) exists,
- *     so existing Course 1 lessons (and their content) are NEVER modified.
- *   - Aborts before any DB write if the parse doesn't yield exactly 12/321.
+ * SCOPE — this seeder is HARD-SCOPED to Courses 4-12 (nine slugs). Courses 1-3
+ * (hardware-fizica, sisteme-de-operare, retele-internet) are NEVER written: they
+ * hold real user data (user_progress / comments / minigame sessions) and are
+ * excluded from the loop AND blocked again inside the reseed_course_lessons() RPC.
+ *
+ * HOW IT REPLACES LESSONS
+ *   Per in-scope course, it calls the reseed_course_lessons() SQL function, which
+ *   runs delete-then-insert ATOMICALLY (a failure can't leave a course half-seeded)
+ *   and refuses to touch any course whose lessons have child rows. Delete-then-insert
+ *   is chosen over upsert+prune because Courses 4-12 have zero child rows today,
+ *   which makes a full replace bulletproof and lets a future restructure freely
+ *   rename/reorder/add/remove lessons with no orphan rows.
+ *
+ * SAFETY
+ *   - Reads each course's own `total_lessons:` from the doc and aborts BEFORE any
+ *     write if a parsed count doesn't match it (catches parse breakage without
+ *     hardcoding a global total, so restructured totals are tolerated).
+ *   - JS child-row guard across all 13 child tables of lessons.id before reseeding
+ *     a course; the RPC re-checks the same guard atomically with the delete.
+ *   - Requires migrations 20260701000001 (UNIQUE course_id, order_index) and
+ *     20260701000002 (reseed_course_lessons fn) to be applied first.
  *
  * Usage:  node scripts/seed-curriculum.mjs
  */
@@ -22,6 +38,45 @@ import { createClient } from "@supabase/supabase-js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
+
+// ── Scope ────────────────────────────────────────────────────────────────────
+// Courses 4-12 — the ONLY slugs this seeder is allowed to write.
+const IN_SCOPE_SLUGS = [
+  "python-inginerie-software",
+  "algoritmi-structuri-date",
+  "baze-date-ingineria-datelor",
+  "matematica-ai",
+  "machine-learning",
+  "deep-learning-computer-vision",
+  "ai-generativ-llms",
+  "agentic-ai-mcp",
+  "ai-in-productie",
+];
+
+// Courses 1-3 — must NEVER be written by this seeder (real user data lives here).
+const PROTECTED_SLUGS = [
+  "hardware-fizica",
+  "sisteme-de-operare",
+  "retele-internet",
+];
+
+// All 13 tables whose FK references lessons.id (ON DELETE CASCADE). The child-row
+// guard checks every one before a course is reseeded.
+const LESSON_CHILD_TABLES = [
+  "ai_coach_sessions",
+  "ai_generated_questions",
+  "flashcards",
+  "inline_questions",
+  "lesson_bookmarks",
+  "lesson_comments",
+  "lesson_feedback",
+  "lesson_scores",
+  "minigame_sessions",
+  "quiz_questions",
+  "quiz_wrong_answers",
+  "user_progress",
+  "wow_notes",
+];
 
 // ── Load .env.local ──────────────────────────────────────────────────────────
 function loadEnv() {
@@ -63,7 +118,7 @@ function parseCurriculum() {
 
   // Each course is a "## CURSUL N" section.
   for (const sec of md.split(/^## CURSUL /m).slice(1)) {
-    // Metadata is the first fenced block (slug/title/description/difficulty/order).
+    // Metadata is the first fenced block (slug/title/description/difficulty/order/total_lessons).
     const fence = sec.match(/```\r?\n([\s\S]*?)\r?\n```/);
     if (!fence) continue;
     const meta = {};
@@ -90,6 +145,9 @@ function parseCurriculum() {
         description: meta.description ?? "",
         difficulty: Number(meta.difficulty),
         order_index: Number(meta.order),
+        // Declared count from the doc — used as the per-course parse assertion.
+        total_lessons:
+          meta.total_lessons != null ? Number(meta.total_lessons) : null,
         lessons,
       });
     }
@@ -97,127 +155,176 @@ function parseCurriculum() {
   return courses;
 }
 
+// ── Course row — look up, insert if missing (in-scope slugs only) ─────────────
+async function ensureCourse(course) {
+  const { data: existing, error: selErr } = await supabase
+    .from("courses")
+    .select("id")
+    .eq("slug", course.slug)
+    .maybeSingle();
+  if (selErr) throw new Error(`course lookup — ${selErr.message}`);
+  if (existing) return { id: existing.id, created: false };
+
+  const { data: ins, error } = await supabase
+    .from("courses")
+    .insert({
+      slug: course.slug,
+      title: course.title,
+      description: course.description,
+      difficulty: course.difficulty,
+      order_index: course.order_index,
+    })
+    .select("id")
+    .single();
+  if (error || !ins) throw new Error(`course insert — ${error?.message}`);
+  return { id: ins.id, created: true };
+}
+
+// ── Child-row safety guard — abort if ANY of the 13 child tables has a row ────
+// tied to this course's lessons. This is the net that makes it impossible to
+// cascade-delete user data even if the scope were ever widened by mistake.
+async function assertNoChildRows(courseId, slug) {
+  const { data: lessons, error } = await supabase
+    .from("lessons")
+    .select("id")
+    .eq("course_id", courseId);
+  if (error) throw new Error(`${slug}: lesson lookup — ${error.message}`);
+
+  const ids = (lessons ?? []).map((l) => l.id);
+  if (ids.length === 0) return; // nothing to guard
+
+  for (const table of LESSON_CHILD_TABLES) {
+    const { count, error: cErr } = await supabase
+      .from(table)
+      .select("id", { count: "exact", head: true })
+      .in("lesson_id", ids);
+    if (cErr) throw new Error(`${slug}: child-guard on ${table} — ${cErr.message}`);
+    if ((count ?? 0) > 0) {
+      throw new Error(
+        `${slug}: ABORT — ${count} child row(s) in ${table}; refusing to reseed.`
+      );
+    }
+  }
+}
+
 // ── Main ─────────────────────────────────────────────────────────────────────
 async function main() {
-  console.log("🌱  Seeding curriculum (12 courses · 321 lessons)\n");
+  console.log("🌱  Seeding curriculum — Courses 4-12 (restructure-safe)\n");
 
-  const courses = parseCurriculum();
-  const parsedLessons = courses.reduce((s, c) => s + c.lessons.length, 0);
-  console.log(
-    `📖  Parsed ${courses.length} courses · ${parsedLessons} lessons from CURRICULUM-STRUCTURE.md\n`
-  );
+  const all = parseCurriculum();
 
-  // Sanity gate — never write to the DB if the parse looks wrong.
-  if (courses.length !== 12 || parsedLessons !== 321) {
+  // Keep only the nine in-scope courses; protected slugs can never enter the loop.
+  const inScope = all.filter((c) => IN_SCOPE_SLUGS.includes(c.slug));
+
+  // Hard assertion: no protected slug may ever reach the write path.
+  const leaked = inScope.filter((c) => PROTECTED_SLUGS.includes(c.slug));
+  if (leaked.length > 0) {
     console.error(
-      `❌  Expected 12 courses / 321 lessons, parsed ${courses.length} / ${parsedLessons}. Aborting — no DB writes.`
+      `❌  Protected slug(s) reached the write path: ${leaked
+        .map((c) => c.slug)
+        .join(", ")}. Aborting — no DB writes.`
     );
     process.exit(1);
   }
 
-  let coursesInserted = 0;
-  let lessonsInserted = 0;
-  const errors = [];
+  // Every in-scope slug must be present in the doc.
+  const missing = IN_SCOPE_SLUGS.filter(
+    (s) => !inScope.some((c) => c.slug === s)
+  );
+  if (missing.length > 0) {
+    console.error(
+      `❌  In-scope slug(s) not found in CURRICULUM-STRUCTURE.md: ${missing.join(
+        ", "
+      )}. Aborting — no DB writes.`
+    );
+    process.exit(1);
+  }
 
-  for (const course of courses) {
-    // ── Course row — skip if it already exists ──
-    let courseId;
-    const { data: existingCourse, error: cErr } = await supabase
-      .from("courses")
-      .select("id")
-      .eq("slug", course.slug)
-      .maybeSingle();
-    if (cErr) {
-      errors.push(`course ${course.slug}: lookup — ${cErr.message}`);
-      console.log(`❌  ${course.slug}: lookup failed — ${cErr.message}`);
-      continue;
-    }
-
-    if (existingCourse) {
-      courseId = existingCourse.id;
-      console.log(`•   ${course.slug} — course exists, kept`);
-    } else {
-      const { data: ins, error } = await supabase
-        .from("courses")
-        .insert({
-          slug: course.slug,
-          title: course.title,
-          description: course.description,
-          difficulty: course.difficulty,
-          order_index: course.order_index,
-        })
-        .select("id")
-        .single();
-      if (error || !ins) {
-        errors.push(`course ${course.slug}: insert — ${error?.message}`);
-        console.log(`❌  ${course.slug}: insert failed — ${error?.message}`);
-        continue;
-      }
-      courseId = ins.id;
-      coursesInserted++;
-      console.log(`✅  ${course.slug} — course inserted`);
-    }
-
-    // ── Lessons — skip any (course_id, order_index) that already exists ──
-    const { data: existingLessons, error: lErr } = await supabase
-      .from("lessons")
-      .select("order_index")
-      .eq("course_id", courseId);
-    if (lErr) {
-      errors.push(`lessons ${course.slug}: lookup — ${lErr.message}`);
-      console.log(`❌  ${course.slug}: lesson lookup failed — ${lErr.message}`);
-      continue;
-    }
-    const have = new Set((existingLessons ?? []).map((l) => l.order_index));
-
-    const toInsert = course.lessons
-      .filter((l) => !have.has(l.order))
-      .map((l) => ({
-        course_id: courseId,
-        title: l.title,
-        type: l.type,
-        order_index: l.order,
-        content_md: "", // column is NOT NULL — empty string = placeholder
-        is_published: false,
-      }));
-
-    if (toInsert.length === 0) {
-      console.log(`    all ${course.lessons.length} lessons already present`);
-      continue;
-    }
-
-    const { error: insErr } = await supabase.from("lessons").insert(toInsert);
-    if (insErr) {
-      errors.push(`lessons ${course.slug}: insert — ${insErr.message}`);
-      console.log(`❌  ${course.slug}: lesson insert failed — ${insErr.message}`);
-    } else {
-      lessonsInserted += toInsert.length;
-      console.log(
-        `    +${toInsert.length} lessons (${course.lessons.length - toInsert.length} kept)`
+  // Per-course parse check — derived from each course's own total_lessons field.
+  // Catches real parse breakage while tolerating restructured totals.
+  const parseErrors = [];
+  for (const c of inScope) {
+    if (c.total_lessons == null) {
+      parseErrors.push(`${c.slug}: missing 'total_lessons' in the doc`);
+    } else if (c.lessons.length !== c.total_lessons) {
+      parseErrors.push(
+        `${c.slug}: parsed ${c.lessons.length} lessons but doc declares total_lessons=${c.total_lessons}`
       );
     }
   }
+  if (parseErrors.length > 0) {
+    console.error("❌  Parse check failed — no DB writes:");
+    parseErrors.forEach((e) => console.error(`   • ${e}`));
+    process.exit(1);
+  }
 
-  // ── Verify ──
-  const { count: courseCount } = await supabase
-    .from("courses")
-    .select("*", { count: "exact", head: true });
-  const { count: lessonCount } = await supabase
-    .from("lessons")
-    .select("*", { count: "exact", head: true });
+  console.log(
+    `📖  Parsed ${inScope.length} in-scope courses · ${inScope.reduce(
+      (s, c) => s + c.lessons.length,
+      0
+    )} lessons (each matches its declared total_lessons)\n`
+  );
 
+  let coursesReseeded = 0;
+  let lessonsWritten = 0;
+  const errors = [];
+
+  for (const course of inScope) {
+    try {
+      const { id: courseId, created } = await ensureCourse(course);
+      if (created) console.log(`✅  ${course.slug} — course row inserted`);
+
+      // Guard before any destructive write.
+      await assertNoChildRows(courseId, course.slug);
+
+      // Atomic delete-then-insert inside the DB (guard re-checked there too).
+      const { data: inserted, error: rpcErr } = await supabase.rpc(
+        "reseed_course_lessons",
+        {
+          p_slug: course.slug,
+          p_lessons: course.lessons.map((l) => ({
+            title: l.title,
+            type: l.type,
+            order: l.order,
+          })),
+        }
+      );
+      if (rpcErr) throw new Error(`reseed RPC — ${rpcErr.message}`);
+
+      coursesReseeded++;
+      lessonsWritten += inserted ?? 0;
+      console.log(`    ↻ ${course.slug} — reseeded ${inserted} lessons`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      errors.push(`${course.slug}: ${msg}`);
+      console.log(`❌  ${course.slug} — ${msg}`);
+    }
+  }
+
+  // ── Informational verify (per-course; no global 12/321 assertion) ──
   console.log(`\n─────────────────────────────────────────`);
-  console.log(`Inserted this run: ${coursesInserted} courses · ${lessonsInserted} lessons`);
-  console.log(`DB total:          ${courseCount} courses · ${lessonCount} lessons`);
+  console.log(
+    `Reseeded ${coursesReseeded}/${inScope.length} in-scope courses · ${lessonsWritten} lessons written this run`
+  );
+
+  const { data: liveCounts } = await supabase
+    .from("courses")
+    .select("slug, order_index, lessons(count)")
+    .in("slug", IN_SCOPE_SLUGS)
+    .order("order_index");
+  if (liveCounts) {
+    for (const c of liveCounts) {
+      const n = Array.isArray(c.lessons) ? c.lessons[0]?.count ?? 0 : 0;
+      console.log(`   ${String(c.order_index).padStart(2)}  ${c.slug} — ${n} lessons`);
+    }
+  }
+
   if (errors.length > 0) {
     console.log(`\n⚠  Errors (${errors.length}):`);
     errors.forEach((e) => console.log(`   • ${e}`));
+    process.exit(1);
   }
-  console.log(
-    courseCount === 12 && lessonCount === 321
-      ? `\n🎉  Verified: 12 courses + 321 lessons in the database.`
-      : `\n⚠  Expected 12 courses / 321 lessons — see counts above.`
-  );
+  console.log(`\n🎉  Done — Courses 1-3 were not touched.`);
 }
 
 main().catch((err) => {

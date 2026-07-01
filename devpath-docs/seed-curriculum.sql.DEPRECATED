@@ -1,3 +1,5 @@
+-- DEPRECATED (2026-07-01): DO NOT RUN. This SQL seed is broken (courses INSERT declares 5 columns but supplies 6 values) and is superseded by scripts/seed-curriculum.mjs, which is now the single source of curriculum seeding.
+
 -- ═══════════════════════════════════════════════════════════════════════════
 -- DevPath RO — Curriculum Seed (12 courses, 321 lessons)
 -- CC-3 · Source: devpath-docs/CURRICULUM-STRUCTURE.md + devpath-curriculum-v4-definitiv.md
