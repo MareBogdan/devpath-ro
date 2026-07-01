@@ -155,29 +155,45 @@ function parseCurriculum() {
   return courses;
 }
 
-// ── Course row — look up, insert if missing (in-scope slugs only) ─────────────
-async function ensureCourse(course) {
+// ── Course row — upsert metadata from the doc (in-scope slugs only) ───────────
+// Updates title/description/difficulty/order_index so course-level renames and
+// order changes (e.g. the matematica-ai <-> baze order swap) take effect. Never
+// writes a protected slug (extra guard on top of the in-scope loop).
+async function upsertCourse(course) {
+  if (PROTECTED_SLUGS.includes(course.slug)) {
+    throw new Error(`refusing to write protected course ${course.slug}`);
+  }
+  const meta = {
+    slug: course.slug,
+    title: course.title,
+    description: course.description,
+    difficulty: course.difficulty,
+    order_index: course.order_index,
+  };
+
   const { data: existing, error: selErr } = await supabase
     .from("courses")
     .select("id")
     .eq("slug", course.slug)
     .maybeSingle();
   if (selErr) throw new Error(`course lookup — ${selErr.message}`);
-  if (existing) return { id: existing.id, created: false };
+
+  if (existing) {
+    const { error: updErr } = await supabase
+      .from("courses")
+      .update(meta)
+      .eq("id", existing.id);
+    if (updErr) throw new Error(`course update — ${updErr.message}`);
+    return { id: existing.id, action: "updated" };
+  }
 
   const { data: ins, error } = await supabase
     .from("courses")
-    .insert({
-      slug: course.slug,
-      title: course.title,
-      description: course.description,
-      difficulty: course.difficulty,
-      order_index: course.order_index,
-    })
+    .insert(meta)
     .select("id")
     .single();
   if (error || !ins) throw new Error(`course insert — ${error?.message}`);
-  return { id: ins.id, created: true };
+  return { id: ins.id, action: "inserted" };
 }
 
 // ── Child-row safety guard — abort if ANY of the 13 child tables has a row ────
@@ -271,8 +287,8 @@ async function main() {
 
   for (const course of inScope) {
     try {
-      const { id: courseId, created } = await ensureCourse(course);
-      if (created) console.log(`✅  ${course.slug} — course row inserted`);
+      const { id: courseId, action } = await upsertCourse(course);
+      console.log(`✅  ${course.slug} — course row ${action}`);
 
       // Guard before any destructive write.
       await assertNoChildRows(courseId, course.slug);
