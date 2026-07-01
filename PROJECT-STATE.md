@@ -1,300 +1,194 @@
 # DevPath RO — Project State
-Last updated: 2026-04-08
+Last updated: 2026-07-01
 
 ## Platform summary
-Romanian e-learning platform for AI/IT education targeting 80% non-technical users (doctors, entrepreneurs, students) and 20% technical users (developers, CS students). Desktop-first Next.js 14 App Router application deployed on Vercel with Supabase backend, delivering 2 courses across 60+ MDX lesson files with dual content modes (Simple/Technical), gamification, AI coaching, and social features.
+Romanian gamified learning platform for AI/tech education. Mission: "De la electronul fizic la agenți AI autonomi" (from the physical electron to autonomous AI agents). Target audience: technically curious users aged 20–35 who want to genuinely understand how AI works. Desktop-first Next.js 14 App Router application on Vercel with Supabase backend, delivering a 12-course / 289-lesson curriculum (single content mode, `content_md` only), with gamification, an interactive learning layer, AI coaching, and social features. Content is Romanian-only.
+
+## Curriculum — v5 structure (restructured July 2026)
+
+The curriculum was restructured to sharpen focus on AI understanding over software-developer craft. 12 courses, 289 lessons total.
+
+| # | slug | title | difficulty | lessons | published |
+|---|------|-------|-----------|---------|-----------|
+| 1 | hardware-fizica | Hardware & Fizică | 2.0 | 30 | 25 |
+| 2 | sisteme-de-operare | Sisteme de Operare | 2.5 | 22 | 19 |
+| 3 | retele-internet | Rețele & Internet | 2.5 | 26 | 0 |
+| 4 | python-inginerie-software | Python pentru AI | 2.5 | 26 | 0 |
+| 5 | algoritmi-structuri-date | Algoritmi & Structuri de Date | 3.0 | 17 | 0 |
+| 6 | matematica-ai | Matematică pentru AI | 3.0 | 22 | 0 |
+| 7 | baze-date-ingineria-datelor | Date & Embeddings | 3.0 | 18 | 0 |
+| 8 | machine-learning | Machine Learning | 3.5 | 21 | 0 |
+| 9 | deep-learning-computer-vision | Deep Learning & Computer Vision | 4.0 | 21 | 0 |
+| 10 | ai-generativ-llms | AI Generativ & LLMs | 4.0 | 36 | 0 |
+| 11 | agentic-ai-mcp | Agentic AI & MCP | 4.5 | 28 | 0 |
+| 12 | ai-in-productie | AI în Producție | 4.0 | 22 | 0 |
+
+**Authoring status:** Only C1 (30 lessons written, 25 published — 5 written-but-unpublished) and C2 (19 written & published) have real content. C3–C12 are seeded placeholders (`content_md = ''`, unpublished). Content authoring for the remaining courses is the active production phase.
+
+**Key restructure facts (v5, July 2026):**
+- Course 4 renamed "Python & Inginerie Software" → "Python pentru AI" (38→26 lessons; design patterns, deep OOP, RegEx, pytest, duplicate FastAPI cut).
+- Course 7 (`baze-date-ingineria-datelor`) renamed "Baze de Date" → "Date & Embeddings" (27→18).
+- Math (`matematica-ai`) and Data (`baze-date-ingineria-datelor`) swapped order: Math is now order 6, Data is order 7 (Math before Data so embeddings land after the linear-algebra intuition).
+- Slugs are UNCHANGED across the restructure — only titles, descriptions, order, and lesson lists changed.
+- Source of truth for the curriculum: `devpath-docs/CURRICULUM-STRUCTURE.md` (parsed by `scripts/seed-curriculum.mjs`).
 
 ## Working features
 
 ### Authentication & Infrastructure
-- ✅ Email/password + Google/GitHub OAuth (Supabase Auth)
-- ✅ Session refresh middleware on every request
-- ✅ Dashboard auth guard (layout-level redirect)
-- ✅ Role-based access (admin/user)
+- Email/password + Google/GitHub OAuth (Supabase Auth)
+- Session refresh middleware on every request
+- Dashboard auth guard (layout-level redirect)
+- Role-based access (admin/user)
 
 ### Content & Learning
-- ✅ AI Fundamentals course — 30 lessons (theory, quiz, exercise, project) with full MDX content
-- ✅ Prompt Engineering Practic course — 30 lessons, 55 MDX files written (sync + QA pending)
-- ✅ Dual content modes: Mod Simplu (no code, analogies) + Mod Tehnic (full Python code)
-- ✅ Mode toggle per lesson, persisted to `users.learning_mode`
-- ✅ Gate questions on theory lessons (must answer correctly to complete)
-- ✅ Scroll tracking (90% required before completion button enables)
-- ✅ Lesson bookmarks and feedback (thumbs up/down)
-- ✅ Flashcard decks with 3D flip animation (Framer Motion)
-- ✅ Flashcard spaced repetition (SM-2 algorithm)
-- ✅ MDX sync-action for both courses
+- MDX lessons rendered via `next-mdx-remote` v6, with KaTeX math (`rehype-katex`/`remark-math`) and syntax highlighting
+- Single content mode (`content_md`) — the old dual Simple/Technical mode was retired
+- MDX sync-action publishes authored lessons to the DB
+- Lesson bookmarks and feedback (thumbs up/down)
+- Flashcard decks with 3D flip animation + SM-2 spaced repetition
+- Interactive learning layer (see below)
+
+### Interactive Learning Layer
+- Inline questions embedded in MDX via `<InlineQuestion n="..." />` anchors, backed by the `inline_questions` DB table. 6 locally-verifiable types (single_choice, true_false, short_answer, match_pairs, ordering, fill_blank); server-side scoring. A reserved 7th type `essay_ai` (AI-graded) exists in the schema but is deliberately excluded from the 6 locally-verifiable types.
+- Wow Notes embedded via `<WowNote n="..." />` anchors, backed by `wow_notes` (media types `none | svg | component` — text-only notes use `none` with the prose in the `body` column); desktop lateral gutter at the `xl:` breakpoint.
+- Scoring stored in `lesson_scores` (best-attempt-counts, green/yellow/white lesson coloring).
+- 6 mini-game types (build-network, fill-blank, match-pairs, sort-concepts, true-false, write-prompt) via a modal; mini-game results in `minigame_sessions`.
+- Cmd+K global search (CommandPalette + full-text search API).
 
 ### AI Features
-- ✅ AI Coach chat — GPT-4o-mini streaming via Vercel AI SDK, auth + Zod validated
-- ✅ Voice AI Coach — Web Speech API STT (push-to-talk) + OpenAI TTS-1 "nova"
-- ✅ AI Coach memory — session summaries saved, last 3 loaded as context
-- ✅ Adaptive AI Quiz Generation (F2) — generates personalized questions after failed quiz
-- ✅ In-Browser Python Execution (F1) — Pyodide WASM + Piston API fallback
-- ✅ Neural Network Visualizer (F3) — pure SVG + Framer Motion, 4 components
+- AI Coach chat — GPT-4o-mini streaming via Vercel AI SDK v3, auth + Zod validated
+- Voice AI Coach — Web Speech API STT (push-to-talk) + dedicated STT route + OpenAI TTS-1 "nova"
+- AI Coach memory — session summaries saved, last 3 loaded as context
+- Adaptive AI Quiz Generation — generates personalized questions after a failed quiz
+- In-Browser Python Execution — Pyodide WASM + Piston API fallback
+- Neural Network Visualizer — SVG + Framer Motion forward-pass animation
 
 ### Gamification
-- ✅ XP system with 16 event types (lesson complete, quiz, streak, mini-game, etc.)
-- ✅ 10-level system with Romanian names (Curios → Maestrul AI)
-- ✅ 25 badges (progress, streak, skill, social, secret categories)
-- ✅ Streak tracking with milestone XP bonuses (3/7/14/30/100 days)
-- ✅ Pixel mascot — SVG + Framer Motion, 6 emotions, celebration overlay
-- ✅ Absence mascot (3+ days absent dashboard greeting)
-- ✅ Level-up, XP, badge, and streak toasts
-- ✅ Weekly leaderboard (RPC function)
-
-### Interactive Learning
-- ✅ 6 mini-game types (sort concepts, fill blank, match pairs, true/false, build network, write prompt)
-- ✅ Mini-games trigger every 3rd lesson automatically
-- ✅ Cmd+K global search (CommandPalette + full-text search API)
-- ⚠️ Focus mode per lesson — not yet implemented (P4.7.x)
+- XP system (16 event types), 10-level Romanian naming (Curios → Maestrul AI)
+- 25 badges (progress/streak/skill/social/secret), streak tracking with milestone bonuses
+- Cosmo mascot — procedural SVG golden retriever, 8 emotions (happy, excited, thinking, encouraging, celebrating, sleeping, waving, sad), idle animations, particle overlays
+- Level-up / XP / badge / streak toasts
+- Weekly leaderboard (RPC)
 
 ### Social & Portfolio
-- ✅ Public portfolio at /u/[username] (no auth required)
-- ✅ Activity heatmap (52x7 SVG, green scale)
-- ✅ Learning DNA radar chart (6-axis SVG)
-- ✅ Certificate PDF with QR code + /verify/[code] public page
-- ✅ Project submission (lesson 30) with constructor badge
-- ✅ Threaded lesson comments with upvotes (Level 3+ gate)
-- ✅ Referral system (/join route, cookie-based, 40 XP both users)
-- ✅ LinkedIn/Social share button (Web Share API + fallback)
+- Public portfolio at `/u/[username]` (no auth), activity heatmap, Learning DNA radar
+- Certificate PDF with QR + `/verify/[code]` public verification
+- Threaded lesson comments with upvotes
+- Referral system (`/join`, cookie-based)
+- Social share
 
 ### Notifications
-- ✅ Email via Resend (weekly progress, streak lost, course completion, referral success)
-- ✅ Web Push API (service worker + subscription flow)
-- ✅ Notification preferences page (3 toggles: email/push/streak)
-- ✅ Vercel cron jobs (streak-check, weekly-email)
+- Email via Resend (weekly progress, streak lost, course completion, referral)
+- Web Push API (service worker + subscription flow)
+- Notification preferences (email/push/streak toggles)
+- Vercel cron jobs (streak-check, weekly-email)
 
 ### Admin
-- ✅ Admin dashboard with stat cards (get_admin_stats RPC)
-- ✅ User management (paginated, search, role toggle)
-- ✅ Lesson analytics (completions, avg score, feedback ratio)
-- ✅ Mini-game analytics (grouped by type, session distribution)
-- ✅ Comment moderation (filter tabs, hide/unhide/delete)
-- ✅ Badge analytics (earned count, % of users)
+- Admin dashboard with stat cards, user management, lesson/mini-game/badge analytics, comment moderation
+
+### Other pages
+- AI Glossar (RSC + client search, 50 terms), Interview simulator, Roadmap, `/dev/components` (dev-only showcase)
 
 ### SEO & Monetization
-- ✅ Meta tags + OG for all routes
-- ✅ sitemap.xml + robots.txt (static + dynamic routes)
-- ✅ Landing page redesign (8 sections, Framer Motion scroll entrances)
-- ✅ Dynamic OG images (ImageResponse, edge runtime)
-- ✅ Pricing page (3 plans: Free/Pro/Lifetime)
-- ✅ Stripe Checkout (session create, customer upsert)
-- ✅ Stripe Webhook (checkout.session.completed, subscription.deleted)
-- ⚠️ Content gates (free = module 1-2 only) — not yet implemented (P10.8.x)
-- ⚠️ AI Coach rate limit (5/day free) — not yet implemented (P10.9.x)
-- ⚠️ Billing portal — not yet implemented (P10.10.x)
+- Meta/OG for all routes, sitemap + robots, dynamic OG images
+- Pricing page (Free/Pro/Lifetime), Stripe Checkout + Webhook
+- ⚠️ Content gates (free tier limits) — not yet enforced
+- ⚠️ AI Coach rate limit — not yet implemented
+- ⚠️ Stripe billing portal — not yet implemented
 
-### Glossar
-- ✅ AI Glossar page (RSC + client search + CSS accordion, 50 terms, 6 categories)
-- ✅ Admin seed route (idempotent)
+## Tech stack (real versions from package.json)
 
-### Interview
-- ✅ Interview simulator with scoring rubric (5 category bars, session report, confetti)
+**Core:** next 14.2.35, react ^18, typescript ^5 (strict)
+**AI:** ai ^3.4.33, @ai-sdk/openai ^0.0.66, @ai-sdk/react ^3.0.136 (SDK v3 — API differs from v4/v5)
+**DB/Auth:** @supabase/supabase-js ^2.99.1, @supabase/ssr ^0.9.0
+**MDX:** next-mdx-remote ^6.0.0, react-markdown ^10, remark-gfm, rehype-highlight, gray-matter
+**Math rendering:** katex ^0.16.47, rehype-katex ^7, remark-math ^6
+**3D:** three ^0.183, @react-three/fiber ^8.18, @react-three/drei ^9.122
+**UI/Animation:** framer-motion ^12.38, motion ^12.38, next-themes ^0.4.6, Radix UI (avatar, dropdown, progress, separator, slot, switch, tooltip), lucide-react, class-variance-authority, clsx, tailwind-merge, tailwindcss-animate, @tailwindcss/typography, canvas-confetti
+**Editor:** @monaco-editor/react ^4.7.0
+**Payments/Email/Push:** stripe ^16.12, resend ^4.8, @react-email/*, web-push ^3.6.7
+**PDF/QR:** @react-pdf/renderer ^4.3.2, qrcode ^1.5.4
+**Analytics:** @vercel/analytics ^2.0.1
+**Validation:** zod ^3.25.76
+**Dev:** pyodide ^0.27.0 (types; CDN-loaded at runtime), tailwindcss ^3.4.1, eslint ^8
 
-## Tech stack
+> **No i18n library.** `next-intl` has been fully removed. Platform is Romanian-only, all UI text hardcoded in components. There is no `src/i18n/` directory and no `messages/` directory.
 
-| Package | Version | Purpose |
-|---|---|---|
-| next | 14.2.35 | Framework (App Router) |
-| react / react-dom | ^18 | UI library |
-| typescript | ^5 | Language (strict mode) |
-| ai (Vercel AI SDK) | ^3.4.33 | AI streaming + generateObject |
-| @ai-sdk/openai | ^0.0.66 | OpenAI provider |
-| @ai-sdk/react | ^3.0.136 | useChat hook |
-| @supabase/supabase-js | ^2.99.1 | Database + Auth client |
-| @supabase/ssr | ^0.9.0 | Server-side Supabase client |
-| framer-motion | ^12.38.0 | Animations (mascot, page transitions, games) |
-| @monaco-editor/react | ^4.7.0 | In-browser code editor |
-| @react-pdf/renderer | ^4.3.2 | Certificate PDF generation |
-| qrcode | ^1.5.4 | QR codes for certificates |
-| stripe | ^16.12.0 | Payment processing |
-| resend | ^4.8.0 | Transactional email |
-| web-push | ^3.6.7 | Browser push notifications |
-| @react-email/components | ^0.0.35 | Email templates |
-| @react-email/render | ^1.4.0 | Email rendering |
-| react-markdown | ^10.1.0 | MDX rendering |
-| remark-gfm | ^4.0.1 | GitHub Flavored Markdown |
-| rehype-highlight | ^7.0.2 | Code syntax highlighting |
-| highlight.js | ^11.11.1 | Syntax highlighting engine |
-| gray-matter | ^4.0.3 | MDX frontmatter parsing |
-| canvas-confetti | ^1.9.4 | Celebration effects |
-| lucide-react | ^0.577.0 | Icons |
-| zod | ^3.25.76 | Input validation |
-| @radix-ui/* | various | UI primitives (avatar, dropdown, progress, separator, slot, switch, tooltip) |
-| class-variance-authority | ^0.7.1 | Component variant utility |
-| clsx | ^2.1.1 | Conditional class names |
-| tailwind-merge | ^3.5.0 | Tailwind class merging |
-| tailwindcss-animate | ^1.0.7 | Animation utilities |
-| @tailwindcss/typography | ^0.5.19 | Prose styling |
-| pyodide | ^0.27.0 | Python WASM types (devDep, CDN-loaded at runtime) |
+## Database schema (live — verify via Supabase MCP)
 
-## Database schema
+Content/curriculum: `courses` (12 rows), `lessons` (289 rows; `content_md`, `module_index`, `is_published`, `search_vector`; UNIQUE(course_id, order_index)).
 
-| Table | Columns | Purpose | Has data? |
-|---|---|---|---|
-| users | 18+ cols (id, email, name, plan, role, xp_points, level, streak_count, learning_mode, etc.) | User profiles + gamification state | Yes |
-| courses | 7 cols | Course catalog | Yes (2 courses) |
-| lessons | 10+ cols (incl. content_md, content_simple_md, search_vector) | Lesson content | Yes |
-| user_progress | 6 cols | Per-user lesson completion + scores | Yes |
-| quiz_questions | 6 cols | Static quiz questions per lesson | Yes |
-| projects | 6 cols | User portfolio projects | Yes |
-| lesson_gate_questions | ~5 cols | Gate completion questions per lesson | Yes |
-| lesson_gate_attempts | ~5 cols | User gate question attempts | Yes |
-| lesson_bookmarks | ~4 cols | Saved lessons per user | Yes |
-| lesson_feedback | ~5 cols | Thumbs up/down per lesson | Yes |
-| xp_events | ~5 cols | XP transaction log | Yes |
-| badges | ~5 cols | Badge catalog (25 rows seeded) | Yes |
-| user_badges | ~4 cols | Badges earned per user | Yes |
-| referral_events | ~4 cols | Referral tracking | Yes |
-| quiz_wrong_answers | ~6 cols | Wrong quiz answers for adaptive quiz | Yes |
-| ai_generated_questions | ~8 cols | Adaptive quiz AI output | Yes |
-| flashcards | ~5 cols | Flashcard definitions per lesson | Yes |
-| user_flashcard_progress | ~7 cols (SM-2: ease_factor, interval_days, repetitions, due_date) | Spaced repetition state | Yes |
-| lesson_comments | ~8 cols (incl. moderation columns) | Threaded comments with upvotes | Yes |
-| push_subscriptions | ~4 cols | Browser push endpoints | Yes |
-| ai_coach_sessions | ~7 cols (incl. summary, message_count) | AI coach session summaries | Yes |
-| minigame_sessions | ~7 cols | Mini-game results | Yes |
-| notification_preferences | ~5 cols | Email/push/streak toggles | Yes |
-| glossar_terms | ~6 cols | AI glossary (50 terms, 6 categories) | Yes |
-| certificates | ~5 cols | Course completion certificates | Yes |
+13 tables reference `lessons.id` (all ON DELETE CASCADE): `user_progress`, `quiz_questions`, `quiz_wrong_answers`, `ai_generated_questions`, `flashcards`, `inline_questions`, `wow_notes`, `lesson_scores`, `lesson_bookmarks`, `lesson_feedback`, `lesson_comments`, `minigame_sessions`, `ai_coach_sessions`.
+
+Other tables: `users`, `xp_events`, `badges`, `user_badges`, `referral_events`, `user_flashcard_progress`, `push_subscriptions`, `notification_preferences`, `glossar_terms`, `certificates`, `projects`, `inline_attempts` (per-user inline-question attempts; FK → `inline_questions.id`, so correctly NOT among the 13 `lessons` children).
+
+**Dropped** (migration `20260627120000_drop_retired_gate_and_dead_columns`): `lesson_gate_questions`, `lesson_gate_attempts`, and `lessons.content_simple_md`. The dual-mode / gate-question system no longer exists.
+
+**Seed infrastructure (July 2026):** `scripts/seed-curriculum.mjs` is the single seed source (the old `seed-curriculum.sql` is deprecated, archived under `devpath-docs/archive/`). It is scoped to the 9 Course 4–12 slugs, uses the atomic `reseed_course_lessons` RPC (delete-then-insert with a 13-table child-row guard), and protects Courses 1–3. UNIQUE(course_id, order_index) is enforced live.
 
 Trigger: `on_auth_user_created` → auto-inserts into `public.users`.
-RPC functions: `award_xp_and_check_level`, `get_weekly_leaderboard`, `get_admin_stats`.
+RPC functions include: `award_xp_and_check_level`, `get_weekly_leaderboard`, `get_admin_stats`, `reseed_course_lessons`.
 
 ## Application structure
 
-### Routes (page.tsx)
-- `/` — Landing page (8 sections)
-- `/login`, `/register` — Auth pages
-- `/onboarding` — 4-step onboarding wizard
-- `/dashboard` — Main dashboard (stats, continue learning)
-- `/courses`, `/courses/[courseSlug]`, `/courses/[courseSlug]/[lessonId]` — Course browsing + lesson viewer
-- `/flashcards` — Flashcard review (SM-2)
-- `/glossar` — AI glossary
-- `/interview` — Interview simulator
-- `/leaderboard` — Weekly leaderboard
-- `/portfolio` — User portfolio (dashboard)
-- `/profile` — User profile settings
-- `/roadmap` — Learning roadmap
-- `/settings/notifications` — Notification preferences
-- `/pricing`, `/pricing/success`, `/pricing/cancel` — Stripe checkout flow
-- `/u/[username]` — Public portfolio (no auth)
-- `/verify/[code]` — Certificate verification (public)
-- `/admin`, `/admin/users`, `/admin/lessons`, `/admin/minigames`, `/admin/comments`, `/admin/badges` — Admin panel
+### Pages (24 page.tsx)
+`/`, `/login`, `/register`, `/onboarding`, `/pricing` (+`/success`,`/cancel`), `/u/[username]`, `/verify/[code]`, `/dashboard`, `/courses`, `/courses/[courseSlug]`, `/courses/[courseSlug]/[lessonId]`, `/flashcards`, `/glossar`, `/interview`, `/leaderboard`, `/portfolio`, `/profile`, `/roadmap`, `/settings/notifications`, `/dev/components` (dev-only), and admin: `/admin`, `/admin/users`, `/admin/lessons`, `/admin/minigames`, `/admin/comments`, `/admin/badges`.
 
-### Routes (route.ts — API)
-- `/api/ai/chat`, `/api/ai/tts` — AI Coach (edge runtime)
-- `/api/ai/coach-session`, `/api/ai/coach-sessions` — Session memory
-- `/api/ai/generate-quiz` — Adaptive quiz
-- `/api/execute-code` — Piston proxy
-- `/api/search` — Full-text search
-- `/api/certificate/[courseSlug]` — PDF generation
-- `/api/stripe/checkout`, `/api/stripe/webhook` — Payments
-- `/api/push/subscribe`, `/api/push/send` — Push notifications
-- `/api/cron/streak-check`, `/api/cron/weekly-email` — Cron jobs
-- `/api/onboarding/welcome-message` — AI welcome
-- `/api/admin/seed-glossar`, `/api/admin/sync-prompt-engineering` — Admin utilities
-- `/auth/callback` — OAuth callback
-- `/join` — Referral redirect
+### API routes (22 route.ts)
+`/api/ai/chat`, `/api/ai/tts`, `/api/ai/stt`, `/api/ai/coach-session(s)`, `/api/ai/generate-quiz`, `/api/execute-code`, `/api/search`, `/api/certificate/[courseSlug]`, `/api/stripe/{checkout,webhook}`, `/api/push/{subscribe,send}`, `/api/cron/{streak-check,weekly-email}`, `/api/onboarding/welcome-message`, `/api/admin/{seed-glossar,sync-prompt-engineering}`, `/auth/callback`, `/join`.
 
-### Components (16 folders + 2 standalone)
-- `course/` (7 files), `layout/` (4), `ui/` (shadcn), `minigame/` (8), `gamification/` (4 toasts), `mascot/` (3), `onboarding/` (5), `flashcards/` (1), `visualiser/` (4), `search/` (1), `portfolio/` (4), `landing/` (1), `pricing/` (1), `admin/` (1), `dashboard/` (1), `glossar/` (1), `interview/` (1), `profile/` (1), `settings/` (1), `pdf/` (1)
+### Components (src/components/, real counts)
+`ui/` (31), `course/` (28), `dashboard/` (12), `profile/` (9), `minigame/` (8), `onboarding/` (6), `portfolio/` (5), `layout/` (5), `interactive/` (5), `gamification/` (4), `visualiser/` (4), `mdx/` (4), `mascot/` (2), `flashcards/` (2), plus single-file: `admin/`, `glossar/`, `interview/`, `landing/`, `pricing/`, `pdf/`, `roadmap/`, `search/`, `settings/`, and standalone `theme-provider.tsx` / `theme-toggle.tsx`.
 
-### Content
-- `content/courses/ai-fundamentals/` — 56 MDX files (30 technical + 26 simple)
-- `content/courses/prompt-engineering-practic/` — 55 MDX files (30 technical + 25 simple)
+### Server Actions (10)
+`(auth)/actions.ts`, `courses/actions.ts`, `courses/inline-actions.ts`, `courses/sync-action.ts`, `flashcards/actions.ts`, `profile/actions.ts`, `settings/notifications/actions.ts`, `onboarding/actions.ts`, `admin/comments/actions.ts`, `admin/users/actions.ts`.
 
-### Hooks
-- `use-pyodide.ts`, `use-push-notifications.ts`, `use-speech-recognition.ts`, `use-speech-synthesis.ts`
+### Content directory
+`content/courses/` holds all 12 v5 slug folders; only `hardware-fizica/` (25 .mdx) and `sisteme-de-operare/` (19 .mdx) have files. The other 10 are empty. (The old `ai-fundamentals/` and `prompt-engineering-practic/` folders no longer exist.) Note: C1 DB has 30 lessons with content but disk has 25 .mdx — 5 C1 lessons carry DB content with no current MDX file (unpublished).
 
-### Lib
-- `supabase/` (server.ts, client.ts, middleware.ts, admin.ts)
-- `gamification.ts`, `gamification-constants.ts`, `holiday-helpers.ts`
-- `flashcard-sm2.ts`, `onboarding-mapping.ts`, `stripe.ts`
-- `email/` (templates), `utils.ts`
+### Hooks & Lib
+Hooks: `use-pyodide`, `use-push-notifications`, `use-speech-recognition`, `use-speech-synthesis`.
+Lib: `supabase/{server,client,middleware,admin}`, `gamification(+constants)`, `stripe`, `flashcard-sm2`, `email/*`, `course-map`, `difficulty`, `animations`, `holiday-helpers`, `onboarding-mapping`, and the interactive engine: `inline-question-schema`, `inline-scoring`, `fill-blank-parser`, `seeded-shuffle`.
 
 ## Not yet implemented
-
-### Interactive Learning
-- Focus mode per lesson (P4.7.x)
-
-### Monetization & Gating
-- Content gates: free users limited to modules 1-2 (P10.8.x)
-- AI Coach rate limit: 5 calls/day for free users (P10.9.x)
-- Stripe billing portal for subscription management (P10.10.x)
-
-### Course 2 Finalization
-- Prompt Engineering Practic: sync + QA + publish (P9.6.x)
-
-### Deferred from Phase 2
-- Referral code handling during auth signup flow (P2.3.2 → moved to P5.7.x, completed there)
+- Content gates (free tier limited to early modules)
+- AI Coach rate limit (free tier)
+- Stripe billing portal
+- Content authoring for Courses 3–12 (active production phase)
 
 ## Installed tools
 
-### MCPs (from .claude/settings.json)
-- **Context7** — live library documentation (Next.js, Supabase, Framer Motion, etc.)
-- **Supabase MCP** — live schema access, queries, RLS policy inspection (read-only)
-
-### Skills (from .agents/skills/)
-- deploy-to-vercel
-- vercel-cli-with-tokens
-- vercel-composition-patterns
-- vercel-react-best-practices
-- vercel-react-native-skills
-- web-design-guidelines
-
-### Agents (from .claude/agents/)
-- nextjs-architecture-expert
-- react-performance-optimizer
-- supabase-schema-architect
-
-### Commands (from .claude/commands/)
-- nextjs-component-generator
-- nextjs-performance-audit
-- supabase-migration-assistant
-- supabase-schema-sync
-- supabase-security-audit
-- supabase-type-generator
+### MCPs
+- Supabase MCP — live schema access, queries (read-only)
+- Context7 MCP — live library documentation
+- Playwright MCP, GitHub MCP (bind when `claude` starts from a VS Code integrated terminal)
 
 ## Known issues
-
-- Prompt Engineering Practic course: MDX content written but not yet synced to DB or QA'd (P9.6.x)
-- Gate questions SQL file (`prompt-engineering-gate-questions.sql`) awaiting manual run in Supabase
-- Flashcard SQL file (`prompt-engineering-flashcards.sql`) awaiting manual run in Supabase
-- Stripe DB migration columns (stripe_customer_id, stripe_subscription_id, plan_activated_at) — SQL provided, awaiting manual run
-- Free tier content gating not enforced — all content accessible to all users
-- AI Coach has no rate limiting — free users can make unlimited calls
-- Phase 4 progress count in devpath-progress.md shows "Completed: 7" but task groups P4.1-P4.6 are all marked [x] — count was not updated
-- Phase 7/8/9/10 task counts in devpath-progress.md are approximate ("~15", "~20", etc.)
-- `next-intl` was fully removed but `messages/ro.json` and `messages/en.json` still exist as reference files (not imported at runtime)
-- Performance budget guard hook references macOS `stat -f%z` syntax — may not work correctly on all platforms
+- Free-tier content gating not enforced — all content currently accessible
+- AI Coach has no rate limiting
+- C1: 5 lessons have DB content but no MDX file on disk, and are unpublished (30 written vs 25 published)
+- Performance budget guard hook uses macOS `stat -f%z` syntax — may not work on all platforms
 
 ## Implementation methodology
 
 ### Workflow
-1. Bogdan describes task in Romanian → Claude (chat) generates English prompt
-2. Bogdan copies prompt → Claude Code (terminal) implements
-3. Bogdan verifies in browser → reports back to Claude (chat)
+1. Bogdan describes a task in Romanian → Claude (chat) generates an English prompt.
+2. Bogdan copies the prompt → Claude Code (terminal) implements.
+3. Bogdan verifies in the browser → reports back to Claude (chat).
 
-### Document system used
-- `IMPLEMENTATION-INDEX.md` = master navigator, told Claude Code which ref to load
-- `PHASE-X-REF.md` = short context per phase (~55 lines), loaded at session start
-- `devpath-plan-phaseX.md` = detailed specs (1000-2200 lines), used by human + Claude chat to generate prompts
-- `devpath-progress.md` = master checklist (~279 tasks, `[x]`/`[ ]` notation)
-- `DevPath-RO-Context-Rezumat-FINAL.md` = summary context for new Claude chat conversations
-- `TOOLS-AND-MCP-SETUP.md` = MCP setup, compact schedule, prompt template
+For risky/technical work: first request a read-only audit/recon, then present firm recommendations, then generate the execution prompt (self-verified twice). One prompt at a time.
 
-### Task notation
-P[phase].[group].[task] — e.g., P4.A.1 = Phase 4, Group A, Task 1
-Groups lettered A-G per phase. One group = one prompt to Claude Code.
+### Claude Code effort levels
+- `/effort xhigh` — audits and risky refactors
+- `/effort high` — clear executions
+- `/effort medium` — mechanical tasks (commits, reads)
 
 ### Prompt format
 ```
 ---START PROMPT---
 **CONTEXT** — only what's specific to this task
 **TASK** — what to build
-**FILES TO CREATE** — exact path + what it does
-**FILES TO MODIFY** — exact path + what changes
+**FILES TO CREATE / MODIFY** — exact paths
 **TECHNICAL REQUIREMENTS** — specific to task
 **NEW PACKAGES TO INSTALL** — or "None"
 **DO NOT** — what not to break
@@ -302,29 +196,5 @@ Groups lettered A-G per phase. One group = one prompt to Claude Code.
 ---END PROMPT---
 ```
 
-### Session start template (given to Claude Code)
-```
-Read devpath-docs/IMPLEMENTATION-INDEX.md to confirm current phase.
-Read devpath-docs/phase-refs/PHASEX-REF.md for task group context.
-Then read only the relevant section of devpath-docs/devpath-plan-phaseX.md.
-
-Implement task [TASK-ID] only.
-After completing, mark [TASK-ID] as done in devpath-docs/devpath-progress.md.
-Run npx tsc --noEmit and fix any type errors before finishing.
-```
-
-### Rules that made it efficient
-- `/compact` after every major milestone (specific schedule defined per phase)
-- One task group per prompt, never combine
-- Ref files as lightweight navigators (not full plans)
-- SQL shown for human approval before execution
-- Progress updated after each prompt
-- Claude Code had CLAUDE.md + Supabase MCP + Context7 MCP — no need to repeat stack in prompts
-- DB schema never included in prompts (Supabase MCP provides live access)
-
-### What to improve next time
-- Plan files were too long (1000-2200 lines) — cap at 500
-- Context duplicated across files (vision + plans + refs + context-rezumat) — use single EXECUTION-PLAN.md with inline refs
-- Separate PROGRESS.md for checklist only (don't mix with plan details)
-- Task counts in progress file were approximate for later phases — maintain exact counts
-- devpath-master-context.md (full audit) became stale after Phase 0 — either auto-update or don't create
+### Running Claude Code
+Run `claude` from a VS Code integrated terminal at `C:\DevPath RO` (the sidebar panel does NOT bind MCP servers; the terminal does). Dev server: `npm run dev` on `:3000` in a separate terminal. Run `npx tsc --noEmit` after significant changes.

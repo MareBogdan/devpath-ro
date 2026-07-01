@@ -5,7 +5,7 @@
 ---
 
 ## Project Documentation
-- `PROJECT-STATE.md` — Single source of truth. Complete project state + methodology. Read first in any new session.
+- `PROJECT-STATE.md` — Single source of truth (v5: 12 courses / 289 lessons, single content mode). Complete project state + methodology. Read first in any new session.
 - `devpath-docs/devpath-vision.md` — Original platform vision document. The mascot section references "Pixel" — that mascot was retired in Block 1.5 (2026-05-06) and replaced by Cosmo. See "Cosmo Mascot" section below for the current API.
 - `schema.sql` — DB schema reference. For live state, verify via Supabase MCP.
 
@@ -18,14 +18,14 @@
 
 ## Project Overview
 
-**DevPath RO** is a Romanian e-learning platform for IT/AI students. Desktop-first Next.js 14 App Router web application deployed on Vercel. Delivers 30+ MDX lesson files across structured modules with theory, quiz, exercise, and project lesson types.
+**DevPath RO** is a Romanian e-learning platform for IT/AI students. Desktop-first Next.js 14 App Router web application deployed on Vercel. Delivers a 12-course / 289-lesson curriculum (single content mode, `content_md`) with `lesson`, `lab`, and `boss` lesson types.
 
 - **Live stack:** Next.js 14 App Router + React 18 + TypeScript (strict mode)
 - **Auth & DB:** Supabase (PostgreSQL + Auth + Realtime WebSockets)
 - **AI:** Vercel AI SDK + OpenAI API (GPT-4o-mini text, TTS-1 voice "nova")
 - **UI:** Tailwind CSS + Radix UI + shadcn/ui + Framer Motion
 - **Code editor:** Monaco Editor (`@monaco-editor/react`)
-- **i18n:** next-intl (Romanian primary / English toggle)
+- **Language:** Romanian-only (no i18n library)
 - **Payments:** Stripe (Free / Pro / Lifetime plans)
 - **Deploy:** Vercel (edge runtime on AI routes)
 - **Content:** MDX lesson files in `content/` directory
@@ -85,11 +85,6 @@ From `package.json`:
 | `gray-matter` | ^4.0.3 |
 | `highlight.js` | ^11.11.1 |
 
-### i18n
-| Package | Version |
-|---|---|
-| `next-intl` | ^4.8.3 |
-
 ### Validation
 | Package | Version |
 |---|---|
@@ -148,11 +143,6 @@ npx tsc --noEmit
 - Always run `npx tsc --noEmit` after significant changes.
 - Use types from `@/types/index.ts` for domain objects (`User`, `Course`, `Lesson`, etc.).
 
-### i18n
-- `next-intl` is configured for Romanian (`ro`) and English (`en`).
-- Lesson content and AI responses are in Romanian.
-- i18n config entry: `src/i18n/request.ts`.
-
 ---
 
 ## 5 High-Tech Features — Current Status
@@ -161,37 +151,11 @@ npx tsc --noEmit
 |---|---|---|---|
 | F5 | Real-time Social Presence | ✅ DONE | Supabase Realtime pub/sub, avatar stacks, Framer Motion celebration toasts |
 | F4 | Voice AI Coach | ✅ DONE | Web Speech API (push-to-talk STT) + custom OpenAI TTS endpoint (voice "nova") with AbortController race-condition fix |
-| F2 | Adaptive AI Quiz Generation | 🚀 NEXT | Database tables created in Phase 0. API route and UI components: Phase 4 |
-| F1 | In-Browser Python Execution | 📋 PLANNED | Pyodide WASM + Piston API fallback, requires `pyodide` npm package (approved) |
-| F3 | Neural Network Visualizer | 📋 PLANNED | Pure SVG + Framer Motion, zero new packages, custom MDX component |
+| F2 | Adaptive AI Quiz Generation | ✅ DONE | `api/ai/generate-quiz` + `components/course/adaptive-quiz-section.tsx` |
+| F1 | In-Browser Python Execution | ✅ DONE | Pyodide WASM + Piston fallback (`hooks/use-pyodide.ts`, `api/execute-code`) |
+| F3 | Neural Network Visualizer | ✅ DONE | SVG + Framer Motion (`components/visualiser/`) |
 
-### Feature 2 (NEXT) — Exact Plan
-New tables needed (ask before running SQL):
-```sql
-CREATE TABLE public.quiz_wrong_answers (
-  id uuid primary key default uuid_generate_v4(),
-  user_id uuid references public.users(id) on delete cascade not null,
-  lesson_id uuid references public.lessons(id) on delete cascade not null,
-  question_id uuid references public.quiz_questions(id) on delete cascade not null,
-  selected_option integer not null,
-  correct_option integer not null,
-  attempt_at timestamptz not null default now()
-);
-
-CREATE TABLE public.ai_generated_questions (
-  id uuid primary key default uuid_generate_v4(),
-  user_id uuid references public.users(id) on delete cascade not null,
-  lesson_id uuid references public.lessons(id) on delete cascade not null,
-  source_question_ids uuid[] not null,
-  question text not null,
-  options jsonb not null,
-  correct_answer integer not null,
-  explanation text not null,
-  generated_at timestamptz not null default now()
-);
-```
-New files: `src/app/api/ai/generate-quiz/route.ts`, `src/components/course/adaptive-quiz-section.tsx`
-Modified files: `quiz-block.tsx`, `courses/actions.ts`, `[lessonId]/page.tsx`
+All five high-tech features (F1–F5) are shipped and live in the codebase.
 
 ---
 
@@ -220,7 +184,7 @@ c:\DevPath RO\
 │   │   │       └── tts/route.ts    # Edge: OpenAI TTS-1 nova → audio/mpeg proxy
 │   │   ├── auth/callback/route.ts  # Supabase OAuth callback
 │   │   ├── globals.css
-│   │   ├── layout.tsx              # Root layout (next-intl, themes)
+│   │   ├── layout.tsx              # Root layout (themes, providers)
 │   │   └── page.tsx                # Landing page
 │   ├── components/
 │   │   ├── course/
@@ -240,7 +204,6 @@ c:\DevPath RO\
 │   ├── hooks/
 │   │   ├── use-speech-recognition.ts  # Web Speech API STT (push-to-talk)
 │   │   └── use-speech-synthesis.ts   # OpenAI TTS-1 nova (with AbortController)
-│   ├── i18n/request.ts             # next-intl server config
 │   ├── lib/
 │   │   ├── supabase/
 │   │   │   ├── server.ts    # createSupabaseServerClient (RSC/Server Actions)
@@ -251,11 +214,10 @@ c:\DevPath RO\
 │   │   └── utils.ts         # cn() helper
 │   ├── middleware.ts         # Supabase session refresh on every request
 │   └── types/index.ts       # Domain types: User, Course, Lesson, etc.
-├── content/                  # MDX lesson files (AI Fundamentals course)
-├── messages/                 # next-intl translation files (ro.json, en.json)
-├── schema.sql               # Full Supabase schema (reference only)
+├── content/                  # MDX lesson files (12-course v5 curriculum; C1/C2 authored)
+├── schema.sql               # Full Supabase schema (reference only; verify live via Supabase MCP)
 ├── seed.sql                 # Seed data for development
-├── next.config.mjs          # next-intl plugin wrapper
+├── next.config.mjs          # Next config (transpiles next-mdx-remote, image domains)
 ├── tailwind.config.ts
 └── tsconfig.json            # strict mode enabled
 ```
@@ -297,8 +259,6 @@ c:\DevPath RO\
 | `public.user_progress` | Per-user lesson completion + scores | ✅ User owns own rows |
 | `public.quiz_questions` | Static quiz questions per lesson | ✅ Public read |
 | `public.projects` | User portfolio projects | ✅ User owns + public read for completed |
-| `public.lesson_gate_questions` | Gate completion questions per lesson | ✅ Public read (auth) |
-| `public.lesson_gate_attempts` | User gate question attempts | ✅ User owns own rows |
 | `public.lesson_bookmarks` | Saved lessons per user | ✅ User owns own rows |
 | `public.lesson_feedback` | Thumbs up/down per lesson | ✅ User owns own rows |
 | `public.xp_events` | XP transaction log | ✅ User owns own rows |
@@ -312,6 +272,13 @@ c:\DevPath RO\
 | `public.lesson_comments` | Lesson comments (threaded) | ✅ Public read (auth) |
 | `public.push_subscriptions` | Browser push endpoints | ✅ User owns own rows |
 | `public.ai_coach_sessions` | AI coach summaries | ✅ User owns own rows |
+| `public.inline_questions` | Inline lesson questions (interactive layer) | ✅ Public read (auth) |
+| `public.inline_attempts` | Per-user inline-question attempts (FK → inline_questions) | ✅ User owns own rows |
+| `public.wow_notes` | Contextual "Wow Note" cards (media: none/svg/component) | ✅ Public read (auth) |
+| `public.lesson_scores` | Per-user lesson score (correct-question counts) | ✅ User owns own rows |
+| `public.minigame_sessions` | Mini-game results | ✅ User owns own rows |
+
+The retired `lesson_gate_questions` / `lesson_gate_attempts` tables and the `lessons.content_simple_md` column were dropped in migration `20260627120000_drop_retired_gate_and_dead_columns`.
 
 Trigger: `on_auth_user_created` → auto-inserts into `public.users` on every new signup.
 
@@ -363,19 +330,17 @@ The user also works on **edunext-production** (`c:\WORK_SPACE\edunext-production
 
 ## Context7 MCP — Auto-Documentation
 
-Context7 MCP is configured in this project's `.claude/settings.json`. When you need up-to-date documentation for any library used in this project (Next.js, Supabase, Vercel AI SDK, Framer Motion, Radix UI, next-intl, Zod, etc.), use Context7 tools automatically without waiting to be asked. This is especially important for:
+Context7 MCP is configured in this project's `.claude/settings.json`. When you need up-to-date documentation for any library used in this project (Next.js, Supabase, Vercel AI SDK, Framer Motion, Radix UI, Zod, etc.), use Context7 tools automatically without waiting to be asked. This is especially important for:
 - Vercel AI SDK (`ai`, `@ai-sdk/openai`, `@ai-sdk/react`) — API changes frequently
 - Supabase JS v2 (`@supabase/supabase-js`, `@supabase/ssr`) — SSR patterns
-- next-intl v4 — server/client boundary rules changed in v4
 - Next.js 14 App Router — use Context7 instead of relying on training data
 
 ---
 
 ## Language
 
-Platform is Romanian-only. next-intl has been removed entirely. Do not add any i18n library.
-All user-facing text is hardcoded in Romanian directly in component files.
-Messages are stored in `messages/ro.json` for reference only — not imported at runtime.
+Platform is Romanian-only. next-intl has been removed entirely — there is no `src/i18n/` directory and no `messages/` directory. Do not add any i18n library.
+All user-facing text is hardcoded in Romanian directly in component files. Lesson content and AI responses are in Romanian.
 
 ---
 
@@ -447,7 +412,7 @@ interface CosmoMascotProps {
 Single-mode lessons only. The Mod Simplu / Mod Tehnic dual-mode system was retired in Block 1 (Prompt 1.4); 51 simple-mode files were archived to `content/_archive/simple-mode/`.
 
 - Render lesson content from the `content_md` column only.
-- The `content_simple_md` column is preserved in the schema for historical reasons but is **not rendered**.
+- The `content_simple_md` column was **dropped** from the schema (migration `20260627120000`); dual-mode no longer exists.
 - The `users.learning_mode` column is **not used**; do not branch on it.
 - Block 3 (curriculum content writing) produces ONE technical version per lesson. Archived simple-mode prose may be mined as analogies/sidebars where useful.
 
@@ -463,24 +428,14 @@ Never skip either step. Edge runtime supports `createSupabaseServerClient()` via
 
 ## Development Priorities
 
-1. **Immediate:** Feature 2 — Adaptive AI Quiz Generation
-   - Run DB migrations (show SQL first, wait for approval)
-   - Build `/api/ai/generate-quiz` route with `generateObject()` + Zod
-   - Build `<AdaptiveQuizSection>` client component
-   - Extend `quiz-block.tsx` to record wrong answers
-
-2. **Next:** Feature 1 — In-Browser Python Execution (requires `pyodide` package)
-
-3. **After:** Feature 3 — Neural Network Visualizer (zero new packages)
+Features F1–F5 are all shipped. The current priority is authoring lesson content for Courses 3–12 (only C1/C2 are authored — see `PROJECT-STATE.md`).
 
 ---
 
 ## Implementation Navigation
-- Start every session by reading: devpath-docs/IMPLEMENTATION-INDEX.md
-- Then read: devpath-docs/phase-refs/PHASE0-REF.md for current phase
-- Then read ONLY the relevant section of devpath-docs/devpath-plan-phase0.md
-- After completing each task group: mark done in devpath-docs/devpath-progress.md
-- Never read entire plan files — use phase-refs as entry point
+- Start every session by reading `PROJECT-STATE.md` (current v5 state + methodology).
+- Curriculum source of truth: `devpath-docs/CURRICULUM-STRUCTURE.md` (parsed by `scripts/seed-curriculum.mjs`).
+- Pre-v5 planning docs are archived under `devpath-docs/archive/` — historical only, not the source of truth.
 
 ---
 
