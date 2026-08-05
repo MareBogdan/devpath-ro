@@ -51,21 +51,21 @@ const KIND_STYLE: Record<
   insight: {
     label: "Wow",
     Icon: Sparkles,
-    wrap: "border-l-[#00CEC9] bg-[#00CEC9]/[0.07] shadow-[0_0_12px_2px_rgba(0,206,201,0.26)]",
+    wrap: "border-l-[#00CEC9] bg-[color:var(--aurora-bg-card)] bg-[linear-gradient(rgba(0,206,201,0.07),rgba(0,206,201,0.07))] shadow-[0_0_12px_2px_rgba(0,206,201,0.26)]",
     glow: "from-[#00CEC9] via-[#5fe9e0] to-[#00CEC9]",
     chip: "text-[#00CEC9]",
   },
   term: {
     label: "Termen",
     Icon: BookOpen,
-    wrap: "border-l-[#6C5CE7] bg-[#6C5CE7]/[0.07] shadow-[0_0_12px_2px_rgba(108,92,231,0.26)]",
+    wrap: "border-l-[#6C5CE7] bg-[color:var(--aurora-bg-card)] bg-[linear-gradient(rgba(108,92,231,0.07),rgba(108,92,231,0.07))] shadow-[0_0_12px_2px_rgba(108,92,231,0.26)]",
     glow: "from-[#6C5CE7] via-[#a78bfa] to-[#6C5CE7]",
     chip: "text-[#A78BFA]",
   },
   analogy: {
     label: "Analogie",
     Icon: Lightbulb,
-    wrap: "border-l-[#F5A623] bg-[#F5A623]/[0.07] shadow-[0_0_12px_2px_rgba(245,166,35,0.22)]",
+    wrap: "border-l-[#F5A623] bg-[color:var(--aurora-bg-card)] bg-[linear-gradient(rgba(245,166,35,0.07),rgba(245,166,35,0.07))] shadow-[0_0_12px_2px_rgba(245,166,35,0.22)]",
     glow: "from-[#F5A623] via-[#ffcf7a] to-[#F5A623]",
     chip: "text-[#F5A623]",
   },
@@ -76,8 +76,8 @@ const KIND_STYLE: Record<
 // card entirely into the margin so the reading text keeps its full width (no gap).
 const SIDE_FLOAT: Record<WowNoteSide, string> = {
   right:
-    "min-[1360px]:float-right min-[1360px]:clear-right min-[1360px]:-mr-[332px]",
-  left: "min-[1360px]:float-left min-[1360px]:clear-left min-[1360px]:-ml-[332px]",
+    "min-[1360px]:float-right min-[1360px]:clear-right min-[1360px]:-mr-[336px]",
+  left: "min-[1360px]:float-left min-[1360px]:clear-left min-[1360px]:-ml-[336px]",
 };
 
 function WowNoteCard({ note }: { note: WowNoteRow }) {

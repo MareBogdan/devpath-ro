@@ -11,6 +11,28 @@ import {
 import { WowNotesProvider } from "@/components/interactive/wow-notes-context";
 import type { LessonInteractiveState, LessonWowNotes } from "@/types";
 
+// Circuit-trace margin motif, inlined as a data-URI (no external asset → never a
+// stale cache or 404; always paints). Tiled vertically behind the reading column.
+const CIRCUIT_SVG =
+  "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 140 300' fill='none'>" +
+  "<g stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'>" +
+  "<path d='M45 0 V300' stroke='#8b7ff5' opacity='0.85'/>" +
+  "<path d='M110 0 V300' stroke='#2fded7' opacity='0.8'/>" +
+  "<path d='M45 60 H85 V110' stroke='#8b7ff5' opacity='0.75'/>" +
+  "<path d='M45 200 H110' stroke='#2fded7' opacity='0.7'/>" +
+  "<path d='M45 255 H22' stroke='#8b7ff5' opacity='0.75'/>" +
+  "<path d='M110 150 H128' stroke='#2fded7' opacity='0.7'/>" +
+  "</g>" +
+  "<circle cx='45' cy='60' r='5' fill='#0d0d18' stroke='#8b7ff5' stroke-width='2.5'/>" +
+  "<circle cx='85' cy='110' r='5' fill='#0d0d18' stroke='#8b7ff5' stroke-width='2.5'/>" +
+  "<circle cx='110' cy='200' r='5' fill='#0d0d18' stroke='#2fded7' stroke-width='2.5'/>" +
+  "<circle cx='45' cy='200' r='4' fill='#8b7ff5'/>" +
+  "<rect x='13' y='249' width='12' height='12' rx='2' fill='#0d0d18' stroke='#8b7ff5' stroke-width='2.5'/>" +
+  "<rect x='125' y='144' width='12' height='12' rx='2' fill='#0d0d18' stroke='#2fded7' stroke-width='2.5'/>" +
+  "<circle cx='110' cy='110' r='4' fill='#2fded7'/>" +
+  "</svg>";
+const CIRCUIT_URL = `url("data:image/svg+xml,${encodeURIComponent(CIRCUIT_SVG)}")`;
+
 interface LessonContentProps {
   /** MDX compiled on the server via next-mdx-remote/serialize in the lesson page. */
   mdxSource: MDXRemoteSerializeResult;
@@ -53,7 +75,37 @@ export function LessonContent({
   );
 
   return (
-    <div id="lesson-content">
+    <div id="lesson-content" className="relative isolate">
+      {/* Ambient margin decoration (wide screens only) — a circuit-trace motif (hardware
+          theme) fills the side margins so empty stretches read as designed, not blank.
+          The ?v= query busts stale browser cache of the SVG asset. Purely decorative. */}
+      <div
+        aria-hidden
+        style={{
+          backgroundImage: CIRCUIT_URL,
+          backgroundRepeat: "repeat-y",
+          backgroundPosition: "top center",
+          maskImage:
+            "linear-gradient(to bottom, transparent, black 5%, black 95%, transparent)",
+          WebkitMaskImage:
+            "linear-gradient(to bottom, transparent, black 5%, black 95%, transparent)",
+        }}
+        className="pointer-events-none absolute inset-y-0 left-[-330px] -z-10 hidden w-[160px] opacity-90 min-[1360px]:block"
+      />
+      <div
+        aria-hidden
+        style={{
+          backgroundImage: CIRCUIT_URL,
+          backgroundRepeat: "repeat-y",
+          backgroundPosition: "top center",
+          transform: "scaleX(-1)",
+          maskImage:
+            "linear-gradient(to bottom, transparent, black 5%, black 95%, transparent)",
+          WebkitMaskImage:
+            "linear-gradient(to bottom, transparent, black 5%, black 95%, transparent)",
+        }}
+        className="pointer-events-none absolute inset-y-0 right-[-330px] -z-10 hidden w-[160px] opacity-90 min-[1360px]:block"
+      />
       <div
         className={`animate-in fade-in duration-300 prose prose-slate dark:prose-invert max-w-none
           prose-headings:font-bold prose-headings:tracking-tight
