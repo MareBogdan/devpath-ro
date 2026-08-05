@@ -81,11 +81,7 @@ export function LessonContent({
           [&_td]:px-4 [&_td]:py-2.5 [&_td]:border [&_td]:border-[#6C5CE7]/[0.15]
           [&_tbody_tr:nth-child(odd)]:bg-white/[0.02]
           [&_tbody_tr:nth-child(even)]:bg-[#6C5CE7]/[0.05]
-          prose-li:text-[17px] prose-li:leading-[1.8] prose-li:text-foreground/90 prose-li:marker:text-primary ${
-          hasWowNotes
-            ? "xl:grid xl:grid-cols-[680px_300px] xl:gap-x-8 xl:gap-y-0 [&>*:not([data-wow-note])]:xl:col-start-1"
-            : ""
-        }`}
+          prose-li:text-[17px] prose-li:leading-[1.8] prose-li:text-foreground/90 prose-li:marker:text-primary`}
       >
         <InteractiveLessonProvider
           interactiveState={state}

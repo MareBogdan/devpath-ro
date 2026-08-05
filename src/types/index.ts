@@ -197,6 +197,8 @@ export interface LessonScore {
 }
 
 export type WowNoteMediaType = "none" | "svg" | "component";
+export type WowNoteSide = "left" | "right";
+export type WowNoteKind = "insight" | "term" | "analogy";
 
 export interface WowNote {
   id: string;
@@ -206,6 +208,8 @@ export interface WowNote {
   body: string | null;
   media_type: WowNoteMediaType;
   media_ref: string | null; // non-null whenever media_type !== "none" (DB CHECK)
+  side: WowNoteSide; // which page margin the note floats into (desktop)
+  kind: WowNoteKind; // visual style: teal insight / violet term / amber analogy
   created_at: string;
 }
 

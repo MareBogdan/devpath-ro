@@ -96,7 +96,7 @@ export async function getLessonWowNotes(lessonId: string): Promise<LessonWowNote
   const supabase = createSupabaseServerClient();
   const { data: rows } = await supabase
     .from("wow_notes")
-    .select("id, lesson_id, order_index, title, body, media_type, media_ref, created_at")
+    .select("id, lesson_id, order_index, title, body, media_type, media_ref, side, kind, created_at")
     .eq("lesson_id", lessonId)
     .order("order_index", { ascending: true });
 

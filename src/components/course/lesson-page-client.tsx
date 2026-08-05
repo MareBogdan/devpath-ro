@@ -173,7 +173,7 @@ export function LessonPageClient({
           680px reading column (xl:pr-[332px] reserves the gutter) so the complete
           button / next-CTA stay aligned with the text, not floated under the gutter.
           Below xl: or 0-note lessons => no padding, identical to before. */}
-      <div className={hasWowNotes ? "xl:pr-[332px]" : undefined}>
+      <div>
       {/* Completion row */}
       <div className="mt-8 pt-6 border-t border-border flex items-center justify-between gap-4 flex-wrap">
         <LessonPresence

@@ -1,26 +1,25 @@
 "use client";
 
-// <WowNote n="1" /> — MDX-embedded contextual "wow" note. Resolves the note whose
-// order_index === n from context (WowNotesProvider) and renders it as an inline
-// card in the reading column — FactBox visual language, but a TEAL accent so notes
-// read as their own thing. Read-only: no per-user state, no submit, no gating.
+// <WowNote n="1" /> — MDX-embedded contextual side-note. Resolves the note whose
+// order_index === n from context (WowNotesProvider) and floats it into the LEFT or
+// RIGHT page margin (per note.side) on wide screens; inline full-width otherwise.
+// Read-only: no per-user state, no submit, no gating.
+//
+// Three visual KINDS (note.kind) give variety so notes don't all look the same:
+//   • insight  — teal  "Wow"      (a surprising takeaway / aha)
+//   • term     — violet "Termen"  (definition of a niche word, placed near it)
+//   • analogy  — amber "Analogie" (a real-life comparison)
 //
 // AUTHORING: write the STRING form `n="1"`, NOT `n={1}` — next-mdx-remote v6's
-// serialize() drops JSX expression-valued attributes at compile time (same caveat
-// as <InlineQuestion>). Place each <WowNote> on its OWN line (block) in MDX.
-//
-// This slice renders the card inline in the single 680px reading column (which is
-// ALSO the mobile presentation). The desktop lateral gutter is a separate layout
-// task and is intentionally NOT done here — no width/grid changes live in here.
+// serialize() drops JSX expression-valued attributes at compile time. Place each
+// <WowNote> on its OWN line (block) in MDX, right after the sentence it explains.
 
-import { AlertTriangle, Sparkles } from "lucide-react";
+import { AlertTriangle, Sparkles, BookOpen, Lightbulb } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { useWowNotes } from "@/components/interactive/wow-notes-context";
 import { WOW_NOTE_COMPONENTS } from "@/components/interactive/wow-note-components";
-import type { WowNote as WowNoteRow } from "@/types";
+import type { WowNote as WowNoteRow, WowNoteKind, WowNoteSide } from "@/types";
 
-// Coerce the `n` attribute to an order_index — accepts a number (1) or a string
-// ("1"); extracts the first integer. Mirrors <InlineQuestion>'s resolveOrder so
-// both forms resolve under any pipeline that delivers the prop.
 function resolveOrder(n: number | string): number | null {
   if (typeof n === "number") return Number.isFinite(n) ? n : null;
   const match = String(n).match(/-?\d+/);
@@ -43,21 +42,58 @@ export function WowNote({ n }: { n: number | string }) {
   return <WowNoteCard note={note} />;
 }
 
+// Per-kind visual config. Literal Tailwind class strings (JIT-safe — no dynamic
+// interpolation of color tokens).
+const KIND_STYLE: Record<
+  WowNoteKind,
+  { label: string; Icon: LucideIcon; wrap: string; glow: string; chip: string }
+> = {
+  insight: {
+    label: "Wow",
+    Icon: Sparkles,
+    wrap: "border-l-[#00CEC9] bg-[#00CEC9]/[0.07] shadow-[0_0_12px_2px_rgba(0,206,201,0.26)]",
+    glow: "from-[#00CEC9] via-[#5fe9e0] to-[#00CEC9]",
+    chip: "text-[#00CEC9]",
+  },
+  term: {
+    label: "Termen",
+    Icon: BookOpen,
+    wrap: "border-l-[#6C5CE7] bg-[#6C5CE7]/[0.07] shadow-[0_0_12px_2px_rgba(108,92,231,0.26)]",
+    glow: "from-[#6C5CE7] via-[#a78bfa] to-[#6C5CE7]",
+    chip: "text-[#A78BFA]",
+  },
+  analogy: {
+    label: "Analogie",
+    Icon: Lightbulb,
+    wrap: "border-l-[#F5A623] bg-[#F5A623]/[0.07] shadow-[0_0_12px_2px_rgba(245,166,35,0.22)]",
+    glow: "from-[#F5A623] via-[#ffcf7a] to-[#F5A623]",
+    chip: "text-[#F5A623]",
+  },
+};
+
+// Which page margin the note floats into on wide screens (>=1360px). Below that
+// it renders inline full-width (identical on mobile). Negative margin pulls the
+// card entirely into the margin so the reading text keeps its full width (no gap).
+const SIDE_FLOAT: Record<WowNoteSide, string> = {
+  right:
+    "min-[1360px]:float-right min-[1360px]:clear-right min-[1360px]:-mr-[332px]",
+  left: "min-[1360px]:float-left min-[1360px]:clear-left min-[1360px]:-ml-[332px]",
+};
+
 function WowNoteCard({ note }: { note: WowNoteRow }) {
+  const k = KIND_STYLE[note.kind] ?? KIND_STYLE.insight;
+  const side = SIDE_FLOAT[note.side] ?? SIDE_FLOAT.right;
+  const Icon = k.Icon;
+
   return (
-    // data-wow-note: on desktop-with-notes the prose div becomes a grid and this card
-    // is excluded from the col-1 pin and lands in the right gutter (col 2). Below xl:
-    // or outside a grid these classes are inert and the card renders inline as before.
-    // self-start so a tall note doesn't stretch its grid row.
-    <div data-wow-note className="relative my-7 xl:col-start-2 xl:self-start">
-      {/* teal glow on the left edge — Wow Notes' accent (vs FactBox's violet) */}
+    <div className={`relative my-6 min-[1360px]:my-3 min-[1360px]:w-[300px] ${side}`}>
       <span
         aria-hidden
-        className="pointer-events-none absolute inset-y-3 left-0 w-[3px] rounded-full bg-gradient-to-b from-[#00CEC9] via-[#5fe9e0] to-[#00CEC9] blur-[6px] animate-pulse motion-reduce:animate-none"
+        className={`pointer-events-none absolute inset-y-3 left-0 w-[3px] rounded-full bg-gradient-to-b ${k.glow} blur-[6px] animate-pulse motion-reduce:animate-none`}
       />
-      <div className="relative rounded-xl border border-border border-l-[3px] border-l-[#00CEC9] bg-[#00CEC9]/[0.07] p-5 shadow-[0_0_12px_2px_rgba(0,206,201,0.28)]">
-        <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-[#00CEC9]">
-          <Sparkles className="h-3.5 w-3.5" /> Wow
+      <div className={`relative rounded-xl border border-border border-l-[3px] p-5 ${k.wrap}`}>
+        <div className={`mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide ${k.chip}`}>
+          <Icon className="h-3.5 w-3.5" /> {k.label}
         </div>
         <p className="m-0 text-base font-semibold text-foreground">{note.title}</p>
         {note.body && (
@@ -72,19 +108,18 @@ function WowNoteCard({ note }: { note: WowNoteRow }) {
 }
 
 function WowNoteMedia({ note }: { note: WowNoteRow }) {
-  // none, or media_ref absent (DB CHECK guarantees ref when type !== none): nothing.
   if (note.media_type === "none" || !note.media_ref) return null;
 
   if (note.media_type === "svg") {
-    // media_ref is an asset path under /public (e.g. "/wow/atom.svg"). next/image
-    // needs known dimensions; a static illustration path is fine as a plain <img>.
+    // media_ref is an asset path under /public (e.g. "/wow/atom.svg"). Rendered at
+    // full card width so the diagram + its labels stay legible.
     return (
       // eslint-disable-next-line @next/next/no-img-element -- static /public asset, dims unknown
       <img
         src={note.media_ref}
         alt={note.title}
         loading="lazy"
-        className="mt-3 max-h-48 w-auto rounded-lg"
+        className="mt-3 w-full rounded-lg"
       />
     );
   }

@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 200" font-family="system-ui, -apple-system, sans-serif">
+  <!-- CPU: few big cores -->
+  <text x="72" y="20" fill="#A78BFA" font-size="14" font-weight="700" text-anchor="middle">CPU</text>
+  <g fill="#6C5CE7" stroke="#a78bfa" stroke-width="1.5">
+    <rect x="24" y="32" width="42" height="42" rx="6"/>
+    <rect x="78" y="32" width="42" height="42" rx="6"/>
+    <rect x="24" y="86" width="42" height="42" rx="6"/>
+    <rect x="78" y="86" width="42" height="42" rx="6"/>
+  </g>
+  <text x="72" y="150" fill="#e2e8f0" font-size="12" font-weight="600" text-anchor="middle">puține,</text>
+  <text x="72" y="167" fill="#e2e8f0" font-size="12" font-weight="600" text-anchor="middle">puternice</text>
+
+  <!-- divider -->
+  <line x1="150" y1="30" x2="150" y2="150" stroke="#475569" stroke-width="1" stroke-dasharray="4 5"/>
+
+  <!-- GPU: many small cores -->
+  <text x="228" y="20" fill="#00CEC9" font-size="14" font-weight="700" text-anchor="middle">GPU</text>
+  <g fill="#00CEC9" opacity="0.9">
+    <!-- 7 cols x 5 rows of tiny cores -->
+    <g>
+      <rect x="170" y="32" width="12" height="12" rx="2"/><rect x="186" y="32" width="12" height="12" rx="2"/><rect x="202" y="32" width="12" height="12" rx="2"/><rect x="218" y="32" width="12" height="12" rx="2"/><rect x="234" y="32" width="12" height="12" rx="2"/><rect x="250" y="32" width="12" height="12" rx="2"/><rect x="266" y="32" width="12" height="12" rx="2"/>
+    </g>
+    <g>
+      <rect x="170" y="48" width="12" height="12" rx="2"/><rect x="186" y="48" width="12" height="12" rx="2"/><rect x="202" y="48" width="12" height="12" rx="2"/><rect x="218" y="48" width="12" height="12" rx="2"/><rect x="234" y="48" width="12" height="12" rx="2"/><rect x="250" y="48" width="12" height="12" rx="2"/><rect x="266" y="48" width="12" height="12" rx="2"/>
+    </g>
+    <g>
+      <rect x="170" y="64" width="12" height="12" rx="2"/><rect x="186" y="64" width="12" height="12" rx="2"/><rect x="202" y="64" width="12" height="12" rx="2"/><rect x="218" y="64" width="12" height="12" rx="2"/><rect x="234" y="64" width="12" height="12" rx="2"/><rect x="250" y="64" width="12" height="12" rx="2"/><rect x="266" y="64" width="12" height="12" rx="2"/>
+    </g>
+    <g>
+      <rect x="170" y="80" width="12" height="12" rx="2"/><rect x="186" y="80" width="12" height="12" rx="2"/><rect x="202" y="80" width="12" height="12" rx="2"/><rect x="218" y="80" width="12" height="12" rx="2"/><rect x="234" y="80" width="12" height="12" rx="2"/><rect x="250" y="80" width="12" height="12" rx="2"/><rect x="266" y="80" width="12" height="12" rx="2"/>
+    </g>
+    <g>
+      <rect x="170" y="96" width="12" height="12" rx="2"/><rect x="186" y="96" width="12" height="12" rx="2"/><rect x="202" y="96" width="12" height="12" rx="2"/><rect x="218" y="96" width="12" height="12" rx="2"/><rect x="234" y="96" width="12" height="12" rx="2"/><rect x="250" y="96" width="12" height="12" rx="2"/><rect x="266" y="96" width="12" height="12" rx="2"/>
+    </g>
+  </g>
+  <text x="228" y="150" fill="#e2e8f0" font-size="12" font-weight="600" text-anchor="middle">mii, simple,</text>
+  <text x="228" y="167" fill="#e2e8f0" font-size="12" font-weight="600" text-anchor="middle">în paralel</text>
+
+  <!-- caption -->
+  <text x="150" y="192" fill="#cbd5e1" font-size="11.5" font-style="italic" text-anchor="middle">9 mil. pixeli = aceeași operație, simultan</text>
+</svg>

@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 210" font-family="system-ui, -apple-system, sans-serif">
+  <!-- LCD -->
+  <text x="72" y="20" fill="#94a3b8" font-size="15" font-weight="700" text-anchor="middle">LCD</text>
+  <rect x="22" y="32" width="100" height="13" rx="3" fill="#fbbf24"/>
+  <text x="72" y="42" fill="#7c4a03" font-size="8.5" font-weight="700" text-anchor="middle">backlight aprins</text>
+  <rect x="22" y="52" width="100" height="78" rx="5" fill="#3a4658" stroke="#5b6b82" stroke-width="1.5"/>
+  <g stroke="#fbbf24" stroke-width="2.5" opacity="0.5">
+    <line x1="45" y1="52" x2="45" y2="130"/>
+    <line x1="72" y1="52" x2="72" y2="130"/>
+    <line x1="99" y1="52" x2="99" y2="130"/>
+  </g>
+  <text x="72" y="96" fill="#e2e8f0" font-size="14" font-weight="700" text-anchor="middle">negru = gri</text>
+  <text x="72" y="150" fill="#94a3b8" font-size="12" text-anchor="middle">lumina scapă</text>
+
+  <!-- divider -->
+  <line x1="150" y1="28" x2="150" y2="158" stroke="#475569" stroke-width="1" stroke-dasharray="4 5"/>
+
+  <!-- OLED -->
+  <text x="228" y="20" fill="#00CEC9" font-size="15" font-weight="700" text-anchor="middle">OLED</text>
+  <rect x="178" y="52" width="100" height="78" rx="5" fill="#050505" stroke="#00CEC9" stroke-width="1.5"/>
+  <rect x="205" y="66" width="12" height="18" rx="2" fill="#ef4444"/>
+  <rect x="220" y="66" width="12" height="18" rx="2" fill="#22c55e"/>
+  <rect x="235" y="66" width="12" height="18" rx="2" fill="#3b82f6"/>
+  <text x="228" y="112" fill="#8ea3bd" font-size="14" font-weight="700" text-anchor="middle">negru = stins</text>
+  <text x="228" y="150" fill="#94a3b8" font-size="12" text-anchor="middle">0 fotoni &#183; 0 energie</text>
+
+  <!-- caption -->
+  <text x="150" y="188" fill="#cbd5e1" font-size="12" font-style="italic" text-anchor="middle">LCD filtrează lumina &#183; OLED o stinge de tot</text>
+</svg>

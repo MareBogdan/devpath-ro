@@ -173,12 +173,11 @@ export default async function LessonPage({ params }: PageProps) {
   // the gutter on the right (xl:pr-[332px]) so the non-grid blocks (header / footer /
   // comments / completion chrome) keep their content over the 680px reading column.
   const hasWowNotes = (wowNotes?.notes?.length ?? 0) > 0;
-  const shellClass = hasWowNotes
-    ? "max-w-[680px] xl:max-w-[1012px]"
-    : "max-w-[680px]";
-  const railShellClass = hasWowNotes
-    ? "max-w-[680px] xl:max-w-[1012px] xl:pr-[332px]"
-    : "max-w-[680px]";
+  // Reading column is ALWAYS a centered 680px column. Wow Notes float into the
+  // right page margin (see wow-note.tsx) rather than reserving a grid gutter, so
+  // the text stays centered on the page and no vertical gaps appear.
+  const shellClass = "max-w-[680px]";
+  const railShellClass = "max-w-[680px]";
 
   // Fetch bookmark status
   const { data: bookmark } = user
