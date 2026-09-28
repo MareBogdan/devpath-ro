@@ -124,6 +124,112 @@ Acest pattern combină direct concepte deja văzute: bucla `for` (L7), `try`/`ex
 Fiecare SDK oficial de model AI (OpenAI, Anthropic) e, sub capotă, un wrapper mai sofisticat peste exact acest pattern — construiește cererea HTTP, adaugă header-ele de autentificare, gestionează retry-uri și timeout-uri, parsează răspunsul JSON. Dacă vreodată un SDK are un bug sau nu suportă o funcționalitate nouă, poți întotdeauna "coborî" la `requests` direct, construind manual cererea către endpoint-ul documentat al API-ului — cunoștințele din această lecție rămân aplicabile universal, indiferent de SDK-ul din jur.
 </CosmoHint>
 
+### Upload de fișiere — `files=`
+
+```python
+with open("imagine.jpg", "rb") as f:
+    raspuns = requests.post(
+        "https://api.exemplu.ro/upload",
+        files={"fisier": f}    # construiește automat un request multipart/form-data (revezi C3 L20)
+    )
+```
+
+Parametrul `files=` construiește automat o cerere `multipart/form-data`, formatul standard HTTP pentru transmiterea de fișiere binare alături de câmpuri text obișnuite — util pentru API-uri care acceptă upload-uri de imagini, documente, sau alte fișiere. Combinat cu modul binar de deschidere a fișierelor (`"rb"`, revizitat complet în L22), acest pattern acoperă majoritatea cazurilor practice de upload direct din Python.
+
+### Descărcarea de fișiere mari — streaming, nu totul deodată
+
+```python
+raspuns = requests.get("https://exemplu.ro/fisier_mare.zip", stream=True, timeout=30)
+with open("descarcare.zip", "wb") as f:
+    for bucata in raspuns.iter_content(chunk_size=8192):
+        f.write(bucata)
+```
+
+`stream=True` schimbă comportamentul implicit al `requests`: în loc să descarce tot conținutul răspunsului în memorie înainte să-l returneze, permite citirea lui **progresivă**, bucată cu bucată, prin `.iter_content()` — exact principiul deja familiar de la generatoare (L19) și citirea de fișiere mari (L22), aplicat aici transferurilor de rețea. Pentru fișiere de dimensiuni mari (modele AI descărcate, seturi de date), acest pattern previne alocarea unei cantități masive de memorie doar pentru a ține tot răspunsul, neîntrerupt, înainte de a-l scrie pe disc.
+
+### Verificarea header-elor de răspuns
+
+```python
+raspuns = requests.get("https://api.exemplu.ro/date")
+print(raspuns.headers["Content-Type"])        # 'application/json'
+print(raspuns.headers.get("X-RateLimit-Remaining"))   # câte cereri mai ai la dispoziție (revezi C3 L22)
+print(raspuns.elapsed.total_seconds())            # cât a durat efectiv cererea
+```
+
+Header-ele de răspuns (`.headers`, un dicționar-like) conțin des informații operaționale utile dincolo de conținutul propriu-zis — limitele de rate limiting rămase (`X-RateLimit-Remaining`, revezi C3 L22), tipul de conținut, sau metadate custom specifice API-ului apelat. `.elapsed` măsoară automat durata cererii, util pentru logging și diagnosticare de performanță fără cronometrare manuală explicită.
+
+### `httpx` — succesorul modern, compatibil sincron și async
+
+```python
+import httpx
+
+# Sincron, sintaxă aproape identică cu requests:
+raspuns = httpx.get("https://api.exemplu.ro/date")
+
+# Asincron, direct legat de L21:
+async def obtine_date_async():
+    async with httpx.AsyncClient() as client:
+        raspuns = await client.get("https://api.exemplu.ro/date")
+        return raspuns.json()
+```
+
+`httpx`, menționat deja în L21 pentru capacitatea lui async, oferă și o interfață sincronă aproape identică sintactic cu `requests` — motiv pentru care multe proiecte noi aleg `httpx` de la început, chiar dacă folosesc inițial doar codul sincron, pentru a avea opțiunea de a trece la async mai târziu fără să schimbe complet biblioteca folosită.
+
+### Redirectări automate — `allow_redirects`
+
+```python
+raspuns = requests.get("http://exemplu.ro", allow_redirects=True)   # implicit True
+print(raspuns.history)   # lista tuturor redirectărilor (301, 302) urmate automat
+print(raspuns.url)         # URL-ul FINAL, după toate redirectările
+```
+
+`requests` urmează automat redirectările HTTP (`301 Moved Permanently`, `302 Found`, revezi C3 L20), transparent, fără cod suplimentar — comportament implicit, dezactivabil explicit cu `allow_redirects=False` pentru cazuri unde vrei să inspectezi manual redirectarea, nu s-o urmezi automat (util la debugging sau la verificarea explicită a unei politici de securitate care nu ar trebui să urmeze redirectări către domenii neîncrezătoare).
+
+### `PreparedRequest` — inspectarea cererii înainte de trimitere
+
+```python
+cerere = requests.Request("POST", "https://api.exemplu.ro/date", json={"cheie": "valoare"})
+pregatita = cerere.prepare()
+print(pregatita.headers)   # header-ele EXACTE care vor fi trimise
+print(pregatita.body)        # body-ul EXACT, deja serializat
+
+with requests.Session() as sesiune:
+    raspuns = sesiune.send(pregatita)
+```
+
+Pentru cazuri avansate — debugging al unei cereri care nu se comportă cum te-ai aștepta, sau construirea manuală de semnături criptografice peste conținutul exact al cererii (exact pattern-ul discutat la webhook-uri, C3 L24) — `Request`/`prepare()` expune conținutul complet, byte cu byte, al ce va fi trimis efectiv pe rețea, înainte ca cererea să plece — util pentru a verifica exact ce trimite biblioteca, fără presupuneri.
+
+### Proxy-uri — rutarea cererilor prin intermediari
+
+```python
+proxy_uri = {
+    "http": "http://proxy.exemplu.ro:8080",
+    "https": "http://proxy.exemplu.ro:8080",
+}
+raspuns = requests.get("https://api.exemplu.ro/date", proxies=proxy_uri, timeout=10)
+```
+
+Parametrul `proxies=` rutează cererea printr-un server proxy (revezi conceptul de forward proxy din C3) — util pentru medii corporate care impun trafic prin proxy central, sau pentru testare din locații geografice diferite prin proxy-uri dedicate. Configurarea diferă pentru `http`/`https`, permițând proxy-uri separate pentru fiecare protocol, dacă infrastructura o cere.
+
+### Testarea codului care face cereri HTTP — mock-uri
+
+Cod care depinde de apeluri de rețea reale e greu de testat automat — testele ar deveni lente, fragile (dependente de disponibilitatea serviciului extern), și costisitoare (cereri reale repetate la fiecare rulare de test). Biblioteca `unittest.mock` (sau `responses`, o bibliotecă dedicată specific pentru `requests`) permite "simularea" răspunsurilor HTTP, fără nicio cerere reală de rețea:
+
+```python
+from unittest.mock import patch, Mock
+
+@patch("requests.get")
+def test_obtine_utilizator(mock_get):
+    mock_get.return_value = Mock(status_code=200, json=lambda: {"nume": "Ana"})
+
+    rezultat = obtine_utilizator(42)   # funcția TESTATĂ apelează requests.get intern
+    assert rezultat["nume"] == "Ana"
+```
+
+`@patch("requests.get")` înlocuiește temporar funcția reală `requests.get` cu un obiect fals (`Mock`), controlat complet de test — funcția testată nu observă nicio diferență (tot apelează "requests.get" ca de obicei), dar niciun byte nu circulă efectiv prin rețea. Acest pattern e esențial pentru orice suită de teste automate care acoperă cod de integrare cu API-uri externe, inclusiv apeluri către modele AI, unde testele reale, cu costuri și latență reală, ar fi impracticabile de rulat la fiecare modificare de cod.
+
+Testele care mock-uiesc apeluri API verifică logica proprie de gestionare a răspunsului (parsare, validare, tratarea erorilor) — nu verifică dacă API-ul real răspunde corect, o distincție importantă: teste unitare mock-uite completează, dar nu înlocuiesc complet, teste de integrare ocazionale, rulate separat, care chiar apelează serviciul real pentru a confirma că integrarea funcționează end-to-end.
+
 ---
 
 ## REVEAL
