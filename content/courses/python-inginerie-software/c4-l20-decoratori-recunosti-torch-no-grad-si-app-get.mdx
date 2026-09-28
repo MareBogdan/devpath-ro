@@ -1,0 +1,180 @@
+---
+title: "Decoratori: Recunoști @torch.no_grad() și @app.get()"
+order: 20
+type: lesson
+module_index: 4
+duration: 13
+difficulty: 3
+---
+
+# Decoratori: Recunoști @torch.no_grad() și @app.get()
+
+## HOOK
+
+```python
+@torch.no_grad()
+def evalueaza_model(model, date_test):
+    return model(date_test)
+
+@app.get("/utilizatori/{id}")
+def obtine_utilizator(id: int):
+    return baza_de_date.gaseste(id)
+```
+
+Simbolul `@`, plasat direct înaintea unei funcții, apare în aproape orice cod Python modern serios — de la evaluarea unui model PyTorch fără urmărirea gradientului, la definirea unui endpoint API FastAPI. Fără să înțelegi mecanismul, aceste linii par magie sintactică arbitrară. Cu înțelegerea corectă, ele devin exact ce sunt: funcții care **împachetează** alte funcții, adăugând comportament suplimentar înainte, după, sau în jurul execuției lor originale — fără să modifici o singură linie din funcția împachetată.
+
+---
+
+## CONTEXT
+
+Decoratorii se bazează direct pe faptul, stabilit deja în L9, că funcțiile Python sunt cetățeni de primă clasă — pot fi transmise ca argumente, returnate din alte funcții. Sintaxa `@decorator` (**PEP 318**, 2003) e, tehnic, doar **zahăr sintactic** — o formă mai citeață pentru un pattern care exista deja, posibil, fără sintaxă dedicată: reasignarea unei funcții cu versiunea ei "împachetată" de o altă funcție.
+
+Adopția masivă a decoratorilor în framework-uri majore — Flask/FastAPI pentru rutare, pytest pentru configurarea testelor, PyTorch pentru controlul gradientului — reflectă cât de natural se pretează acest pattern la a adăuga comportament transversal (logging, autentificare, măsurare de timp, validare) fără să poluezi logica de bază a funcției cu cod repetitiv, nerelevant pentru scopul ei principal.
+
+---
+
+## MIEZUL
+
+### Ce e, de fapt, un decorator — dezvăluit pas cu pas
+
+```python
+def decorator_simplu(functie):
+    def functie_impachetata(*args, **kwargs):    # revezi *args/**kwargs din L9
+        print(f"Apelez {functie.__name__}...")
+        rezultat = functie(*args, **kwargs)         # apelează funcția ORIGINALĂ
+        print(f"{functie.__name__} a returnat {rezultat}")
+        return rezultat
+    return functie_impachetata
+
+def aduna(a, b):
+    return a + b
+
+aduna_decorata = decorator_simplu(aduna)   # ATRIBUIRE MANUALĂ — echivalentul lui @decorator_simplu
+print(aduna_decorata(3, 4))
+# Apelez aduna...
+# aduna a returnat 7
+# 7
+```
+
+Un decorator e, la bază, **o funcție care primește o funcție și returnează altă funcție** — de obicei una care "împachetează" comportamentul original cu logică adițională. Sintaxa `@decorator_simplu` de deasupra unei definiții de funcție e exact echivalentă cu apelul manual de mai sus:
+
+```python
+@decorator_simplu
+def aduna(a, b):
+    return a + b
+
+# EXACT echivalent cu:
+def aduna(a, b):
+    return a + b
+aduna = decorator_simplu(aduna)
+```
+
+<CosmoHint emotion="thinking">
+De ce funcția internă a unui decorator ia mereu `*args, **kwargs`, nu parametrii specifici ai funcției originale? Pentru că decoratorul trebuie să funcționeze pe ORICE funcție, indiferent de semnătura ei exactă — `@decorator_simplu` s-ar putea aplica la fel de bine unei funcții cu 5 parametri, ca unei funcții fără niciun parametru. `*args, **kwargs` colectează orice combinație de argumente primite și le transmite neschimbate funcției originale, făcând decoratorul universal aplicabil, indiferent de semnătura funcției decorate.
+</CosmoHint>
+
+### Decoratori cu argumente proprii — o funcție care produce decoratori
+
+```python
+def repeta(de_cate_ori):
+    def decorator(functie):
+        def functie_impachetata(*args, **kwargs):
+            for _ in range(de_cate_ori):
+                rezultat = functie(*args, **kwargs)
+            return rezultat
+        return functie_impachetata
+    return decorator
+
+@repeta(de_cate_ori=3)
+def saluta():
+    print("Salut!")
+
+saluta()   # afișează "Salut!" de 3 ori
+```
+
+`@app.get("/utilizatori/{id}")` din HOOK are exact această formă — `app.get("/utilizatori/{id}")` e apelul care produce decoratorul propriu-zis, care apoi se aplică funcției `obtine_utilizator`. Trei nivele de funcții imbricate — normal la prima vedere, dar consistent cu regula: decoratorul cu argumente e o funcție care, apelată cu acele argumente, *returnează* decoratorul real, cel care va împacheta funcția.
+
+### `functools.wraps` — păstrarea identității funcției originale
+
+```python
+from functools import wraps
+
+def decorator_corect(functie):
+    @wraps(functie)          # păstrează __name__, __doc__ ale funcției ORIGINALE
+    def functie_impachetata(*args, **kwargs):
+        return functie(*args, **kwargs)
+    return functie_impachetata
+
+@decorator_corect
+def calculeaza():
+    """Docstring important."""
+    pass
+
+print(calculeaza.__name__)   # "calculeaza" — CORECT, grație @wraps
+                                # FĂRĂ @wraps, ar fi afișat "functie_impachetata" — greșit, confuz
+```
+
+Fără `@wraps`, funcția decorată "pierde" metadata proprie (numele, docstring-ul) — devine, din perspectiva instrumentelor de debugging/documentare, funcția internă generică `functie_impachetata`, nu funcția originală semnificativă. `functools.wraps` copiază automat aceste metadate, un detaliu mic dar important pentru cod decorator scris corect, profesional.
+
+{/* TABLE */}
+
+| Decorator cunoscut | Ce face concret |
+|---|---|
+| `@torch.no_grad()` | Dezactivează urmărirea gradientului în interiorul funcției — economisește memorie la evaluare |
+| `@app.get("/ruta")` | Înregistrează funcția ca handler pentru cererile `GET` la acea rută (FastAPI) |
+| `@app.route("/ruta")` | Echivalentul Flask al celui de mai sus |
+| `@property` | Transformă o metodă în atribut accesibil fără paranteze (`obiect.valoare`, nu `obiect.valoare()`) |
+| `@staticmethod` | Marchează o metodă care nu are nevoie de `self` — apelabilă direct pe clasă |
+| `@pytest.fixture` | Marchează o funcție ca sursă reutilizabilă de date pentru teste |
+| `@lru_cache` | Cache-uiește automat rezultatele funcției pentru argumente deja văzute |
+
+### `@torch.no_grad()` — decorat cu explicație completă
+
+PyTorch urmărește automat toate operațiile efectuate pe tensori pentru a putea calcula gradientul la propagarea înapoi (backpropagation) — necesar la antrenare, dar complet inutil (și costisitor de memorie) la simpla evaluare a unui model deja antrenat. `@torch.no_grad()` dezactivează temporar această urmărire, exact în timpul execuției funcției decorate, revenind la comportamentul normal imediat după — un exemplu concret al pattern-ului "adaugă comportament în jurul execuției" fără să modifici nicio linie din logica reală a funcției.
+
+### Stivuirea decoratorilor — mai mulți deodată
+
+```python
+@wraps(functie)
+@repeta(de_cate_ori=2)
+@decorator_simplu
+def functie_complexa():
+    pass
+```
+
+Decoratorii se aplică **de jos în sus** — cel mai apropiat de `def` se aplică primul, împachetând funcția originală, apoi rezultatul e împachetat de decoratorul următor, și așa mai departe. Ordinea contează practic: `@decorator_a @decorator_b def f()` produce un comportament diferit de `@decorator_b @decorator_a def f()`, exact ca compunerea de funcții matematice — `f(g(x))` ≠ `g(f(x))` în general.
+
+<CosmoHint emotion="encouraging">
+`@functools.lru_cache(maxsize=None)` transformă instant o funcție "pură" (fără efecte secundare, din L9) într-o versiune care reține rezultatele calculate deja — a doua chemare cu aceleași argumente returnează instant valoarea salvată, fără să reexecute logica. Util direct pentru funcții costisitoare, apelate repetat cu aceleași input-uri — o singură linie de decorator, fără să modifici deloc implementarea funcției originale.
+</CosmoHint>
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Sintaxă | Echivalent explicit |
+|---|---|
+| `@decorator def f(): ...` | `def f(): ... ; f = decorator(f)` |
+| `@decorator(arg) def f(): ...` | `f = decorator(arg)(f)` |
+| Decoratori stivuiți `@a @b def f()` | `f = a(b(f))` — se aplică de jos în sus |
+| `@wraps(functie)` în interiorul unui decorator | Păstrează `__name__`/`__doc__` ale funcției originale |
+
+<FactBox>
+**Decoratori în cifre:**
+- Sintaxa `@decorator`: introdusă prin **PEP 318** (2003), Python 2.4
+- Un decorator: funcție care primește o funcție, returnează altă funcție (sau aceeași, modificată)
+- `functools.wraps`: previne pierderea metadatelor (`__name__`, `__doc__`) la împachetare
+- Decoratori stivuiți: se aplică de jos în sus, exact ca o compunere matematică de funcții
+- `@torch.no_grad()`: dezactivează temporar urmărirea gradientului, doar în interiorul funcției decorate
+- Framework-uri majore care se bazează pe decoratori: FastAPI, Flask, pytest, PyTorch, Django
+</FactBox>
+
+---
+
+## ÎNCHEIERE
+
+Decoratorii sunt, sub sintaxa lor elegantă cu `@`, doar funcții obișnuite care primesc și returnează alte funcții — o consecință directă a faptului că funcțiile Python sunt valori de primă clasă. Recunoașterea acestui pattern transformă simboluri altfel opace (`@app.get`, `@torch.no_grad()`, `@pytest.fixture`) în cod perfect explicabil: cineva a scris o funcție care împachetează comportament suplimentar în jurul funcției tale.
+
+Codul de până acum a rulat strict secvențial — o linie după alta, o funcție așteptând finalizarea completă a alteia. Dar apelurile către modele AI sau API-uri externe (C3 L20-L22) pot dura secunde, timp în care programul ar putea face altceva util, în loc să stea blocat, așteptând. Lecția următoare introduce `async`/`await` — modelul de concurență pe care se bazează majoritatea codului modern de integrare cu LLM-uri.
