@@ -121,6 +121,70 @@ FastAPI (menționat deja la decoratori, L20) suportă nativ `async def` pentru o
 
 Pentru operațiuni **CPU-bound** — calcul numeric intensiv, procesare de imagini, antrenare de model — `async`/`await` nu ajută deloc, pentru că nu există nicio "așteptare" de cedat altcuiva; procesorul e ocupat continuu cu calcul real. Pentru acele cazuri, paralelismul real vine din multiprocessing (procese separate, fiecare cu propriul interpretor Python, care evită complet GIL-ul, discutat în cursul de Sisteme de Operare) sau din delegarea calculului la biblioteci native optimizate (NumPy, PyTorch — care rulează pe multiple thread-uri C/CUDA, independent de modelul async al Python-ului care le orchestrează).
 
+### Gestionarea excepțiilor în cod async — `try`/`except` funcționează identic
+
+```python
+async def apeleaza_model_sigur(prompt):
+    try:
+        return await apeleaza_model_async(prompt)
+    except asyncio.TimeoutError:
+        return "Timeout la apelul modelului"
+    except Exception as eroare:
+        return f"Eroare: {eroare}"
+```
+
+`try`/`except` (L11) funcționează identic în interiorul unei coroutine — o excepție ridicată în timpul unui `await` se propagă exact ca într-o funcție sincronă obișnuită, capturabilă de blocurile `except` din jur. Nu există o sintaxă separată de gestionare a erorilor pentru cod async — aceleași reguli, aplicate direct.
+
+### `asyncio.wait_for()` — timeout explicit pe o coroutine individuală
+
+```python
+async def apeleaza_cu_timeout(prompt):
+    try:
+        return await asyncio.wait_for(apeleaza_model_async(prompt), timeout=5.0)
+    except asyncio.TimeoutError:
+        return "Modelul nu a răspuns în 5 secunde"
+```
+
+Exact ca `timeout=` la `requests` (C4 L23) sau la `asyncio.sleep()` folosit direct, `asyncio.wait_for()` impune o limită de timp explicită pe orice coroutine individuală — dacă operațiunea nu se termină în intervalul specificat, e anulată automat și se ridică `asyncio.TimeoutError`. Practica de producție obligatorie, identică filosofic cu `timeout=` de la cereri HTTP sincrone: nicio operațiune asincronă de rețea nu ar trebui lăsată să aștepte la nesfârșit, fără o limită explicită de timp.
+
+### `asyncio.gather()` cu gestionare parțială de erori
+
+```python
+async def obtine_toate_sigur(id_uri):
+    rezultate = await asyncio.gather(
+        *[obtine_date_utilizator(id) for id in id_uri],
+        return_exceptions=True   # o eroare la UN apel NU oprește restul
+    )
+    for rezultat in rezultate:
+        if isinstance(rezultat, Exception):
+            print(f"Un apel a eșuat: {rezultat}")
+        else:
+            print(f"Succes: {rezultat}")
+```
+
+`return_exceptions=True` schimbă comportamentul implicit al `asyncio.gather()`: fără el, prima excepție dintr-o coroutine oprește imediat toate celelalte, propagând eroarea către apelant. Cu el, fiecare coroutine rulează independent până la finalizare (succes sau eșec), iar excepțiile apar direct în lista de rezultate, ca obiecte, verificabile individual cu `isinstance()` (L6) — esențial pentru scenarii unde vrei rezultatul celor mai multe apeluri, chiar dacă câteva eșuează izolat, fără să pierzi tot ce a reușit deja.
+
+### `Task` — programarea explicită a unei coroutine, fără să aștepți imediat
+
+```python
+async def main():
+    task1 = asyncio.create_task(apeleaza_model_async("întrebare 1"))   # PORNEȘTE imediat, în fundal
+    task2 = asyncio.create_task(apeleaza_model_async("întrebare 2"))
+
+    print("Ambele apeluri au pornit deja, execuția continuă aici...")
+
+    rezultat1 = await task1   # aștepți rezultatul DOAR când chiar ai nevoie de el
+    rezultat2 = await task2
+```
+
+`asyncio.create_task()` programează o coroutine să înceapă execuția **imediat**, în fundal, fără să aștepți pe loc — spre deosebire de simpla apelare a unei funcții `async def`, care doar creează obiectul coroutine, fără să-l execute până la un `await` explicit. Diferența contează când vrei să lansezi mai multe operațiuni concurente, dar să continui cu alt cod util între timp, aducând rezultatele abia mai târziu, exact când sunt necesare — un control mai fin decât `asyncio.gather()`, care așteaptă toate coroutine-le simultan, fără nicio muncă intermediară posibilă.
+
+Un detaliu important de reținut: un `Task` creat, dar niciodată `await`-at, poate fi "uitat" de garbage collector înainte de finalizare, întrerupându-i execuția silențios — practica sigură ține o referință explicită la fiecare `Task` creat (cum face exemplul de mai sus, prin `task1`/`task2`) până la momentul în care e efectiv așteptat.
+
+### Concurență vs. paralelism — o distincție finală importantă
+
+`async`/`await` oferă **concurență** — mai multe operațiuni progresează "împreună", pe un singur thread, prin comutare cooperativă la fiecare `await`. Nu oferă **paralelism** real — nu există niciun moment în care două bucăți de cod Python rulează literal simultan, pe nuclee CPU diferite, folosind acest model. Pentru paralelism real, ai nevoie de multiprocessing (procese complet separate) sau de delegarea calculului către cod nativ care rulează efectiv paralel (NumPy, PyTorch pe GPU). Concurența (async) rezolvă problema așteptării de I/O; paralelismul rezolvă problema calculului intensiv — două probleme diferite, două soluții diferite, ușor de confundat pentru cineva nou la aceste concepte.
+
 ---
 
 ## REVEAL
