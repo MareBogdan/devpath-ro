@@ -95,6 +95,20 @@ O conexiune WebSocket, spre deosebire de o cerere HTTP obișnuită, are stare �
 
 Sisteme la scară mare (Slack, Discord) folosesc un strat separat de "presence/gateway" dedicat exact gestionării a milioane de conexiuni WebSocket persistente, complet separat de serverele API stateless obișnuite care gestionează restul logicii de business.
 
+### Securitatea WebSocket — CSRF-ul care nu are cookie SameSite
+
+Handshake-ul WebSocket, discutat mai sus, e o cerere HTTP obișnuită la origine — și, ca orice cerere HTTP, poate transporta cookie-uri de sesiune ale utilizatorului (revezi C3 L20), inclusiv atunci când e inițiată dintr-o pagină aflată pe alt domeniu. Aceasta creează un vector real: un site malițios poate deschide, din JavaScript, o conexiune WebSocket către domeniul tău, folosind automat cookie-ul de sesiune al victimei aflate în browser — echivalentul unui atac CSRF, dar la handshake-ul WebSocket, nu la un formular obișnuit.
+
+Contramăsura standard: serverul verifică explicit header-ul `Origin` trimis în cererea de handshake, acceptând conexiuni doar de la domeniile proprii cunoscute, respingând orice altă origine înainte de a răspunde `101 Switching Protocols`. WebSocket nu are, nativ, un echivalent al `SameSite` de la cookie-uri — verificarea `Origin` server-side rămâne singura protecție reală, motiv pentru care majoritatea framework-urilor moderne de WebSocket o impun implicit, nu opțional.
+
+O a doua măsură complementară, folosită pe lângă verificarea `Origin`: token-uri de autentificare transmise explicit ca parametru de query la handshake sau ca prim mesaj după conectare, nu doar implicit prin cookie — reduce suprafața de atac la exact scenariul unde cookie-ul singur ar fi suficient pentru autentificare completă.
+
+### `wss://` — TLS peste WebSocket
+
+Exact cum `http://` are corespondentul criptat `https://` (C3 L17), WebSocket are `ws://` (necriptat) și `wss://` (criptat, peste TLS). Un handshake `wss://` rulează identic celui descris mai sus, dar peste o conexiune TLS deja stabilită — orice frame WebSocket ulterior beneficiază de aceleași garanții de confidențialitate și integritate ca traficul HTTPS obișnuit. Browserele moderne blochează implicit conexiuni `ws://` inițiate dintr-o pagină `https://` (mixed content), forțând practic `wss://` ca standard pentru orice aplicație de producție servită prin HTTPS.
+
+Costul suplimentar al handshake-ului TLS (negocierea din C3 L17) se plătește o singură dată, la deschiderea conexiunii — nu la fiecare frame trimis ulterior, exact cum HTTPS nu repetă handshake-ul TLS pentru fiecare cerere pe o conexiune persistentă. Pentru o conexiune care va rămâne activă minute sau ore, acest cost inițial e neglijabil comparativ cu garanția de confidențialitate pe toată durata sesiunii — motiv pentru care nu există, practic, niciun argument valid de performanță pentru a evita `wss://` în producție.
+
 ---
 
 ## REVEAL
