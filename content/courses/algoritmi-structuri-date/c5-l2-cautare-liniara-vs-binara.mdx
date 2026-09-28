@@ -1,0 +1,153 @@
+---
+title: "Căutare Liniară vs. Binară"
+order: 2
+type: lesson
+module_index: 5
+duration: 14
+difficulty: 2
+---
+
+# Căutare Liniară vs. Binară
+
+## HOOK
+
+Cauți un nume într-un dicționar fizic, tipărit, cu 100.000 de cuvinte. Nu începi de la pagina 1 și nu răsfoiești pagină cu pagină până-l găsești — deschizi undeva la mijloc, vezi dacă cuvântul căutat vine alfabetic înainte sau după pagina deschisă, și repeți, înjumătățind de fiecare dată zona rămasă de căutat. În câteva mișcări, ajungi exact la cuvântul căutat, indiferent dacă dicționarul are 1.000 sau 1.000.000 de pagini.
+
+Acest instinct — pe care-l aplici automat, fără să te gândești, cu un dicționar fizic — e exact algoritmul de **căutare binară**, unul din primele exemple concrete în care diferența dintre o abordare O(n) și una O(log n) (notații pe care le formalizezi complet în L3) devine palpabilă, măsurabilă, nu doar teoretică. Diferența dintre a răsfoi pagină cu pagină și a înjumătăți repetat zona de căutare nu e o optimizare minoră — e diferența dintre milioane de pași și douăzeci.
+
+---
+
+## CONTEXT
+
+Căutarea liniară — parcurgerea secvențială a unei colecții, element cu element, până găsești ce cauți sau epuizezi colecția — e cel mai vechi și mai natural algoritm de căutare, folosit implicit oriunde nu există altă structură care să ajute. Nu cere nimic special despre datele parcurse — funcționează pe orice listă, sortată sau nu.
+
+Căutarea binară, formalizată riguros abia în anii '40-'60 (deși ideea de bază, de a înjumătăți repetat un interval, apare deja în tehnici matematice mult mai vechi, ca metoda bisecției pentru rezolvarea ecuațiilor), cere o singură condiție prealabilă, dar esențială: **datele trebuie să fie sortate**. Fără ordine, nu ai cum să decizi "caut în jumătatea din stânga sau din dreapta" — decizia se bazează integral pe faptul că orice element dintr-o parte a listei e garantat mai mic (sau mai mare) decât punctul de mijloc verificat.
+
+---
+
+## MIEZUL
+
+### Căutarea liniară — simplă, universală, lentă la scară
+
+```python
+def cauta_liniar(lista, tinta):
+    for i, element in enumerate(lista):
+        if element == tinta:
+            return i          # găsit, la poziția i
+    return -1                    # parcurs tot, nu există
+```
+
+Fiecare element e verificat, în ordine, până la o potrivire. În cel mai rău caz — elementul căutat nu există, sau e ultimul din listă — algoritmul verifică **toate** cele `n` elemente. În medie, pentru un element care există undeva în listă, verifică aproximativ `n/2` elemente. Ambele scenarii cresc **liniar** cu dimensiunea listei — o listă de 10 ori mai mare cere, în medie, de 10 ori mai multe verificări.
+
+Avantajul real al căutării liniare: nu cere nimic despre structura datelor — funcționează identic pe o listă sortată sau nesortată, pe orice tip de date comparabile prin egalitate. E algoritmul implicit, "gratuit", disponibil peste tot, fără nicio pregătire prealabilă a datelor.
+
+### Căutarea binară — rapidă, dar cu o condiție strictă
+
+```python
+def cauta_binar(lista_sortata, tinta):
+    stanga, dreapta = 0, len(lista_sortata) - 1
+    while stanga <= dreapta:
+        mijloc = (stanga + dreapta) // 2
+        if lista_sortata[mijloc] == tinta:
+            return mijloc
+        elif lista_sortata[mijloc] < tinta:
+            stanga = mijloc + 1     # ținta e în jumătatea din DREAPTA
+        else:
+            dreapta = mijloc - 1      # ținta e în jumătatea din STÂNGA
+    return -1
+```
+
+La fiecare pas, algoritmul verifică elementul din mijlocul intervalului curent și, pe baza comparației, elimină complet o jumătate din spațiul de căutare rămas — nu doar un element, ci jumătate din tot ce mai rămăsese. Această înjumătățire repetată e motivul pentru care căutarea binară e atât de rapidă: pornind de la `n` elemente, după un pas rămân `n/2`, după două `n/4`, după `k` pași `n/2^k` — numărul de pași necesari pentru a ajunge la un singur element rămas e exact `log₂(n)`.
+
+$$\text{pași necesari} = \log_2(n)$$
+
+Pentru o listă de un milion de elemente, `log₂(1.000.000) ≈ 20` — douăzeci de comparații, nu un milion. Această creștere logaritmică, aproape plată vizual pe un grafic, e complet diferită de creșterea liniară a căutării secvențiale.
+
+{/* TABLE */}
+
+| Dimensiune listă (n) | Pași căutare liniară (medie) | Pași căutare binară |
+|---|---|---|
+| 100 | 50 | ~7 |
+| 10.000 | 5.000 | ~14 |
+| 1.000.000 | 500.000 | ~20 |
+| 1.000.000.000 | 500.000.000 | ~30 |
+
+Observă tiparul: la fiecare înzecire a datelor, căutarea liniară face de zece ori mai mulți pași — dar căutarea binară adaugă doar câțiva pași suplimentari. Diferența de la 500 de milioane de pași la 30 nu e o îmbunătățire incrementală — e diferența dintre secunde/minute și microsecunde, pentru exact aceeași operație logică: "găsește acest element."
+
+<CosmoHint emotion="thinking">
+De ce căutarea binară nu funcționează deloc pe date nesortate, chiar dacă tehnic "rulează" fără eroare? Fiecare pas al algoritmului presupune că, dacă elementul din mijloc e mai mic decât ținta, *toate* elementele din stânga lui sunt la fel de mici — o garanție care există DOAR dacă lista e sortată. Pe date nesortate, algoritmul poate "sări" complet peste jumătatea care conținea de fapt elementul căutat, întorcând -1 (negăsit) chiar dacă elementul există în listă, undeva în jumătatea eliminată greșit. Rezultatul nu e o eroare vizibilă — e o eroare logică silențioasă, mult mai periculoasă decât un crash.
+</CosmoHint>
+
+### Costul sortării — nu e gratuit
+
+Dacă datele nu sunt deja sortate, câștigul căutării binare vine cu un cost prealabil: sortarea listei, un proces care el însuși costă timp — L6 arată Merge Sort, unul dintre algoritmii standard de sortare eficientă, cu propria lui complexitate. Decizia de a sorta datele înainte de a le căuta binar are sens doar dacă vei căuta **repetat** în aceleași date — costul sortării, plătit o singură dată, se amortizează pe zeci sau mii de căutări ulterioare, fiecare mult mai rapidă decât ar fi fost pe date nesortate.
+
+Dacă datele se schimbă constant (inserări și ștergeri frecvente) și cauți o singură dată între modificări, costul repetat de resortare poate depăși beneficiul căutării binare — exact tipul de compromis (trade-off) pe care L4 îl tratează complet, pentru decizii unde nu există un răspuns universal corect, doar un răspuns potrivit contextului specific.
+
+### Variante practice — `bisect` din biblioteca standard Python
+
+```python
+import bisect
+
+lista_sortata = [1, 3, 5, 7, 9, 11, 13]
+pozitie = bisect.bisect_left(lista_sortata, 7)     # 3 — poziția exactă
+pozitie_inserare = bisect.bisect_left(lista_sortata, 8)   # 4 — unde s-ar insera 8, păstrând ordinea
+```
+
+Python oferă căutarea binară deja implementată, optimizată, în modulul standard `bisect` — nu trebuie să rescrii manual algoritmul de fiecare dată. `bisect_left` găsește exact poziția unui element (sau poziția unde ar trebui inserat, dacă nu există, păstrând ordinea sortată) — util constant pentru menținerea unei liste sortate în timp real, fără să resortezi întreaga listă la fiecare inserare nouă.
+
+### Structurile de date care fac căutarea rapidă "gratuit"
+
+Căutarea binară e o tehnică aplicată pe o listă simplă — dar structurile de date specializate pe care le vei întâlni în lecțiile următoare (arborii binari de căutare, L7) încorporează chiar acest principiu de înjumătățire direct în forma lor, oferind aceeași viteză logaritmică fără costul repetat al unei sortări separate, chiar și pe date care se modifică frecvent. Diferența dintre o listă sortată căutată binar și un BST corect balansat e mai degrabă de flexibilitate operațională decât de complexitate brută — ambele oferă căutare O(log n), dar BST-ul suportă inserări și ștergeri eficiente fără resortare completă.
+
+### Interval greșit calculat — o capcană clasică de implementare
+
+```python
+mijloc = (stanga + dreapta) // 2   # varianta din cod, sigură pentru Python
+```
+
+Această formulă pare trivială, dar are o istorie notorie: în limbaje cu numere întregi de dimensiune fixă (Java, C++), `stanga + dreapta` poate depăși capacitatea maximă a tipului `int` pe liste extrem de mari, producând un overflow (revezi conceptul din C4 L4, unde Python e imun exact la această problemă datorită preciziei arbitrare a tipului `int`) — un bug real, documentat, găsit chiar și în implementări publicate ale căutării binare, ani de zile după publicare, exact pentru că apărea doar la dimensiuni de date suficient de mari încât nimeni nu-l testase. Formula corectă, sigură universal, e `stanga + (dreapta - stanga) // 2` — echivalentă matematic, dar fără riscul de depășire.
+
+### De ce căutarea binară e recursivă în esență, deși scrisă iterativ mai sus
+
+Implementarea din exemplul de mai sus folosește o buclă `while` — dar structura logică a algoritmului e, de fapt, natural **recursivă**: "rezolvă problema pe jumătate din date, folosind exact aceeași logică." L13 dedică o lecție completă recursivității, iar căutarea binară e adesea primul exemplu concret prin care se predă acest concept — o funcție care se apelează pe sine, pe un subset tot mai mic al problemei originale, până ajunge la un caz trivial (un singur element rămas, sau zero). Reține acest exemplu concret — îl vei recunoaște imediat când vei parcurge recursivitatea formal, mai târziu în acest curs.
+
+### Aplicarea căutării binare dincolo de liste simple — "binary search pe răspuns"
+
+O tehnică avansată, dar surprinzător de comună în probleme practice: căutarea binară nu se aplică doar peste o listă de valori — se poate aplica peste un **interval de răspunsuri posibile**, chiar dacă nu există nicio listă explicită de parcurs. Dacă vrei să afli cea mai mică valoare `x` care satisface o condiție monotonă (odată ce condiția devine adevărată pentru un `x`, rămâne adevărată pentru toate valorile mai mari), poți căuta binar direct în intervalul de valori posibile ale lui `x`, nu într-o listă materializată — o tehnică folosită, printre altele, la optimizarea hiperparametrilor de model AI, unde spațiul de valori posibile e continuu, nu o listă discretă predefinită.
+
+<CosmoHint emotion="excited">
+`bisect` din Python nu e o curiozitate de bibliotecă standard — e exact algoritmul folosit intern de structuri de date de producție care mențin colecții sortate mari, actualizate frecvent: sisteme de rezervări, tabele de leaderboard, indecși de baze de date. Data viitoare când vezi un rezultat de căutare care apare instant chiar și pe un set masiv de date sortate, aproape sigur, undeva dedesubt, rulează o variantă a exact acestui algoritm de înjumătățire repetată.
+</CosmoHint>
+
+<FactBox>
+**Căutare liniară vs. binară în cifre:**
+- Căutare liniară pe 1 milion de elemente: **500.000** de pași, în medie
+- Căutare binară pe aceleași date: **~20** de pași — de 25.000× mai puțini
+- `log₂(1.000.000.000) ≈ 30` — chiar și un miliard de elemente se caută în 30 de pași
+- Modulul `bisect` din Python: implementare optimizată, gata de folosit, a căutării binare
+- Condiția obligatorie pentru căutare binară: datele trebuie **sortate** dinainte
+- Metoda bisecției (înjumătățire repetată) precede formalizarea informatică modernă, cu rădăcini în matematica clasică a rezolvării ecuațiilor
+</FactBox>
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Criteriu | Căutare liniară | Căutare binară |
+|---|---|---|
+| Cerință asupra datelor | Niciuna | Trebuie sortate |
+| Complexitate | O(n) | O(log n) |
+| Cod necesar | Minim, trivial | Puțin mai complex, dar standard (`bisect`) |
+| Potrivit pentru | Date nesortate, o singură căutare | Date sortate, căutări repetate |
+| Cost adițional | Niciunul | Sortarea inițială (dacă nu era deja sortată) |
+
+---
+
+## ÎNCHEIERE
+
+Diferența dintre O(n) și O(log n) nu e o abstracție teoretică — e diferența, palpabilă și măsurabilă, dintre milioane de pași și câteva zeci, pentru exact aceeași sarcină. Căutarea binară cere o singură condiție (date sortate) pentru un câștig disproporționat de mare, exact tipul de compromis pe care va trebui să-l recunoști constant în acest curs: o pregătire mică, plătită o singură dată, pentru un beneficiu care se multiplică la fiecare utilizare ulterioară.
+
+Ai văzut acum, concret, două complexități diferite — O(n) și O(log n) — dar fără o notație formală care să le compare precis, dincolo de exemple numerice individuale. Lecția următoare introduce exact acest limbaj: notația Big O, unealta standard prin care orice algoritm din acest curs — și din orice cod pe care-l vei scrie vreodată — poate fi descris, comparat și înțeles fără ambiguitate.
