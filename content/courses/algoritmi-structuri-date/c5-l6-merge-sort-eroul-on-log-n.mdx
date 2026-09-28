@@ -1,0 +1,141 @@
+---
+title: "Merge Sort — eroul O(n log n)"
+order: 6
+type: lesson
+module_index: 5
+duration: 15
+difficulty: 3
+---
+
+# Merge Sort — eroul O(n log n)
+
+## HOOK
+
+Ai de sortat un teanc uriaș de 1.000 de foi cu nume, dezordonate complet. În loc să compari fiecare foaie cu fiecare altă foaie (exact greșeala lui Bubble Sort, L5), împarți teancul în două jumătăți, dai fiecare jumătate unui coleg. Fiecare coleg face exact același lucru — împarte jumătatea lui în două, dă mai departe — până ajungeți la teancuri de o singură foaie, deja "sortate" prin definiție (un singur element e mereu în ordine). Apoi, în ordine inversă, combinați perechile de teancuri mici, deja sortate, într-unul singur, mai mare, tot sortat — repetând combinarea până rămâne un singur teanc final, complet sortat.
+
+Această strategie — împarte problema în bucăți tot mai mici, rezolvă bucățile triviale, combină rezultatele eficient — e **Merge Sort**, unul dintre cei mai vechi și mai eleganți algoritmi din tot arsenalul informaticii, și primul exemplu complet, din acest curs, al unei tehnici generale numite **divide et impera** (divide and conquer), pe care o vei recunoaște din nou și din nou în lecțiile următoare — la Dijkstra, la programarea dinamică, chiar la modul în care funcțiile recursive rezolvă probleme complexe.
+
+---
+
+## CONTEXT
+
+Merge Sort a fost inventat de John von Neumann în 1945, unul dintre pionierii timpurii ai informaticii moderne — o dovadă că, spre deosebire de Bubble Sort, un algoritm considerat de la început doar didactic, Merge Sort a fost conceput direct ca soluție practică, serioasă, pentru o problemă reală de calcul. Ideea de bază — divide et impera — precede informatica însăși, cu rădăcini în strategii militare și administrative vechi de mii de ani: o problemă mare, greu de rezolvat direct, devine gestionabilă când o descompui în sub-probleme suficient de mici încât să fie triviale.
+
+Ce face Merge Sort special printre algoritmii de sortare e garanția lui: spre deosebire de Bubble Sort (cel mai rău caz O(n²)) sau chiar de Quick Sort (cel mai rău caz tot O(n²), pe input-uri special construite), Merge Sort garantează O(n log n) **întotdeauna**, indiferent de structura datelor de intrare — cel mai bun caz, cazul mediu și cel mai rău caz coincid. Această predictibilitate e motivul pentru care rămâne alegerea standard oriunde performanța garantată, nu doar tipică, contează.
+
+---
+
+## MIEZUL
+
+### Faza de împărțire — recursiv, până la trivialitate
+
+```python
+def merge_sort(lista):
+    if len(lista) <= 1:
+        return lista               # caz de bază: un element e deja "sortat"
+
+    mijloc = len(lista) // 2
+    stanga = merge_sort(lista[:mijloc])     # rezolvă recursiv jumătatea stângă
+    dreapta = merge_sort(lista[mijloc:])      # rezolvă recursiv jumătatea dreaptă
+
+    return combina(stanga, dreapta)
+```
+
+Funcția se apelează pe sine, pe jumătăți tot mai mici ale listei originale — exact pattern-ul recursiv pe care L13 îl va detalia complet, dar deja vizibil concret aici. Fiecare apel împarte problema în două sub-probleme egale, până ajunge la cazul de bază — o listă cu 0 sau 1 elemente, deja sortată prin definiție, fără nicio muncă necesară. Numărul de niveluri de împărțire, pornind de la `n` elemente și înjumătățind repetat, e exact `log₂(n)` — aceeași înjumătățire repetată pe care ai văzut-o deja la căutarea binară (L2), aplicată aici structurii recursive a algoritmului, nu unei singure căutări.
+
+### Faza de combinare — inima algoritmului
+
+```python
+def combina(stanga, dreapta):
+    rezultat = []
+    i = j = 0
+    while i < len(stanga) and j < len(dreapta):
+        if stanga[i] <= dreapta[j]:
+            rezultat.append(stanga[i])
+            i += 1
+        else:
+            rezultat.append(dreapta[j])
+            j += 1
+    rezultat.extend(stanga[i:])     # ce a rămas nefolosit din stânga
+    rezultat.extend(dreapta[j:])      # ce a rămas nefolosit din dreapta
+    return rezultat
+```
+
+Combinarea a două liste deja sortate într-una singură, tot sortată, e surprinzător de rapidă: parcurgi ambele liste **o singură dată**, simultan, comparând mereu doar elementele curente din fiecare — cel mai mic dintre ele merge următor în rezultat. Această operație costă O(lungimea totală a celor două liste), nu O(n²) — exact motivul pentru care combinarea repetată, la fiecare nivel al recursivității, nu strică deloc eficiența câștigată prin împărțire.
+
+{/* TABLE */}
+
+| Nivel | Dimensiune segmente | Număr segmente | Cost total combinare la acest nivel |
+|---|---|---|---|
+| 0 (final) | n | 1 | — |
+| 1 | n/2 | 2 | O(n) |
+| 2 | n/4 | 4 | O(n) |
+| ... | ... | ... | O(n) per nivel |
+| log₂(n) (inițial) | 1 | n | — |
+
+La fiecare nivel al recursivității, costul total de combinare (sumat peste toate segmentele acelui nivel) rămâne O(n) — indiferent câte segmente sunt, suma dimensiunilor lor tot e `n`. Cu `log₂(n)` niveluri, fiecare costând O(n), complexitatea totală devine O(n) × O(log n) = **O(n log n)** — exact formula care dă numele acestei lecții.
+
+$$T(n) = 2T(n/2) + O(n) \implies T(n) = O(n \log n)$$
+
+<CosmoHint emotion="thinking">
+De ce Merge Sort garantează O(n log n) în ORICE scenariu, spre deosebire de Bubble Sort, care poate ajunge la O(n) în cel mai bun caz, dar și la O(n²) în cel mai rău? Pentru că Merge Sort nu depinde deloc de ordinea inițială a datelor — împarte întotdeauna la mijloc, exact în două, indiferent ce conțin jumătățile, și combină întotdeauna prin aceeași comparație simplă. Nu există niciun scenariu de intrare care să-l "păcălească" să facă muncă suplimentară — structura recursivă, fixă, garantează exact `log₂(n)` niveluri, de fiecare dată. Această predictibilitate e motivul pentru care sisteme critice, unde o întârziere neașteptată e inacceptabilă, preferă algoritmi cu garanții de cel mai rău caz, nu doar performanță medie bună.
+</CosmoHint>
+
+### Costul memoriei — compromisul spațiu-timp aplicat direct (revezi L4)
+
+```python
+rezultat = []   # o listă NOUĂ, la fiecare apel de combina()
+```
+
+Spre deosebire de Bubble Sort, care sortează "in-place" (memorie O(1) suplimentară), Merge Sort alocă memorie nouă la fiecare combinare — complexitatea de spațiu e O(n), proporțională cu dimensiunea datelor. Acest cost nu e o coincidență de implementare — e exact tranzacția din L4: câștigi timp (O(n log n) în loc de O(n²)) cu prețul memoriei suplimentare, un compromis pe care aproape orice sistem modern, cu memorie abundentă relativ la nevoi, îl acceptă fără ezitare, pentru câștigul masiv de viteză pe date mari.
+
+### Merge Sort ca fundament al altor algoritmi
+
+Tehnica divide et impera din Merge Sort — împarte problema, rezolvă recursiv sub-problemele, combină rezultatele — nu e specifică sortării. Apare, sub forme variate, la algoritmi de căutare a celui mai apropiat par de puncte în geometrie computațională, la transformata Fourier rapidă (FFT, folosită masiv în procesare de semnal și audio), și, într-o formă conceptuală apropiată, la structura recursivă a arborilor binari de căutare (L7, lecția următoare), unde fiecare sub-arbore rezolvă independent o parte mai mică a aceleiași probleme generale.
+
+### Merge Sort extern — sortarea datelor care nu încap în memorie
+
+O variantă practică importantă: **external merge sort**, folosit când datele de sortat sunt prea mari pentru a încăpea integral în memoria RAM disponibilă (fișiere de gigabytes, dataset-uri masive de antrenare AI). Ideea rămâne identică — împarte datele în bucăți suficient de mici cât să încapă în memorie, sortează fiecare bucată separat (posibil chiar cu Merge Sort intern), scrie bucățile sortate pe disc, apoi combină-le progresiv, citind câte puțin din fiecare fișier simultan, exact aceeași fază de combinare descrisă mai sus, dar aplicată la fișiere de pe disc, nu la liste din memorie. Această tehnică e motivul pentru care sisteme de baze de date și procesare de date la scară mare (Hadoop, Spark) folosesc variante de merge sort ca operație de bază pentru sortarea unor volume de date care depășesc masiv memoria disponibilă a oricărei mașini individuale.
+
+### Merge Sort paralel — divide et impera potrivit natural pentru mai multe procesoare
+
+O proprietate suplimentară a structurii divide et impera, adesea trecută cu vederea la o primă vedere: sub-problemele independente (cele două jumătăți ale unei liste, la fiecare pas de împărțire) pot fi rezolvate **simultan**, pe procesoare sau thread-uri diferite, pentru că una nu depinde deloc de rezultatul celeilalte — spre deosebire de Bubble Sort, unde fiecare comparație depinde de starea exactă lăsată de comparația anterioară, secvențial, fără nicio posibilitate naturală de paralelizare. Această proprietate face Merge Sort candidatul natural pentru implementări paralele, unde fiecare jumătate a listei e sortată pe un core CPU separat, iar combinarea finală agregă rezultatele — o tehnică relevantă direct la sortarea unor volume masive de date pe clustere de mașini, exact scenariul menționat deja la sortarea externă.
+
+### Comparație directă cu Bubble Sort — aceleași date, drumuri complet diferite
+
+Diferența dintre cele două abordări nu e doar de complexitate — e de *filozofie*: Bubble Sort atacă problema direct, comparând repetat perechi vecine, fără nicio structură suplimentară. Merge Sort refuză să atace problema directă, complexă — o descompune deliberat în probleme mai mici, triviale, apoi reconstruiește soluția din bucăți deja rezolvate. Această distincție filozofică — atac direct vs. descompunere recursivă — revine constant în informatică, dincolo de sortare: aceeași alegere apare la algoritmi de căutare pe grafuri (L9-L11), la recursivitate în general (L13), și la programarea dinamică (L15), unde exact aceeași întrebare — "rezolv direct sau descompun în sub-probleme?" — decide diferența dintre un algoritm practic și unul impracticabil la scară.
+
+<CosmoHint emotion="excited">
+`sorted()` din Python, folosit deja constant de-a lungul cursului de Python (C4), rulează intern Timsort — un algoritm care combină exact ideile din Merge Sort (împărțire + combinare, cu garanție O(n log n)) cu optimizări pentru segmente mici sau parțial sortate (Insertion Sort, menționat deja în L5). Fiecare listă pe care ai sortat-o vreodată în Python a beneficiat, invizibil, de exact aceste idei formalizate în 1945 — o dovadă directă că algoritmii clasici, bine înțeleși, rămân relevanți decenii mai târziu, chiar dacă implementarea reală e mult mai sofisticată decât versiunea didactică din această lecție.
+</CosmoHint>
+
+<FactBox>
+**Merge Sort în cifre:**
+- Inventat de John von Neumann în **1945**
+- Complexitate garantată: **O(n log n)** — identică în cel mai bun, mediu și cel mai rău caz
+- Pentru 10.000 de elemente: aproximativ **130.000** de operații, față de 100 de milioane la Bubble Sort
+- Complexitate de spațiu: **O(n)** — memorie suplimentară proporțională cu datele
+- Adâncimea recursivității: exact **log₂(n)** niveluri
+- Timsort (Python `sorted()`): hibrid Merge Sort + Insertion Sort, folosit din Python 2.3 (2002)
+</FactBox>
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Fază | Ce se întâmplă | Complexitate |
+|---|---|---|
+| Împărțire | Lista se împarte recursiv în jumătăți, până la elemente unice | O(log n) niveluri |
+| Caz de bază | O listă cu 0-1 elemente e deja sortată | O(1) per element |
+| Combinare | Două liste sortate se combină într-una, printr-o singură parcurgere simultană | O(n) per nivel |
+| Total | log(n) niveluri × O(n) per nivel | **O(n log n)** |
+
+---
+
+## ÎNCHEIERE
+
+Merge Sort demonstrează, concret și măsurabil, puterea strategiei divide et impera: o problemă care ar costa O(n²) rezolvată direct, naiv, devine O(n log n) doar prin descompunerea ei recursivă în bucăți suficient de mici încât să fie triviale, urmată de o combinare eficientă a rezultatelor. Această tehnică — nu doar acest algoritm specific — o vei revedea constant în restul cursului.
+
+Sortarea rezolvă problema "pune aceste date în ordine" — dar multe probleme reale cer altceva: acces rapid și repetat la cel mai mic sau cel mai mare element dintr-o colecție care se schimbă constant, fără să resortezi tot de fiecare dată. Lecția următoare introduce Arborii Binari de Căutare, prima structură de date din acest curs concepută să mențină ordinea automat, pe măsură ce datele se adaugă și se elimină.
