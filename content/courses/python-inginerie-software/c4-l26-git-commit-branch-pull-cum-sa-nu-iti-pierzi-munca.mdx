@@ -119,6 +119,47 @@ checkpoints/*.pt
 
 Fișiere generate automat (`__pycache__`, revezi L1), environment-uri virtuale (L25), fișiere de configurare cu secrete (`.env`), sau artefacte mari (checkpoint-uri de model, adesea gigabytes) **nu** trebuie urmărite de Git — ar bloa istoricul inutil sau, mai grav pentru `.env`, ar expune public chei API secrete. `.gitignore` declară explicit ce tipuri de fișiere Git trebuie să ignore complet, niciodată propuse la commit, indiferent cât de des apar modificate pe disc.
 
+### Un secret comis accidental — de ce nu se rezolvă cu un simplu commit nou
+
+```bash
+git rm --cached .env       # elimină fișierul din URMĂRIRE, dar NU din istoric
+git commit -m "Elimină .env accidental comis"
+```
+
+Un detaliu critic, des ratat de începători: dacă un fișier cu secrete (`.env`, o cheie API) a fost deja comis o dată, ștergerea lui într-un commit nou **nu** îl elimină din istoricul Git — rămâne complet recuperabil în orice commit anterior, vizibil oricui clonează repository-ul și navighează în istoric, chiar dacă fișierul "nu mai există" în starea curentă. Adevărata remediere cere fie reescrierea istoricului (`git filter-repo`, o operațiune avansată și riscantă, rezervată situațiilor grave), fie — soluția simplă, întotdeauna corectă — **revocarea imediată** a cheii/secretului expus la furnizorul respectiv (OpenAI, AWS, orice serviciu), tratând-o ca definitiv compromisă, indiferent ce faci ulterior cu istoricul Git.
+
+### `git log` cu filtrare — găsirea rapidă a unui commit relevant
+
+```bash
+git log --oneline -10                        # ultimele 10 commit-uri, format compact
+git log --author="Ana"                          # doar commit-uri de la un autor specific
+git log --since="2 weeks ago"                     # commit-uri din ultimele 2 săptămâni
+git log --grep="fix"                                # commit-uri al căror mesaj conține "fix"
+git log -p -- fisier.py                               # istoricul COMPLET al modificărilor unui fișier specific
+```
+
+Pe un proiect cu istoric lung, `git log` fără filtrare devine rapid impracticabil de parcurs manual — combinația de filtre (autor, dată, conținut de mesaj, sau un fișier specific) reduce rapid căutarea la exact commit-urile relevante, esențial pentru a găsi, de exemplu, exact commit-ul care a introdus o funcționalitate sau un bug specific.
+
+### `git blame` — cine a scris fiecare linie, și când
+
+```bash
+git blame fisier.py
+```
+
+`git blame` afișează fișierul linie cu linie, cu autorul și commit-ul exact care a introdus (sau modificat ultima dată) fiecare linie individuală — util direct pentru a înțelege *de ce* o linie de cod arată exact așa: găsești commit-ul relevant, citești mesajul lui, și înțelegi contextul deciziei, în loc să ghicești sau să presupui intenția din codul singur, fără istoricul care l-a produs.
+
+### Fișiere prea mari pentru Git — Git LFS
+
+```bash
+git lfs track "*.pt"      # urmărește fișierele .pt (checkpoint-uri PyTorch) prin Git LFS
+git add .gitattributes checkpoint.pt
+git commit -m "Adaugă checkpoint model, prin LFS"
+```
+
+Git a fost proiectat pentru cod sursă text, nu pentru fișiere binare masive — un checkpoint de model AI, de câteva gigabytes, comis direct în istoricul Git obișnuit, ar umfla dramatic dimensiunea repository-ului, încetinind fiecare clonare viitoare, la nesfârșit. **Git LFS** (Large File Storage) rezolvă asta — stochează fișierele mari separat, pe un server dedicat, păstrând în istoricul Git obișnuit doar un pointer mic către locația reală a fișierului. Relevant direct pentru orice proiect de AI care versionează checkpoint-uri de model alături de codul sursă, un caz de uz în afara scopului pentru care Git a fost inițial proiectat.
+
+Fără LFS, dimensiunea unui repository cu multiple checkpoint-uri comise direct în istoric poate ajunge la zeci sau sute de gigabytes — fiecare clonă nouă descarcă întregul istoric, nu doar starea curentă, așa că fiecare fișier mare comis vreodată, chiar dacă a fost ulterior șters, rămâne parte din acel cost de clonare pentru totdeauna, exact aceeași problemă de istoric permanent discutată mai sus la secretele comise accidental.
+
 ---
 
 ## REVEAL
