@@ -1,0 +1,168 @@
+---
+title: "BFS vs. DFS"
+order: 10
+type: lesson
+module_index: 5
+duration: 14
+difficulty: 3
+---
+
+# BFS vs. DFS
+
+## HOOK
+
+Ești într-un labirint necunoscut și trebuie să găsești ieșirea. Există două strategii radical diferite. Prima: explorezi un singur coridor cât de departe poți, fără să te oprești, întorcându-te doar când ajungi într-un fund de sac — apoi încerci următoarea ramificație neexplorată. A doua: verifici întâi toate coridoarele accesibile direct din poziția curentă, apoi toate cele accesibile din acelea, extinzând căutarea uniform, în toate direcțiile deodată, ca undele pe apă în jurul unui punct.
+
+Prima strategie e **DFS** (Depth-First Search — căutare în adâncime). A doua e **BFS** (Breadth-First Search — căutare în lățime). Ambele garantează, în cele din urmă, explorarea completă a unui graf conex (L9) — dar diferă radical în *ordinea* explorării, în memoria consumată, și, esențial, în ce garantează despre drumul găsit. Alegerea greșită între ele nu produce un rezultat greșit — produce un rezultat corect, dar cu proprietăți complet diferite de cele de care ai nevoie.
+
+---
+
+## CONTEXT
+
+Ambele strategii de parcurgere au rădăcini în teoria grafurilor formalizată încă din secolul XIX, dar au fost adaptate riguros pentru calculatoare în anii '50-'60, odată cu nevoia practică de a naviga structuri de date complexe — rețele de calculatoare, arbori de decizie în jocuri, structuri de fișiere. Diferența fundamentală dintre ele nu e de "care e mai bună" — e de structura de date folosită intern pentru a ține evidența nodurilor de explorat: BFS folosește o **coadă** (FIFO — First In, First Out, revezi `collections.deque` din C4 L12), DFS folosește o **stivă** (LIFO — Last In, First Out) sau, echivalent, recursivitate (subiectul complet al L13).
+
+Această singură diferență structurală — coadă vs. stivă — determină tot restul comportamentului observabil: ordinea în care nodurile sunt vizitate, ce fel de garanții oferă algoritmul despre "cel mai scurt drum," și câtă memorie consumă în cel mai rău caz.
+
+---
+
+## MIEZUL
+
+### BFS — explorare uniformă, nivel cu nivel
+
+```python
+from collections import deque
+
+def bfs(graf, start):
+    vizitate = {start}
+    coada = deque([start])
+    ordine = []
+
+    while coada:
+        nod = coada.popleft()     # scoate din FAȚA cozii — primul intrat, primul ieșit
+        ordine.append(nod)
+        for vecin in graf[nod]:
+            if vecin not in vizitate:
+                vizitate.add(vecin)
+                coada.append(vecin)     # adaugă la SFÂRȘITUL cozii
+    return ordine
+```
+
+BFS explorează graful **nivel cu nivel** — toți vecinii direcți ai nodului de start, apoi toți vecinii acelora, și tot așa. Coada garantează exact această ordine: nodurile adăugate primele (cele mai apropiate de start) sunt și procesate primele, înainte ca noduri mai îndepărtate să fie măcar adăugate la coadă. Rezultatul: BFS garantează că, la un graf **neponderat**, primul drum găsit către orice nod e garantat cel mai scurt posibil, măsurat în numărul de muchii — o proprietate extrem de valoroasă, direct exploatabilă.
+
+### DFS — explorare în adâncime, cât de departe posibil
+
+```python
+def dfs(graf, start, vizitate=None, ordine=None):
+    if vizitate is None:
+        vizitate = set()
+        ordine = []
+    vizitate.add(start)
+    ordine.append(start)
+    for vecin in graf[start]:
+        if vecin not in vizitate:
+            dfs(graf, vecin, vizitate, ordine)    # coboară IMEDIAT în adâncime, recursiv
+    return ordine
+```
+
+DFS coboară cât de departe posibil pe o singură ramură înainte de a se întoarce — implementarea recursivă de mai sus folosește implicit **stiva de apeluri** a interpretorului (subiect detaliat în L13) ca structură de date pentru "ce explorez următor," fără nicio structură explicită de date, spre deosebire de coada explicită folosită de BFS. O versiune iterativă, echivalentă, ar folosi o stivă explicită (o listă Python, cu `.append()`/`.pop()` de la final, exact structura discutată deja în C4 L12 la stive).
+
+{/* TABLE */}
+
+| Aspect | BFS | DFS |
+|---|---|---|
+| Structură de date | Coadă (FIFO) | Stivă (LIFO) sau recursivitate |
+| Ordine de explorare | Nivel cu nivel | O ramură completă, apoi înapoi |
+| Garantează cel mai scurt drum (graf neponderat) | **Da** | Nu |
+| Memorie în cel mai rău caz | O(lățimea maximă a grafului) | O(adâncimea maximă a grafului) |
+| Potrivit pentru | Cel mai scurt drum, explorare nivel-limitată | Explorare completă, detectare de cicluri, backtracking |
+
+<CosmoHint emotion="thinking">
+De ce garantează BFS cel mai scurt drum, dar DFS nu? Pentru că BFS explorează strict în ordinea distanței — orice nod la distanța `k` de start e garantat vizitat înainte de orice nod la distanța `k+1`, pentru că toate nodurile la distanța `k` sunt deja în coadă înainte ca vreunul la distanța `k+1` să fie adăugat. DFS n-are nicio astfel de garanție — poate găsi un drum lung, ocolit, către un nod care, de fapt, era la doar doi pași distanță pe altă ramură, complet neexplorată încă la momentul găsirii. DFS garantează doar CĂ va găsi un drum, eventual — nu că acel drum e cel mai scurt posibil.
+</CosmoHint>
+
+### Consumul de memorie — diferența practică la grafuri masive
+
+Pentru un graf foarte "lat" (mulți vecini direcți la fiecare nivel, puține niveluri de adâncime), BFS poate consuma memorie masivă — coada ține simultan toate nodurile de la un nivel întreg, înainte de a trece la următorul. Pentru un graf foarte "adânc" (puțini vecini per nod, dar multe niveluri succesive), DFS rămâne mai eficient ca memorie — stiva ține doar drumul curent de la rădăcină până la nodul explorat acum, nu un nivel întreg simultan.
+
+$$\text{Memorie BFS} = O(\text{lățime maximă}) \quad \text{vs.} \quad \text{Memorie DFS} = O(\text{adâncime maximă})$$
+
+Această diferență devine critică practic la grafuri masive — o rețea socială cu milioane de utilizatori, explorată prin BFS de la un singur nod, poate acumula rapid milioane de noduri în coadă la primele câteva niveluri (fiecare persoană cunoaște în medie sute de alte persoane), în timp ce DFS pe același graf ar ține în memorie doar drumul curent, mult mai mic.
+
+### Cazuri de uz — când alegi care
+
+BFS e alegerea corectă oriunde ai nevoie explicit de "cel mai scurt drum" într-un graf neponderat — găsirea gradelor de separare într-o rețea socială ("cât de departe sunt eu de această persoană?"), routere de rețea care găsesc calea cu cele mai puține hop-uri, sau explorarea unui labirint unde vrei ieșirea cea mai rapidă, nu doar o ieșire oarecare.
+
+DFS e alegerea corectă pentru probleme care cer explorare completă, fără nevoia unei garanții de distanță minimă: detectarea ciclurilor într-un graf (relevant direct pentru verificarea DAG-urilor din L9), rezolvarea de puzzle-uri prin backtracking (explorezi o cale, te retragi dacă ajungi într-un impas, încerci alta), sau parcurgerea unei structuri de directoare, unde ordinea de vizitare nu contează, doar acoperirea completă.
+
+<CosmoHint emotion="encouraging">
+Nu ai nevoie să memorezi orbește "BFS pentru asta, DFS pentru aia" — pune-ți o singură întrebare: am nevoie de garanția celui mai scurt drum, măsurat în numărul de pași? Dacă da, BFS, fără excepție. Dacă nu — dacă îmi trebuie doar să ating fiecare nod, sau să găsesc un drum oarecare, sau să detectez o structură (ciclu, componentă conexă) — DFS e de obicei mai simplu de implementat, mai ales recursiv, și la fel de corect pentru acel scop.
+</CosmoHint>
+
+### Legătura cu algoritmul lui Dijkstra — următorul pas natural
+
+BFS rezolvă perfect "cel mai scurt drum" pe grafuri **neponderate**, unde fiecare muchie costă la fel — un pas, indiferent de context. Dar majoritatea problemelor reale de rutare (drumuri cu distanțe diferite, rute de rețea cu latențe diferite) au muchii **ponderate**, unde "cel mai scurt" înseamnă "cea mai mică sumă de greutăți," nu "cel mai mic număr de muchii." BFS simplu nu funcționează corect aici — un drum cu mai multe muchii, dar toate mici, poate fi de fapt mai scurt decât un drum cu o singură muchie, dar foarte mare. Algoritmul lui Dijkstra, subiectul lecției următoare, extinde exact ideea de bază a BFS — explorare sistematică, în ordinea distanței — dar adaptată corect pentru grafuri ponderate, folosind heap-ul din L8 în locul cozii simple.
+
+<FactBox>
+**BFS vs. DFS în cifre:**
+- BFS: structură de date internă = **coadă** (FIFO); garantează cel mai scurt drum pe grafuri neponderate
+- DFS: structură de date internă = **stivă** sau recursivitate (LIFO); nu garantează cel mai scurt drum
+- Memorie BFS în cel mai rău caz: proporțională cu **lățimea maximă** a grafului
+- Memorie DFS în cel mai rău caz: proporțională cu **adâncimea maximă** a grafului
+- Ambele: complexitate de timp **O(n + m)** — vizitează fiecare nod și fiecare muchie o singură dată
+- Algoritmul lui Dijkstra (L11): o extensie directă a ideii BFS, adaptată pentru grafuri ponderate
+</FactBox>
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Nevoie | Alege |
+|---|---|
+| Cel mai scurt drum, graf neponderat | BFS |
+| Explorare completă, ordinea nu contează | DFS |
+| Detectarea ciclurilor | DFS |
+| Grade de separare într-o rețea socială | BFS |
+| Backtracking (puzzle-uri, configurații) | DFS |
+| Cel mai scurt drum, graf **ponderat** | Nici BFS, nici DFS — Dijkstra (L11) |
+
+---
+
+## ÎNCHEIERE
+
+BFS și DFS rezolvă amândouă aceeași problemă generală — explorarea unui graf — dar cu proprietăți radical diferite, izvorâte dintr-o singură alegere de structură de date: coadă versus stivă. Această diferență, aparent minoră la nivel de implementare, produce garanții complet diferite despre ce înveți din explorare, exact tipul de decizie care contează enorm în practică, deși pare o nuanță tehnică la prima vedere.
+
+BFS garantează cel mai scurt drum doar pe grafuri neponderate — o limitare reală pentru majoritatea problemelor practice de rutare, unde distanțele contează, nu doar numărul de pași. Lecția următoare rezolvă exact această limitare: algoritmul lui Dijkstra, care găsește cel mai scurt drum ponderat, exact problema pe care orice aplicație de navigație GPS o rezolvă de mii de ori pe secundă.
+
+### Reconstruirea drumului — nu doar distanța, ci și traseul complet
+
+Codul BFS de mai sus produce ordinea de vizitare, dar nu drumul complet către un nod specific — pentru asta, fiecare nod trebuie să rețină de la cine a fost descoperit prima dată:
+
+```python
+def bfs_cu_drum(graf, start, tinta):
+    vizitate = {start: None}     # dicționar: nod -> nodul PĂRINTE prin care a fost descoperit
+    coada = deque([start])
+
+    while coada:
+        nod = coada.popleft()
+        if nod == tinta:
+            drum = []
+            while nod is not None:
+                drum.append(nod)
+                nod = vizitate[nod]
+            return drum[::-1]        # reconstruit invers, apoi inversat (revezi C4 L12, slicing)
+        for vecin in graf[nod]:
+            if vecin not in vizitate:
+                vizitate[vecin] = nod
+                coada.append(vecin)
+    return None    # ținta nu e accesibilă din start
+```
+
+Acest pattern — un dicționar care ține evidența "prin cine am ajuns aici prima dată" — permite reconstruirea completă a drumului, nu doar confirmarea că există unul, prin parcurgerea înapoi a legăturilor părinte, de la țintă până la start. E exact structura pe care orice sistem de navigație GPS o folosește pentru a afișa nu doar "distanța", ci și traseul complet pas cu pas.
+
+### Aplicare pe rețele sociale — gradele de separare
+
+Conceptul popular de "șase grade de separare" (ideea că oricare doi oameni de pe planetă sunt conectați prin cel mult șase legături de cunoștințe) e, tehnic, o afirmație despre BFS aplicat unui graf social masiv — pornind de la o persoană, câte niveluri de BFS sunt necesare pentru a ajunge la orice altă persoană din rețea. Platformele sociale reale calculează exact acest tip de distanță (câte "hop-uri" separă doi utilizatori) folosind variante optimizate de BFS, la scară de miliarde de noduri.
+
+O optimizare practică frecventă pentru astfel de căutări la scară masivă: **BFS bidirecțional** — pornești simultan de la ambele capete (start și țintă), explorând amândouă către mijloc, oprindu-te când cele două explorări se întâlnesc. Această tehnică reduce dramatic numărul de noduri vizitate față de BFS simplu, unidirecțional, mai ales pe grafuri cu lățime mare la fiecare nivel.
