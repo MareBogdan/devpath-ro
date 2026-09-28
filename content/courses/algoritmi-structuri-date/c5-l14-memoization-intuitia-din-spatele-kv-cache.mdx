@@ -1,0 +1,146 @@
+---
+title: "Memoization — intuiția din spatele KV cache"
+order: 14
+type: lesson
+module_index: 5
+duration: 14
+difficulty: 3
+---
+
+# Memoization — intuiția din spatele KV cache
+
+## HOOK
+
+Lecția trecută s-a încheiat cu o problemă concretă, nu doar teoretică: `fibonacci(30)` recursiv naiv face peste un milion de apeluri, majoritatea recalculând **exact aceleași** sub-probleme, de zeci sau sute de ori repetate. `fibonacci(5)` calculează `fibonacci(3)` de două ori, complet independent, de parcă ar fi prima dată. Ineficiența nu vine din faptul că problema e greu de rezolvat — vine din faptul că o rezolvăm de mai multe ori, inutil.
+
+**Memoization** rezolvă exact acest defect specific, printr-o singură idee: reține rezultatul fiecărei sub-probleme deja calculate, într-o structură rapidă de căutare, și verifică acolo înainte de a recalcula orice. Aceeași idee — nu recalcula ce ai calculat deja, reține-l undeva accesibil rapid — stă, sub un alt nume tehnic, la baza **KV cache-ului** care face inferența unui model de limbaj practic rapidă, în loc de exponențial de lentă.
+
+---
+
+## CONTEXT
+
+Termenul "memoization" (nu "memorization" — e o eroare de scriere comună, dar termenul corect vine de la "memo", notă) a fost introdus de matematicianul Donald Michie în 1968, într-un context de inteligență artificială timpurie — exact domeniul în care ideea revine astăzi, la o scară mult mai mare. Principiul de bază e vechi și intuitiv: un dicționar de telefon nu recalculează numărul de fiecare dată când îl cauți — îl reține o singură dată, apoi orice căutare ulterioară e doar o verificare directă.
+
+Ideea centrală care leagă memoization de tehnicile deja văzute în acest curs: e, fundamental, un **space-time tradeoff** (L4) — cheltuiești memorie suplimentară (pentru a reține rezultatele) ca să câștigi timp de calcul (evitând recalcularea). Nu e o tehnică nouă, separată de restul cursului — e aplicarea directă a unui principiu deja cunoscut, la problema specifică a recursivității cu sub-probleme repetate.
+
+---
+
+## MIEZUL
+
+### Fibonacci cu memoization — aceeași funcție, o singură adăugare
+
+```python
+cache = {}
+
+def fibonacci_memo(n):
+    if n in cache:                    # deja calculat — returnează direct
+        return cache[n]
+    if n <= 1:
+        return n
+    rezultat = fibonacci_memo(n - 1) + fibonacci_memo(n - 2)
+    cache[n] = rezultat                # reține rezultatul înainte de a-l returna
+    return rezultat
+```
+
+Diferența față de versiunea din L13 e minimă din punct de vedere al codului — o verificare la început, o reținere la sfârșit — dar transformă complet comportamentul funcției: fiecare valoare `fibonacci_memo(k)` se calculează **o singură dată**, indiferent de câte ori e cerută în arborele de apeluri. A doua oară când e nevoie de `fibonacci_memo(3)`, funcția nu mai recalculează nimic — găsește direct rezultatul în `cache`, cu un cost O(1).
+
+### De ce complexitatea scade de la O(2ⁿ) la O(n)
+
+$$T_{\text{naiv}}(n) = O(2^n) \quad\longrightarrow\quad T_{\text{memo}}(n) = O(n)$$
+
+Există exact `n` valori distincte posibile pentru argumentul funcției (`0` până la `n`), iar memoization garantează că fiecare dintre ele se calculează cel mult o singură dată. Restul apelurilor — oricâte ar fi, teoretic exponențial de multe în versiunea naivă — devin simple căutări O(1) într-un dicționar. Reducerea de la exponențial la liniar nu e o optimizare marginală — e diferența dintre o funcție practic incalculabilă pentru `n` mare și una instantanee.
+
+<CosmoHint emotion="thinking">
+De ce memoization funcționează perfect pentru Fibonacci, dar nu ajută deloc la, de exemplu, o funcție care generează un număr aleator de fiecare dată? Pentru că memoization presupune o proprietate specifică: aceeași intrare produce mereu exact aceeași ieșire (funcție "pură", fără efecte secundare sau aleatoriu). Dacă rezultatul ar putea diferi de la un apel la altul, reținerea primului rezultat și reutilizarea lui ar produce răspunsuri greșite, nu doar mai rapide. Această cerință — determinism — e motivul pentru care memoization se aplică natural la probleme matematice recursive, dar nu la orice funcție recursivă în general.
+</CosmoHint>
+
+### Top-down vs. bottom-up — memoization vs. tabulare
+
+{/* TABLE */}
+
+| Abordare | Cum funcționează | Avantaj |
+|---|---|---|
+| **Top-down (memoization)** | Recursivitate normală + cache, calculează doar ce e nevoie | Cod aproape identic cu versiunea naivă, ușor de scris pornind de la ea |
+| **Bottom-up (tabulare)** | Buclă iterativă, construiește rezultatele de la cele mai mici la cele mai mari | Fără cost de stivă de apeluri, adesea puțin mai rapid în practică |
+
+```python
+def fibonacci_tabulare(n):
+    tabel = [0, 1]
+    for i in range(2, n + 1):
+        tabel.append(tabel[i - 1] + tabel[i - 2])
+    return tabel[n]
+```
+
+Ambele abordări ating aceeași complexitate O(n) — diferența e stilistică și practică, nu fundamentală. Top-down rămâne mai apropiat de forma matematică naturală a problemei (motiv pentru care e adesea varianta introdusă prima), în timp ce bottom-up evită complet limita de adâncime a stivei de apeluri discutată în L13, avantaj relevant pentru intrări foarte mari.
+
+### KV cache — aceeași idee, la scara unui model de limbaj
+
+Un model de limbaj de tip Transformer generează text token cu token, iar fiecare token nou necesită calcularea unor vectori numiți **cheie** (Key) și **valoare** (Value) pentru mecanismul de auto-atenție — costul O(n²) menționat deja în L3, exact structura care face fiecare token nou "atent" la toate tokenurile deja generate. Fără nicio optimizare, generarea fiecărui token nou ar recalcula acei vectori **pentru toate tokenurile anterioare**, de la zero — exact tiparul de recalculare inutilă din Fibonacci naiv.
+
+**KV cache**-ul rezolvă asta identic cu memoization: vectorii Key și Value pentru fiecare token deja procesat se calculează o singură dată și se rețin — la fiecare token nou, modelul calculează doar vectorii pentru tokenul curent, refolosind direct din cache toți cei deja calculați. Fără KV cache, generarea unei propoziții lungi ar deveni progresiv, dramatic mai lentă cu fiecare token — cu el, costul per token rămâne aproximativ constant, exact felul în care `fibonacci_memo` rămâne rapid indiferent cât de multe ori e apelat pentru aceeași valoare.
+
+<CosmoHint emotion="celebrating">
+Ai ajuns acum la o piesă centrală a modului în care funcționează practic orice model de limbaj modern, inclusiv cele pe care le folosești zilnic — și ai înțeles-o pornind de la o funcție de zece linii care calculează Fibonacci. Această capacitate — de a recunoaște aceeași structură abstractă („nu recalcula ce ai calculat deja") în două contexte complet diferite ca scară, de la un exercițiu didactic la infrastructura unui model cu miliarde de parametri, e exact tipul de intuiție pe care acest curs urmărește să-l construiască, nu doar memorarea unor algoritmi izolați.
+</CosmoHint>
+
+### Memoization în practică — `functools.lru_cache`
+
+Python oferă un decorator built-in care implementează exact tiparul din exemplul de mai sus, fără să mai scrii manual dicționarul de cache:
+
+```python
+from functools import lru_cache
+
+@lru_cache(maxsize=None)
+def fibonacci_lru(n):
+    if n <= 1:
+        return n
+    return fibonacci_lru(n - 1) + fibonacci_lru(n - 2)
+```
+
+`@lru_cache` interceptează fiecare apel, verifică dacă argumentele primite au mai apărut deja (folosind exact argumentele ca și cheie de căutare), și returnează direct rezultatul reținut dacă da — identic, funcțional, cu `cache` din exemplul manual, dar implementat la nivel de limbaj, testat și optimizat. Parametrul `maxsize` controlează câte rezultate distincte rămân reținute simultan — dincolo de acea limită, decoratorul elimină automat cele mai vechi intrări nefolosite recent (o politică LRU, "least recently used"), exact tipul de decizie de gestionare a cache-ului discutat deja, la nivel conceptual, în L4.
+
+O limitare practică importantă: argumentele funcției decorate trebuie să fie **hashable** (numere, șiruri de caractere, tupluri — nu liste sau dicționare), pentru că `lru_cache` le folosește direct ca și chei într-o structură de tip dicționar intern. Această cerință tehnică reflectă, la scară mică, exact aceeași cerință de determinism menționată mai devreme — cache-ul funcționează corect doar dacă poate identifica fără ambiguitate "am mai văzut exact aceste argumente înainte?".
+
+### Memoization la scară de sistem — cache-uri distribuite
+
+Ideea de memoization nu rămâne izolată la o singură funcție, într-un singur proces — aceeași logică, extinsă la scara unei aplicații web complete, devine cache-ul distribuit (Redis, Memcached, folosite frecvent ca strat separat între aplicație și bază de date): rezultatul unei interogări costisitoare (o căutare complexă în bază de date, un apel către un API extern) se reține într-un magazin de date rapid, partajat între mai multe instanțe ale aplicației, astfel încât următoarea cerere identică — venită poate de la alt utilizator, procesată de alt server — găsește direct rezultatul reținut, fără să repete munca. Diferența față de `lru_cache` e doar de scară și de infrastructură (memorie partajată în rețea, nu un dicționar local în procesul curent) — structura logică rămâne identică: verifică dacă rezultatul există deja, calculează-l doar dacă lipsește, reține-l pentru viitor.
+
+Exact ca la KV cache, invalidarea — decizia despre când un rezultat reținut devine învechit și trebuie recalculat — rămâne partea genuin dificilă a oricărui sistem de cache real, mult mai greu de rezolvat corect decât reținerea propriu-zisă a rezultatelor.
+
+### Limitele memoization — memorie, nu timp, devine costul dominant
+
+Memoization nu e gratuită — fiecare rezultat reținut consumă memorie, iar pentru probleme cu foarte multe sub-probleme distincte posibile, cache-ul poate crește necontrolat. KV cache-ul suferă exact de aceeași limitare la scară mult mai mare: pentru conversații foarte lungi, cu mii de tokenuri deja generate, memoria necesară pentru a reține toți vectorii Key și Value devine ea însăși o constrângere practică serioasă, motiv pentru care cercetarea recentă în arhitecturi de Transformer investighează activ tehnici de compresie sau eliminare selectivă a cache-ului — același compromis spațiu-timp din L4, revenind, de această dată, ca o limitare reală de infrastructură, nu doar ca exercițiu teoretic.
+
+### Când memoization NU ajută — probleme fără sub-probleme repetate
+
+Nu orice funcție recursivă beneficiază de memoization — dacă fiecare apel recursiv primește argumente complet diferite, niciodată repetate (de exemplu, o funcție care parcurge o listă o singură dată, fiecare element vizitat exact o dată), reținerea rezultatelor nu economisește nimic, pentru că nu există nimic de recalculat. Merge Sort (L6) sau parcurgerea unui arbore prin `numara_noduri` (L13) nu au nevoie de memoization — fiecare sub-problemă apare exact o singură dată, natural, fără suprapunere. Recunoașterea acestui tipar — există sau nu sub-probleme repetate — e primul pas practic înainte de a aplica memoization oriunde, altfel efortul suplimentar (memorie, complexitate de cod) nu aduce niciun beneficiu real.
+
+<FactBox>
+**Memoization în cifre:**
+- Termenul a fost introdus de Donald Michie în **1968**, în context de inteligență artificială
+- `fibonacci(30)` naiv: peste **1.000.000** de apeluri redundante — cu memoization, exact **30**
+- Reducere de complexitate: de la **O(2ⁿ)** la **O(n)** printr-o singură adăugare de cod
+- KV cache: aplică exact același principiu la mecanismul de auto-atenție O(n²) al Transformerelor
+- Cerință obligatorie pentru memoization: funcția trebuie să fie **determinist pură** (aceeași intrare → aceeași ieșire)
+- Cost adițional: memorie proporțională cu numărul de sub-probleme distincte calculate
+</FactBox>
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Concept | Fără reținere | Cu reținere |
+|---|---|---|
+| Fibonacci recursiv | O(2ⁿ), milioane de apeluri redundante | O(n), fiecare valoare calculată o dată |
+| Generare de text (Transformer) | Recalculează Key/Value pentru toate tokenurile, la fiecare pas | KV cache: refolosește direct vectorii deja calculați |
+| Cost adițional | — | Memorie proporțională cu numărul de sub-probleme distincte |
+
+---
+
+## ÎNCHEIERE
+
+Memoization e un exemplu concentrat, ușor de urmărit, al unui principiu care revine constant în informatică la orice scară: recalcularea inutilă e adesea cea mai simplă sursă de ineficiență de eliminat, iar soluția — reține ce ai calculat deja — e rareori complicată de implementat, doar ușor de omis dacă nu ești atent la structura reală a problemei. De la o funcție de zece linii la infrastructura unui model de limbaj cu miliarde de parametri, aceeași idee produce, structural, aceeași economie.
+
+Lecția următoare generalizează acest principiu într-un cadru formal complet — **Programarea Dinamică** — nu doar memorarea unor rezultate recursive individuale, ci o metodologie sistematică de a identifica și rezolva probleme construite din sub-probleme suprapuse, indiferent dacă abordarea aleasă e top-down sau bottom-up.
