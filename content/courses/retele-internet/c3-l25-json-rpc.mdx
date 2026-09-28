@@ -1,0 +1,164 @@
+---
+title: "JSON-RPC: Protocolul din spatele agenților AI"
+order: 25
+type: lesson
+module_index: 3
+duration: 13
+difficulty: 3
+---
+
+# JSON-RPC: Protocolul din spatele agenților AI
+
+## HOOK
+
+Un agent AI cere unui server MCP (Model Context Protocol — infrastructura care leagă modele AI de unelte externe, subiectul unui curs viitor din acest program) să execute o funcție: "citește fișierul X." Mesajul care circulă între agent și server nu e REST, nu e GraphQL — e un JSON mic, cu exact patru câmpuri fixe, un protocol vechi de 15 ani, redescoperit recent ca fundația perfectă pentru comunicarea între modele AI și uneltele lor.
+
+Ai văzut în L21-L22 cât de mult context și convenție implică o API REST: URL-uri semantice, metode HTTP cu sensuri diferite, coduri de status pentru fiecare tip de eroare. **JSON-RPC** ia direcția opusă radical: un singur endpoint, o singură metodă HTTP (`POST`), și tot ce contează e conținutul JSON-ului — ce funcție vrei apelată și cu ce parametri. Simplitatea asta brutală explică de ce a devenit alegerea firească pentru protocoale unde clientul și serverul trebuie să "vorbească funcții," nu "resurse."
+
+---
+
+## CONTEXT
+
+**RPC** (Remote Procedure Call) ca idee e mai vechi decât web-ul însuși — **Sun RPC** (1980), **CORBA** (1991), **SOAP** (1998, XML greoi cu specificații de sute de pagini) au încercat toate să facă apelarea unei funcții pe alt server să *pară* la fel de simplă ca apelarea unei funcții locale. SOAP a devenit sinonim cu complexitate excesivă — un singur apel necesita adesea un fișier WSDL de configurare de zeci de kilobytes.
+
+**JSON-RPC** a apărut din reacția opusă: o specificație de **o singură pagină**. Versiunea 1.0 (2005) era deja minimală; **JSON-RPC 2.0** (2010) a adăugat suport pentru notificări (apeluri fără răspuns așteptat) și batching (mai multe apeluri într-un singur request). Spre deosebire de REST, care a devenit termen umbrelă pentru "orice API HTTP cu JSON" (L21), JSON-RPC a rămas strict — respectă specificația sau nu e JSON-RPC.
+
+Adopția recentă vine din două direcții tehnice: **Language Server Protocol** (LSP, creat de Microsoft pentru VS Code, 2016) — mecanismul prin care orice editor de cod comunică cu un server de analiză de limbaj (autocomplete, go-to-definition) — folosește JSON-RPC 2.0 peste stdin/stdout sau socket-uri. **Model Context Protocol** (MCP, Anthropic, 2024) a adoptat aceeași bază pentru conectarea modelelor AI la unelte externe — o alegere directă inspirată de succesul dovedit al LSP.
+
+---
+
+## MIEZUL
+
+### Structura unui request — patru câmpuri, atât
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "citeste_fisier",
+  "params": {"cale": "/date/raport.csv"},
+  "id": 1
+}
+```
+
+`jsonrpc` — versiunea protocolului, mereu `"2.0"` în implementările curente. `method` — numele funcției de apelat, un string simplu, fără nicio legătură cu vreun URL sau verb HTTP. `params` — argumentele funcției, fie ca obiect (parametri denumiți) fie ca array (parametri poziționali). `id` — un identificator ales de client, folosit să lege răspunsul de cererea corespunzătoare.
+
+Răspunsul de succes oglindește `id`-ul primit:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "result": {"continut": "col1,col2\n1,2\n3,4", "linii": 3},
+  "id": 1
+}
+```
+
+Răspunsul de eroare are structură fixă, standardizată:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "error": {"code": -32602, "message": "Invalid params: cale lipsă"},
+  "id": 1
+}
+```
+
+{/* TABLE */}
+
+| Cod eroare | Sens |
+|---|---|
+| `-32700` | Parse error — JSON invalid |
+| `-32600` | Invalid Request — structura nu respectă spec |
+| `-32601` | Method not found |
+| `-32602` | Invalid params |
+| `-32603` | Internal error |
+| `-32000` până la `-32099` | Rezervat pentru erori specifice implementării |
+
+Spre deosebire de HTTP, unde ai zeci de status code-uri semantic diferite (`404`, `403`, `429` — L20), JSON-RPC comprimă tot în acest set fix de coduri de eroare, standardizate independent de transport — pentru că JSON-RPC însuși nu presupune neapărat HTTP dedesubt.
+
+<CosmoHint emotion="thinking">
+De ce JSON-RPC poate rula peste stdin/stdout, nu doar peste HTTP? Pentru că protocolul definește doar *formatul mesajului*, nu *cum ajunge* mesajul la destinație. LSP și multe implementări MCP locale rulează serverul ca un subproces, comunicând prin pipe-uri stdin/stdout — mesajele JSON-RPC circulă exact identic, doar transportul diferă complet de un socket TCP/HTTP. E aceeași separare de principii ca la modelul OSI din lecțiile anterioare: protocolul de "mesaj" (JSON-RPC) e independent de stratul de transport folosit dedesubt.
+</CosmoHint>
+
+### Notificări — apeluri fără răspuns
+
+Un request obișnuit are `id` și așteaptă un răspuns corespunzător. O **notificare** e identică structural, dar **fără câmpul `id`** — expeditorul spune explicit "nu aștept și nu vreau niciun răspuns":
+
+```json
+{"jsonrpc": "2.0", "method": "log_eveniment", "params": {"mesaj": "utilizator conectat"}}
+```
+
+Serverul procesează cererea normal, dar nu trimite niciun răspuns — nici măcar o confirmare goală. Util pentru evenimente fire-and-forget: log-uri, telemetrie, actualizări de progres unde clientul nu are nevoie (și nu vrea overhead-ul) unui răspuns explicit pentru fiecare mesaj.
+
+### Batching — mai multe apeluri, o singură cerere
+
+JSON-RPC 2.0 permite gruparea mai multor cereri într-un singur array JSON, trimis ca un singur request de transport:
+
+```json
+[
+  {"jsonrpc": "2.0", "method": "citeste_fisier", "params": {"cale": "a.txt"}, "id": 1},
+  {"jsonrpc": "2.0", "method": "citeste_fisier", "params": {"cale": "b.txt"}, "id": 2},
+  {"jsonrpc": "2.0", "method": "log_eveniment", "params": {"mesaj": "batch trimis"}}
+]
+```
+
+Serverul procesează toate cererile din batch (ordinea de execuție nu e garantată de spec) și răspunde cu un array de rezultate, câte unul per cerere cu `id` — notificarea din exemplu nu generează niciun răspuns, deci array-ul de răspuns are doar 2 elemente, nu 3. Aceeași idee de eficiență ca multiplexarea HTTP/2 din L20, dar rezolvată la nivel de conținut al mesajului, nu de protocol de transport.
+
+### JSON-RPC vs. REST — filozofii opuse
+
+{/* TABLE */}
+
+| Aspect | REST | JSON-RPC |
+|---|---|---|
+| Model mental | Resurse (substantive) | Funcții (verbe) |
+| Endpoint-uri | Multiple, per resursă | Unul singur, de obicei |
+| Metode HTTP folosite | Toate (`GET`/`POST`/`PUT`/`DELETE`) | Doar `POST` (dacă rulează peste HTTP) |
+| Status code HTTP | Semantic, per rezultat (`404`, `403`...) | Aproape mereu `200`, eroarea e în body |
+| Transport | Necesită HTTP | Agnostic — HTTP, WebSocket, stdio, orice |
+| Potrivit pentru | CRUD pe entități de business | Apeluri de unelte/funcții, RPC clasic |
+
+Diferența fundamentală de model mental explică de ce fiecare protocol se potrivește altui context: REST modelează *ce există* (un utilizator, o comandă), JSON-RPC modelează *ce se poate face* (execută această funcție, cu acești parametri). Un agent AI care apelează unelte externe — "caută pe web," "execută cod Python," "citește acest fișier" — se mapează natural pe funcții, nu pe resurse CRUD, motiv direct pentru care MCP a ales JSON-RPC, nu REST, ca fundație.
+
+<CosmoHint emotion="excited">
+Următorul curs din acest program (Agentic AI & MCP) construiește direct pe acest fundament: un server MCP e, la bază, un proces care ascultă mesaje JSON-RPC 2.0 și expune `method`-uri precum `tools/call` sau `resources/read`. Tot ce ai învățat aici — structura request/response, codurile de eroare, notificările fără răspuns — se aplică identic acolo, doar cu un vocabular specific de metode standardizate pentru interacțiunea model-unealtă.
+</CosmoHint>
+
+### De ce nu a "câștigat" JSON-RPC față de REST
+
+Dacă e atât de simplu, de ce marea majoritate a API-urilor web publice sunt REST, nu JSON-RPC? Pentru că simplitatea lui JSON-RPC e și limitarea lui: pierzi toate beneficiile native ale HTTP pe care REST le exploatează direct — cache-ul HTTP standard nu funcționează (totul e `POST` la același URL, exact ca la GraphQL, L21), nu poți exprima ușor relații semantice în URL (`/utilizatori/42/postari`), iar instrumentele generice de monitorizare HTTP (care disting cereri după cale și metodă) văd doar "mii de POST-uri identice la `/rpc`."
+
+JSON-RPC câștigă exact în contextele unde aceste beneficii HTTP nu contează: comunicare proces-la-proces locală (LSP, stdio), sau protocoale unde modelul de "apel de funcție" e literal ce se întâmplă — nu o resursă de manipulat, ci o acțiune de executat.
+
+---
+
+## REVEAL
+
+Traseul complet al unui apel JSON-RPC printr-un agent AI:
+
+{/* TABLE */}
+
+| Pas | Ce se întâmplă |
+|---|---|
+| 1 | Agentul decide să apeleze o unealtă (ex. `citeste_fisier`) |
+| 2 | Construiește un request JSON-RPC cu `method`, `params`, `id` unic |
+| 3 | Trimite mesajul prin transportul disponibil (stdio, HTTP, WebSocket) |
+| 4 | Serverul MCP identifică metoda, execută funcția reală |
+| 5 | Serverul răspunde cu `result` (succes) sau `error` (cod + mesaj standardizat) |
+| 6 | Agentul potrivește răspunsul după `id`, continuă raționamentul cu rezultatul |
+
+<FactBox>
+**JSON-RPC în cifre:**
+- JSON-RPC 1.0: **2005**; JSON-RPC 2.0 (versiunea actuală): **2010**
+- Specificația completă: încape pe **o singură pagină** web
+- Coduri de eroare standard rezervate: intervalul **-32768 până la -32000**
+- Language Server Protocol (Microsoft, 2016): JSON-RPC 2.0 peste stdio
+- Model Context Protocol (Anthropic, 2024): JSON-RPC 2.0 ca fundație de transport
+- Batching: un singur request de transport poate conține un array nelimitat de apeluri
+</FactBox>
+
+---
+
+## ÎNCHEIERE
+
+JSON-RPC demonstrează că un protocol nu are nevoie de complexitate pentru a fi robust — patru câmpuri fixe, coduri de eroare standardizate, independență completă de transport. Unde REST modelează un web de resurse navigabile, JSON-RPC modelează un catalog de funcții apelabile — exact modelul de care are nevoie orice sistem care execută acțiuni, nu doar citește și scrie date.
+
+Acest curs a construit, lecție cu lecție, întregul traseu al unui pachet — de la cablul fizic și adresele MAC, prin IP și rutare, prin criptare și firewall, până la protocoalele care rulează deasupra a tot: HTTP, REST, GraphQL, WebSocket, webhook-uri, JSON-RPC. Fiecare API modernă pe care o vei integra — inclusiv cele care conectează agenți AI la lumea reală — se sprijină pe exact aceste straturi. Lecția finală a cursului îți pune la testul suprem toate aceste concepte, într-un scenariu complet: BOSS — Arhitectul de Cloud.
