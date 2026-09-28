@@ -1,0 +1,155 @@
+---
+title: "Recursivitate — intuiția din spatele backprop"
+order: 13
+type: lesson
+module_index: 5
+duration: 15
+difficulty: 3
+---
+
+# Recursivitate — intuiția din spatele backprop
+
+## HOOK
+
+Ai văzut recursivitatea de trei ori deja, fără s-o numești explicit: Merge Sort (L6) rezolvă recursiv jumătăți tot mai mici ale unei liste; BST-ul (L7) inserează și caută prin apeluri care coboară recursiv prin arbore; trie-ul (L12) colectează recursiv toate cuvintele accesibile dintr-un nod. De fiecare dată, ideea de bază era aceeași: rezolvă o versiune mai mică a aceleiași probleme, folosește acel rezultat pentru a construi soluția problemei complete.
+
+Această lecție tratează direct mecanismul din spatele tuturor acelor exemple: **recursivitatea** — o funcție care se apelează pe sine, pe o versiune redusă a propriei probleme, până ajunge la un caz suficient de simplu încât să-l rezolve direct. Nu e doar o tehnică de programare — e modul în care o rețea neuronală "învață din propriile greșeli", prin **backpropagation**, procesul care propagă eroarea înapoi prin rețea, strat cu strat, recursiv, exact structura pe care o vei recunoaște în această lecție.
+
+---
+
+## CONTEXT
+
+Recursivitatea are rădăcini matematice mult mai vechi decât informatica — definiția funcției factorial (`n! = n × (n-1)!`) sau șirul lui Fibonacci (`F(n) = F(n-1) + F(n-2)`) sunt definiții recursive clasice, folosite în matematică cu mult înainte de calculatoare. Informatica a formalizat-o ca tehnică de programare odată cu limbajele funcționale timpurii (Lisp, 1958), unde funcțiile care se apelează pe sine erau nu doar posibile, ci un mod natural, idiomatic de a exprima soluții.
+
+Ideea centrală, care va reveni constant în această lecție: orice funcție recursivă corectă are exact două componente obligatorii — un **caz de bază** (condiția care oprește recursivitatea, rezolvată direct, fără niciun apel suplimentar) și un **pas recursiv** (apelul funcției pe o versiune mai mică a problemei, care se apropie garantat de cazul de bază). Lipsa oricăreia dintre cele două componente produce fie o funcție care nu face nimic util, fie una care nu se oprește niciodată — recursivitatea infinită, echivalentul recursiv al buclei infinite din C4 L8.
+
+---
+
+## MIEZUL
+
+### Anatomia unei funcții recursive — factorial, exemplul canonic
+
+```python
+def factorial(n):
+    if n <= 1:              # CAZ DE BAZĂ — oprește recursivitatea
+        return 1
+    return n * factorial(n - 1)   # PAS RECURSIV — se apropie de cazul de bază
+```
+
+`factorial(5)` nu calculează direct rezultatul — declanșează un lanț de apeluri: `5 * factorial(4)`, care cere `4 * factorial(3)`, și tot așa, până `factorial(1)` returnează direct `1`, fără niciun apel suplimentar. Abia atunci lanțul de apeluri "se desface" înapoi, fiecare nivel multiplicând rezultatul primit cu propriul `n`: `1 → 1 → 2 → 6 → 24 → 120`.
+
+### Stiva de apeluri — mecanismul fizic din spatele recursivității
+
+Fiecare apel de funcție, recursiv sau nu, adaugă un **cadru** (frame) pe **stiva de apeluri** a interpretorului — o structură de date exact ca stiva LIFO discutată deja la DFS (L10), care ține evidența "unde mă întorc, cu ce valori, când funcția curentă se termină."
+
+{/* TABLE */}
+
+| Apel | Stiva de apeluri (de jos în sus) |
+|---|---|
+| `factorial(5)` | `[factorial(5)]` |
+| → `factorial(4)` | `[factorial(5), factorial(4)]` |
+| → `factorial(3)` | `[factorial(5), factorial(4), factorial(3)]` |
+| → `factorial(2)` | `[..., factorial(2)]` |
+| → `factorial(1)` | `[..., factorial(1)]` — CAZ DE BAZĂ, returnează direct |
+| Revenire | Fiecare cadru se "desface", multiplică și returnează |
+
+Fiecare nivel de recursivitate consumă memorie pe stivă — motiv pentru care Python limitează adâncimea maximă de recursivitate (implicit ~1.000 de apeluri imbricate, discutat deja în C4 L9), aruncând `RecursionError` dacă o funcție recursivă nu ajunge la cazul de bază suficient de rapid. Această limitare structurală e exact motivul pentru care recursivitatea, oricât de elegantă, nu e potrivită pentru probleme cu mii de niveluri de adâncime — o buclă iterativă, fără cost de stivă suplimentar per pas, rămâne alegerea sigură acolo.
+
+<CosmoHint emotion="thinking">
+De ce recursivitatea "pare" să rezolve probleme complexe fără să le rezolvi tu direct? Pentru că, de fapt, nu rezolvi complexitatea — o delegi. `factorial(n)` nu calculează niciodată singur produsul complet — deleagă exact `factorial(n-1)` cuiva (propria lui copie viitoare, pe stiva de apeluri) și doar combină rezultatul primit cu propria contribuție. Acest "act de credință" — presupun că apelul recursiv rezolvă corect versiunea mai mică a problemei, mă concentrez doar pe cum combin acel rezultat cu ce am eu — e cheia mentală pentru a scrie și a înțelege corect orice funcție recursivă, fără să încerci să urmărești manual toate nivelurile simultan.
+</CosmoHint>
+
+### Recursivitate vs. iterație — aceeași putere, forme diferite
+
+Orice funcție recursivă poate fi rescrisă iterativ (cu o buclă explicită), și invers — cele două forme au putere expresivă echivalentă. Diferența practică:
+
+{/* TABLE */}
+
+| Aspect | Recursivitate | Iterație |
+|---|---|---|
+| Claritate pentru probleme natural recursive | Adesea mai clară (arbori, divide et impera) | Poate deveni complicată, cu stive manuale |
+| Cost de memorie | O(adâncime) pe stiva de apeluri | Tipic O(1) suplimentar |
+| Limită practică de adâncime | ~1.000 apeluri în Python | Fără limită structurală |
+| Potrivit pentru | Structuri arborescente, divide et impera | Bucle simple, procesare secvențială mare |
+
+Regula practică de decizie: pentru probleme cu structură natural recursivă (arbori, grafuri, sub-probleme care se descompun clar), recursivitatea produce adesea cod mai scurt și mai apropiat de definiția matematică a problemei. Pentru procesări simple, secvențiale, pe volume mari de date, unde adâncimea ar putea depăși limita practică, iterația rămâne alegerea sigură.
+
+### Recursivitatea multiplă — Fibonacci, și de ce devine lentă
+
+```python
+def fibonacci(n):
+    if n <= 1:
+        return n
+    return fibonacci(n - 1) + fibonacci(n - 2)    # DOUĂ apeluri recursive, nu unul
+```
+
+Spre deosebire de factorial (un singur apel recursiv per nivel), Fibonacci face **două** apeluri la fiecare pas — fiecare dintre ele generând, la rândul lui, alte două. Acest tipar produce un arbore de apeluri care crește exponențial — `fibonacci(30)` face peste un milion de apeluri, majoritatea recalculând **exact aceleași** sub-probleme, de multe ori repetate. Complexitatea reală devine O(2ⁿ), exact clasa exponențială marcată ca "practic incalculabilă la scară" încă din L3.
+
+$$T(n) = T(n-1) + T(n-2) + O(1) \implies T(n) = O(2^n)$$
+
+Această ineficiență specifică — recalcularea repetată a acelorași sub-probleme — nu e o slăbiciune a recursivității în sine, ci a *acestei implementări specifice* a lui Fibonacci. Lecția următoare (L14, Memoization) rezolvă exact această problemă, transformând complexitatea exponențială înapoi la liniară, printr-o singură modificare țintită.
+
+### Legătura directă cu backpropagation
+
+Antrenarea unei rețele neuronale calculează, la fiecare pas, cât de mult a contribuit fiecare parametru la eroarea finală — **backpropagation** face asta exact recursiv, dar în ordine inversă față de propagarea normală (forward pass, care e ea însăși structurată ca un DAG, discutat în L9): pornind de la eroarea finală, calculează contribuția stratului de dinaintea ieșirii, apoi a stratului dinaintea aceluia, și tot așa, înapoi până la primul strat — fiecare pas depinzând, matematic, exact de rezultatul pasului "recursiv" imediat următor (mai aproape de ieșire).
+
+Regula matematică din spatele acestui proces — regula lanțului (chain rule) din calculul diferențial, subiect al cursului de Matematică pentru AI — e, structural, o recurență: derivata unei funcții compuse depinde de derivatele funcțiilor componente, exact cum `factorial(n)` depinde de `factorial(n-1)`. Nu e o coincidență conceptuală — e literalmente aceeași structură matematică, aplicată la o problemă diferită: propagarea unei corecții înapoi printr-un lanț de calcule dependente, strat cu strat.
+
+### Recursivitatea pe structuri arborescente — de ce se potrivește atât de natural
+
+Fiecare exemplu de recursivitate întâlnit deja în acest curs — Merge Sort, BST, trie — operează pe structuri intrinsec recursive: un arbore e, prin definiție, format din sub-arbori mai mici, fiecare cu exact aceeași formă structurală ca arborele complet. Această auto-similaritate — o parte a structurii arată, formal, la fel ca întregul — e motivul precis pentru care recursivitatea se potrivește atât de natural cu structuri arborescente: funcția care procesează un arbore complet e, literalmente, aceeași funcție aplicată fiecărui sub-arbore, fără nicio logică suplimentară necesară pentru a gestiona diferența dintre "întreg" și "parte".
+
+```python
+def numara_noduri(nod):
+    if nod is None:
+        return 0                                          # caz de bază — arbore vid
+    return 1 + numara_noduri(nod.stanga) + numara_noduri(nod.dreapta)
+```
+
+Această funcție, aplicabilă direct BST-ului din L7, numără toate nodurile unui arbore prin exact aceeași logică recursivă: numărul de noduri al întregului arbore e 1 (nodul curent) plus numărul de noduri al fiecărui sub-arbore — o definiție care se scrie aproape identic cu propoziția matematică ce o descrie, fără nicio buclă explicită necesară.
+
+### Recursivitatea de coadă — o optimizare posibilă, dar nu în Python
+
+Multe limbaje de programare (Scheme, unele implementări de Haskell) optimizează automat un caz specific numit **recursivitate de coadă** (tail recursion) — când apelul recursiv e ultima operație din funcție, fără nimic de calculat după revenirea lui, compilatorul poate reutiliza același cadru de stivă, în loc să adauge unul nou, eliminând complet costul de memorie al adâncimii recursive. Python, deliberat, **nu** implementează această optimizare (o decizie de design explicită a lui Guido van Rossum, motivată de păstrarea traceback-urilor complete și utile pentru debugging) — motiv suplimentar pentru care, în Python specific, o buclă iterativă rămâne alegerea mai sigură pentru recursivități foarte adânci, chiar dacă din punct de vedere logic funcția ar califica pentru acea optimizare în alt limbaj.
+
+### Recursivitatea în căutarea arborescentă — minimax și jocurile AI
+
+Multe probleme de inteligență artificială clasică — jocul de șah, tic-tac-toe, orice joc cu informație completă — se rezolvă prin explorarea recursivă a unui arbore de mutări posibile: din poziția curentă, fiecare mutare posibilă generează o nouă poziție, care generează, la rândul ei, propriile mutări posibile, recursiv, până la o adâncime limită sau până la sfârșitul jocului. Algoritmul **minimax**, fundamentul motoarelor de șah clasice, parcurge exact acest arbore recursiv, alternând la fiecare nivel între "jucătorul care maximizează scorul" și "jucătorul care îl minimizează" — o funcție recursivă cu exact aceeași structură ca `numara_noduri` de mai sus, dar care alege, la fiecare pas, cea mai bună mutare posibilă din sub-arborele explorat deja.
+
+Complexitatea acestei căutări crește exponențial cu adâncimea — exact tiparul O(2ⁿ) văzut deja la Fibonacci — motiv pentru care motoarele de șah moderne nu explorează niciodată arborele complet, ci folosesc tehnici de tăiere (precum poda alfa-beta) care elimină recursiv ramuri întregi despre care se poate demonstra matematic că nu vor influența decizia finală, fără a le explora efectiv. Aceeași tensiune — recursivitatea explorează corect, dar exponențial de scump — reapare constant în informatică, de la jocuri la planificarea automată, și se rezolvă mereu prin aceeași strategie generală: elimină sau reține cât mai mult din munca deja făcută, ideea exactă pe care lecția următoare o formalizează.
+
+<CosmoHint emotion="excited">
+Când vei ajunge, în cursurile viitoare de Deep Learning din acest program, la implementarea sau la înțelegerea detaliată a backpropagation, reține exact intuiția construită aici: fiecare strat "are încredere" că straturile de după el (mai aproape de ieșire) și-au calculat deja corect gradientul, exact cum `factorial(n-1)` are încredere că apelul lui recursiv a rezolvat corect sub-problema mai mică. Framework-urile moderne (PyTorch, menționat deja în C4) automatizează complet acest proces recursiv prin diferențiere automată — dar structura de bază, recursivă, rămâne exact cea din această lecție.
+</CosmoHint>
+
+<FactBox>
+**Recursivitate în cifre:**
+- Limita implicită de adâncime recursivă în Python: **~1.000** de apeluri (configurabilă, `sys.setrecursionlimit()`)
+- Fiecare apel recursiv: adaugă un cadru pe stiva de apeluri, consumând memorie proporțional cu adâncimea
+- Fibonacci recursiv naiv: complexitate **O(2ⁿ)** — peste un milion de apeluri pentru `fibonacci(30)`
+- Orice funcție recursivă are exact **2** componente obligatorii: caz de bază + pas recursiv
+- Backpropagation: aplică regula lanțului recursiv, înapoi prin straturile unei rețele neuronale
+- Recursivitate vs. iterație: putere expresivă echivalentă, diferă doar în cost de memorie și claritate
+</FactBox>
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Element | Rol |
+|---|---|
+| Caz de bază | Oprește recursivitatea, rezolvă direct cea mai simplă versiune a problemei |
+| Pas recursiv | Apelează funcția pe o versiune mai mică, care se apropie de cazul de bază |
+| Stiva de apeluri | Ține evidența apelurilor "în așteptare", desfășurate la revenire |
+| Recursivitate multiplă (ca la Fibonacci) | Risc de recalculare exponențială a acelorași sub-probleme |
+| Backpropagation | Aplicație directă a recursivității la antrenarea de rețele neuronale |
+
+---
+
+## ÎNCHEIERE
+
+Recursivitatea nu e o tehnică exotică, izolată — e mecanismul din spatele majorității algoritmilor eleganti întâlniți deja în acest curs, și, la o scară mult mai mare, din spatele modului în care o rețea neuronală calculează cum să se corecteze. Slăbiciunea ei reală — recalcularea repetată a acelorași sub-probleme, exact problema Fibonacci — nu e inerentă, ci rezolvabilă.
+
+Lecția următoare rezolvă exact această problemă: Memoization — o singură modificare, reținerea rezultatelor deja calculate, care transformă recursivitatea exponențială înapoi la liniară. Aceeași idee stă, sub un alt nume tehnic, la baza KV cache-ului care face inferența unui model de limbaj practic rapidă, nu exponențial de lentă.
