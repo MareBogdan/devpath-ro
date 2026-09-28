@@ -125,6 +125,70 @@ Practica recomandată pentru funcții "pure" (concept introdus în L9): dacă o 
 Tensorii PyTorch operează pe exact această distincție, la scară mult mai mare: operațiile "in-place" (convenția PyTorch: numele metodei termină cu underscore, `tensor.add_(1)`) modifică tensorul original direct, în memorie, fără să creeze unul nou — identic conceptual cu `.append()` pe o listă. Operațiile fără underscore (`tensor.add(1)`) returnează un tensor NOU, lăsând originalul neschimbat — identic conceptual cu `sorted()` versus `.sort()` din L12. Aceeași distincție fundamentală pe care ai învățat-o aici cu liste simple, aplicată la structuri de date mult mai complexe folosite zilnic în deep learning.
 </CosmoHint>
 
+### De ce imutabilitatea simplifică raționamentul despre cod concurent
+
+Un motiv de design mai profund pentru care Python (și multe limbaje moderne) preferă tipuri imutabile pentru valori "simple" (numere, string-uri): un obiect imutabil poate fi partajat liber între mai multe părți ale unui program — inclusiv între mai multe fire de execuție simultane — fără niciun risc ca o parte să-l modifice pe neașteptate, afectând altă parte care presupunea că valoarea rămâne stabilă. Un obiect mutabil, partajat între mai multe locuri fără coordonare explicită, e sursa clasică de **race conditions** (discutate în detaliu în cursul de Sisteme de Operare) — două părți de cod care modifică simultan aceeași structură, producând rezultate imprevizibile, dependente de ordinea exactă de execuție.
+
+Această proprietate explică parțial de ce structuri imutabile ca `frozenset` sau tuple-uri sunt preferate în cod care rulează concurent (async, L21, sau multi-threading): imutabilitatea elimină complet o categorie de bug-uri legate de sincronizare, pur și simplu pentru că nu există nimic de sincronizat — o valoare care nu se schimbă niciodată nu poate fi niciodată "văzută" într-o stare intermediară, inconsistentă, de altă parte a programului.
+
+### Verificarea manuală a mutabilității unui tip necunoscut
+
+```python
+def este_mutabil(obiect):
+    try:
+        hash(obiect)
+        return False   # dacă e hashabil, e (foarte probabil) imutabil
+    except TypeError:
+        return True      # obiectele mutabile nu sunt hashabile
+
+print(este_mutabil([1, 2]))     # True — listă, mutabilă
+print(este_mutabil((1, 2)))       # False — tuple, imutabil
+print(este_mutabil({1, 2}))        # True — set, mutabil
+print(este_mutabil(frozenset({1, 2})))   # False — frozenset, imutabil
+```
+
+Această corespondență — hashabil aproape întotdeauna înseamnă imutabil — nu e o coincidență: obiectele mutabile sunt intenționat excluse din a fi hashabile, exact pentru a preveni scenariul discutat deja la dicționare (L13) și set-uri (L15): un hash care s-ar putea schimba după inserare ar rupe complet garanțiile structurii de hash map care stă la baza ambelor tipuri.
+
+### Efecte secundare ascunse — capcana funcțiilor care "par" pure
+
+```python
+def sorteaza_scoruri(scoruri):
+    scoruri.sort()   # PERICULOS — modifică lista ORIGINALĂ, deși numele funcției sugerează transformare
+    return scoruri
+
+originale = [85, 60, 95]
+rezultat = sorteaza_scoruri(originale)
+print(originale)   # [60, 85, 95] — SCHIMBATĂ, deși apelantul poate nu se aștepta la asta
+```
+
+Numele funcției (`sorteaza_scoruri`) sugerează o transformare care produce un rezultat nou — dar `.sort()` intern modifică lista originală în loc, un efect secundar invizibil din simpla citire a semnăturii funcției. Această capcană — o funcție care "pare" pură din nume și semnătură, dar are efecte secundare ascunse din cauza mutabilității parametrilor — e una dintre sursele mai subtile de bug-uri în cod real, mai greu de detectat decât o funcție care evident scrie fișiere sau face cereri de rețea. Convenția de nume utilă: verbe ca "sortează" sau "actualizează" sugerează modificare în loc; "obține" sau "calculează" sugerează un rezultat nou, fără efecte secundare — dar convenția singură nu garantează nimic, doar citirea implementării o face cert.
+
+### Dataclasses imutabile — `frozen=True`
+
+Python oferă un mecanism modern de a construi propriile structuri de date imutabile, cu sintaxă mult mai puțină decât o clasă completă scrisă manual: `dataclasses`, cu opțiunea `frozen=True`:
+
+```python
+from dataclasses import dataclass
+
+@dataclass(frozen=True)
+class Punct:
+    x: float
+    y: float
+
+p = Punct(1.0, 2.0)
+p.x = 5.0   # FrozenInstanceError — imutabilitate impusă la nivel de limbaj, nu doar convenție
+```
+
+Spre deosebire de convențiile discutate deja (underscore pentru "uz intern", care nu previn tehnic nimic), `frozen=True` impune imutabilitatea **real**, la nivel de interpretor — orice încercare de modificare directă a unui atribut aruncă explicit o excepție. Acest pattern devine util constant în cod care modelează valori "obiect" fixe (o coordonată, o configurare validată, rezultatul unei transformări) unde vrei garanția tehnică, nu doar convențională, că nimeni, nicăieri în program, nu poate modifica accidental acea instanță după creare.
+
+Pydantic (L24) oferă un mecanism similar, `model_config = ConfigDict(frozen=True)`, pentru modelele de validare — util specific pentru date primite din surse externe (răspunsuri de API, configurări încărcate din fișiere) pe care vrei să le tratezi ca fixe odată validate, prevenind orice modificare accidentală ulterioară a unei structuri care ar trebui să rămână exact cea primită și verificată inițial.
+
+### `NamedTuple` vs. `dataclass(frozen=True)` — două căi spre imutabilitate structurată
+
+Ai văzut deja `NamedTuple` în L14, ca tuple cu câmpuri denumite. `dataclass(frozen=True)` rezolvă o problemă foarte similară, cu sintaxă aproape identică, dar cu diferențe practice: `NamedTuple` rămâne, sub capotă, un tuple obișnuit (moștenește toate metodele lui — indexare, unpacking, comparație lexicografică din L14); `dataclass` e o clasă obișnuită, cu propriile metode generate automat (`__init__`, `__repr__`, `__eq__`), dar fără comportamentul specific de tuple. Alegerea practică depinde de context: dacă ai nevoie de compatibilitate cu cod care așteaptă un tuple simplu (unpacking, indexare numerică), `NamedTuple` e alegerea firească; dacă structura e conceptual mai apropiată de un "obiect" cu atribute denumite, fără nevoia de comportament de tuple, `dataclass(frozen=True)` e adesea mai clar.
+
+Ambele generează automat metodele de bază (`__init__`, `__repr__`, `__eq__`) fără să le scrii manual — o economie reală de cod repetitiv față de o clasă scrisă complet de mână (L17), cu prețul unei flexibilități ceva mai reduse pentru cazuri foarte custom, unde o clasă obișnuită rămâne alegerea corectă.
+
 ---
 
 ## REVEAL
