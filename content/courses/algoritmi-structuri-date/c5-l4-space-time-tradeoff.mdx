@@ -1,0 +1,154 @@
+---
+title: "Space-Time Tradeoff"
+order: 4
+type: lesson
+module_index: 5
+duration: 14
+difficulty: 3
+---
+
+# Space-Time Tradeoff
+
+## HOOK
+
+L1 a arătat un dicționar (`dict`, C4 L13) care transformă o căutare O(n) în O(1). Dar acel dicționar nu apare din neant — stochează, în memorie, o copie suplimentară a datelor, organizată diferit, special pentru acces rapid. Ai câștigat viteză — ai plătit cu memorie. Această tranzacție, aparent simplă, e una dintre cele mai fundamentale decizii din tot designul de algoritmi: **space-time tradeoff** — compromisul dintre spațiu (memorie) și timp (viteză de execuție).
+
+Nu există prânz gratuit în informatică: aproape orice optimizare de viteză cere memorie suplimentară undeva, iar aproape orice economie de memorie cere timp suplimentar de calcul undeva. Recunoașterea explicită a acestui compromis — nu ca un detaliu tehnic obscur, ci ca o decizie conștientă de proiectare — e diferența dintre un sistem care se comportă predictibil la scară și unul care rulează bine pe hardware-ul de dezvoltare, dar cedează neașteptat în producție, fie din lipsă de viteză, fie din lipsă de memorie.
+
+---
+
+## CONTEXT
+
+Compromisul spațiu-timp nu e un concept nou din era software-ului — apare deja în inginerie clasică, sub forma "cache-uri" fizice: o fabrică ține piese pre-asamblate pe stoc (spațiu suplimentar) pentru a evita timpul de asamblare la fiecare comandă (timp economisit). Informatica a formalizat aceeași idee explicit odată cu apariția cache-urilor hardware (memoria cache a procesorului, discutată în cursul de Hardware & Fizică) și, la nivel de algoritmi, odată cu tehnici precum **memoization** (L14) — un termen inventat de Donald Knuth în 1968, dar cu rădăcini conceptuale mult mai vechi.
+
+Ideea centrală: dimensiunea disponibilă de memorie și viteza de calcul disponibilă nu sunt niciodată infinite simultan — un algoritm care presupune memorie nelimitată poate atinge viteze teoretic optime, dar rareori acea presupunere e realistă. Fiecare decizie reală de proiectare navighează acest compromis, explicit sau implicit, iar acest curs te învață să-l faci explicit.
+
+---
+
+## MIEZUL
+
+### Exemplul canonic — cache-ul de rezultate calculate
+
+```python
+def este_prim_lent(n):
+    if n < 2:
+        return False
+    for i in range(2, int(n ** 0.5) + 1):
+        if n % i == 0:
+            return False
+    return True
+
+# Apelat repetat, cu aceleași valori, verifică de fiecare dată de la zero — RISIPĂ
+```
+
+Comparat cu o variantă care reține rezultatele deja calculate:
+
+```python
+cache_prim = {}
+
+def este_prim_cache(n):
+    if n in cache_prim:
+        return cache_prim[n]     # O(1) — rezultat deja calculat
+    rezultat = este_prim_lent(n)
+    cache_prim[n] = rezultat        # costă memorie suplimentară, proporțională cu numărul de valori distincte
+    return rezultat
+```
+
+Prima verificare a unui număr costă la fel în ambele variante — dar orice verificare **repetată** a aceleiași valori devine O(1) în varianta cu cache, în schimbul memoriei folosite de dicționarul `cache_prim`, care crește proporțional cu numărul de valori distincte verificate vreodată. Ai transformat timp de calcul repetat în memorie stocată o singură dată — exact tranzacția centrală a acestei lecții.
+
+### Precomputare — plătești timpul înainte, nu la fiecare cerere
+
+{/* TABLE */}
+
+| Strategie | Când se plătește costul | Cost per cerere ulterioară |
+|---|---|---|
+| Calculează la fiecare cerere | La fiecare cerere, integral | O(complexitatea calculului) |
+| Precomputare + cache | O singură dată, la început | O(1) — lookup direct |
+| Lazy (calculează la prima cerere, apoi cache) | La prima cerere pentru fiecare valoare | O(1) după prima dată |
+
+**Precomputarea** duce ideea mai departe: în loc să aștepți prima cerere pentru a calcula și stoca un rezultat, calculezi *dinainte*, pentru toate valorile posibile relevante, și stochezi tot tabelul, gata de consultat instant. Un exemplu clasic: un tabel precalculat de logaritmi sau de valori trigonometrice, folosit înainte ca puterea de calcul să facă recalcularea la cerere la fel de rapidă. În sisteme moderne, precomputarea apare la construirea de indecși de căutare (o bază de date precalculează structuri care fac interogările viitoare instant, în schimbul spațiului de stocare al acelor structuri) sau la generarea offline a unor rezultate care vor fi cerute frecvent, dar se schimbă rar.
+
+<CosmoHint emotion="thinking">
+De ce un index de bază de date e un exemplu perfect de space-time tradeoff, nu doar o optimizare abstractă? Fără index, o interogare "găsește toți utilizatorii cu emailul X" cere parcurgerea O(n) a întregului tabel — exact căutarea liniară din L2. Cu un index (intern, o structură similară unui arbore de căutare, subiect al L7), aceeași interogare devine O(log n), aproape instant — dar indexul însuși ocupă spațiu suplimentar pe disc, proporțional cu numărul de rânduri, și trebuie actualizat la fiecare inserare/ștergere, adăugând un cost mic la fiecare scriere. Fiecare index adăugat la o bază de date reală e o decizie explicită de space-time tradeoff, cântărită de cine proiectează schema.
+</CosmoHint>
+
+### Algoritmi "in-place" — economisind memorie cu prețul complexității
+
+Direcția opusă a compromisului: algoritmi care evită deliberat memoria suplimentară, procesând datele direct în structura originală, chiar dacă asta cere mai multă atenție la implementare sau, uneori, mai mult timp:
+
+```python
+def inverseaza_in_place(lista):
+    stanga, dreapta = 0, len(lista) - 1
+    while stanga < dreapta:
+        lista[stanga], lista[dreapta] = lista[dreapta], lista[stanga]
+        stanga += 1
+        dreapta -= 1
+    # NU s-a creat nicio listă nouă — memorie suplimentară O(1), nu O(n)
+```
+
+Comparat cu o variantă mai simplă de scris, `lista[::-1]` (slicing, C4 L12), care creează o listă complet nouă — memorie O(n) suplimentară — varianta "in-place" modifică lista originală direct, fără nicio alocare proporțională cu `n`. Pentru liste mici, diferența e irelevantă; pentru structuri de date masive (un dataset de antrenare AI, procesat direct în memorie, fără copii intermediare), diferența dintre O(n) și O(1) memorie suplimentară poate decide dacă operațiunea încape sau nu în memoria disponibilă a mașinii.
+
+### Tabelele de lookup — precomputare dusă la extrem
+
+```python
+FACTORIALE_PRECOMPUTATE = [1, 1, 2, 6, 24, 120, 720, 5040]   # 0! până la 7!, gata calculate
+
+def factorial_rapid(n):
+    if n < len(FACTORIALE_PRECOMPUTATE):
+        return FACTORIALE_PRECOMPUTATE[n]      # O(1) — direct din tabel
+    # altfel, calculează normal pentru n mare
+```
+
+Pentru un set limitat, cunoscut dinainte, de valori posibile de intrare, un tabel complet precalculat elimină orice calcul la cerere — costul e memoria fixă a tabelului, care nu crește indiferent de câte cereri primești ulterior. Această tehnică apare frecvent în cod de performanță critică — funcții trigonometrice, tabele de codare (hashing, compresie), sau, în AI, tabele precalculate de embeddings pentru un vocabular fix, evitând recalcularea reprezentării vectoriale a aceluiași cuvânt de fiecare dată când apare.
+
+### Decizia practică — cum alegi ce parte a compromisului contează
+
+Nu există un răspuns universal corect — decizia depinde de context: **memorie abundentă, timp critic** (un server web care răspunde la mii de cereri pe secundă) favorizează cache-uri agresive, chiar dacă folosesc gigabytes de memorie. **Memorie limitată, timp mai puțin critic** (un dispozitiv embedded, cu RAM de câțiva megabytes) favorizează algoritmi "in-place", chiar dacă sunt puțin mai lenți. **Date care se schimbă rar, cereri frecvente** favorizează precomputarea completă. **Date care se schimbă des, cereri rare pentru fiecare valoare** fac cache-ul mai puțin util — costul de a menține cache-ul actualizat poate depăși beneficiul lui.
+
+### Invalidarea cache-ului — problema ascunsă a oricărui compromis spațiu-timp
+
+Un cache nu e o soluție "gratuită" doar pentru că folosește memorie în loc de timp — vine cu o problemă suplimentară, adesea subestimată: **ce se întâmplă când datele originale se schimbă?** Un cache care reține rezultatul unui calcul devine incorect în momentul în care intrarea pe care s-a bazat calculul se schimbă, iar cache-ul nu e actualizat corespunzător. Un citat clasic din informatică, atribuit lui Phil Karlton, spune că există doar două lucruri cu adevărat greu de făcut corect în informatică: invalidarea cache-ului și denumirea corectă a lucrurilor.
+
+Strategiile de invalidare variază de la simplu (un cache cu expirare fixă, valabil câteva minute, apoi recalculat automat) la complex (invalidare selectivă, declanșată exact de evenimentul care modifică datele originale — o actualizare de bază de date care invalidează explicit doar intrările de cache afectate de acea modificare specifică). Alegerea greșită — un cache prea agresiv, care servește date vechi mult timp după ce s-au schimbat — produce bug-uri notorii de greu de reprodus, pentru că "funcționează" de cele mai multe ori, dar afișează ocazional informații incorecte, învechite, fără nicio eroare vizibilă care să semnaleze problema.
+
+### Compresia — cazul invers, memorie economisită cu prețul timpului
+
+Compromisul funcționează și în direcția opusă celei discutate până acum: **compresia de date** reduce spațiul de stocare necesar, cu prețul timpului suplimentar cerut pentru a decomprima datele înainte de a le folosi. Un fișier comprimat ocupă mai puțin spațiu pe disc, dar fiecare citire cere un pas suplimentar de procesare (decompresie) înainte ca datele să fie utilizabile — exact tranzacția inversă celei din cache-uri, unde memoria suplimentară cumpăra timp; aici, timpul suplimentar cumpără memorie. Checkpoint-urile de model AI, adesea de dimensiuni de gigabytes, sunt frecvent stocate comprimat, exact acest compromis aplicat direct infrastructurii de antrenare — spațiu de stocare economisit, cu costul unui pas suplimentar de citire.
+
+Formatele de precizie numerică reduse (`float16` în loc de `float32`, discutat deja în C4 L4 la reprezentarea numerelor) urmează aceeași logică — mai puțină memorie per valoare stocată, cu riscul unei pierderi mici de precizie, un compromis acceptat explicit în antrenarea modernă de modele mari, unde memoria GPU disponibilă e adesea resursa cea mai strict limitată.
+
+<CosmoHint emotion="excited">
+Fiecare tehnică de optimizare pe care ai auzit-o vreodată în contextul AI — KV cache la inferența unui model de limbaj (subiectul exact al L14, Memoization), embeddings precalculate, checkpoint-uri de model salvate pe disc în loc de recalculate la fiecare pornire — e, la bază, o aplicare a exact acestui principiu: plătești memorie (RAM, VRAM, disc) ca să economisești timp de calcul repetat. Când vei ajunge la cursurile de Machine Learning și LLM-uri din acest program, vei recunoaște acest tipar peste tot, sub nume tehnice diferite, dar cu aceeași logică de bază învățată aici.
+</CosmoHint>
+
+<FactBox>
+**Space-time tradeoff în cifre:**
+- Termenul "memoization" a fost inventat de Donald Knuth, folosit formal din **1968**
+- Un dicționar Python (hash map, C4 L13): O(1) acces, cu overhead de memorie față de o listă echivalentă
+- Un index de bază de date: transformă interogări O(n) în O(log n), cu cost suplimentar de stocare pe disc
+- Slicing invers (`lista[::-1]`): O(n) memorie suplimentară, față de inversare "in-place": O(1)
+- KV cache la inferența unui LLM: exact acest tradeoff, aplicat la generarea de text token cu token
+- Regula generală: nu există compromis "gratuit" — orice câștig de viteză sau de memorie se plătește undeva
+</FactBox>
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Situație | Alegere recomandată |
+|---|---|
+| Memorie abundentă, cereri frecvente pentru aceleași date | Cache agresiv / precomputare |
+| Memorie limitată (dispozitiv embedded, dataset masiv) | Algoritmi "in-place", fără copii suplimentare |
+| Date rar cerute, care se schimbă des | Calculează la cerere, fără cache |
+| Set fix, cunoscut, de valori posibile | Tabel complet precalculat |
+| Interogări repetate pe un set mare de date | Index / structură de căutare dedicată |
+
+---
+
+## ÎNCHEIERE
+
+Space-time tradeoff nu e o tehnică izolată — e o lentilă prin care privești orice decizie de optimizare din acest curs: fiecare structură de date specializată pe care o vei întâlni (heap, BST, trie) și fiecare tehnică algoritmică (memoization, programare dinamică) fac exact această tranzacție, explicit, undeva în design-ul lor. Recunoașterea conștientă a compromisului te scutește de a "optimiza" orbește într-o singură direcție, fără să înțelegi ce sacrifici de fapt.
+
+Cu vocabularul complet acum în mână — Big O, compromisul spațiu-timp — ești pregătit/ă să vezi primul exemplu concret, complet, al unui algoritm prost: unul simplu de scris, intuitiv, dar cu o complexitate care-l face nepotrivit la scară. Lecția următoare disecă Bubble Sort, algoritmul O(n²) pe care fiecare programator îl scrie instinctiv prima dată — și de ce, aproape întotdeauna, ar trebui evitat.
