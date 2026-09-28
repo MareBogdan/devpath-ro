@@ -1,0 +1,106 @@
+---
+title: "Divergența KL"
+order: 13
+type: lesson
+module_index: 6
+duration: 14
+difficulty: 4
+---
+
+# Divergența KL
+
+## HOOK
+
+L11 a lăsat o întrebare deschisă: cross-entropia $H(p, q)$ e întotdeauna cel puțin egală cu entropia $H(p)$ — dar diferența exactă dintre ele, $H(p, q) - H(p)$, ce reprezintă, mai precis? Acea diferență izolează exact componenta de eroare introdusă de faptul că modelul folosește o distribuție $q$ imperfectă, în loc de adevărul real $p$ — fără să includă și incertitudinea inerentă, deja prezentă în $p$ însuși, care n-are nicio legătură cu cât de bun e modelul.
+
+**Divergența Kullback-Leibler** (KL) e exact această diferență, cu propriul nume și propriile proprietăți — o măsură a cât de "departe" e o distribuție de probabilitate de alta, folosită direct în antrenarea modelelor generative moderne și în tehnici avansate precum distilarea de modele.
+
+---
+
+## CONTEXT
+
+Solomon Kullback și Richard Leibler, doi statisticieni americani, au introdus formal această măsură în 1951, în articolul *On Information and Sufficiency* — motivați de întrebări din statistica aplicată despre cât de "informativ" e un set de date pentru a distinge între două ipoteze concurente. Kullback a lucrat, de altfel, la Agenția Națională de Securitate a SUA (NSA), unde teoria informației avea aplicații directe în criptanaliză — deosebirea riguroasă între distribuții statistice fiind relevantă pentru a distinge semnal de zgomot, sau text criptat de text aleator.
+
+Deși dezvoltată pentru statistică clasică, divergența KL a devenit, decenii mai târziu, un instrument central în Machine Learning modern — de la antrenarea modelelor generative (autoencodere variaționale) până la comprimarea unui model mare într-unul mai mic, prin tehnica numită distilare, unde un model "student" e antrenat să-și apropie distribuția de ieșire de cea a unui model "profesor" mult mai mare.
+
+---
+
+## MIEZUL
+
+### Definiția formală — diferența directă din L11
+
+$$D_{KL}(p \| q) = \sum_i p(x_i) \log\frac{p(x_i)}{q(x_i)} = H(p, q) - H(p)$$
+
+Cele două formule sunt matematic echivalente — poți calcula divergența KL fie direct din raportul $p/q$, fie ca diferența dintre cross-entropia din L11 și entropia din L10, deja calculate separat. A doua formă face explicit exact ce a fost anticipat la finalul L11: divergența KL izolează *doar* "biții suplimentari" necesari pentru a codifica $p$ folosind un cod optimizat pentru $q$ greșit, peste minimul teoretic deja stabilit de entropia lui $p$ însuși.
+
+```python
+import numpy as np
+
+def divergenta_kl(p, q):
+    p, q = np.array(p), np.array(q)
+    return np.sum(p * np.log(p / q))
+
+p = np.array([0.5, 0.5])       # distribuția reală
+q = np.array([0.9, 0.1])       # distribuția prezisă, greșită
+
+print(divergenta_kl(p, q))     # > 0 — există o diferență reală
+print(divergenta_kl(p, p))     # exact 0 — nicio diferență de la sine
+```
+
+### Proprietăți esențiale — mereu pozitivă, dar nu simetrică
+
+{/* TABLE */}
+
+| Proprietate | Enunț | Consecință practică |
+|---|---|---|
+| Non-negativitate | $D_{KL}(p \| q) \geq 0$ întotdeauna | Nu poate "compensa" o eroare cu alta, minimul e zero |
+| Egalitate la zero | $D_{KL}(p \| q) = 0 \iff p = q$ | Divergența dispare doar la predicție perfectă |
+| **Asimetrie** | $D_{KL}(p \| q) \neq D_{KL}(q \| p)$ | Nu e o "distanță" matematică propriu-zisă |
+
+Proprietatea de non-negativitate (cunoscută și ca inegalitatea lui Gibbs) garantează că divergența KL se comportă coerent ca măsură de eroare — nu poate deveni niciodată negativă, indiferent cât de diferite sunt cele două distribuții. Dar asimetria e o capcană conceptuală reală: $D_{KL}(p \| q)$ măsoară "cât de surprinsă e $p$ de $q$", nu invers — a confunda ordinea celor doi termeni produce un rezultat numeric diferit, cu o interpretare diferită.
+
+<CosmoHint emotion="thinking">
+De ce contează practic faptul că divergența KL nu e simetrică? Pentru că alegerea ordinii — $D_{KL}(p \| q)$ versus $D_{KL}(q \| p)$ — schimbă ce tip de eroare penalizează mai aspru. $D_{KL}(p \| q)$ (folosită la antrenarea standard de clasificatoare, unde $p$ e adevărul din date) penalizează sever cazurile în care $q$ atribuie probabilitate aproape zero unui eveniment care, conform lui $p$, chiar se întâmplă. Alegerea greșită a ordinii, într-o implementare, produce un model antrenat să optimizeze o eroare diferită de cea intenționată — o greșeală subtilă, dar cu efecte practice reale asupra comportamentului final al modelului.
+</CosmoHint>
+
+### De ce minimizarea cross-entropiei minimizează, implicit, KL
+
+Revenind la antrenarea unui clasificator (L11): distribuția reală $p$ vine direct din datele de antrenare (etichetele corecte) și **nu se schimbă** în timpul antrenării — doar $q$, predicția modelului, se ajustează. Din formula $D_{KL}(p\|q) = H(p,q) - H(p)$, cu $H(p)$ constantă (fixată de date, nu de model), minimizarea lui $H(p, q)$ (cross-entropia, ceea ce face de fapt orice antrenare standard, L11) e echivalentă, matematic, exact cu minimizarea $D_{KL}(p\|q)$. Cele două perspective — "minimizează cross-entropia" și "minimizează divergența KL" — descriu exact același proces de antrenare, privit din unghiuri diferite.
+
+### Aplicații directe — modele generative și distilare
+
+Divergența KL apare explicit, ca termen separat în funcția de pierdere, în două tehnici moderne importante: **autoencoderele variaționale** (VAE), unde un termen KL forțează distribuția internă, latentă, învățată de rețea să rămână apropiată de o distribuție simplă de referință (adesea normală, L8) — subiect detaliat în cursurile viitoare de Deep Learning generativ; și **distilarea de modele** (model distillation), unde un model mic ("student") e antrenat să-și apropie distribuția de ieșire de cea a unui model mare, deja antrenat ("profesor"), minimizând exact divergența KL dintre cele două distribuții de probabilitate — o tehnică practică pentru a obține modele mai mici, mai rapide, care păstrează totuși majoritatea capacităților modelului original.
+
+<CosmoHint emotion="excited">
+Divergența KL închide complet cercul deschis în L9-L12: Bayes a arătat cum actualizezi o credință (L9); entropia a măsurat incertitudinea unei distribuții (L10); cross-entropia a comparat-o cu realitatea (L11); softmax a produs distribuția propriu-zisă (L12); iar divergența KL, acum, izolează exact componenta de eroare "pură", separată de incertitudinea inerentă a datelor. Ai parcurs complet, riguros, întregul aparat matematic al probabilității folosit efectiv pentru a antrena un model AI modern.
+</CosmoHint>
+
+<FactBox>
+**Divergența KL în cifre:**
+- Introdusă de Solomon Kullback și Richard Leibler: **1951**, în *On Information and Sufficiency*
+- Formula: $D_{KL}(p\|q) = H(p,q) - H(p)$ — cross-entropie minus entropie
+- Garantat non-negativă: $D_{KL}(p\|q) \geq 0$, egalitate doar la $p = q$
+- **Nu e simetrică**: $D_{KL}(p\|q) \neq D_{KL}(q\|p)$ — nu e o distanță matematică propriu-zisă
+- Minimizarea cross-entropiei (L11) pe date fixe ≡ minimizarea divergenței KL
+- Aplicații directe: autoencodere variaționale (VAE), distilarea de modele
+</FactBox>
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Cantitate | Ce măsoară | Relație |
+|---|---|---|
+| Entropie $H(p)$ | Incertitudinea inerentă a lui $p$ | Din L10 |
+| Cross-entropie $H(p,q)$ | Costul total de codare a lui $p$ folosind $q$ | Din L11 |
+| Divergență KL $D_{KL}(p\|q)$ | Costul *suplimentar*, doar din eroarea lui $q$ | $H(p,q) - H(p)$ |
+
+---
+
+## ÎNCHEIERE
+
+Acest al doilea bloc de lecții (L8-L13) a construit vocabularul complet al probabilității și informației folosit în AI: distribuția normală ca model de incertitudine, Bayes ca regulă de actualizare, entropia ca măsură a incertitudinii, cross-entropia și divergența KL ca instrumente de comparare a distribuțiilor — exact aparatul matematic care stă în spatele oricărei funcții de pierdere din Deep Learning modern.
+
+Rămâne un ultim bloc, poate cel mai important dintre toate: **cum** își ajustează, efectiv, un model parametrii pentru a minimiza aceste funcții de pierdere? Răspunsul e calculul diferențial — derivate, gradienți, regula lanțului — subiectul complet al blocului de lecții care începe cu lecția următoare, **Funcții și continuitate**, fundamentul minim necesar înainte de a defini riguros ce e o derivată.

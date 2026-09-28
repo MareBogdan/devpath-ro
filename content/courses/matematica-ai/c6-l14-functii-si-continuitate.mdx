@@ -1,0 +1,104 @@
+---
+title: "Funcții și continuitate"
+order: 14
+type: lesson
+module_index: 6
+duration: 13
+difficulty: 3
+---
+
+# Funcții și continuitate
+
+## HOOK
+
+Blocul L8-L13 a răspuns la întrebarea "cum reprezinți incertitudinea și cât de greșită e o predicție?" — dar a lăsat complet deschisă o întrebare încă și mai fundamentală: cum, mai exact, își ajustează un model parametrii pentru a reduce acea eroare? Răspunsul complet cere calcul diferențial — derivate, gradienți, regula lanțului — dar niciunul dintre acele instrumente nu are sens fără un fundament clar despre ce e, de fapt, o **funcție**, și ce înseamnă ca ea să fie **continuă**.
+
+Această lecție construiește exact acel fundament — aparent elementar, dar esențial: o rețea neuronală întreagă, de la primul strat la ultimul, e, matematic, o singură funcție uriașă, compusă din multe funcții mai mici. Înțelegerea precisă a acestui obiect e pasul obligatoriu înainte de a vorbi despre panta lui — derivata, subiectul lecției următoare.
+
+---
+
+## CONTEXT
+
+Termenul "funcție" a fost introdus, în sensul matematic modern, de Gottfried Wilhelm Leibniz în 1673 — unul dintre cei doi inventatori independenți ai calculului diferențial (alături de Isaac Newton). Notația familiară astăzi, $f(x)$, a fost introdusă mai târziu, de Leonhard Euler, în 1734 — o convenție de notare care a rămas, practic neschimbată, timp de aproape trei secole.
+
+Conceptul de **continuitate**, deși intuitiv folosit încă de Newton și Leibniz, n-a primit o definiție riguroasă, complet lipsită de ambiguitate, decât cu munca lui Augustin-Louis Cauchy și Karl Weierstrass, în secolul XIX — cei care au formalizat calculul diferențial folosind limite riguroase (definiția epsilon-delta), înlocuind intuiția geometrică vagă a "graficului fără întreruperi" cu o condiție matematică precisă, verificabilă algebric. Această rigoare, dezvoltată cu peste un secol înaintea informaticii moderne, e exact ce garantează astăzi că algoritmii de antrenare a rețelelor neuronale funcționează corect, previzibil, nu doar "de obicei".
+
+---
+
+## MIEZUL
+
+### Ce e o funcție — o mapare unică, input la output
+
+O **funcție** e o regulă care asociază fiecărui element dintr-o mulțime de intrare (domeniul) exact un singur element dintr-o mulțime de ieșire (codomeniul). "Exact unul" e condiția esențială — pentru aceeași intrare, o funcție produce mereu, garantat, aceeași ieșire; niciodată două rezultate diferite pentru exact aceeași intrare.
+
+$$f: \mathbb{R} \to \mathbb{R}, \quad f(x) = x^2$$
+
+Pentru fiecare $x$, $f(x)$ produce un singur număr, $x^2$ — nu există ambiguitate, nu există variație aleatoare pentru aceeași intrare exactă.
+
+### O rețea neuronală e, ea însăși, o singură funcție uriașă
+
+Interpretarea centrală pentru tot restul acestui curs: o rețea neuronală întreagă, indiferent cât de multe straturi are, e, matematic, o singură funcție compusă $f(\vec{x})$, care primește un vector de intrare (un embedding, L1-L2) și produce un vector de ieșire (o distribuție de probabilitate, prin softmax, L12). Fiecare strat individual — o transformare liniară prin matrice (L5-L6), urmată de o funcție de activare neliniară — e, la rândul lui, o funcție mai mică, iar rețeaua completă e compunerea lor:
+
+$$f(\vec{x}) = f_n(f_{n-1}(\cdots f_2(f_1(\vec{x}))\cdots))$$
+
+Această structură de compunere — funcție în funcție în funcție — revine direct în L16, unde regula lanțului formalizează exact cum se calculează derivata unei astfel de compuneri.
+
+<CosmoHint emotion="thinking">
+De ce contează să vezi o rețea neuronală întreagă ca "o singură funcție", nu ca o colecție separată de operații? Pentru că orice proprietate matematică pe care o stabilești pentru funcții în general — continuitate, diferențiabilitate — se aplică automat întregii rețele, nu doar unui strat izolat. Dacă fiecare piesă componentă a rețelei e continuă și diferențiabilă, garanția se propagă prin toată compunerea — exact fundamentul teoretic care face posibil ca backpropagation să funcționeze pe o rețea cu sute de straturi, nu doar pe una simplă, cu un singur strat.
+</CosmoHint>
+
+### Continuitatea — graficul fără întreruperi bruște
+
+Intuitiv, o funcție e **continuă** într-un punct dacă poți desena graficul ei prin acel punct fără să ridici creionul de pe hârtie — nu există "salturi" bruște de valoare. Formal, continuitatea într-un punct $a$ cere ca limita funcției, pe măsură ce $x$ se apropie de $a$ din orice direcție, să fie exact egală cu valoarea funcției în $a$:
+
+$$\lim_{x \to a} f(x) = f(a)$$
+
+{/* TABLE */}
+
+| Tip de funcție | Continuă? | Relevanță pentru AI |
+|---|---|---|
+| $f(x) = x^2$ | Da, peste tot | Poate fi folosită liber în orice calcul de gradient |
+| Funcția treaptă (step function) | **Nu**, la punctul de salt | Derivată zero aproape peste tot, sau nedefinită la salt |
+| Sigmoid, $\sigma(x) = 1/(1+e^{-x})$ | Da, peste tot, complet netedă | Folosită istoric ca funcție de activare, exact pentru continuitate |
+
+### De ce continuitatea contează practic — istoria perceptronului
+
+Primele modele artificiale de neuroni, perceptronii din anii 1950, foloseau o funcție de activare de tip treaptă (step function) — ieșirea sărea brusc de la 0 la 1, la un anumit prag. Problema, descoperită abia mai târziu, în lumina calculului diferențial aplicat riguros rețelelor neuronale: o funcție discontinuă are derivata fie exact zero (pe segmentele orizontale, unde nu se schimbă nimic), fie complet nedefinită (exact la punctul de salt) — nu există niciun semnal util de gradient pe care antrenarea prin coborâre pe gradient (L18-L19) să-l poată folosi pentru a ajusta rețeaua treptat. Trecerea la funcții de activare continue, netede (sigmoid, iar mai târziu ReLU — care e continuă, deși nu perfect netedă la un singur punct) a fost o condiție structurală obligatorie pentru ca antrenarea prin backpropagation să devină practic posibilă la scară.
+
+### Monotonia — o proprietate suplimentară utilă
+
+O funcție e **monoton crescătoare** dacă, pe măsură ce intrarea crește, ieșirea nu scade niciodată — ordinea relativă a valorilor se păstrează. Softmax (L12) are exact această proprietate, aplicată componentei individuale: un logit mai mare produce întotdeauna o probabilitate finală mai mare (sau egală), niciodată mai mică — proprietate care garantează că "amplificarea" descrisă în L12 respectă, cel puțin, ordinea inițială a logits-urilor, chiar dacă distanțele relative se schimbă.
+
+<CosmoHint emotion="excited">
+Fiecare piesă matematică din acest curs, de la vectori (L2) la softmax (L12), a fost, la rândul ei, o funcție — o regulă precisă, care primește o intrare și produce, garantat, o singură ieșire corespunzătoare. Ai acum vocabularul care unifică tot ce ai văzut deja: rețeaua neuronală întreagă e o singură funcție compusă, iar înțelegerea precisă a acestei structuri e exact ce face posibilă întrebarea centrală a lecției următoare — cât de repede se schimbă ieșirea acelei funcții, atunci când modifici puțin intrarea?
+</CosmoHint>
+
+<FactBox>
+**Funcții și continuitate în cifre:**
+- Termenul "funcție": introdus de Leibniz în **1673**
+- Notația $f(x)$: introdusă de Leonhard Euler în **1734**
+- Definiția riguroasă a continuității (epsilon-delta): Cauchy și Weierstrass, secolul **XIX**
+- O funcție discontinuă (step function): derivată zero sau nedefinită — inutilizabilă pentru gradient descent
+- O rețea neuronală cu $n$ straturi: matematic, o compunere de $n$ funcții, $f_n(\cdots f_1(\vec{x}))$
+- Sigmoid: continuă și netedă peste tot — motivul istoric al adoptării ca funcție de activare
+</FactBox>
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Concept | Definiție esențială | De ce contează pentru AI |
+|---|---|---|
+| Funcție | Fiecare intrare → exact o ieșire | O rețea neuronală întreagă e o funcție |
+| Compunere de funcții | $f(g(x))$ | Structura exactă a unei rețele cu mai multe straturi |
+| Continuitate | $\lim_{x\to a} f(x) = f(a)$ | Condiție necesară pentru gradienți utilizabili |
+
+---
+
+## ÎNCHEIERE
+
+O funcție continuă, netedă, e condiția minimă necesară pentru pasul următor — măsurarea exactă a *ratei de schimbare* a acelei funcții. Fără continuitate, întrebarea "cât de mult se schimbă ieșirea, când modific puțin intrarea?" nici măcar n-ar avea un răspuns stabil, previzibil.
+
+Lecția următoare pune exact această întrebare, riguros — **Derivata**, panta muntelui sub picioarele unui schior, instrumentul matematic care măsoară exact rata de schimbare a unei funcții, și fundamentul absolut al modului în care orice rețea neuronală învață din propriile ei greșeli.

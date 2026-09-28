@@ -1,0 +1,126 @@
+---
+title: "Softmax — funcția de peste tot (atenție, clasificare)"
+order: 12
+type: lesson
+module_index: 6
+duration: 14
+difficulty: 3
+---
+
+# Softmax — funcția de peste tot (atenție, clasificare)
+
+## HOOK
+
+L11 a presupus, fără să explice, că modelul produce o "distribuție de probabilitate" $q$ — valori pozitive, care sumează exact la 1. Dar realitatea internă a unei rețele neuronale e mult mai brută: ultimul strat (o înmulțire matricială, L6) produce niște numere reale oarecare, numite **logits** — pot fi negative, pot fi mai mari decât 1, nu sumează la nimic în particular. `[2.1, -0.5, 4.8, 0.3]` nu e o distribuție de probabilitate validă.
+
+**Softmax** e funcția care face exact această conversie — ia orice vector de numere reale și îl transformă într-o distribuție de probabilitate validă, păstrând ordinea relativă a valorilor originale. E, alături de produsul scalar (L3) și cross-entropia (L11), una dintre cele mai frecvent executate operații din tot Deep Learning-ul modern — apare la finalul oricărui clasificator, și în interiorul fiecărui mecanism de atenție dintr-un Transformer.
+
+---
+
+## CONTEXT
+
+Formula softmax are o origine surprinzătoare, în fizica statistică din secolul XIX — distribuția Boltzmann (1868), care descrie probabilitatea ca un sistem fizic (de exemplu, moleculele unui gaz) să se afle într-o anumită stare de energie, la o temperatură dată, folosește exact aceeași structură matematică: exponențiale normalizate prin suma tuturor exponențialelor posibile. Ludwig Boltzmann n-a avut, evident, nicio legătură cu inteligența artificială — dar matematica pe care a dezvoltat-o pentru termodinamică s-a dovedit, un secol mai târziu, exact instrumentul necesar pentru un cu totul alt tip de problemă.
+
+Termenul "softmax" în contextul rețelelor neuronale a fost popularizat de John Bridle, în 1990, ca o alternativă "moale" (soft) la funcția "hardmax" — care ar alege pur și simplu valoarea maximă, ignorând complet restul. "Soft" pentru că, spre deosebire de o alegere brutală a unui singur "câștigător", softmax distribuie probabilitate proporțional peste toate opțiunile, păstrând informație despre cât de apropiate erau alternativele.
+
+---
+
+## MIEZUL
+
+### Formula — exponențiale normalizate
+
+$$\text{softmax}(z_i) = \frac{e^{z_i}}{\sum_{j} e^{z_j}}$$
+
+Fiecare element al vectorului de intrare (logit) trece prin funcția exponențială, apoi se împarte la suma tuturor exponențialelor — o normalizare care garantează că rezultatul final sumează exact la 1.
+
+```python
+import numpy as np
+
+def softmax(z):
+    exp_z = np.exp(z)
+    return exp_z / np.sum(exp_z)
+
+logits = np.array([2.1, -0.5, 4.8, 0.3])
+probabilitati = softmax(logits)
+print(probabilitati)          # [0.058, 0.004, 0.923, 0.016] — aproximativ
+print(probabilitati.sum())    # 1.0, exact
+```
+
+### De ce exponențiala — pozitivitate și amplificare
+
+Funcția exponențială are exact două proprietăți care o fac alegerea potrivită aici: transformă **orice** număr real (inclusiv negativ) într-un rezultat strict **pozitiv** — necesar, pentru că o probabilitate nu poate fi negativă — și **amplifică** diferențele relative dintre valori, exact tiparul "câștigătorul ia (aproape) tot" observat în exemplul numeric de mai sus, unde logit-ul 4.8 domină clar distribuția finală, chiar dacă diferența brută față de 2.1 nu părea enormă.
+
+<CosmoHint emotion="thinking">
+De ce contează faptul că softmax amplifică diferențele, nu le păstrează liniar? Pentru că un clasificator util trebuie să exprime *încredere* — dacă un logit e semnificativ mai mare decât restul, modelul ar trebui să fie clar mai sigur pe acea opțiune, nu doar marginal mai înclinat spre ea. Exponențiala transformă o mică diferență absolută în logits într-o diferență proporțional mult mai mare în probabilitățile finale, exact comportamentul de care ai nevoie pentru ca predicțiile modelului să fie interpretabile ca încredere reală, nu doar ca o ordonare vagă a opțiunilor.
+</CosmoHint>
+
+### Parametrul de temperatură — controlezi "ascuțimea" distribuției
+
+O variantă practică extrem de utilă, folosită direct la generarea de text: introducerea unui parametru de **temperatură** $T$, care scalează logits-urile înainte de softmax:
+
+$$\text{softmax}(z_i / T)$$
+
+{/* TABLE */}
+
+| Temperatură | Efect asupra distribuției | Comportament la generare de text |
+|---|---|---|
+| $T \to 0$ | Distribuție foarte "ascuțită", aproape hardmax | Aproape determinist — alege mereu cea mai probabilă opțiune |
+| $T = 1$ | Distribuția softmax standard, neschimbată | Comportament "normal" al modelului |
+| $T > 1$ | Distribuție mai "plată", mai uniformă | Mai multă varietate, mai multă "creativitate" |
+
+Această temperatură e exact parametrul pe care-l reglezi practic în multe interfețe de AI generativ — o temperatură mică produce răspunsuri mai previzibile, repetitive; o temperatură mare produce răspunsuri mai variate, dar și mai riscante din perspectiva coerenței.
+
+### Stabilitatea numerică — trucul scăderii maximului
+
+O problemă practică de implementare, relevantă pentru orice cod real de Deep Learning: exponențiala unui logit mare (de exemplu, 1000) produce un număr atât de mare încât poate cauza **overflow** numeric — calculatorul nu mai poate reprezenta corect valoarea. Soluția standard, folosită universal în framework-uri: scade valoarea maximă din vector înainte de a aplica exponențiala.
+
+```python
+def softmax_stabil(z):
+    z_shiftat = z - np.max(z)     # nu schimbă rezultatul final, dar previne overflow
+    exp_z = np.exp(z_shiftat)
+    return exp_z / np.sum(exp_z)
+```
+
+Matematic, rezultatul e identic (scăderea aceleiași constante din toți exponenții nu schimbă raportul final, pentru că se anulează la normalizare) — dar numeric, evită complet problemele de overflow, motiv pentru care orice implementare serioasă de softmax (inclusiv cele din PyTorch sau TensorFlow) folosește exact acest truc, invizibil pentru utilizator.
+
+### Softmax + Cross-Entropie — combo standard
+
+Practic, softmax nu apare niciodată izolat într-un clasificator — e aplicat pe logits, iar rezultatul devine direct distribuția $q$ folosită de cross-entropie (L11) pentru a calcula pierderea. Combinația "softmax urmat de cross-entropie" e atât de frecventă încât majoritatea framework-urilor o implementează ca o singură funcție optimizată (`softmax_cross_entropy` sau echivalent), evitând calculul separat al celor doi pași — o optimizare practică, dar și numerică (evită dublu overflow/underflow).
+
+### Softmax în mecanismul de atenție
+
+Revenind la formula de atenție anticipată în L7: $\text{Atenție}(Q, K, V) = \text{softmax}\left(\frac{QK^T}{\sqrt{d_k}}\right)V$. Produsul scalar $QK^T$ (L3, transpus prin L7) produce scoruri brute de relevanță între tokenuri — exact niște logits. Softmax transformă acele scoruri brute într-o distribuție validă de "atenție" — cât de mult "ar trebui" un token să se concentreze pe fiecare alt token din propoziție, cu toate ponderile sumând la 1, pentru fiecare token în parte.
+
+<CosmoHint emotion="celebrating">
+Poți acum citi complet, piesă cu piesă, formula centrală a fiecărui Transformer modern: $\text{softmax}\left(\frac{QK^T}{\sqrt{d_k}}\right)V$. Produsul scalar și transpusa (L3, L7) calculează relevanța brută dintre tokenuri; softmax (această lecție) o transformă în ponderi valide, care sumează la 1; înmulțirea finală cu $V$ combină informația proporțional cu acele ponderi. Nicio piesă din această formulă nu mai e un mister — fiecare a fost, la rândul ei, o lecție separată a acestui curs.
+</CosmoHint>
+
+<FactBox>
+**Softmax în cifre:**
+- Structură matematică originară din distribuția Boltzmann, fizică statistică: **1868**
+- Termenul "softmax" pentru rețele neuronale: popularizat de John Bridle, **1990**
+- Formula: $\text{softmax}(z_i) = e^{z_i} / \sum_j e^{z_j}$ — sumează întotdeauna exact la 1
+- Temperatura $T \to 0$: comportament aproape determinist; $T > 1$: mai multă varietate
+- Trucul stabilității numerice: scade `np.max(z)` înainte de exponențiere, fără să schimbe rezultatul
+- Apare de două ori în formula de atenție a unui Transformer: normalizează scorurile Query-Key
+</FactBox>
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Etapă | Input | Output |
+|---|---|---|
+| Rețea neuronală | Embedding-uri (L1-L2) | Logits — numere reale brute |
+| Softmax | Logits | Distribuție de probabilitate (sumează la 1) |
+| Cross-Entropie (L11) | Distribuția prezisă vs. cea reală | Un singur număr — pierderea de minimizat |
+
+---
+
+## ÎNCHEIERE
+
+Softmax închide bucla dintre numerele brute produse de o rețea neuronală și distribuțiile de probabilitate valide cerute de cross-entropie — și, separat, e mecanismul exact prin care un Transformer decide "cât de multă atenție" să acorde fiecărui token. Temperatura oferă un control practic direct asupra cât de "sigur" sau "exploratoriu" se comportă un model la generare.
+
+Rămâne o ultimă piesă în acest bloc despre probabilitate și informație: cum măsori exact, izolat, *doar* eroarea introdusă de o predicție imperfectă, separat de incertitudinea inerentă deja prezentă în date? Lecția următoare — **Divergența KL** — răspunde precis la această întrebare, închizând complet bucla deschisă în L11 despre relația dintre entropie și cross-entropie.
