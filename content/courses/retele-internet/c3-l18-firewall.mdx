@@ -109,6 +109,18 @@ Majoritatea configurațiilor se concentrează pe traficul de intrare și lasă i
 | Next-Gen Firewall | L3-L7 | Ca mai sus + aplicația/protocolul real | Palo Alto, Fortinet |
 | WAF | L7 (doar HTTP/S) | Conținutul cererilor web | Cloudflare, ModSecurity |
 
+### Cloud security groups — firewall-ul reinventat ca API
+
+În infrastructura cloud (AWS, GCP, Azure), firewall-ul clasic configurat prin SSH pe un server dedicat e adesea înlocuit de **security groups** — reguli de filtrare definite declarativ, prin API sau infrastructură-ca-cod (Terraform), aplicate direct la nivelul rețelei virtuale a providerului, nu pe fiecare instanță individual. O regulă de security group nu filtrează pachete printr-un proces care rulează pe mașina protejată — e impusă de material hypervisor-ului sau de rețeaua definită prin software (SDN) care găzduiește instanța, invizibilă și inaccesibilă din interiorul mașinii virtuale înseși.
+
+Diferența practică e majoră: un atacator care compromite complet o instanță EC2 (acces root inclusiv) nu poate dezactiva security group-ul din interior — regula trăiește la un nivel de infrastructură pe care compromiterea sistemului de operare al instanței nu-l poate atinge. Comparativ, un `iptables` configurat greșit sau dezactivat de un atacator cu root pe același server oferă zero protecție reziduală. Practica standard în cloud combină ambele straturi: security groups la marginea rețelei virtuale, plus `iptables`/`nftables` local, pentru apărare în profunzime — niciun singur punct de filtrare nu e considerat suficient de unul singur.
+
+### IDS/IPS — detectarea și blocarea activă a atacurilor cunoscute
+
+Un firewall decide pe baza unor reguli statice, cunoscute dinainte — port, protocol, eventual conținut. Un **IDS** (Intrusion Detection System — Snort, Suricata) analizează traficul care *a trecut deja* de firewall, căutând semnături de atacuri cunoscute (un exploit specific, un pattern de scanare de porturi, trafic caracteristic unui botnet) și alertează un operator uman. Un **IPS** (Intrusion Prevention System) face un pas mai departe — blochează automat traficul identificat ca malițios, în timp real, fără intervenție umană.
+
+Diferența dintre IDS/IPS și un firewall clasic e de natură: firewall-ul răspunde la întrebarea "acest tip de trafic ar trebui permis, în general?" — IDS/IPS răspunde la "acest trafic specific, permis de regulile generale, arată totuși ca un atac cunoscut?" Cele două straturi se completează — un port legitim, deschis corect (HTTPS, 443), poate transporta totuși un payload de exploit împotriva unei vulnerabilități specifice a serverului web, exact ce IDS/IPS e proiectat să detecteze, dincolo de simpla verificare de port pe care firewall-ul o face.
+
 <FactBox>
 **Firewall în cifre:**
 - Netfilter/`iptables`: parte din kernelul Linux din **1998** (2.4, apărut 2001 ca succesor al `ipchains`)
