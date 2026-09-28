@@ -1,0 +1,123 @@
+---
+title: "Intuiție Jacobian — de la derivate la multi-dimensional"
+order: 17
+type: lesson
+module_index: 6
+duration: 14
+difficulty: 4
+---
+
+# Intuiție Jacobian — de la derivate la multi-dimensional
+
+## HOOK
+
+L15-L16 au tratat derivate pentru funcții cu o singură intrare și o singură ieșire — un număr intră, un număr iese, o singură pantă le leagă. Dar un strat real de rețea neuronală nu funcționează așa: primește un vector întreg (768 de numere, un embedding) și produce alt vector întreg, poate de 512 numere (L5-L6). Întrebarea centrală a acestei lecții: ce înseamnă, mai exact, "derivata" unei astfel de transformări, care mapează vectori la vectori, nu numere la numere?
+
+**Matricea Jacobiană** e răspunsul — generalizarea directă a derivatei simple la cazul multi-dimensional. Nu mai e un singur număr care descrie "panta" — e o matrice întreagă, care descrie exact cum se schimbă *fiecare* componentă a ieșirii, în raport cu *fiecare* componentă a intrării, simultan.
+
+---
+
+## CONTEXT
+
+Structura matematică poartă numele lui Carl Gustav Jacob Jacobi, matematician german din secolul XIX, cunoscut pentru contribuții fundamentale în multe domenii ale analizei matematice. Jacobianul a apărut inițial în contextul schimbărilor de coordonate — cum se transformă un element de volum sau de arie, atunci când treci de la un sistem de coordonate la altul (de exemplu, de la coordonate carteziene la polare), o întrebare centrală pentru calculul integralelor multi-dimensionale.
+
+Aplicarea Jacobianului la rețele neuronale e o extensie naturală, matematic directă, a aceleiași idei: fiecare strat al unei rețele e, structural, o schimbare de "coordonate" — transformă un vector dintr-un spațiu (de dimensiune $n$) într-un vector din alt spațiu (de dimensiune $m$), exact tipul de transformare pentru care Jacobianul a fost inventat cu mult înainte de existența rețelelor neuronale.
+
+---
+
+## MIEZUL
+
+### Derivata parțială — panta de-a lungul unei singure direcții
+
+Pentru o funcție cu mai multe intrări, $f(x_1, x_2, \ldots, x_n)$, **derivata parțială** $\frac{\partial f}{\partial x_i}$ măsoară cât de mult se schimbă $f$ atunci când modifici *doar* $x_i$, ținând toate celelalte variabile constante — exact tehnica din L15, aplicată separat, pe rând, fiecărei direcții de intrare.
+
+$$\frac{\partial f}{\partial x_i} = \lim_{h \to 0} \frac{f(x_1, \ldots, x_i+h, \ldots, x_n) - f(x_1, \ldots, x_n)}{h}$$
+
+Simbolul $\partial$ (diferit de $d$ obișnuit) semnalează explicit că derivata se calculează "parțial" — doar în raport cu o variabilă, cu restul ținute fixe.
+
+### Matricea Jacobiană — toate derivatele parțiale, organizate
+
+Pentru o funcție vectorială $\vec{f}: \mathbb{R}^n \to \mathbb{R}^m$ (primește $n$ numere, produce $m$ numere), **Jacobianul** e matricea de shape $(m, n)$ (revedere din L4) care conține *toate* derivatele parțiale posibile — fiecare componentă a ieșirii, în raport cu fiecare componentă a intrării:
+
+$$J = \begin{pmatrix} \dfrac{\partial f_1}{\partial x_1} & \cdots & \dfrac{\partial f_1}{\partial x_n} \\ \vdots & \ddots & \vdots \\ \dfrac{\partial f_m}{\partial x_1} & \cdots & \dfrac{\partial f_m}{\partial x_n} \end{pmatrix}$$
+
+Fiecare **rând** al Jacobianului e, de fapt, gradientul (subiectul complet al L18) unei singure componente de ieșire, în raport cu toate intrările — Jacobianul e, simplu spus, colecția organizată a tuturor acestor gradienți individuale, unul per componentă de ieșire, aranjate ca rânduri ale unei matrici.
+
+<CosmoHint emotion="thinking">
+De ce contează să vezi Jacobianul ca "o matrice de derivate", nu doar ca o formulă abstractă? Pentru că exact această structură explică ce se pierde dacă tratezi o transformare multi-dimensională ca și cum ar fi o singură funcție scalară: o schimbare mică în intrarea $x_3$ poate afecta puternic ieșirea $y_1$, dar deloc ieșirea $y_2$ — informație complet invizibilă dacă ai calcula o singură "derivată" agregată. Jacobianul păstrează exact acest tipar complet, componentă cu componentă, fără să piardă nicio informație despre cine afectează pe cine.
+</CosmoHint>
+
+### Exemplu concret — un strat liniar, Jacobianul e chiar matricea de greutăți
+
+O observație elegantă, directă: pentru un strat liniar simplu $\vec{y} = W\vec{x}$ (fără termen de bias, pentru simplitate — L6), Jacobianul lui $\vec{y}$ în raport cu $\vec{x}$ e, literalmente, matricea $W$ însăși:
+
+$$J = \frac{\partial \vec{y}}{\partial \vec{x}} = W$$
+
+```python
+import numpy as np
+
+W = np.array([[2, 0, 1], [1, 1, 0]])   # transformă R^3 -> R^2
+
+def y(x):
+    return W @ x
+
+x = np.array([1.0, 2.0, 3.0])
+print(y(x))    # [5. 3.]
+print(W)       # Jacobianul e exact W — nu trebuie calculat separat
+```
+
+Această observație nu e o coincidență — e o consecință directă a faptului că o transformare liniară (L5) are, prin definiție, aceeași "pantă" peste tot în spațiu, indiferent de punctul în care o evaluezi — exact ca o linie dreaptă are aceeași pantă în orice punct, spre deosebire de o curbă. Pentru straturile neliniare (cu o funcție de activare aplicată după transformarea liniară), Jacobianul depinde, în schimb, de punctul specific în care e evaluat.
+
+### Regula lanțului, versiunea matriceală
+
+L16 a arătat că regula lanțului, pentru funcții scalare, înmulțește derivatele individuale. Pentru funcții vectoriale, generalizarea e directă: derivatele individuale (numere) devin Jacobiene (matrici), iar înmulțirea scalară devine **înmulțire matricială** (L6):
+
+$$J_{f \circ g}(\vec{x}) = J_f(g(\vec{x})) \cdot J_g(\vec{x})$$
+
+Backpropagation printr-o rețea cu straturi vectoriale (cazul real, aproape universal) e, structural, exact această înlănțuire de înmulțiri matriciale de Jacobiene, strat cu strat, în loc de simple înmulțiri de numere — aceeași idee din L16, ridicată la nivelul potrivit de generalitate pentru rețele reale.
+
+{/* TABLE */}
+
+| Caz | Derivata / Jacobianul | Tip de obiect |
+|---|---|---|
+| $f: \mathbb{R} \to \mathbb{R}$ | $f'(x)$ | Un singur număr (L15) |
+| $f: \mathbb{R}^n \to \mathbb{R}$ | Gradientul $\nabla f$ | Un vector (subiectul L18) |
+| $f: \mathbb{R}^n \to \mathbb{R}^m$ | Jacobianul $J$ | O matrice $(m, n)$ |
+
+### De ce Jacobianul complet e rareori calculat explicit
+
+O observație practică importantă: pentru un strat real de rețea, cu poate 768 de intrări și 512 de ieșiri, Jacobianul complet ar avea $512 \times 768 \approx 393.000$ de elemente — pentru o rețea cu multe straturi, calculul și stocarea explicită a fiecărui Jacobian complet ar deveni rapid impracticabil. Framework-urile moderne de Deep Learning (PyTorch, TensorFlow) evită această problemă calculând direct **produsul vector-Jacobian** (vector-Jacobian product, VJP) — rezultatul înmulțirii dintre un vector (gradientul deja propagat din straturile de după) și Jacobianul curent, fără să materializeze niciodată matricea Jacobiană completă în memorie. Aceasta e, de fapt, optimizarea concretă care face backpropagation practic fezabil la scara rețelelor moderne, cu miliarde de parametri.
+
+<CosmoHint emotion="excited">
+Jacobianul e piesa matematică ce leagă riguros regula lanțului (L16, pentru funcții simple) de gradienții pe care-i vei defini complet în lecția următoare — permite ca "derivata" să aibă sens deplin chiar și atunci când atât intrarea cât și ieșirea unei transformări sunt vectori întregi, nu simple numere. Fiecare strat al unei rețele neuronale reale operează exact în acest regim multi-dimensional, iar acum ai structura matematică exactă care-l descrie riguros.
+</CosmoHint>
+
+<FactBox>
+**Matricea Jacobiană în cifre:**
+- Numele vine de la Carl Gustav Jacob Jacobi, matematician german, secolul **XIX**
+- Pentru $f: \mathbb{R}^n \to \mathbb{R}^m$, Jacobianul are shape $(m, n)$ — exact vocabularul din L4
+- Pentru un strat liniar $\vec{y}=W\vec{x}$: Jacobianul **e** matricea $W$ însăși
+- Regula lanțului matriceală: $J_{f \circ g} = J_f \cdot J_g$ — înmulțire matricială, nu scalară
+- Un strat 768→512 are un Jacobian complet de aproximativ **393.000** de elemente
+- Framework-urile moderne evită materializarea Jacobianului complet prin produse vector-Jacobian (VJP)
+</FactBox>
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Concept | Generalizează | La ce nivel |
+|---|---|---|
+| Derivata parțială | Derivata simplă (L15) | O singură direcție de intrare |
+| Jacobianul | Regula lanțului (L16) | Funcții vectoriale complete |
+| Produs vector-Jacobian (VJP) | Backpropagation eficient | Fără a materializa Jacobianul complet |
+
+---
+
+## ÎNCHEIERE
+
+Jacobianul generalizează derivata la cazul complet multi-dimensional — esențial pentru orice strat real de rețea, care mapează vectori întregi la alți vectori întregi. Observația că un strat liniar are Jacobianul exact egal cu propria lui matrice de greutăți leagă direct acest concept de L5-L6.
+
+Rămâne un ultim pas, cel mai direct legat de procesul efectiv de antrenare: pentru o funcție de pierdere scalară (un singur număr, cazul aproape universal, L11), Jacobianul se reduce la un caz special, cu propriul nume și propria interpretare geometrică directă. Lecția următoare tratează exact acest caz — **Gradienții**, busola care arată, literal, direcția celui mai abrupt coborâș pe "muntele" funcției de pierdere.

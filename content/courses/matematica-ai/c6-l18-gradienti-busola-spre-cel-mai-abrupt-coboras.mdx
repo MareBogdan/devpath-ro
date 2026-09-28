@@ -1,0 +1,126 @@
+---
+title: "Gradienți — busola spre cel mai abrupt coborâș"
+order: 18
+type: lesson
+module_index: 6
+duration: 15
+difficulty: 4
+---
+
+# Gradienți — busola spre cel mai abrupt coborâș
+
+## HOOK
+
+L17 a arătat că Jacobianul, pentru o funcție cu ieșire vectorială, e o matrice întreagă de derivate parțiale. Dar o funcție de pierdere (cross-entropia, L11) produce, aproape întotdeauna, un singur număr — un scalar, nu un vector. În acest caz special, dar extrem de important practic, Jacobianul se reduce la un singur rând — un vector, nu o matrice — cu propriul nume și propria interpretare geometrică directă.
+
+**Gradientul** e exact acest vector — colecția tuturor derivatelor parțiale ale unei funcții scalare, în raport cu fiecare parametru al ei. Interpretarea lui geometrică e cea care dă titlul acestei lecții: gradientul arată, literal, direcția exactă a celui mai abrupt urcuș pe "muntele" funcției — iar inversul lui, direcția celui mai abrupt coborâș, folosită direct pentru a antrena orice model AI.
+
+---
+
+## CONTEXT
+
+Noțiunea de gradient, ca vector care descrie rata de schimbare a unui câmp scalar în spațiu, apare în fizica matematică a secolului XIX, formalizată odată cu dezvoltarea calculului vectorial (William Rowan Hamilton, menționat deja în L2 pentru quaternioni, a introdus și operatorul "nabla" $\nabla$, folosit universal astăzi pentru a nota gradientul). Fizicienii foloseau conceptul pentru câmpuri reale — gradientul de temperatură într-o cameră arată direcția în care temperatura crește cel mai rapid; gradientul de presiune atmosferică influențează direct direcția vântului.
+
+Aplicarea gradientului la optimizare — găsirea minimului unei funcții prin urmărirea repetată a direcției opuse gradientului — a devenit o tehnică standard în analiza numerică cu mult înaintea rețelelor neuronale, dar combinația ei cu backpropagation (L16), în contextul specific al antrenării rețelelor cu mulți parametri, a transformat-o în instrumentul central, aproape universal, al Deep Learning-ului modern.
+
+---
+
+## MIEZUL
+
+### Definiția — vectorul tuturor derivatelor parțiale
+
+Pentru o funcție scalară $f(x_1, \ldots, x_n)$, **gradientul** e vectorul format din toate derivatele ei parțiale (L17):
+
+$$\nabla f = \left(\frac{\partial f}{\partial x_1}, \frac{\partial f}{\partial x_2}, \ldots, \frac{\partial f}{\partial x_n}\right)$$
+
+Fiecare componentă spune exact cât de mult se schimbă $f$ dacă modifici puțin variabila corespunzătoare, ținând restul constante — exact tehnica din L17, dar organizată acum ca un singur vector, nu ca rânduri ale unei matrici (pentru că ieșirea aici e un singur scalar, nu un vector întreg).
+
+### Interpretarea geometrică — direcția celui mai abrupt urcuș
+
+Proprietatea centrală, cea mai importantă practic: gradientul $\nabla f$, evaluat într-un punct, arată exact direcția în care funcția **crește** cel mai rapid, pornind din acel punct — nu doar "o direcție de creștere oarecare", ci direcția optimă, cea mai abruptă posibilă, dintre toate direcțiile posibile.
+
+$$-\nabla f \quad\Longrightarrow\quad \text{direcția celui mai abrupt } \textbf{coborâș}$$
+
+Direcția opusă, $-\nabla f$, arată, prin simetrie directă, exact direcția celui mai abrupt coborâș — exact ce caută un algoritm de antrenare care vrea să *minimizeze* o funcție de pierdere, nu s-o maximizeze.
+
+<CosmoHint emotion="thinking">
+De ce gradientul arată exact direcția de creștere maximă, nu doar o direcție de creștere oarecare? Intuiție: fiecare componentă a gradientului spune cât de mult "câștigi" mișcându-te puțin de-a lungul acelei axe individuale. Combinând toate aceste contribuții proporțional, într-un singur vector, obții exact direcția care "adună" cel mai mult câștig posibil dintr-o singură mișcare mică — orice altă direcție, care amestecă aceste contribuții în proporții diferite, produce, garantat, o creștere mai mică sau egală, niciodată mai mare.
+</CosmoHint>
+
+### Aplicația directă — gradientul funcției de pierdere
+
+Pentru antrenarea unei rețele neuronale, funcția de interes e pierderea $L$ (cross-entropia, L11), iar "variabilele" nu sunt coordonate spațiale obișnuite, ci fiecare parametru individual al rețelei — fiecare număr din fiecare matrice de greutăți $W$ (L5-L6). Gradientul $\nabla_W L$ e vectorul care spune, pentru fiecare parametru în parte, "dacă îl mărești puțin, pierderea crește sau scade, și cu cât exact?"
+
+```python
+import numpy as np
+
+def pierdere(w):
+    return (w[0]-3)**2 + (w[1]-1)**2   # o "vale" cu minimul la (3, 1)
+
+def gradient_numeric(f, w, h=1e-5):
+    grad = np.zeros_like(w)
+    for i in range(len(w)):
+        w_plus = w.copy(); w_plus[i] += h
+        w_minus = w.copy(); w_minus[i] -= h
+        grad[i] = (f(w_plus) - f(w_minus)) / (2*h)
+    return grad
+
+w = np.array([0.0, 0.0])
+print(gradient_numeric(pierdere, w))   # aproximativ [-6, -2] — arată spre minim
+```
+
+Gradientul calculat aici, `[-6, -2]`, confirmă exact intuiția: valoarea negativă spune că pierderea *scade* dacă mărești fiecare parametru — deplasarea în direcția $-\nabla f$ negativă (adică mărirea parametrilor) reduce eroarea, exact spre minimul real, aflat la $(3, 1)$.
+
+{/* TABLE */}
+
+| Semnul gradientului | Efect asupra parametrului la actualizare |
+|---|---|
+| Componentă pozitivă | Parametrul trebuie *scăzut* pentru a reduce pierderea |
+| Componentă negativă | Parametrul trebuie *mărit* pentru a reduce pierderea |
+| Componentă zero | Parametrul e deja optim local, în acea direcție |
+
+### Regula de actualizare — o previzualizare directă a L19
+
+Formula centrală care conectează gradientul de procesul efectiv de antrenare, detaliată complet în lecția următoare:
+
+$$W_{\text{nou}} = W_{\text{vechi}} - \eta \cdot \nabla_W L$$
+
+unde $\eta$ (eta) e rata de învățare (learning rate, menționată deja informal în L2) — un scalar mic, care controlează cât de mare e fiecare pas făcut în direcția coborâșului. Scazi gradientul (nu-l aduni) exact pentru că vrei să te miști în direcția *opusă* creșterii — spre coborâș, spre o pierdere mai mică.
+
+### Magnitudinea gradientului — cât de abruptă e panta, și o problemă practică
+
+Norma gradientului (L2!) spune cât de "abruptă" e panta locală — o normă mare înseamnă că mici ajustări ale parametrilor produc schimbări mari în pierdere; o normă aproape de zero înseamnă că te apropii de un platou sau de un minim local. Pentru rețele foarte adânci, cu multe straturi (L14, L16), un fenomen practic important poate apărea: gradienții, propagați înapoi prin regula lanțului, se pot **micșora exponențial** (vanishing gradients) sau **exploda exponențial** (exploding gradients), pe măsură ce se înmulțesc repetat prin multe straturi succesive — o consecință directă a naturii multiplicative a regulii lanțului (L16), care poate face antrenarea rețelelor foarte adânci dificilă fără tehnici suplimentare de stabilizare (conexiuni reziduale, normalizare pe straturi — subiecte ale cursurilor viitoare de Deep Learning).
+
+<CosmoHint emotion="celebrating">
+Gradientul e, literal, busola completă a antrenării oricărui model AI: pentru fiecare parametru al unei rețele, indiferent cât de mare (miliarde de parametri, pentru modelele de limbaj reale), gradientul spune exact în ce direcție și cu cât să-l ajustezi, pentru a reduce eroarea cât mai mult posibil, dintr-o singură mișcare mică. Fiecare piesă anterioară a acestui curs — derivate, regula lanțului, Jacobianul — converge exact aici, în acest singur vector.
+</CosmoHint>
+
+<FactBox>
+**Gradienții în cifre:**
+- Operatorul $\nabla$ (nabla): introdus în calculul vectorial, secolul **XIX**, asociat lucrărilor lui Hamilton
+- Gradientul: vectorul complet al derivatelor parțiale, $\nabla f = (\partial f/\partial x_1, \ldots, \partial f/\partial x_n)$
+- $\nabla f$ arată direcția celui mai abrupt **urcuș**; $-\nabla f$, cel mai abrupt **coborâș**
+- Formula de actualizare: $W_{\text{nou}} = W_{\text{vechi}} - \eta \cdot \nabla_W L$
+- Gradient zero: semnal de minim local (sau punct șa) — pierderea nu mai scade local
+- Rețele foarte adânci: risc de gradienți care dispar sau explodează exponențial prin regula lanțului
+</FactBox>
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Obiect matematic | Domeniu → Codomeniu | Formă |
+|---|---|---|
+| Derivată (L15) | $\mathbb{R} \to \mathbb{R}$ | Un singur număr |
+| Jacobian (L17) | $\mathbb{R}^n \to \mathbb{R}^m$ | O matrice $(m,n)$ |
+| Gradient | $\mathbb{R}^n \to \mathbb{R}$ | Un vector de $n$ componente |
+
+---
+
+## ÎNCHEIERE
+
+Gradientul e cazul special, esențial practic, al Jacobianului — vectorul care arată exact direcția de cea mai rapidă schimbare a unei funcții scalare, precum funcția de pierdere a unui model AI. Formula de actualizare $W_{\text{nou}} = W_{\text{vechi}} - \eta\nabla_W L$ conectează direct acest concept de procesul efectiv de antrenare.
+
+Rămâne să vezi acest proces în acțiune, complet, pas cu pas — cum arată, vizual și numeric, coborârea repetată pe "muntele" unei funcții de pierdere reale, pornind dintr-un punct aleator și ajungând, treptat, aproape de minim? Lecția următoare, **Vizualizarea gradient descent**, pune cap la cap tot ce ai învățat în L14-L18 într-un singur algoritm complet, urmărit explicit, pas cu pas.
