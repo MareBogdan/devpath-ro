@@ -1,0 +1,134 @@
+---
+title: "Transpusa, Inversa și Determinantul"
+order: 7
+type: lesson
+module_index: 6
+duration: 15
+difficulty: 4
+---
+
+# Transpusa, Inversa și Determinantul
+
+## HOOK
+
+L6 a arătat cum se combină transformări succesive prin înmulțire matricială. Dar rămân întrebări pe care înmulțirea singură nu le rezolvă: dacă o matrice a transformat un vector, poți afla vectorul original, "derulând" transformarea înapoi? Și dacă transformarea a comprimat tot spațiul într-o singură linie — pierzând definitiv informație — mai există vreo cale de întoarcere?
+
+Această lecție introduce trei instrumente complementare, folosite constant în Deep Learning, care răspund exact la aceste întrebări: **transpusa** (răstoarnă rândurile și coloanele — folosită direct în mecanismul de atenție al fiecărui Transformer), **determinantul** (spune dacă o transformare pierde informație ireversibil) și **inversa** (transformarea care "deruleză înapoi" o alta, atunci când e posibil).
+
+---
+
+## CONTEXT
+
+Determinantul, surprinzător, are o istorie mai veche decât matricea însăși — matematicianul japonez Seki Takakazu (cunoscut și ca Seki Kowa) l-a folosit implicit în 1683, iar Gottfried Leibniz, independent, în 1693, ambii pentru a rezolva sisteme de ecuații liniare, cu decenii înainte ca Sylvester și Cayley să formalizeze conceptul de matrice (L5). Determinantul a apărut, istoric, ca răspuns la o întrebare foarte practică: "acest sistem de ecuații are o soluție unică, sau nu?" — întrebare care rămâne, la fel de practică, în centrul modului în care se folosește astăzi în AI.
+
+Inversa unei matrice și noțiunea de transpusă s-au dezvoltat firesc odată cu algebra matricială completă a lui Cayley, ca instrumente naturale pentru a manipula sisteme de ecuații liniare — exact tipul de sistem care descrie, la scară mult mai mare, orice strat de rețea neuronală modernă.
+
+---
+
+## MIEZUL
+
+### Transpusa — răstorni rândurile în coloane
+
+**Transpusa** unei matrice $A$, notată $A^T$, se obține transformând fiecare rând în coloană (și invers): elementul de la poziția $(i, j)$ devine elementul de la poziția $(j, i)$.
+
+$$A = \begin{pmatrix} 1 & 2 & 3 \\ 4 & 5 & 6 \end{pmatrix} \quad\Rightarrow\quad A^T = \begin{pmatrix} 1 & 4 \\ 2 & 5 \\ 3 & 6 \end{pmatrix}$$
+
+O matrice de shape $(m, n)$ devine, prin transpunere, o matrice de shape $(n, m)$ — exact operația necesară pentru a face compatibile dimensiunile la o înmulțire matricială care altfel n-ar fi validă.
+
+```python
+import numpy as np
+
+A = np.array([[1, 2, 3], [4, 5, 6]])
+print(A.T)
+# [[1 4]
+#  [2 5]
+#  [3 6]]
+```
+
+O proprietate esențială, folosită constant în demonstrații: $(AB)^T = B^T A^T$ — transpusa unui produs inversează și ordinea factorilor. Aplicația practică directă, deja anticipată în L3: mecanismul de atenție al unui Transformer calculează produsul scalar dintre vectorii Query și Key printr-o înmulțire matricială de forma $QK^T$ — matricea Key trebuie transpusă pentru ca dimensiunile să se potrivească pentru înmulțire, exact tehnica din această secțiune.
+
+<CosmoHint emotion="thinking">
+De ce e transpusa necesară specific în calculul $QK^T$ din mecanismul de atenție? Pentru că $Q$ (Query) și $K$ (Key) au ambele shape `(n_tokenuri, dim_embedding)` — pentru a calcula produsul scalar dintre fiecare pereche de tokenuri (L3), ai nevoie ca dimensiunile interioare să coincidă la înmulțire (L6): `(n, d) × (d, n)`. Transpunerea lui $K$ transformă shape-ul din `(n, d)` în `(d, n)`, făcând exact această înmulțire posibilă — un detaliu tehnic aparent minor, dar fără de care mecanismul central al oricărui model de limbaj modern pur și simplu nu s-ar putea calcula.
+</CosmoHint>
+
+### Determinantul — factorul de scalare a spațiului
+
+Pentru o matrice $2\times2$, determinantul se calculează direct:
+
+$$\det\begin{pmatrix} a & b \\ c & d \end{pmatrix} = ad - bc$$
+
+Interpretarea geometrică, mult mai importantă practic decât formula însăși: determinantul spune cu ce factor se multiplică **aria** (în 2D) sau **volumul** (în dimensiuni mai mari) unei regiuni din spațiu, după ce e transformată de acea matrice. Un determinant de 2 înseamnă că orice regiune își dublează aria după transformare; un determinant de 1 (ca la matricea identitate sau la orice rotație pură) păstrează aria neschimbată.
+
+{/* TABLE */}
+
+| Valoare determinant | Efect geometric |
+|---|---|
+| $\det(A) > 1$ | Spațiul se "extinde" — ariile cresc |
+| $0 < \det(A) < 1$ | Spațiul se comprimă — ariile scad, dar nu dispar |
+| $\det(A) = 1$ | Aria se păstrează exact (rotații pure) |
+| $\det(A) = 0$ | Spațiul se **colapsează** — o dimensiune întreagă se pierde |
+| $\det(A) < 0$ | Orientarea se inversează (o "oglindire"), plus scalarea |
+
+Cazul $\det(A) = 0$ e cel mai important practic: înseamnă că transformarea comprimă întregul spațiu într-o dimensiune mai mică — de exemplu, un plan 2D întreg colapsat pe o singură linie. Odată ce s-a întâmplat asta, informația despre poziția originală, de-a lungul dimensiunii pierdute, dispare ireversibil — nu există nicio transformare care s-o recupereze.
+
+### Inversa — transformarea care "deruleză înapoi"
+
+**Matricea inversă** $A^{-1}$ e transformarea care, aplicată după $A$, restaurează exact vectorul original:
+
+$$A A^{-1} = A^{-1} A = I$$
+
+unde $I$ e matricea identitate din L5. Pentru o matrice $2\times2$:
+
+$$A^{-1} = \frac{1}{\det(A)} \begin{pmatrix} d & -b \\ -c & a \end{pmatrix}$$
+
+Observă formula direct: dacă $\det(A) = 0$, formula împarte la zero — **nedefinită**. Aceasta e legătura precisă, nu doar analogică, între determinant și inversă: o matrice are o inversă dacă și numai dacă determinantul ei e diferit de zero. O matrice cu determinant zero se numește **singulară** — a pierdut informație ireversibil, deci nu poate fi "derulată înapoi".
+
+```python
+A = np.array([[2, 1], [1, 1]])
+print(np.linalg.det(A))    # 1.0
+inv_A = np.linalg.inv(A)
+print(inv_A)
+print(A @ inv_A)            # matrice identitate, aproximativ
+```
+
+### Rezolvarea sistemelor de ecuații — aplicația clasică
+
+Un sistem de ecuații liniare, scris matricial ca $A\vec{x} = \vec{b}$, se poate rezolva formal prin $\vec{x} = A^{-1}\vec{b}$ — exact motivul istoric pentru care Seki și Leibniz au dezvoltat conceptul de determinant, cu secole înaintea Deep Learning-ului. Regresia liniară clasică — găsirea celei mai bune drepte care aproximează un set de puncte, adesea primul algoritm de Machine Learning văzut de orice student — se poate rezolva exact, analitic, prin această formulă.
+
+### De ce inversa e rar calculată direct în Deep Learning practic
+
+O observație practică importantă: deși inversa e conceptual esențială, rețelele neuronale reale, cu matrici de mii de rânduri și coloane, evită aproape întotdeauna calculul ei direct. Motivele sunt duble: costul computațional de a inversa o matrice mare e prohibitiv (semnificativ mai mare decât $O(n^3)$ al înmulțirii simple, L6), iar matricile din rețele reale sunt adesea foarte apropiate de singulare (determinant apropiat de zero), ceea ce face inversa numeric instabilă — mici erori de rotunjire se amplifică dramatic. Din acest motiv, antrenarea rețelelor (L14-L19) folosește metode iterative (gradient descent), care evită complet nevoia de a inversa vreo matrice — o soluție aproximativă, construită pas cu pas, în locul uneia exacte, dar impracticabilă la scară.
+
+<CosmoHint emotion="excited">
+Ai acum instrumentele complete pentru a citi și înțelege formula centrală a mecanismului de atenție dintr-un Transformer: $\text{Atenție}(Q, K, V) = \text{softmax}\left(\frac{QK^T}{\sqrt{d_k}}\right)V$. Transpusa ($K^T$) — din această lecție. Produsul scalar și înmulțirea matricială ($QK^T$) — L3 și L6. Softmax — subiectul L12. Fiecare piesă a acestei formule, care poate părea intimidantă la prima vedere, e deja, la acest punct al cursului, un concept pe care l-ai văzut și înțeles separat.
+</CosmoHint>
+
+<FactBox>
+**Transpusa, inversa, determinantul în cifre:**
+- Determinantul: folosit implicit de Seki Takakazu (Japonia, **1683**) și Leibniz (**1693**), independent
+- Formula determinant $2\times2$: $ad - bc$
+- O matrice e inversabilă **dacă și numai dacă** $\det(A) \neq 0$
+- Matrice cu $\det(A) = 0$: numită **singulară** — pierdere ireversibilă de informație
+- $(AB)^T = B^T A^T$ — transpusa unui produs inversează ordinea factorilor
+- Deep Learning modern evită aproape complet calculul direct al inversei — folosește gradient descent iterativ
+</FactBox>
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Instrument | Ce face | Condiție de existență |
+|---|---|---|
+| Transpusa $A^T$ | Răstoarnă rânduri și coloane | Există întotdeauna |
+| Determinantul $\det(A)$ | Factorul de scalare a ariei/volumului | Există întotdeauna (poate fi 0) |
+| Inversa $A^{-1}$ | "Deruleză înapoi" transformarea | Există doar dacă $\det(A) \neq 0$ |
+
+---
+
+## ÎNCHEIERE
+
+Acest bloc de lecții (L2-L7) a construit vocabularul complet al algebrei liniare folosite în AI: vectori, produs scalar, tensori, matrici ca transformări, compunerea lor prin înmulțire, și instrumentele care le analizează — transpusa, determinantul, inversa. Fiecare rețea neuronală reală e construită exact din aceste piese, combinate la scară masivă.
+
+Blocul următor schimbă complet direcția — de la certitudinea geometrică a transformărilor liniare, la modul în care AI-ul reprezintă și lucrează cu **incertitudinea**. Lecția următoare introduce **Distribuția Normală**, clopotul lui Gauss, instrumentul matematic fundamental pentru a descrie cum sunt distribuite valorile, de la zgomotul din date până la inițializarea greutăților unei rețele neuronale.

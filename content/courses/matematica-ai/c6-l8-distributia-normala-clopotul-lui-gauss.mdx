@@ -1,0 +1,110 @@
+---
+title: "Distribuția Normală — clopotul lui Gauss"
+order: 8
+type: lesson
+module_index: 6
+duration: 14
+difficulty: 3
+---
+
+# Distribuția Normală — clopotul lui Gauss
+
+## HOOK
+
+Blocul anterior de lecții (L2-L7) a tratat spațiul vectorial ca pe ceva determinist — o matrice transformă un vector exact, previzibil, de fiecare dată identic. Dar un model AI real începe antrenarea din **haos controlat**: greutățile fiecărui strat de rețea (matricile din L5-L6) sunt inițializate cu valori aleatoare, extrase dintr-o distribuție de probabilitate precisă, nu alese arbitrar sau puse toate pe zero.
+
+**Distribuția Normală** — clopotul lui Gauss — e cea mai importantă dintre aceste distribuții, motivul pentru care apare aproape peste tot în AI: de la inițializarea rețelelor neuronale, la zgomotul adăugat deliberat în modelele generative de imagini, la presupunerile statistice din spatele multor algoritmi clasici de Machine Learning.
+
+---
+
+## CONTEXT
+
+Forma de clopot a fost descoperită prima dată de Abraham de Moivre în 1733, ca aproximare a distribuției binomiale pentru un număr mare de încercări — un rezultat matematic elegant, dar rămas relativ obscur. Numele de "distribuție Gaussiană" vine de la Carl Friedrich Gauss, care a folosit-o riguros în 1809 pentru a modela erorile de măsurătoare din observațiile astronomice — de ce măsurătorile repetate ale poziției unei planete se împrăștie într-un tipar specific, simetric, în jurul valorii reale.
+
+Motivul pentru care distribuția normală apare atât de frecvent, în atât de multe contexte diferite, are un fundament matematic precis, nu doar empiric: **Teorema Limitei Centrale** (Central Limit Theorem), demonstrată riguros abia în secolul XX, arată că suma multor variabile aleatoare independente, indiferent de distribuția lor individuală, tinde către o distribuție normală. Zgomotul de măsurătoare, erorile de rotunjire, variațiile naturale — toate rezultă adesea din combinarea a foarte multe efecte mici, independente, de unde apariția aproape universală a clopotului lui Gauss.
+
+---
+
+## MIEZUL
+
+### Formula — doi parametri descriu tot
+
+O distribuție normală e complet descrisă de doi parametri: **media** $\mu$ (centrul clopotului, valoarea cea mai probabilă) și **deviația standard** $\sigma$ (cât de "lat" sau "îngust" e clopotul):
+
+$$f(x) = \frac{1}{\sigma\sqrt{2\pi}} e^{-\frac{(x-\mu)^2}{2\sigma^2}}$$
+
+Nu trebuie memorată sau manipulată algebric constant — ce contează practic e forma pe care o produce: un clopot simetric, cu vârful exact la $\mu$, care se îngustează simetric în ambele direcții, cu rata controlată de $\sigma$. Un $\sigma$ mic produce un clopot îngust, concentrat (valorile sunt aproape toate apropiate de medie); un $\sigma$ mare produce un clopot lat, întins (valorile variază mult).
+
+### Regula 68-95-99.7 — cât de "răspândite" sunt valorile
+
+{/* TABLE */}
+
+| Interval în jurul mediei | Procent din valori |
+|---|---|
+| $\mu \pm 1\sigma$ | aproximativ **68%** |
+| $\mu \pm 2\sigma$ | aproximativ **95%** |
+| $\mu \pm 3\sigma$ | aproximativ **99.7%** |
+
+Această regulă, memorabilă și extrem de utilă practic, spune că aproape toată "masa" unei distribuții normale se concentrează în doar trei deviații standard de o parte și de alta a mediei — o valoare la $4\sigma$ sau mai departe de medie e, practic, extrem de rară, un semnal folosit constant pentru a detecta anomalii sau valori aberante (outliers) în seturi de date.
+
+<CosmoHint emotion="thinking">
+De ce contează practic regula 68-95-99.7, nu doar ca o curiozitate statistică? Pentru că îți dă o intuiție rapidă, fără calcul explicit, despre cât de "surprinzătoare" e o valoare observată. Dacă erorile unui model de predicție a prețurilor sunt distribuite normal cu $\sigma = 1000$ lei, o eroare de 3000 de lei ($3\sigma$) e un semnal serios că ceva neobișnuit s-a întâmplat cu acea predicție specifică — nu doar "zgomot normal", ci un caz care merită investigat separat.
+</CosmoHint>
+
+### Inițializarea greutăților unei rețele neuronale
+
+Aplicația directă, concretă, în Deep Learning: matricile de greutăți $W$ dintr-un strat de rețea (L5-L6) nu pornesc de la zero — o rețea inițializată complet cu zerouri nu poate învăța nimic util, pentru că fiecare neuron ar calcula exact același lucru, simetric, fără nicio diferențiere posibilă. În schimb, greutățile se inițializează cu valori extrase aleator dintr-o distribuție normală, cu media 0 și o deviație standard atent aleasă (tehnici precum inițializarea **Xavier** sau **He**, folosite universal în framework-urile moderne, calibrează exact acest $\sigma$ în funcție de mărimea stratului, pentru a preveni ca semnalul să "explodeze" sau să "dispară" pe măsură ce trece prin multe straturi succesive).
+
+```python
+import numpy as np
+
+# Inițializare tipică pentru un strat de 768 → 512
+W = np.random.normal(loc=0, scale=0.02, size=(512, 768))
+print(W.mean(), W.std())   # aproximativ 0, aproximativ 0.02
+```
+
+### Zgomotul gaussian în modelele generative
+
+O a doua aplicație majoră, esențială pentru înțelegerea modelelor generative moderne de imagini (subiect al cursurilor viitoare de Deep Learning): modelele de tip **difuzie** (diffusion models) — tehnologia din spatele generatoarelor de imagini AI — funcționează adăugând treptat zgomot gaussian peste o imagine reală, pas cu pas, până devine zgomot pur, apoi antrenând o rețea să inverseze exact acest proces, eliminând zgomotul treptat pentru a "reconstrui" o imagine plauzibilă, complet nouă, din zgomot aleator pur. Fără o înțelegere precisă a distribuției normale, acest proces ar rămâne complet opac.
+
+### Standardizarea — aducerea datelor la o scară comună
+
+O tehnică practică extrem de frecventă: transformarea unui set de date astfel încât să aibă media 0 și deviația standard 1, numită **standardizare** sau calculul **z-score**:
+
+$$z = \frac{x - \mu}{\sigma}$$
+
+Standardizarea aduce caracteristici (features) măsurate pe scări complet diferite — de exemplu, vârsta (0-100) și venitul anual (0-1.000.000) — la aceeași scară comparabilă, esențial pentru ca algoritmi care depind de distanțe sau produse scalare (L3) să nu fie dominați artificial de caracteristica cu valorile numeric cele mai mari.
+
+<CosmoHint emotion="excited">
+Distribuția normală nu descrie doar zgomot sau erori — descrie, direct, punctul de plecare al oricărei rețele neuronale înainte să înceapă antrenarea. Fiecare model AI activ chiar acum a "început viața" ca o colecție uriașă de numere extrase aleator dintr-un clopot gaussian, apoi ajustate treptat, milion de pași, prin exact procesul pe care-l vei formaliza complet în blocul L14-L19 al acestui curs — de la haos gaussian controlat, la o rețea capabilă să "înțeleagă" limbaj.
+</CosmoHint>
+
+<FactBox>
+**Distribuția Normală în cifre:**
+- Descoperită prima dată de Abraham de Moivre: **1733**, ca aproximare a distribuției binomiale
+- Formalizată de Carl Friedrich Gauss pentru erori de măsurătoare astronomică: **1809**
+- Regula 68-95-99.7: procentul valorilor în 1, 2, respectiv 3 deviații standard de medie
+- Doi parametri o definesc complet: media $\mu$ și deviația standard $\sigma$
+- Inițializarea Xavier/He: folosește distribuția normală, calibrată după mărimea stratului de rețea
+- Modelele de difuzie (generare de imagini AI): construite direct pe adăugarea și eliminarea de zgomot gaussian
+</FactBox>
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Parametru | Ce controlează | Efect asupra formei clopotului |
+|---|---|---|
+| $\mu$ (medie) | Centrul distribuției | Deplasează clopotul stânga/dreapta |
+| $\sigma$ (deviație standard) | Împrăștierea valorilor | Lățește (σ mare) sau îngustează (σ mic) clopotul |
+| Standardizare ($z$-score) | Aduce orice distribuție la $\mu=0$, $\sigma=1$ | Comparabilitate între scări diferite |
+
+---
+
+## ÎNCHEIERE
+
+Distribuția normală e primul instrument dintr-un bloc complet nou de lecții, dedicat probabilității și informației — modul în care AI-ul reprezintă incertitudinea, nu doar transformări geometrice certe. Ai văzut deja două aplicații concrete, esențiale: inițializarea rețelelor neuronale și modelele generative bazate pe zgomot.
+
+Rămâne o întrebare la fel de fundamentală: cum actualizezi o presupunere despre lume, în lumina unei informații noi? Lecția următoare răspunde exact la asta — **Teorema lui Bayes**, regula matematică din spatele oricărui raționament probabilistic, de la filtrele anti-spam clasice până la actualizarea credințelor unui sistem AI pe măsură ce primește date noi.

@@ -1,0 +1,131 @@
+---
+title: "Înmulțirea Matricială — combini transformările"
+order: 6
+type: lesson
+module_index: 6
+duration: 15
+difficulty: 3
+---
+
+# Înmulțirea Matricială — combini transformările
+
+## HOOK
+
+L5 a arătat că o matrice rotește sau scalează un vector — o singură transformare aplicată o singură dată. Dar o rețea neuronală reală nu are un singur strat — are zeci sau sute, fiecare cu propria matrice, aplicate una după alta. Rotești, apoi întinzi, apoi rotești din nou, apoi comprimi — o secvență lungă de foi elastice deformate succesiv. Întrebarea practică: poți combina toate aceste transformări separate într-o singură operație echivalentă, fără să le aplici una câte una?
+
+Răspunsul e da, iar operația care face asta — **înmulțirea matricială** — e, fără exagerare, cea mai executată operație individuală din tot Deep Learning-ul modern. Fiecare pas înainte (forward pass) al oricărei rețele neuronale, de la cel mai mic clasificator până la cel mai mare model de limbaj, e construit din secvențe repetate exact ale acestei operații.
+
+---
+
+## CONTEXT
+
+Arthur Cayley, care a formalizat algebra matricelor în 1858 (L5), a definit tot atunci și regula de înmulțire — dar nu în mod arbitrar. Regula a fost aleasă special astfel încât înmulțirea a două matrici să corespundă exact **compunerii** a două transformări liniare: dacă matricea $A$ reprezintă o transformare, iar $B$ alta, produsul $AB$ reprezintă transformarea combinată — aplică întâi $B$, apoi $A$. Această alegere, nu una arbitrară de convenție, e ce face algebra matricială un instrument atât de puternic pentru a descrie procese compuse din mai mulți pași succesivi.
+
+O consecință a acestei definiții a surprins mulți matematicieni la vremea respectivă, obișnuiți cu aritmetica obișnuită: înmulțirea matricială **nu e comutativă** — $AB$ nu e, în general, egal cu $BA$. Ordinea contează, exact cum ordinea contează dacă întâi te rotești și apoi mergi înainte, față de a merge înainte și apoi a te roti — cele două secvențe te duc în locuri diferite.
+
+---
+
+## MIEZUL
+
+### Regula formală — dimensiunile interioare trebuie să coincidă
+
+Pentru a înmulți matricea $A$ de shape $(m, n)$ cu matricea $B$ de shape $(n, p)$, dimensiunea "interioară" ($n$, numărul de coloane al lui $A$) trebuie să fie identică cu numărul de rânduri al lui $B$. Rezultatul are shape $(m, p)$ — dimensiunile "exterioare".
+
+$$\underbrace{(m, n)}_{A} \times \underbrace{(n, p)}_{B} = \underbrace{(m, p)}_{AB}$$
+
+Dacă dimensiunile interioare nu coincid, operația e pur și simplu nedefinită — exact tipul de eroare "shape mismatch" discutat deja practic în L4.
+
+### Algoritmul concret — produs scalar între rânduri și coloane
+
+Fiecare element al matricei rezultat se calculează ca produsul scalar (L3!) dintre rândul corespunzător din $A$ și coloana corespunzătoare din $B$:
+
+$$C_{ij} = \sum_{k=1}^{n} A_{ik} B_{kj}$$
+
+Pentru un exemplu concret, mic:
+
+$$\begin{pmatrix} 1 & 2 \\ 3 & 4 \end{pmatrix} \begin{pmatrix} 5 & 6 \\ 7 & 8 \end{pmatrix} = \begin{pmatrix} 1\cdot5+2\cdot7 & 1\cdot6+2\cdot8 \\ 3\cdot5+4\cdot7 & 3\cdot6+4\cdot8 \end{pmatrix} = \begin{pmatrix} 19 & 22 \\ 43 & 50 \end{pmatrix}$$
+
+```python
+import numpy as np
+
+A = np.array([[1, 2], [3, 4]])
+B = np.array([[5, 6], [7, 8]])
+print(A @ B)
+# [[19 22]
+#  [43 50]]
+```
+
+Fiecare element din matricea rezultat e, literal, o aplicație directă a operației deja învățate în L3 — nu e o operație nouă, izolată, ci exact produsul scalar, repetat sistematic pentru fiecare pereche rând-coloană.
+
+<CosmoHint emotion="thinking">
+De ce regula exactă de calcul (rând înmulțit cu coloană, nu element cu element ca la adunare) contează, nu doar formula abstractă? Pentru că această structură specifică e exact ce garantează proprietatea de compunere menționată în CONTEXT — dacă $A$ reprezintă "rotește cu 90°" și $B$ reprezintă "scalează de 2 ori", $AB$ aplicat unui vector produce exact același rezultat ca aplicarea întâi a lui $B$, apoi a lui $A$, separat. Verifică asta cu un exemplu mic, pe hârtie — e cel mai rapid mod de a interioriza de ce funcționează regula, nu doar cum se aplică mecanic.
+</CosmoHint>
+
+### Necomutativitatea — ordinea contează, mereu
+
+$$AB \neq BA \quad \text{(în general)}$$
+
+```python
+A = np.array([[1, 1], [0, 1]])
+B = np.array([[1, 0], [1, 1]])
+print(A @ B)   # [[2 1] [1 1]]
+print(B @ A)   # [[1 1] [1 2]]  — rezultat diferit!
+```
+
+Această non-comutativitate nu e o ciudățenie matematică fără sens practic — reflectă exact faptul că ordinea operațiilor contează în lumea reală. Rotește-te cu 90° și apoi mergi 1 metru înainte — ajungi în alt loc decât dacă mergi 1 metru înainte și apoi te rotești cu 90°. Într-o rețea neuronală, straturile se aplică într-o ordine fixă, precisă — schimbarea ordinii lor ar produce, aproape întotdeauna, un rezultat complet diferit.
+
+### Straturile de rețea — $y = Wx + b$
+
+Forma exactă a unui strat "dens" (fully connected) dintr-o rețea neuronală clasică:
+
+$$\vec{y} = W\vec{x} + \vec{b}$$
+
+unde $\vec{x}$ e vectorul de intrare (un embedding, L1-L2), $W$ e matricea de greutăți (weights) învățată prin antrenare, $\vec{b}$ e un vector de bias, adunat prin broadcasting (L4), iar $\vec{y}$ e vectorul de ieșire. Pentru un lot întreg de 32 de exemple procesate simultan, $\vec{x}$ devine o matrice `(32, 768)`, iar operația rămâne, structural, exact aceeași înmulțire matricială, aplicată acum pe toate cele 32 de exemple deodată — motivul practic pentru care batch-urile (L4) sunt procesate eficient: o singură înmulțire matricială mare, nu 32 de înmulțiri separate cu vectori.
+
+{/* TABLE */}
+
+| Formă | Ce reprezintă |
+|---|---|
+| $W\vec{x}$ | Transformarea liniară a intrării prin matricea de greutăți |
+| $+ \vec{b}$ | Deplasare (offset) constantă, adăugată prin broadcasting |
+| $\vec{y}$ | Ieșirea stratului — intrarea pentru stratul următor |
+
+### Complexitatea — de ce GPU-urile există
+
+Calculul direct al produsului dintre o matrice $(m, n)$ și una $(n, p)$ necesită, prin metoda standard, aproximativ $m \times n \times p$ înmulțiri individuale — pentru matrici pătrate de dimensiune $n$, complexitatea e $O(n^3)$, revenirea directă la vocabularul Big O din C5 L3. Pentru rețele reale, cu matrici de mii de rânduri și coloane, procesate pentru milioane de exemple, acest cost devine masiv — motivul concret, nu doar de marketing, pentru care industria AI investește masiv în GPU-uri: hardware proiectat special să execute mii de înmulțiri-adunări simultan, în paralel, exact structura repetitivă a produsului scalar din interiorul fiecărei înmulțiri matriciale.
+
+Există algoritmi mai eficienți teoretic decât $O(n^3)$ (algoritmul lui Strassen, publicat în 1969, atinge aproximativ $O(n^{2.807})$), dar constantele practice îi fac rareori mai rapizi decât metoda standard, puternic optimizată pentru hardware paralel, pentru dimensiunile folosite efectiv în AI modern.
+
+<CosmoHint emotion="excited">
+Fiecare "gândire" a unui model de limbaj, orice răspuns generat, e, la nivelul cel mai concret, o secvență masivă de înmulțiri matriciale — vectorul embedding-ului tău de intrare, transformat succesiv prin zeci de matrici de greutăți, fiecare învățată prin antrenare (L14-L19), până produce, la final, o distribuție de probabilitate peste următorul cuvânt posibil (Softmax, L12). Ai acum operația centrală, literală, care rulează în interiorul fiecărui model AI activ chiar acum.
+</CosmoHint>
+
+<FactBox>
+**Înmulțirea matricială în cifre:**
+- Definită formal de Arthur Cayley, odată cu algebra matricială: **1858**
+- Reguliă de compatibilitate: $(m, n) \times (n, p) = (m, p)$ — dimensiunile interioare trebuie să coincidă
+- Complexitate standard: $O(n^3)$ pentru matrici pătrate de dimensiune $n$
+- Algoritmul lui Strassen (1969): reduce complexitatea teoretică la aproximativ $O(n^{2.807})$
+- Proprietate esențială: $AB \neq BA$ în general — înmulțirea matricială nu e comutativă
+- Formula unui strat de rețea: $\vec{y} = W\vec{x} + \vec{b}$
+</FactBox>
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Proprietate | Adunare de matrici | Înmulțire de matrici |
+|---|---|---|
+| Comutativitate | $A + B = B + A$ | $AB \neq BA$ în general |
+| Cerință de shape | Shape-uri identice | Dimensiuni interioare compatibile |
+| Interpretare | Combinare element cu element | Compunerea a două transformări |
+
+---
+
+## ÎNCHEIERE
+
+Înmulțirea matricială transformă L5 dintr-o colecție de transformări izolate într-un limbaj compozițional complet — poți combina oricâte transformări succesive vrei, într-o singură matrice echivalentă, atâta timp cât dimensiunile se potrivesc. E, literal, operația din spatele fiecărui strat al fiecărei rețele neuronale reale.
+
+Rămân trei întrebări pe care înmulțirea singură nu le rezolvă: cum "inversezi" o transformare, pentru a reveni la vectorul original? Cum știi dacă o transformare "colapsează" spațiul într-o dimensiune mai mică, pierzând informație ireversibil? Lecția următoare răspunde la exact aceste întrebări — **Transpusa, Inversa și Determinantul**.
