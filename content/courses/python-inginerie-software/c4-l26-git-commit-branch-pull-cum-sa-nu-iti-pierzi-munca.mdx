@@ -1,0 +1,153 @@
+---
+title: "Git: Commit, branch, pull, cum să nu-ți pierzi munca"
+order: 26
+type: lesson
+module_index: 4
+duration: 14
+difficulty: 2
+---
+
+# Git: Commit, branch, pull, cum să nu-ți pierzi munca
+
+## HOOK
+
+Un fișier de model AI, `model_final.py`, se transformă rapid în `model_final_v2.py`, apoi `model_final_v2_FIXED.py`, apoi `model_final_v2_FIXED_actual.py` — fiecare copie manuală, "de siguranță," înainte de o modificare riscantă. Șase versiuni mai târziu, nimeni nu-și mai amintește exact ce diferă între ele, care e "cea bună," sau de ce a fost făcută fiecare schimbare.
+
+**Git** rezolvă exact această problemă, structural: fiecare modificare salvată explicit (**commit**) devine un punct din istoria completă a proiectului, cu mesaj explicativ, recuperabil oricând, fără să multiplici fișiere manual. Poți reveni la orice versiune anterioară, poți compara exact ce s-a schimbat între două momente, poți lucra pe o idee riscantă într-o ramură separată (**branch**) fără să afectezi codul funcțional — toate fără costul confuziei numelor de fișiere improvizate.
+
+---
+
+## CONTEXT
+
+Git a fost creat de Linus Torvalds în **2005**, în doar câteva săptămâni, ca răspuns direct la o criză practică: kernel-ul Linux (proiectul open-source pe care-l conducea) folosise anterior un sistem proprietar de control al versiunilor (BitKeeper), a cărui licență gratuită a fost brusc revocată. Torvalds a proiectat Git cu obiective clare, derivate din experiența cu limitările sistemelor anterioare (CVS, Subversion): viteză, suport robust pentru ramuri paralele de dezvoltare, și — cel mai important arhitectural — un model **distribuit**, unde fiecare clonă locală conține istoricul complet al proiectului, nu doar o copie de lucru dependentă de un server central.
+
+Această decizie de design — istoric complet, local, în fiecare clonă — explică de ce Git rămâne funcțional offline pentru aproape orice operațiune (istoricul, commit-urile, ramurile) și de ce a devenit rapid standardul universal, dincolo de kernel-ul Linux, adoptat de aproape întregul ecosistem open-source, inclusiv fiecare bibliotecă majoră de AI/ML de pe GitHub.
+
+---
+
+## MIEZUL
+
+### Cele trei zone — working directory, staging, repository
+
+```bash
+git status   # arată exact ce fișiere s-au modificat, ce e "staged", ce nu
+```
+
+Git organizează modificările prin trei zone conceptuale distincte: **working directory** (fișierele reale, editabile, de pe disc), **staging area** (fișierele marcate explicit pentru următorul commit, prin `git add`), și **repository** (istoricul permanent de commit-uri, salvat în directorul `.git/`). Această separare în trei pași — nu direct de la fișier editat la istoric — permite construirea deliberată a unui commit din exact modificările relevante, nu automat din tot ce se întâmplă să fie modificat pe disc în acel moment.
+
+```bash
+git add fisier_model.py         # marchează UN fișier specific pentru staging
+git add .                          # marchează TOATE fișierele modificate (folosit cu prudență)
+git commit -m "Adaugă validare Pydantic la input-ul modelului"
+```
+
+<CosmoHint emotion="thinking">
+De ce mesajul de commit contează structural, nu doar ca "bună practică" vagă? Fiecare commit e un punct din istoric la care te poți întoarce — dar fără un mesaj clar, acel istoric devine ilizibil. `git log` pe un proiect cu mesaje de tip "fix", "update", "asdf" e practic inutilizabil pentru a înțelege EVOLUȚIA reală a proiectului, sau pentru a găsi commit-ul exact care a introdus un bug (folosind `git bisect`, care caută binar prin istoric pentru commit-ul problematic — inutil fără mesaje descriptive care să te ajute să navighezi rapid).
+</CosmoHint>
+
+### `git diff` — vezi exact ce s-a schimbat, înainte de commit
+
+```bash
+git diff                  # modificări NEadăugate încă la staging (working dir vs. staging)
+git diff --staged          # modificări adăugate la staging, gata de commit (staging vs. ultimul commit)
+git diff HEAD~1 HEAD         # diferența exactă dintre ultimele două commit-uri
+```
+
+`git diff` afișează exact liniile adăugate (`+`) și eliminate (`-`) — verificarea acestui output *înainte* de fiecare commit e practica standard pentru a te asigura că nu incluzi accidental fișiere de debug, chei API expuse, sau modificări nedorite dintr-o sesiune de experimentare.
+
+{/* TABLE */}
+
+| Comandă | Efect |
+|---|---|
+| `git status` | Starea curentă — ce e modificat, ce e staged |
+| `git add <fisier>` | Marchează fișierul pentru următorul commit |
+| `git commit -m "mesaj"` | Salvează permanent modificările staged, cu mesaj |
+| `git log` | Istoricul complet de commit-uri |
+| `git diff` | Ce s-a schimbat, exact, linie cu linie |
+| `git push` | Trimite commit-urile locale către un repository de la distanță |
+| `git pull` | Descarcă și integrează commit-uri noi de la distanță |
+
+### Branch-uri — lucru paralel, izolat, fără risc
+
+```bash
+git branch                       # listează ramurile existente
+git checkout -b experiment-nou     # creează ȘI comută la o ramură NOUĂ, într-un singur pas
+git checkout main                   # revii la ramura principală
+
+git merge experiment-nou              # integrează modificările din 'experiment-nou' în ramura curentă
+```
+
+Un **branch** e, tehnic, doar un pointer ușor de mișcat către un commit specific — creșterea unei ramuri noi nu duplică nimic din codul existent, e practic instantă, indiferent de dimensiunea proiectului. Lucrezi pe o idee riscantă (o rescriere experimentală a unei funcții de antrenare) pe propria ramură, complet izolat de `main` — dacă experimentul eșuează, ștergi ramura, `main` rămâne intact, neafectat vreodată.
+
+### Merge conflicts — când Git nu poate decide singur
+
+```bash
+<<<<<<< HEAD
+rata_invatare = 0.001
+=======
+rata_invatare = 0.01
+>>>>>>> experiment-nou
+```
+
+Un **conflict de merge** apare când aceeași linie a fost modificată diferit pe două ramuri care se combină — Git nu poate ghici care versiune e "corectă," așa că marchează explicit ambele variante în fișier, cu marcatori speciali (`<<<<<<<`, `=======`, `>>>>>>>`), și te lasă pe tine să decizi manual, editând fișierul pentru a păstra versiunea corectă (sau o combinație), ștergând marcatorii, apoi comitând rezolvarea.
+
+<CosmoHint emotion="encouraging">
+`git stash` salvează temporar modificările necomise, curate working directory-ul instant (util când trebuie să comuti rapid pe altă ramură fără să comiți lucru neterminat), și `git stash pop` le readuce mai târziu, exact de unde le-ai lăsat. `git log --oneline --graph` vizualizează istoricul ca un grafic compact de ramuri și merge-uri — util pentru a înțelege rapid structura de dezvoltare a unui proiect open-source mare, cum sunt aproape toate bibliotecile majore de AI de pe GitHub.
+</CosmoHint>
+
+### Remote — GitHub și colaborarea la distanță
+
+```bash
+git clone https://github.com/organizatie/proiect.git    # copiază COMPLET repository-ul, cu istoric
+git remote -v                                                # arată remote-urile configurate (de obicei 'origin')
+
+git push origin nume-ramura       # trimite ramura locală către GitHub
+git pull origin main                # actualizează ramura locală 'main' cu ce e nou pe GitHub
+```
+
+**Pull requests** (concept specific platformelor precum GitHub, nu parte din Git în sine) propun explicit integrarea unei ramuri într-alta, oferind un spațiu pentru revizuire de cod, discuție, și verificări automate (CI) — înainte ca modificările să ajungă efectiv în `main`. Practic orice contribuție la un proiect open-source de AI (raportarea unui fix, adăugarea unei funcționalități) trece prin exact acest flux: fork/branch → commit-uri → pull request → revizuire → merge.
+
+### `.gitignore` — ce NU urmărești niciodată
+
+```
+__pycache__/
+.venv/
+*.pyc
+.env
+checkpoints/*.pt
+```
+
+Fișiere generate automat (`__pycache__`, revezi L1), environment-uri virtuale (L25), fișiere de configurare cu secrete (`.env`), sau artefacte mari (checkpoint-uri de model, adesea gigabytes) **nu** trebuie urmărite de Git — ar bloa istoricul inutil sau, mai grav pentru `.env`, ar expune public chei API secrete. `.gitignore` declară explicit ce tipuri de fișiere Git trebuie să ignore complet, niciodată propuse la commit, indiferent cât de des apar modificate pe disc.
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Situație | Comandă |
+|---|---|
+| Salvezi progresul curent, cu mesaj clar | `git add .` + `git commit -m "..."` |
+| Vrei să experimentezi fără risc pentru codul stabil | `git checkout -b nume-ramura` |
+| Trebuie să vezi ce s-a schimbat exact | `git diff` |
+| Aduci ultimele schimbări de la colegi | `git pull` |
+| Trimiți munca ta pentru revizuire | `git push` + Pull Request pe GitHub |
+| Un fișier nu trebuie NICIODATĂ urmărit | Adaugă-l în `.gitignore` |
+
+<FactBox>
+**Git în cifre:**
+- Creat de Linus Torvalds în **2005**, în câteva săptămâni, ca răspuns la retragerea licenței BitKeeper
+- Model distribuit: fiecare clonă locală conține istoricul COMPLET al proiectului
+- Un branch nou: creare practic instantă — e doar un pointer către un commit, nu o copie completă
+- `git bisect`: căutare binară prin istoric pentru identificarea commit-ului care a introdus un bug
+- `.gitignore`: previne urmărirea accidentală a secretelor (`.env`) sau a artefactelor mari (checkpoint-uri model)
+- Adoptare: standardul universal de control al versiunilor pentru aproape orice proiect open-source major
+</FactBox>
+
+---
+
+## ÎNCHEIERE
+
+Git transformă "salvarea manuală de copii de siguranță cu nume improvizate" într-un istoric structurat, complet, recuperabil — fiecare commit un punct explicit de reper, fiecare branch o cale sigură de experimentare paralelă. `git diff` înainte de commit, mesaje clare, `.gitignore` disciplinat: trei obiceiuri simple care previn majoritatea problemelor practice de versionare.
+
+Acest curs a construit, lecție cu lecție, minimul viabil de Python necesar să citești și să modifici cod AI real — de la sintaxă și tipuri primitive, prin colecții și funcții, până la clase, async/await, și, acum, controlul versiunilor care ține totul organizat și recuperabil. Fiecare concept de aici — list comprehensions, generatoare, decoratori, Pydantic — îl vei revedea constant, aplicat concret, în cursurile viitoare despre algoritmi, machine learning și modele de limbaj.
