@@ -1,0 +1,114 @@
+---
+title: "De ce aplicația ta îngheață la 10.000 de utilizatori?"
+order: 1
+type: lesson
+module_index: 5
+duration: 14
+difficulty: 2
+---
+
+# De ce aplicația ta îngheață la 10.000 de utilizatori?
+
+## HOOK
+
+O aplicație funcționează perfect în teste, cu 50 de utilizatori. Cineva o lansează public, crește la 2.000 de utilizatori — încă bine. La 10.000, fiecare cerere durează brusc câteva secunde. La 50.000, serverul practic nu mai răspunde. Nimeni n-a schimbat codul. Nimeni n-a modificat serverul. Singurul lucru care s-a schimbat e dimensiunea datelor pe care codul trebuie să le proceseze la fiecare cerere — și undeva, într-o funcție scrisă cu un an în urmă, exista o buclă care compara fiecare utilizator cu fiecare alt utilizator.
+
+Cu 50 de utilizatori, acea buclă face 2.500 de comparații — instant, imperceptibil. Cu 10.000, aceeași buclă face 100.000.000 de comparații — nu de 200 de ori mai mult, deși utilizatorii au crescut de 200 de ori, ci de 40.000 de ori mai mult. Acest curs explică exact acest fenomen: nu "cât de mult cod scrii", ci "cum crește timpul de execuție când crește volumul de date" — diferența dintre un algoritm care scalează și unul care, la un anumit prag, pur și simplu se prăbușește.
+
+---
+
+## CONTEXT
+
+Întrebarea "cât timp durează acest calcul?" a preocupat informatica încă dinaintea calculatoarelor electronice — Alan Turing și contemporanii lui analizau deja, teoretic, câți pași necesită un algoritm pentru a rezolva o problemă, independent de mașina fizică pe care rula. Ideea centrală, formalizată complet abia în anii '60-'70 (Donald Knuth a sistematizat-o în *The Art of Computer Programming*), e că un algoritm are o **complexitate** intrinsecă — un tipar de creștere a timpului de execuție în funcție de dimensiunea datelor — independentă de cât de rapid e procesorul pe care rulează.
+
+Această distincție contează enorm în practică, pentru un motiv simplu: **hardware-ul mai rapid nu rezolvă o problemă de complexitate**. Un procesor de 10 ori mai rapid (revezi cursul de Hardware & Fizică) face aceeași buclă cu 100.000.000 de comparații de 10 ori mai repede — tot prea lent pentru un răspuns instant. Dar dublarea numărului de utilizatori tot dublează (sau, ca în exemplul din HOOK, multiplică dramatic) numărul de comparații necesare, indiferent de procesor. Algoritmii buni scalează cu datele; hardware-ul bun doar amână, temporar, momentul în care algoritmii proști devin vizibil de lenți.
+
+---
+
+## MIEZUL
+
+### De la cod la timp real — ce înseamnă, concret, "operație"
+
+Fiecare linie de cod, la execuție, se traduce în una sau mai multe **operații elementare** — o comparație, o adunare, un acces la un element dintr-o listă (revezi listele din cursul de Python, C4 L12). Un calculator modern execută miliarde de operații elementare pe secundă — motiv pentru care algoritmi cu câteva sute sau mii de operații rulează instant, imperceptibil pentru un om.
+
+Problema apare când **numărul de operații** nu crește liniar cu numărul de date, ci mult mai rapid. O buclă simplă, care parcurge o listă de `n` elemente o singură dată, face aproximativ `n` operații — dublarea datelor dublează timpul. O buclă imbricată, care compară fiecare element cu fiecare alt element (exact scenariul din HOOK), face aproximativ `n × n = n²` operații — dublarea datelor **cvadruplează** timpul. Diferența pare mică la `n` mic, dar devine radicală la `n` mare, exact fenomenul descris în deschidere.
+
+{/* TABLE */}
+
+| Utilizatori (n) | Operații la n (liniar) | Operații la n² (pătratic) |
+|---|---|---|
+| 50 | 50 | 2.500 |
+| 2.000 | 2.000 | 4.000.000 |
+| 10.000 | 10.000 | 100.000.000 |
+| 50.000 | 50.000 | 2.500.000.000 |
+
+La `n = 50`, diferența dintre 50 și 2.500 de operații e invizibilă — ambele rulează instant. La `n = 50.000`, diferența dintre 50.000 și 2,5 miliarde de operații e diferența dintre "instant" și "serverul nu mai răspunde" — exact tranziția bruscă descrisă în HOOK, care nu e deloc bruscă din perspectiva matematicii, doar din perspectiva unui om care nu vede curba de creștere până nu o lovește direct.
+
+<CosmoHint emotion="thinking">
+De ce codul care compară "fiecare utilizator cu fiecare alt utilizator" apare atât de des, aparent din greșeală, în cod real? Pentru că de multe ori pornește dintr-o nevoie legitimă — găsește duplicate, calculează similarități, verifică conflicte de programare — și varianta cea mai directă de a o scrie e exact o buclă imbricată: "pentru fiecare element, verifică-l față de toate celelalte." Funcționează corect matematic, dă rezultatul așteptat pe date mici de test — și devine o bombă cu ceas abia când volumul real de date depășește pragul la care diferența dintre liniar și pătratic devine vizibilă. Acest curs te învață să recunoști acel tipar înainte să ajungă în producție, nu după.
+</CosmoHint>
+
+### De ce "a merge pe date de test" nu garantează nimic
+
+Un test cu 50 sau 100 de înregistrări nu descoperă niciodată o problemă de complexitate — orice algoritm, oricât de prost, rulează instant pe date suficient de mici. Problema devine vizibilă doar la scară, exact momentul în care e cel mai costisitor de rezolvat: cu utilizatori reali afectați, cu presiune de a repara rapid, adesea fără timp să rescrii corect algoritmul de la zero.
+
+Această realitate practică — testele funcționale nu prind problemele de scalare — e motivul pentru care înțelegerea complexității nu e un exercițiu academic abstract, ci o unealtă de diagnosticare preventivă: citind codul (nu rulându-l), poți identifica din priviri bucle imbricate, căutări repetate în liste, sau structuri de date nepotrivite pentru operația pe care o faci frecvent — exact temele pe care le vei parcurge lecție cu lecție în acest curs, de la notarea formală a complexității (L3) la structurile de date concepute special pentru a evita aceste capcane (BST, L7; heap, L8; trie, L12).
+
+### Legătura cu antrenarea și inferența AI
+
+Complexitatea algoritmică nu e o preocupare exclusivă a aplicațiilor web — e centrală în AI, la o scară și mai mare. Antrenarea unui model pe un dataset de milioane de exemple, unde fiecare pas de optimizare recalculează gradienți peste tot dataset-ul, transformă o diferență de complexitate de la liniar la pătratic dintr-o simplă încetinire într-o diferență de **zile** de calcul suplimentar, la costuri reale de infrastructură GPU. Mecanismul de atenție din arhitectura Transformer (baza modelelor de limbaj moderne, subiect al unui curs viitor din acest program) are, structural, complexitate pătratică în raport cu lungimea secvenței de intrare — motivul tehnic exact pentru care modelele de limbaj au avut, istoric, limite stricte de context, și motivul pentru care cercetarea recentă investește masiv în variante de atenție cu complexitate mai bună decât pătratică.
+
+### Cum arată, în practică, un algoritm care "îngheață"
+
+```python
+def gaseste_duplicate(utilizatori):
+    duplicate = []
+    for i in range(len(utilizatori)):
+        for j in range(len(utilizatori)):
+            if i != j and utilizatori[i]["email"] == utilizatori[j]["email"]:
+                duplicate.append(utilizatori[i])
+    return duplicate
+```
+
+Acest cod, corect din punct de vedere logic, face exact bucla imbricată din HOOK — pentru fiecare utilizator, îl compară cu fiecare alt utilizator. Pentru 10.000 de utilizatori, asta înseamnă 100.000.000 de comparații de string-uri, la fiecare apelare a funcției. L2 arată deja o alternativă rapidă pentru un caz înrudit (căutarea într-o listă), iar L13 din cursul de Python (dicționarele, cu acces O(1)) oferă exact unealta care ar rezolva acest caz specific într-o singură parcurgere — o rescriere pe care o vei putea face singur/ă până la finalul acestui curs, cu încrederea că înțelegi *de ce* funcționează, nu doar *că* funcționează.
+
+### Costul ascuns al structurii de date greșite, nu doar al algoritmului greșit
+
+Complexitatea nu depinde doar de *cum* scrii bucla, ci și de *ce structură de date* alegi pentru a stoca datele. Aceeași căutare — "există acest email deja în listă?" — costă O(n) pe o listă Python obișnuită (parcurgere secvențială, revezi C4 L12) dar O(1), aproape instant, pe un `set` sau ca cheie de `dict` (C4 L13, L15). Diferența nu e în algoritm — e în containerul ales pentru date, o decizie luată adesea la începutul unui proiect, fără să se gândească cineva la implicațiile ei de scalare, și care devine costisitor de schimbat mai târziu, când codul care depinde de acea structură s-a înmulțit deja peste tot proiectul.
+
+Acest curs revine constant la această idee: o structură de date bine aleasă transformă adesea o operație costisitoare într-una aproape gratuită, fără să schimbi deloc *logica* algoritmului — doar containerul în care trăiesc datele. BST (L7), heap (L8) și trie (L12) sunt exact astfel de structuri specializate, fiecare optimizată pentru un tipar specific de acces la date, câștigând ordine de mărime de viteză față de o listă obișnuită folosită naiv pentru același scop.
+
+<CosmoHint emotion="encouraging">
+Nu ai nevoie să memorezi din prima toate structurile de date sau toți algoritmii din acest curs — ai nevoie să dezvolți un reflex: de fiecare dată când scrii o buclă care parcurge date, întreabă-te "ce se întâmplă dacă datele astea cresc de 100 de ori?" Acel singur reflex, aplicat consecvent, previne majoritatea problemelor reale de performanță întâlnite în cod de producție, cu mult înainte să ajungă vreodată la 10.000 de utilizatori reali afectați.
+</CosmoHint>
+
+<FactBox>
+**Complexitate algoritmică în cifre:**
+- Un procesor modern execută de ordinul **miliardelor** de operații elementare pe secundă
+- Buclă imbricată pe 10.000 de elemente: **100.000.000** de comparații, per apelare
+- Aceeași buclă pe 50.000 de elemente: **2.500.000.000** de comparații — de 25× mai mult, deși datele au crescut doar de 5×
+- Mecanismul de atenție Transformer: complexitate pătratică în raport cu lungimea secvenței de intrare
+- Donald Knuth a sistematizat teoria complexității algoritmilor în *The Art of Computer Programming*, început în **1962**
+- Un algoritm cu complexitate mai bună poate fi, la scară mare, de **ordine de mărime** mai rapid decât hardware mai puternic pe un algoritm prost
+</FactBox>
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Simptom observat | Cauză probabilă | Unde se rezolvă în acest curs |
+|---|---|---|
+| Aplicația e rapidă la puțini utilizatori, lentă brusc la mulți | Complexitate pătratică sau mai rea, ascunsă într-o buclă imbricată | L3 — Notarea Big O |
+| O căutare repetată încetinește tot mai mult pe măsură ce crește lista | Căutare liniară acolo unde ar trebui structură cu acces rapid | L2, L7, L12 |
+| Testele "trec", dar producția "îngheață" | Datele de test sunt prea mici să expună tiparul de creștere | Citirea codului pentru bucle imbricate, nu doar rularea lui |
+| Antrenarea unui model durează disproporționat de mult la dataset mai mare | Complexitate mai rea decât liniară în pipeline-ul de procesare | Concept reluat direct în cursurile de Machine Learning |
+
+---
+
+## ÎNCHEIERE
+
+Diferența dintre o aplicație care scalează și una care se prăbușește la scară nu stă, de cele mai multe ori, în hardware sau în "cât de mult cod" — stă în tiparul de creștere al algoritmului ales, invizibil pe date mici, devastator pe date mari. Această lecție a arătat *simptomul* — acum ai nevoie de vocabularul precis ca să-l diagnostichezi corect, nu doar să-l recunoști empiric după ce s-a întâmplat deja.
+
+Primul instrument concret din această trusă e comparația dintre două moduri complet diferite de a căuta ceva într-o listă — unul care rămâne lent oricât ar crește datele, altul care rămâne rapid aproape indiferent de dimensiune. Lecția următoare pune alături căutarea liniară și căutarea binară, exact pentru a face vizibilă, cu un exemplu concret, diferența pe care restul cursului o explică teoretic.
