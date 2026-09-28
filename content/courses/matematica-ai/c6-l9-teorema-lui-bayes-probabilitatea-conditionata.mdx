@@ -1,0 +1,117 @@
+---
+title: "Teorema lui Bayes — probabilitatea condiționată"
+order: 9
+type: lesson
+module_index: 6
+duration: 15
+difficulty: 3
+---
+
+# Teorema lui Bayes — probabilitatea condiționată
+
+## HOOK
+
+L8 a arătat cum arată incertitudinea "în repaus" — distribuția normală descrie cât de probabile sunt diferite valori, înainte de a afla ceva nou. Dar cea mai practică întrebare din orice sistem inteligent nu e "cât de probabil e X, în general?", ci "cât de probabil e X, *acum, având în vedere ce tocmai am aflat*?" Un filtru de spam nu întreabă "cât de probabil e ca un email oarecare să fie spam?" — întreabă "cât de probabil e ca *acest* email, care conține cuvântul 'gratis' de cinci ori, să fie spam?"
+
+**Teorema lui Bayes** e regula matematică exactă care răspunde la această întrebare — cum actualizezi riguros o presupunere, în lumina unei dovezi noi. E, probabil, cea mai influentă teoremă individuală din tot Machine Learning-ul clasic, iar intuiția din spatele ei continuă să apară, sub forme diferite, chiar și în arhitecturile moderne de Deep Learning.
+
+---
+
+## CONTEXT
+
+Teorema poartă numele reverendului englez Thomas Bayes, care a formulat-o într-un manuscris nepublicat în timpul vieții — a apărut public abia în 1763, doi ani după moartea lui, publicată de prietenul său Richard Price. Rezultatul a rămas relativ obscur multă vreme, până când matematicianul francez Pierre-Simon Laplace a redescoperit-o independent și a dezvoltat-o mult mai riguros și mai complet, aplicând-o la probleme practice de astronomie și statistică — motiv pentru care unii istorici consideră că numele corect ar trebui să fie "teorema Bayes-Laplace".
+
+Aplicarea ei la sisteme automate de decizie — filtre de spam, diagnostic medical asistat, și, mai recent, componente ale unor sisteme de Machine Learning — a venit mult mai târziu, dar principiul rămâne identic celui formulat de Bayes: pornești cu o presupunere inițială, o actualizezi riguros pe măsură ce apar dovezi noi, fără să ghicești intuitiv, ci calculând exact.
+
+---
+
+## MIEZUL
+
+### Probabilitatea condiționată — punctul de plecare
+
+**Probabilitatea condiționată** $P(A \mid B)$ se citește "probabilitatea lui A, dat fiind B" — cât de probabil e evenimentul $A$, *știind deja* că evenimentul $B$ s-a întâmplat. E diferită, adesea dramatic, de probabilitatea necondiționată $P(A)$: probabilitatea ca cineva să aibă gripă, în general, e mică; probabilitatea ca cineva să aibă gripă, *dat fiind* că are febră și tuse, e mult mai mare.
+
+### Formula lui Bayes — derivată direct din definiție
+
+$$P(A \mid B) = \frac{P(B \mid A) \, P(A)}{P(B)}$$
+
+Fiecare termen are un nume standard, folosit constant în orice discuție despre statistică bayesiană:
+
+{/* TABLE */}
+
+| Termen | Nume | Interpretare |
+|---|---|---|
+| $P(A)$ | **Prior** | Credința inițială, înainte de orice dovadă nouă |
+| $P(B \mid A)$ | **Likelihood** (verosimilitate) | Cât de probabilă e dovada, dacă $A$ e adevărat |
+| $P(B)$ | **Evidence** (dovada) | Probabilitatea totală a dovezii, indiferent de $A$ |
+| $P(A \mid B)$ | **Posterior** | Credința actualizată, după ce ai văzut dovada |
+
+Formula spune, în esență: pornești cu o credință inițială (prior), o ajustezi proporțional cu cât de "așteptată" era dovada observată dacă credința ta era corectă (likelihood), și normalizezi rezultatul astfel încât să rămână o probabilitate validă (împărțirea la evidence).
+
+<CosmoHint emotion="thinking">
+De ce contează exact această structură — prior, likelihood, posterior — nu doar formula brută? Pentru că separă explicit "ce credeai înainte" de "ce ai învățat acum" — o distincție centrală în orice sistem care învață continuu din date noi. Un model care ignoră priorul (presupunerea inițială) și se bazează doar pe ultima observație poate ajunge la concluzii absurde dintr-o singură dovadă rară; un model care ignoră complet dovezile noi nu învață niciodată nimic. Teorema lui Bayes combină riguros ambele surse de informație, proporțional cu cât de fiabilă e fiecare.
+</CosmoHint>
+
+### Exemplul clasic — testul medical și paradoxul ratei de bază
+
+Un exemplu numeric, faimos pentru cât de contraintuitiv e rezultatul: o boală rară afectează 1 din 1000 de oameni. Un test medical e 99% precis (detectează corect boala la 99% dintre bolnavi, și dă rezultat corect negativ la 99% dintre sănătoși). Dacă testul tău iese pozitiv, cât de probabil e să ai boala, cu adevărat?
+
+Intuiția greșită, frecventă, spune "99%". Răspunsul corect, calculat cu Bayes: din 1000 de oameni, 1 e cu adevărat bolnav (aproape sigur detectat pozitiv), dar dintre cei 999 sănătoși, 1% (aproximativ 10 oameni) primesc totuși un rezultat fals-pozitiv. Din cei aproximativ 11 oameni cu test pozitiv, doar 1 e cu adevărat bolnav — probabilitatea reală e de aproximativ **9%**, nu 99%.
+
+$$P(\text{bolnav} \mid \text{pozitiv}) = \frac{0.99 \times 0.001}{0.99 \times 0.001 + 0.01 \times 0.999} \approx 0.09$$
+
+Această "paradoxul ratei de bază" (base rate fallacy) apare pentru că testul, oricât de precis, se aplică unei populații în care boala e extrem de rară — priorul mic domină rezultatul final, chiar și în fața unei dovezi aparent puternice. Aceeași capcană de raționament apare frecvent în evaluarea oricărui sistem de detecție automată (spam, fraudă, anomalii) aplicat unor evenimente rare.
+
+### Filtrul de spam bayesian
+
+Aplicația clasică, istorică, în AI: un filtru de spam calculează $P(\text{spam} \mid \text{cuvinte din email})$, folosind ca prior frecvența generală a spam-ului și ca likelihood cât de des apar anumite cuvinte ("gratis", "câștigă", "urgent") în emailuri deja etichetate spam versus emailuri legitime. Clasificatorul **Naive Bayes** — încă folosit practic pentru sarcini simple de clasificare de text — aplică exact această formulă, cu o simplificare deliberată ("naivă"): presupune că prezența fiecărui cuvânt e independentă de celelalte, o presupunere adesea falsă strict vorbind, dar suficient de bună practic pentru rezultate utile, rapide de calculat.
+
+```python
+# Estimare simplificată, ilustrativă
+p_spam = 0.3                    # prior: 30% din emailuri sunt spam
+p_gratis_daca_spam = 0.6        # likelihood: "gratis" apare în 60% din spam
+p_gratis_daca_legitim = 0.05    # likelihood: "gratis" apare în 5% din emailuri legitime
+
+evidence = p_gratis_daca_spam * p_spam + p_gratis_daca_legitim * (1 - p_spam)
+posterior = (p_gratis_daca_spam * p_spam) / evidence
+print(posterior)   # probabilitatea actualizată de spam, dat fiind cuvântul "gratis"
+```
+
+### Legătura cu modelele de limbaj moderne
+
+O conexiune mai puțin evidentă, dar structurală: un model de limbaj, la fiecare pas de generare, calculează efectiv o probabilitate condiționată — $P(\text{cuvânt următor} \mid \text{context anterior})$. Nu folosește explicit formula lui Bayes în forma clasică de mai sus, dar principiul rămâne identic: o distribuție de probabilitate peste posibilitățile viitoare, actualizată riguros în funcție de toate dovezile disponibile (contextul deja generat). Mecanismul exact prin care se produce această distribuție — Softmax — e subiectul L12; funcția care măsoară cât de "greșită" e o predicție probabilistică — Cross-Entropie — e subiectul L11.
+
+<CosmoHint emotion="celebrating">
+Ai văzut acum, concret, de ce probabilitatea condiționată nu e doar un exercițiu abstract de statistică — e limbajul exact în care se formulează, matematic, întrebarea "ce cuvânt urmează, dat fiind tot ce am văzut până acum?", întrebarea centrală pe care orice model de limbaj o rezolvă, la fiecare token generat, de mii de ori pe secundă.
+</CosmoHint>
+
+<FactBox>
+**Teorema lui Bayes în cifre:**
+- Publicată postum, de Richard Price: **1763**, doi ani după moartea lui Thomas Bayes
+- Redescoperită și extinsă independent de Pierre-Simon Laplace, la scurt timp după
+- Exemplul testului medical: test 99% precis, boală cu prevalеnță 0.1% → doar **~9%** șanse reale de boală la un test pozitiv
+- Patru componente: prior, likelihood, evidence, posterior
+- Naive Bayes: presupune independență între caracteristici — simplificare "naivă", dar practic eficientă
+- Generarea de text la nivel de model de limbaj: o formă aplicată de probabilitate condiționată, la fiecare token
+</FactBox>
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Componentă formulă | Nume | Exemplu (filtru spam) |
+|---|---|---|
+| $P(A)$ | Prior | Procentul general de emailuri spam |
+| $P(B \mid A)$ | Likelihood | Cât de des apare "gratis" în spam |
+| $P(B)$ | Evidence | Cât de des apare "gratis" în total |
+| $P(A \mid B)$ | Posterior | Probabilitatea de spam, dat fiind "gratis" |
+
+---
+
+## ÎNCHEIERE
+
+Teorema lui Bayes formalizează exact procesul de actualizare a unei credințe în lumina unei dovezi noi — de la un prior inițial, la un posterior ajustat riguros, nu ghicit intuitiv. Exemplul testului medical arată cât de important e să nu ignori priorul, mai ales pentru evenimente rare.
+
+Rămâne o întrebare conexă, la fel de fundamentală: cum măsori, numeric, *câtă informație* poartă, de fapt, o dovadă sau un rezultat? Lecția următoare introduce exact acest instrument — **Entropia Shannon**, unitatea de măsură a incertitudinii și informației, fundamentul matematic al funcțiilor de pierdere folosite pentru a antrena aproape orice model de clasificare sau de limbaj.

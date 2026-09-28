@@ -1,0 +1,112 @@
+---
+title: "Cross-Entropie — funcția de pierdere"
+order: 11
+type: lesson
+module_index: 6
+duration: 15
+difficulty: 3
+---
+
+# Cross-Entropie — funcția de pierdere
+
+## HOOK
+
+L10 a măsurat incertitudinea unei singure distribuții — cât de imprevizibilă e o monedă, o predicție meteo, ieșirea unui clasificator. Dar niciun model AI nu se antrenează evaluând o distribuție izolat — se antrenează comparând **două** distribuții: cea pe care modelul o prezice acum, și cea reală, corectă, cunoscută din datele de antrenare. Diferența dintre ele, măsurată riguros, e exact semnalul care spune modelului cât de "greșit" a fost, și în ce direcție să se ajusteze.
+
+**Cross-Entropia** e acea măsură — extensia directă a entropiei Shannon (L10) la compararea a două distribuții, nu doar la descrierea uneia singure. E, fără nicio exagerare, cea mai folosită funcție de pierdere (loss function) din tot Deep Learning-ul modern — de la cel mai simplu clasificator de imagini, până la fiecare token generat de un model de limbaj.
+
+---
+
+## CONTEXT
+
+Cross-entropia are rădăcini directe în teoria informației a lui Shannon (L10) — o extensie naturală, formalizată la scurt timp după articolul original din 1948, pentru a răspunde la o întrebare practică de codare: ce se întâmplă dacă folosești un cod optimizat pentru o distribuție $q$, dar evenimentele reale provin, de fapt, dintr-o distribuție diferită, $p$? Răspunsul: codul devine sub-optim, și costul mediu în biți crește — exact cantitatea măsurată de cross-entropie.
+
+Adoptarea cross-entropiei ca funcție de pierdere standard pentru antrenarea rețelelor neuronale a devenit dominantă odată cu maturizarea algoritmului de backpropagation, în anii 1980-1990 — cercetătorii au observat că, pentru probleme de clasificare, cross-entropia produce gradienți (subiectul L18) mult mai utili pentru optimizare decât alte metrici intuitive, precum simpla acuratețe.
+
+---
+
+## MIEZUL
+
+### Definiția formală — două distribuții, nu una
+
+$$H(p, q) = -\sum_{i} p(x_i) \log q(x_i)$$
+
+unde $p$ e distribuția **reală** (adevărul de bază — ce s-a întâmplat efectiv), iar $q$ e distribuția **prezisă** de model. Observă asemănarea directă cu entropia din L10 — diferența crucială e că termenul din interiorul logaritmului ($q$) e diferit de termenul care ponderează suma ($p$). Dacă $p = q$ (predicția e perfectă), cross-entropia se reduce exact la entropia obișnuită a lui $p$.
+
+### Cazul clasificării — simplificare directă
+
+Pentru o problemă de clasificare, distribuția reală $p$ e aproape întotdeauna **one-hot** (revedere din C6 L1) — un singur `1` la poziția clasei corecte, zero peste tot altundeva, pentru că eticheta reală a unui exemplu de antrenare e cunoscută cu certitudine. În acest caz special, suma din formulă se reduce la un singur termen:
+
+$$H(p, q) = -\log q(x_{\text{corect}})$$
+
+Doar probabilitatea pe care modelul a atribuit-o clasei **corecte** contează — toate celelalte probabilități prezise, greșite, dispar din formulă (sunt înmulțite cu 0, componenta lor din $p$).
+
+```python
+import numpy as np
+
+def cross_entropie(q_corect):
+    return -np.log(q_corect)
+
+print(cross_entropie(0.9))    # 0.105 — model încrezător și corect, pierdere mică
+print(cross_entropie(0.5))    # 0.693 — model nesigur, pierdere moderată
+print(cross_entropie(0.01))   # 4.605 — model încrezător, dar GREȘIT, pierdere mare
+```
+
+<CosmoHint emotion="thinking">
+De ce pierderea crește atât de dramatic (de la 0.1 la 4.6) când modelul e "încrezător, dar greșit" (`q_corect = 0.01`), comparativ cu diferența relativ mică între 0.9 și 0.5? Pentru că funcția $-\log(x)$ crește extrem de rapid pe măsură ce $x$ se apropie de 0 — matematic, o pedeapsă disproporționat de mare pentru încredere nejustificată. Această proprietate e intenționată: un model care e sigur pe un răspuns greșit e mai periculos decât unul nesigur, iar funcția de pierdere reflectă exact această asimetrie.
+</CosmoHint>
+
+### Legătura cu Teorema lui Bayes — maximizarea verosimilității
+
+Minimizarea cross-entropiei pe un set întreg de date de antrenare e echivalentă matematic cu **maximizarea verosimilității** (maximum likelihood estimation) — găsirea parametrilor modelului care fac ca datele observate să fie cât mai "probabile" posibil, conceptul de *likelihood* introdus deja informal în L9 pentru Teorema lui Bayes. Nu e o coincidență — cross-entropia și verosimilitatea sunt, matematic, aceeași cantitate, privită din unghiuri diferite (una ca "pierdere de minimizat", cealaltă ca "probabilitate de maximizat"), iar echivalența lor riguroasă e motivul teoretic solid pentru care cross-entropia a fost aleasă ca standard, nu doar o alegere empirică arbitrară.
+
+### Cross-entropia e mereu ≥ entropia
+
+O proprietate matematică esențială, care va deveni centrală în L13: cross-entropia dintre $p$ și $q$ e întotdeauna cel puțin egală cu entropia lui $p$ însuși, $H(p, q) \geq H(p)$, cu egalitate exact atunci când $p = q$.
+
+{/* TABLE */}
+
+| Relație | Interpretare |
+|---|---|
+| $H(p, q) = H(p)$ | Predicția modelului e perfectă — $q$ identică cu realitatea $p$ |
+| $H(p, q) > H(p)$ | Predicția e imperfectă — diferența măsoară exact "cât de greșit" e modelul |
+
+Această diferență, $H(p, q) - H(p)$, are propriul nume și propria interpretare separată — subiectul exact al L13, Divergența KL, care izolează *doar* eroarea introdusă de predicția imperfectă, fără componenta de incertitudine inerentă deja prezentă în $p$ însuși.
+
+### De ce cross-entropia, nu simpla acuratețe
+
+O întrebare firească: de ce nu antrenezi direct modelul să maximizeze procentul de predicții corecte (acuratețea)? Motivul e tehnic, dar esențial: acuratețea e o funcție "în trepte" — se schimbă brusc, discontinuu, când o predicție trece exact peste pragul de decizie, și rămâne complet plată (derivată zero) în restul spațiului. O funcție complet plată nu oferă niciun semnal util pentru gradient descent (L18-L19) — algoritmul de antrenare n-ar avea nicio direcție în care să ajusteze modelul. Cross-entropia, în schimb, e continuă și diferențiabilă peste tot, oferind un semnal gradual, util, chiar și pentru predicții aproape corecte sau aproape greșite — exact tipul de proprietate necesară pentru ca antrenarea prin derivate (subiectul L14-L19) să funcționeze practic.
+
+<CosmoHint emotion="excited">
+Fiecare token generat de un model de limbaj, în timpul antrenării, primește exact acest tratament: modelul prezice o distribuție de probabilitate peste întregul vocabular posibil (mecanismul exact — Softmax — e subiectul lecției următoare), iar cross-entropia dintre acea predicție și cuvântul real, corect, din textul de antrenare, devine semnalul de eroare care ajustează, prin backpropagation, milioane sau miliarde de parametri ai rețelei. E, literal, funcția care conduce întregul procesul de antrenare al oricărui model de limbaj modern.
+</CosmoHint>
+
+<FactBox>
+**Cross-Entropia în cifre:**
+- Extensie directă a entropiei Shannon (L10), formalizată la scurt timp după 1948
+- Formula generală: $H(p, q) = -\sum_i p(x_i)\log q(x_i)$
+- Pentru clasificare (etichetă one-hot): simplificare la $-\log q(x_{\text{corect}})$
+- Proprietate garantată: $H(p, q) \geq H(p)$, cu egalitate doar la predicție perfectă
+- Minimizarea cross-entropiei ≡ maximizarea verosimilității (maximum likelihood)
+- Standardul universal ca funcție de pierdere pentru clasificare, de la anii 1980-1990 încoace
+</FactBox>
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Concept | Ce compară | Formulă |
+|---|---|---|
+| Entropie (L10) | O singură distribuție cu ea însăși | $H(p) = -\sum p(x)\log p(x)$ |
+| Cross-entropie | Distribuția reală $p$ vs. cea prezisă $q$ | $H(p,q) = -\sum p(x)\log q(x)$ |
+| Cross-entropie pentru clasificare | Doar clasa corectă, restul dispar (one-hot) | $-\log q(x_{\text{corect}})$ |
+
+---
+
+## ÎNCHEIERE
+
+Cross-entropia transformă entropia (L10) dintr-o măsură de incertitudine izolată într-un instrument activ de comparație — exact ce e nevoie pentru a spune unui model AI cât de departe e predicția lui de adevăr. Proprietatea $-\log(x)$, care pedepsește disproporționat încrederea greșită, e motivul pentru care funcționează atât de bine practic.
+
+Rămâne, deschisă, o întrebare tehnică precisă: cum transformă, de fapt, un model niște numere brute (calculate prin înmulțiri matriciale, L6) într-o distribuție de probabilitate validă — valori pozitive, care sumează exact la 1? Lecția următoare răspunde direct la asta — **Softmax**, funcția întâlnită literalmente peste tot în arhitecturile moderne de AI, de la clasificare la mecanismul de atenție.

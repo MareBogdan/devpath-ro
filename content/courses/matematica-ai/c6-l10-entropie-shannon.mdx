@@ -1,0 +1,120 @@
+---
+title: "Entropie Shannon"
+order: 10
+type: lesson
+module_index: 6
+duration: 14
+difficulty: 3
+---
+
+# Entropie Shannon
+
+## HOOK
+
+L9 a arătat cum actualizezi o credință în lumina unei dovezi noi — dar a lăsat deschisă o întrebare anterioară, mai fundamentală: cât de "incertă" era acea credință, de fapt, înainte să afli ceva? Dacă știi aproape sigur ce se va întâmpla, o dovadă nouă nu-ți schimbă mult părerea. Dacă ești complet nesigur, aceeași dovadă poate răsturna complet situația. Ai nevoie de un instrument care măsoară exact acest lucru — nu doar *ce* crezi, ci *cât de incert* ești.
+
+**Entropia Shannon** e acel instrument — o singură formulă care măsoară, în biți, cantitatea medie de incertitudine (sau, echivalent, informație) conținută într-o distribuție de probabilitate. E conceptul fondator al întregii teorii a informației, și fundamentul matematic direct al funcției de pierdere (loss function) folosite pentru a antrena aproape orice model de clasificare sau de limbaj.
+
+---
+
+## CONTEXT
+
+Claude Shannon, inginer și matematician la Bell Labs, a publicat în 1948 lucrarea *A Mathematical Theory of Communication* — considerată, aproape universal, actul de naștere al teoriei informației ca disciplină formală. Motivația lui era intens practică, nu abstractă: Bell Labs administra rețeaua telefonică americană, iar Shannon căuta o limită matematică riguroasă pentru cât de eficient poate fi comprimat și transmis un mesaj printr-un canal de comunicație imperfect, fără să piardă informație.
+
+Rezultatul central al lucrării lui — entropia — a oferit exact acea limită: numărul minim de biți necesari, în medie, pentru a codifica un mesaj provenit dintr-o sursă cu o distribuție de probabilitate cunoscută. Deși dezvoltată pentru telecomunicații, formula s-a dovedit a fi mult mai generală — se aplică identic oricărei surse de incertitudine, de la texte, la predicții meteo, la ieșirile unui model de clasificare AI.
+
+---
+
+## MIEZUL
+
+### Informația unui singur eveniment — surprinzător poartă mai multă informație
+
+Intuiția de plecare: un eveniment foarte probabil (soarele răsare mâine) nu-ți spune aproape nimic nou dacă se întâmplă — te aștepți deja la el. Un eveniment foarte improbabil (ninge în luna iulie, în România) poartă mult mai multă informație, exact pentru că te surprinde. Shannon a formalizat exact această intuiție:
+
+$$I(x) = -\log_2 p(x)$$
+
+Pentru un eveniment cu probabilitate $p(x) = 1$ (cert), $I(x) = -\log_2(1) = 0$ — zero informație, pentru că nu exista nicio incertitudine de rezolvat. Pentru un eveniment rar, cu $p(x) = 0.01$, $I(x) = -\log_2(0.01) \approx 6.64$ biți — mult mai multă informație transmisă de faptul că s-a întâmplat.
+
+### Entropia — media informației peste toate rezultatele posibile
+
+**Entropia** unei distribuții întregi e media ponderată a informației fiecărui rezultat posibil, ponderată chiar de probabilitatea acelui rezultat:
+
+$$H(X) = -\sum_{i} p(x_i) \log_2 p(x_i)$$
+
+Pentru o monedă perfect echilibrată (50%-50%): $H = -(0.5\log_2 0.5 + 0.5\log_2 0.5) = 1$ bit — incertitudinea maximă posibilă pentru un eveniment cu două rezultate, exact cantitatea de informație necesară pentru a codifica rezultatul (0 sau 1, cap sau pajură).
+
+```python
+import numpy as np
+
+def entropie(probabilitati):
+    p = np.array(probabilitati)
+    p = p[p > 0]   # evită log(0)
+    return -np.sum(p * np.log2(p))
+
+print(entropie([0.5, 0.5]))      # 1.0 — incertitudine maximă
+print(entropie([0.99, 0.01]))    # ~0.08 — aproape cert, entropie mică
+print(entropie([0.25]*4))        # 2.0 — 4 rezultate egal probabile, 2 biți
+```
+
+<CosmoHint emotion="thinking">
+De ce entropia unei mize perfect echilibrate (0.5, 0.5) e maximă, iar a uneia măsluite (0.99, 0.01) e aproape zero? Pentru că entropia măsoară cât de "greu" e să ghicești rezultatul dinainte. O monedă măsluită la 99% cap e aproape complet predictibilă — nu ai nevoie de aproape niciun bit ca s-o "descrii" corect în medie, pentru că aproape întotdeauna e cap. O monedă corectă e complet imprevizibilă — ai nevoie de exact un bit complet, de fiecare dată, pentru a comunica rezultatul real.
+</CosmoHint>
+
+### Entropia ca lungime optimă de codare — legătura cu Huffman (C5)
+
+O interpretare practică, esențială: entropia unei surse de date reprezintă limita teoretică minimă a numărului mediu de biți necesari pentru a o codifica, fără nicio pierdere de informație. Codificarea Huffman, subiectul detaliat al C5 L16 (Algoritmi Greedy) — care alocă coduri mai scurte simbolurilor mai frecvente — se apropie sistematic de exact această limită teoretică, fără s-o poată depăși niciodată. Entropia nu e doar o măsură abstractă de incertitudine — e, literal, limita fizică a compresiei fără pierderi, demonstrată riguros de Shannon în același articol din 1948.
+
+{/* TABLE */}
+
+| Distribuție | Entropie | Interpretare |
+|---|---|---|
+| $(1, 0)$ — eveniment cert | $0$ biți | Zero incertitudine, zero informație nouă |
+| $(0.9, 0.1)$ | $\approx 0.47$ biți | Puțină incertitudine — un rezultat domină clar |
+| $(0.5, 0.5)$ | $1$ bit | Incertitudine maximă pentru 2 rezultate |
+| $(0.25, 0.25, 0.25, 0.25)$ | $2$ biți | Incertitudine maximă pentru 4 rezultate |
+
+### Entropia maximă — distribuția uniformă
+
+O proprietate matematică importantă: pentru un număr fix de rezultate posibile, entropia e maximă exact atunci când toate rezultatele sunt la fel de probabile (distribuție uniformă) — orice concentrare a probabilității pe un singur rezultat sau pe câteva reduce entropia, pentru că devine mai ușor de "ghicit" rezultatul dinainte. Pentru $n$ rezultate egal probabile, entropia maximă e exact $\log_2(n)$ biți.
+
+### De la biți la nats — unitatea folosită efectiv în Machine Learning
+
+Formula folosește, prin convenție istorică (telecomunicații, unde "bit" are sens direct fizic), logaritmul în baza 2. În Machine Learning, e mult mai frecventă folosirea logaritmului natural ($\ln$, baza $e$) — unitatea rezultată se numește **nat**, nu bit. Alegerea bazei logaritmului nu schimbă nimic structural în formulă sau în comportamentul funcției — schimbă doar o constantă de scalare, motiv pentru care majoritatea framework-urilor de Deep Learning (PyTorch, TensorFlow) implementează entropia și funcțiile înrudite folosind exclusiv logaritmul natural, din motive de eficiență computațională.
+
+### De ce entropia contează pentru antrenarea unei rețele
+
+Un model de clasificare (de exemplu, "acest email e spam sau nu?") produce, la ieșire, o distribuție de probabilitate peste rezultatele posibile — exact tipul de obiect pentru care entropia e definită. Un model bine antrenat, sigur pe predicția lui, produce o distribuție cu entropie mică (concentrată pe un singur răspuns); un model nesigur produce o distribuție cu entropie mare, apropiată de uniformă. Măsurarea exactă a "cât de greșită" e o predicție probabilistică, comparativ cu răspunsul corect real, necesită însă o extensie directă a entropiei — subiectul exact al lecției următoare.
+
+<CosmoHint emotion="excited">
+Fiecare token generat de un model de limbaj vine, intern, exact dintr-o astfel de distribuție de probabilitate — peste tot vocabularul posibil de următoare cuvinte. Entropia acelei distribuții, la fiecare pas de generare, spune ceva concret și măsurabil despre "cât de sigur" e modelul pe alegerea lui: o entropie mică înseamnă că modelul e aproape sigur ce cuvânt urmează (de exemplu, după "Bună ziua, ce mai"), o entropie mare înseamnă multe continuări la fel de plauzibile (de exemplu, la începutul unei propoziții noi, complet deschise).
+</CosmoHint>
+
+<FactBox>
+**Entropia Shannon în cifre:**
+- Publicată de Claude Shannon la Bell Labs: **1948**, în *A Mathematical Theory of Communication*
+- Formula: $H(X) = -\sum_i p(x_i)\log_2 p(x_i)$
+- Monedă perfect echilibrată: entropie maximă de exact **1 bit**
+- Eveniment cert (probabilitate 1): entropie exact **0**
+- Pentru $n$ rezultate egal probabile: entropie maximă $\log_2(n)$
+- Codificarea Huffman (C5, L16) se apropie de limita teoretică stabilită chiar de entropie
+</FactBox>
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Concept | Formulă | Interpretare |
+|---|---|---|
+| Informația unui eveniment | $I(x) = -\log_2 p(x)$ | Cât de "surprinzător" e un singur rezultat |
+| Entropia unei distribuții | $H(X) = -\sum_i p(x_i)\log_2 p(x_i)$ | Incertitudinea medie a întregii distribuții |
+| Entropie maximă | $\log_2(n)$, la distribuție uniformă | Cea mai mare incertitudine posibilă |
+
+---
+
+## ÎNCHEIERE
+
+Entropia măsoară incertitudinea unei singure distribuții — cât de "greu de ghicit" e rezultatul ei. Dar antrenarea unui model de AI cere altceva: să compari *două* distribuții — cea prezisă de model și cea reală, corectă — și să măsori exact cât de departe e una de cealaltă.
+
+Lecția următoare extinde direct entropia la exact acest scop — **Cross-Entropia**, funcția de pierdere (loss function) folosită pentru a antrena practic orice model modern de clasificare sau de limbaj, de la cel mai simplu clasificator până la cel mai mare model conversațional.
