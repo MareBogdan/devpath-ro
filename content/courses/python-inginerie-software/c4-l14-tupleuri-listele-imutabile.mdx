@@ -114,6 +114,92 @@ Acest pattern combină claritatea de acces a unui dicționar cu imutabilitatea �
 Multe funcții din biblioteca standard Python returnează deja named tuples fără să observi explicit — `divmod(10, 3)` returnează un tuple `(3, 1)` (cât și rest), și module ca `time` (`time.localtime()`) returnează structuri accesibile ambele feluri, prin index ȘI prin nume de câmp (`.tm_year`, `.tm_mon`). Recunoașterea acestui pattern te ajută să citești și să folosești corect documentația bibliotecilor Python fără confuzie.
 </CosmoHint>
 
+### Tuple-uri ca chei compuse — indexare pe multiple dimensiuni
+
+Revenind pe scurt la legătura cu dicționarele (L13): imutabilitatea unui tuple îl face candidatul natural pentru chei compuse, unde ai nevoie să indexezi după o combinație de valori, nu una singură:
+
+```python
+distante = {
+    ("București", "Cluj"): 450,
+    ("București", "Iași"): 400,
+    ("Cluj", "Iași"): 350,
+}
+
+print(distante[("București", "Cluj")])   # 450
+
+cache_predictii = {}
+def prezice(model_id, input_text):
+    cheie = (model_id, input_text)
+    if cheie not in cache_predictii:
+        cache_predictii[cheie] = ruleaza_model(model_id, input_text)
+    return cache_predictii[cheie]
+```
+
+Al doilea exemplu combină direct două concepte deja discutate — memoizarea din L13 și tuple-urile ca chei — pentru un cache indexat simultan pe două valori (ce model, ce input), un pattern realist pentru cache-uirea rezultatelor de inferență AI, unde același input trimis la modele diferite ar trebui să producă intrări separate în cache, nu una singură care le-ar amesteca incorect.
+
+### Comparația tuple-urilor — element cu element, lexicografic
+
+```python
+print((1, 2, 3) < (1, 2, 4))   # True — compară element cu element, primul care diferă decide
+print((1, 2) < (1, 2, 3))        # True — tuple-ul mai scurt, dacă e prefix al celuilalt, e "mai mic"
+print((2,) < (1, 9, 9))            # False — primul element (2 > 1) decide imediat
+```
+
+Comparația tuple-urilor urmează ordinea **lexicografică** — identic conceptual cu ordinea alfabetică a cuvintelor într-un dicționar: se compară primul element din fiecare; dacă diferă, rezultatul e decis imediat; dacă sunt egale, se trece la al doilea, și tot așa. Această proprietate face tuple-urile direct sortabile (`sorted()` funcționează nativ pe liste de tuple-uri) și utile pentru compararea versiunilor (`(1, 4, 2) < (1, 5, 0)`, un pattern comun pentru compararea numerelor de versiune semantică fără parsare manuală de string-uri).
+
+### Împachetarea și despachetarea — simetria completă
+
+```python
+def minim_maxim(numere):
+    return min(numere), max(numere)   # PACKING implicit — două valori devin un tuple
+
+rezultat = minim_maxim([5, 2, 8, 1, 9])
+print(rezultat)             # (1, 9) — tuple-ul complet
+
+mini, maxi = minim_maxim([5, 2, 8, 1, 9])   # UNPACKING — tuple-ul devine două variabile separate
+print(mini, maxi)             # 1 9
+```
+
+Această simetrie — orice grup de valori separate prin virgulă devine implicit un tuple (*packing*), orice tuple poate fi despachetat direct în variabile separate (*unpacking*) — e exact ce face posibilă "returnarea multiplă" de valori dintr-o funcție Python, deja menționată, dar rareori explicată complet: nu există niciun mecanism special de "returnare multiplă" în limbaj — există doar packing la `return`, și unpacking opțional la apelare, aplicate consecvent peste tot în limbaj, nu doar la funcții.
+
+### Tuple-uri imutabile care conțin liste mutabile — o nuanță de reținut
+
+```python
+t = ([1, 2], "text fix")
+t[0].append(3)      # VALID — modifici LISTA din interior, nu tuple-ul însuși
+print(t)               # ([1, 2, 3], 'text fix')
+
+t[0] = [9, 9]           # TypeError — NU poți reatribui elementul tuple-ului direct
+```
+
+Imutabilitatea unui tuple garantează că **poziția** fiecărui element nu se poate schimba (nu poți face `t[0] = altceva`) — dar dacă un element e el însuși un obiect mutabil (o listă), conținutul acelui obiect tot se poate modifica, prin propriile lui metode. Distincția pare subtilă, dar contează practic: un tuple e "imutabil la nivelul containerului", nu neapărat "imutabil complet și recursiv" la orice adâncime a structurii pe care o conține.
+
+Consecința directă: `hash()` funcționează pe un tuple doar dacă *toate* elementele lui sunt, la rândul lor, hashabile — un tuple care conține o listă mutabilă aruncă `TypeError: unhashable type: 'list'` dacă încerci să-l folosești ca cheie de dicționar, exact pentru că garanția de stabilitate a hash-ului nu mai poate fi respectată atâta vreme cât conținutul intern se poate schimba oricând.
+
+### Type hints pentru tuple-uri — semnătura exactă a structurii
+
+Revenind la type hints (L9), un tuple beneficiază de o notație de tip specifică, mai precisă decât pentru liste — pentru că lungimea și tipurile fiecărei poziții sunt de obicei fixe și cunoscute dinainte:
+
+```python
+from typing import Tuple
+
+def obtine_coordonate() -> Tuple[float, float]:      # exact DOUĂ elemente float, în ordine
+    return 45.7489, 21.2087
+
+def obtine_variabile() -> Tuple[int, ...]:              # un tuple de LUNGIME variabilă, toate int
+    return (1, 2, 3, 4, 5)
+```
+
+`Tuple[float, float]` comunică explicit "exact două elemente, ambele float" — mult mai precis decât `List[float]`, care nu spune nimic despre câte elemente conține lista. Această precizie suplimentară e unul dintre motivele practice pentru care funcțiile care returnează un grup fix de valori corelate (coordonate, un cât și un rest, un minim și un maxim) preferă adesea un tuple în locul unei liste — semnătura de tip comunică mai multă informație structurală despre forma exactă a rezultatului.
+
+În Python modern (3.9+), notația generică nativă (`tuple[float, float]`, cu literă mică, fără import din `typing`) a devenit preferată față de forma capitalizată din exemplul de mai sus — o simplificare introdusă odată cu generalizarea suportului nativ pentru tipuri generice direct în limbaj, fără să mai fie nevoie de importuri separate pentru cazurile simple.
+
+### Performanța tuple-urilor vs. liste — de ce contează la scară
+
+Dincolo de semantica de imutabilitate, tuple-urile au un avantaj mic dar real de performanță față de liste echivalente: CPython poate optimiza alocarea de memorie pentru tuple-uri (dimensiune fixă, cunoscută la creare) mai eficient decât pentru liste (dimensiune care poate crește, deci necesită buffer suplimentar rezervat, discutat deja la `.append()`). Diferența e mică pentru cod obișnuit, dar devine vizibilă la crearea repetată, la scară mare, a milioane de structuri mici — motiv suplimentar, pe lângă semantica de imutabilitate, pentru care biblioteci de performanță critică preferă tuple-uri pentru structuri fixe, de dimensiune cunoscută.
+
+CPython optimizează suplimentar tuple-urile de literali mici, constante, printr-un mecanism similar interning-ului string-urilor discutat în L3: tuple-uri identice, formate exclusiv din literali imutabili simpli, pot fi reutilizate ca același obiect în memorie — o optimizare invizibilă din perspectiva codului tău, dar care contribuie la avantajul general de performanță al tuple-urilor față de listele echivalente.
+
 ---
 
 ## REVEAL
