@@ -1,0 +1,158 @@
+---
+title: "Modulul requests: Conectezi Python la orice API"
+order: 23
+type: lesson
+module_index: 4
+duration: 13
+difficulty: 2
+---
+
+# Modulul requests: Conectezi Python la orice API
+
+## HOOK
+
+L1 a arătat trei linii care fac o cerere HTTP. E timpul să dezvoltăm complet acele trei linii — parametri de query, header-e de autentificare, gestionarea timeout-urilor, tratarea erorilor de rețea. `requests` (nu parte din biblioteca standard, dar instalată aproape universal) e biblioteca de facto pentru comunicarea HTTP din Python — orice integrare cu o API AI, orice webhook, orice scraping de date trece, la un moment dat, prin această bibliotecă sau un echivalent direct al ei.
+
+Fiecare concept din C3 (metode HTTP, status code-uri, header-e, autentificare) devine aici cod concret, executabil — teoria protocolului transformată în apeluri reale de funcție.
+
+---
+
+## CONTEXT
+
+Înainte de `requests` (Kenneth Reitz, 2011), interacțiunea HTTP din Python se făcea prin `urllib`, parte din biblioteca standard, dar cu o API notoriu de verboasă și greu de folosit corect — construirea manuală de cereri, gestionarea explicită de encoding, cod semnificativ mai lung pentru operațiuni triviale. `requests` a devenit rapid, prin simplitatea API-ului ei, una din cele mai descărcate biblioteci Python din întregul ecosistem — motto-ul oficial al proiectului, "HTTP for Humans," reflectă exact filosofia de lizibilitate discutată în L2.
+
+---
+
+## MIEZUL
+
+### Cererile de bază — GET, POST, și restul metodelor din C3 L20
+
+```python
+import requests
+
+raspuns = requests.get("https://api.exemplu.ro/utilizatori/42")
+print(raspuns.status_code)     # 200 (revezi C3 L20)
+print(raspuns.json())            # parsează automat body-ul JSON într-un dicționar Python
+
+raspuns_post = requests.post(
+    "https://api.exemplu.ro/utilizatori",
+    json={"nume": "Ana", "email": "ana@exemplu.ro"}   # 'json=' serializeaza automat dicționarul
+)
+```
+
+Fiecare metodă HTTP din C3 L20 are o funcție corespunzătoare: `requests.get()`, `.post()`, `.put()`, `.patch()`, `.delete()`. Parametrul `json=` face automat două lucruri: serializează dicționarul Python în text JSON și setează corect header-ul `Content-Type: application/json` — echivalentul manual ar necesita `json.dumps()` explicit plus setarea manuală a header-ului.
+
+<CosmoHint emotion="thinking">
+De ce `raspuns.json()` poate arunca o excepție, chiar dacă cererea a "reușit" (status 200)? `raspuns.json()` PARSEAZĂ body-ul ca JSON — dacă serverul răspunde cu HTML (o pagină de eroare, de exemplu, la o URL greșită care totuși dă 200 dintr-un motiv de configurare) sau text simplu, parsarea aruncă `json.JSONDecodeError`. Statusul HTTP și validitatea conținutului sunt garanții COMPLET SEPARATE — un `200 OK` confirmă doar că serverul a primit și procesat cererea, nu că body-ul e neapărat JSON valid sau conține datele așteptate.
+</CosmoHint>
+
+### Query parameters, header-e, autentificare
+
+```python
+raspuns = requests.get(
+    "https://api.exemplu.ro/cautare",
+    params={"query": "python", "limita": 10},    # devine ?query=python&limita=10 în URL
+    headers={"Authorization": "Bearer sk-abc123..."},   # revezi autentificarea din C3 L22
+    timeout=5    # secunde — OBLIGATORIU în cod de producție
+)
+```
+
+`params=` construiește automat query string-ul, cu encoding corect al caracterelor speciale (spații, diacritice) — evitând erori de formatare manuală a URL-ului. `headers=` transmite orice header custom, cel mai frecvent folosit pentru autentificare (`Authorization: Bearer ...`, exact pattern-ul API key din C3 L22).
+
+**`timeout=` e critic, aproape universal omis de începători, cu consecințe reale**: fără el, `requests` **așteaptă la infinit** un răspuns care poate să nu vină niciodată (server blocat, rețea căzută) — exact clasa de bug discutată la buclele infinite din L8, dar la nivel de rețea. Un `timeout=5` garantează că, după 5 secunde fără răspuns, cererea eșuează explicit cu o excepție, gestionabilă prin `try`/`except` (L11), în loc să blocheze programul indefinit.
+
+{/* TABLE */}
+
+| Parametru `requests.get/post(...)` | Rol |
+|---|---|
+| `params=` | Query string (`?cheie=valoare`) |
+| `json=` | Body serializat automat ca JSON |
+| `data=` | Body ca form-encoded (formulare HTML clasice) |
+| `headers=` | Header-e HTTP custom (autentificare, content-type) |
+| `timeout=` | Secunde de așteptare maximă — OBLIGATORIU în producție |
+| `verify=` | Verificarea certificatului TLS (revezi C3 L17) — dezactivare NEsigură, doar în dev |
+
+### Gestionarea erorilor — `raise_for_status()` și excepțiile specifice
+
+```python
+try:
+    raspuns = requests.get("https://api.exemplu.ro/date", timeout=5)
+    raspuns.raise_for_status()      # aruncă excepție dacă status e 4xx/5xx (revezi C3 L20)
+    date = raspuns.json()
+except requests.exceptions.Timeout:
+    print("Cererea a expirat — serverul nu a răspuns la timp.")
+except requests.exceptions.ConnectionError:
+    print("Nu s-a putut stabili conexiunea — verifică rețeaua.")
+except requests.exceptions.HTTPError as eroare:
+    print(f"Serverul a răspuns cu eroare: {eroare}")
+```
+
+Fără `raise_for_status()`, o cerere care primește `404` sau `500` **nu** aruncă automat nicio excepție — `requests` consideră "succes" faptul că a primit *un* răspuns, indiferent de conținutul statusului. `raise_for_status()` verifică explicit statusul și ridică `HTTPError` dacă e din familia `4xx`/`5xx` — pattern obligatoriu pentru orice cod care nu poate ignora sigur o eroare de server.
+
+### Sesiuni — reutilizarea conexiunii pentru mai multe cereri
+
+```python
+sesiune = requests.Session()
+sesiune.headers.update({"Authorization": "Bearer sk-abc123..."})
+
+raspuns1 = sesiune.get("https://api.exemplu.ro/utilizatori/1")
+raspuns2 = sesiune.get("https://api.exemplu.ro/utilizatori/2")
+```
+
+`requests.Session()` reutilizează conexiunea TCP (și handshake-ul TLS, revezi C3 L6, L17) între cereri multiple către același server — evită overhead-ul de a reface handshake-ul complet la fiecare cerere individuală, exact ideea de conexiune persistentă (`keep-alive`) discutată în C3 L20. Header-ele setate pe sesiune (`sesiune.headers.update(...)`) se aplică automat tuturor cererilor ulterioare — util pentru autentificare, evitând repetarea aceluiași header la fiecare apel individual.
+
+### Retry cu backoff — reziliență la eșecuri temporare
+
+```python
+import time
+
+def cerere_cu_retry(url, max_tentative=3):
+    for tentativa in range(max_tentative):
+        try:
+            raspuns = requests.get(url, timeout=5)
+            raspuns.raise_for_status()
+            return raspuns.json()
+        except requests.exceptions.RequestException as eroare:
+            if tentativa == max_tentative - 1:
+                raise   # ultima tentativă eșuată — propagă excepția
+            time.sleep(2 ** tentativa)   # backoff exponențial: 1s, 2s, 4s...
+```
+
+Acest pattern combină direct concepte deja văzute: bucla `for` (L7), `try`/`except` (L11), și backoff exponențial (menționat la rate limiting, C3 L22) — cod de producție real pentru apeluri API care trebuie să tolereze eșecuri temporare de rețea, exact scenariul din integrarea cu orice model AI unde conexiunile pot fluctua ocazional.
+
+<CosmoHint emotion="encouraging">
+Fiecare SDK oficial de model AI (OpenAI, Anthropic) e, sub capotă, un wrapper mai sofisticat peste exact acest pattern — construiește cererea HTTP, adaugă header-ele de autentificare, gestionează retry-uri și timeout-uri, parsează răspunsul JSON. Dacă vreodată un SDK are un bug sau nu suportă o funcționalitate nouă, poți întotdeauna "coborî" la `requests` direct, construind manual cererea către endpoint-ul documentat al API-ului — cunoștințele din această lecție rămân aplicabile universal, indiferent de SDK-ul din jur.
+</CosmoHint>
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Nevoie | Cod |
+|---|---|
+| Cerere GET simplă | `requests.get(url)` |
+| Trimite JSON în body | `requests.post(url, json=date)` |
+| Autentificare prin header | `requests.get(url, headers={"Authorization": "Bearer ..."})` |
+| Eroare la timeout, nu blocare infinită | `requests.get(url, timeout=5)` |
+| Verificare explicită de succes | `raspuns.raise_for_status()` |
+| Reutilizare conexiune pentru mai multe cereri | `requests.Session()` |
+
+<FactBox>
+**Requests în cifre:**
+- Creat de Kenneth Reitz, lansat în **2011**
+- `raspuns.json()` poate arunca `JSONDecodeError` indiferent de status code — sunt garanții separate
+- `timeout=`: fără el, o cerere poate aștepta indefinit — echivalentul unei bucle infinite la nivel de rețea
+- `raise_for_status()`: NU se apelează automat — `4xx`/`5xx` nu aruncă excepție implicit
+- `requests.Session()`: reutilizează conexiunea TCP/TLS, evită handshake complet la fiecare cerere
+- Backoff exponențial standard: 1s, 2s, 4s, 8s... — pattern universal pentru retry la eșecuri temporare
+</FactBox>
+
+---
+
+## ÎNCHEIERE
+
+`requests` transformă teoria protocolului HTTP din C3 în cod executabil, concret: metode, header-e, autentificare, gestionare de erori — toate reduse la câteva linii clare, lizibile. Regulile de producție rămân constante: mereu `timeout=`, mereu `raise_for_status()` sau verificare explicită de status, mereu gestionare de excepții specifice pentru eșecuri de rețea.
+
+Ai văzut `json=` folosit deja de câteva ori, fără explicație completă. Lecția următoare dedică timpul necesar modulului `json` și bibliotecii Pydantic — validarea structurată a datelor, esențială pentru orice integrare serioasă cu modele AI care necesită structured outputs.
