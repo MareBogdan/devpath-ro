@@ -1,0 +1,189 @@
+---
+title: "JSON + Pydantic: Validare și structured outputs"
+order: 24
+type: lesson
+module_index: 4
+duration: 14
+difficulty: 3
+---
+
+# JSON + Pydantic: Validare și structured outputs
+
+## HOOK
+
+Un model AI e rugat să genereze un JSON cu datele extrase dintr-un email: nume, dată, sumă. De cele mai multe ori, răspunsul e corect. Ocazional, modelul scrie `"suma": "150 RON"` (string, nu număr), sau omite complet câmpul `"data"`, sau produce JSON sintactic invalid (o virgulă în plus). Codul care consumă acest răspuns **trebuie** să valideze structura înainte de a o folosi — altfel o eroare de tip apare mult mai târziu, într-un calcul aparent nelegat, greu de urmărit înapoi la cauza reală.
+
+**Pydantic** rezolvă exact această problemă: definești forma exactă a datelor pe care le aștepți — ca o clasă normală, cu type hints (revezi L9) — și biblioteca validează automat orice date primite, aruncând erori clare, specifice, la primul semn de nepotrivire, în loc să lase datele corupte să circule mai departe prin program.
+
+---
+
+## CONTEXT
+
+**JSON** (JavaScript Object Notation, popularizat de Douglas Crockford la începutul anilor 2000) a devenit formatul universal de schimb de date pe web — mai simplu decât XML, dar suficient de structurat pentru a reprezenta obiecte imbricate, liste, tipuri primitive. Corespondența cu structurile Python native e aproape perfectă: obiecte JSON ↔ dicționare, array-uri JSON ↔ liste, string/număr/boolean JSON ↔ tipurile Python echivalente.
+
+**Pydantic** (Samuel Colvin, 2017) a apărut din nevoia practică de validare de date robustă, fără boilerplate — folosind exact type hints (L9) ca sursă unică a adevărului despre forma datelor, nu o schemă separată, dublu întreținută. Adopția ei a explodat odată cu **FastAPI** (care o folosește nativ pentru validarea automată a corpului cererilor) și, mai recent, cu API-urile AI care oferă **structured outputs** — modele care garantează respectarea unei scheme Pydantic exacte în răspunsul generat.
+
+---
+
+## MIEZUL
+
+### `json` — modulul standard, revizitat complet
+
+```python
+import json
+
+date_python = {"nume": "Ana", "varsta": 25, "activ": True, "hobby_uri": ["citit", "alergat"]}
+
+text_json = json.dumps(date_python)              # dict Python -> string JSON
+text_json_formatat = json.dumps(date_python, indent=2, ensure_ascii=False)   # citeț, cu diacritice
+
+date_reincarcate = json.loads(text_json)           # string JSON -> dict Python
+```
+
+`ensure_ascii=False` e esențial pentru text cu diacritice românești — fără el, `json.dumps()` escapează caracterele non-ASCII (`ă` devine `ă`), corect tehnic, dar ilizibil pentru inspecție manuală.
+
+{/* TABLE */}
+
+| Tip JSON | Tip Python echivalent |
+|---|---|
+| `object` (`{}`) | `dict` |
+| `array` (`[]`) | `list` |
+| `string` | `str` |
+| `number` | `int` sau `float` |
+| `true`/`false` | `bool` |
+| `null` | `None` |
+
+<CosmoHint emotion="thinking">
+De ce `json.dumps()` aruncă `TypeError` pe un obiect care conține, de exemplu, un tuple sau un set? Pentru că specificația JSON nu are echivalent nativ pentru tuple sau set — doar array-uri (liste). `json.dumps()` convertește automat un tuple Python la un array JSON (deci FUNCȚIONEAZĂ, dar informația "era un tuple" se pierde ireversibil la conversie), dar un `set` chiar nu are corespondent — JSON nu are conceptul de "colecție unică, neordonată" — și aruncă direct eroare, cerându-ți o conversie explicită la listă înainte.
+</CosmoHint>
+
+### De la dicționar brut la clasă Pydantic — problema pe care o rezolvă
+
+```python
+# Fără Pydantic — validare manuală, verboasă, predispusă la omisiuni:
+def valideaza_utilizator(date):
+    if "nume" not in date or not isinstance(date["nume"], str):
+        raise ValueError("nume invalid")
+    if "varsta" not in date or not isinstance(date["varsta"], int):
+        raise ValueError("varsta invalidă")
+    # ... și așa pentru fiecare câmp, la nesfârșit
+
+# Cu Pydantic — validare declarativă, automată:
+from pydantic import BaseModel
+
+class Utilizator(BaseModel):
+    nume: str
+    varsta: int
+    activ: bool = True    # valoare implicită, la fel ca la funcții (L9)
+
+utilizator = Utilizator(nume="Ana", varsta=25)
+print(utilizator.varsta)     # 25, tip int GARANTAT
+
+Utilizator(nume="Ana", varsta="douăzecișicinci")   # ValidationError — clar, specific, imediat
+```
+
+Fiecare atribut al clasei, adnotat cu type hint, devine automat o regulă de validare — Pydantic verifică tipul la creare, convertind automat valorile compatibile (`"25"` string numeric → `25` int, prin coerciune inteligentă) și aruncând `ValidationError` cu mesaj precis pentru cele incompatibile.
+
+### Validare imbricată — structuri complexe, natural
+
+```python
+class Adresa(BaseModel):
+    strada: str
+    oras: str
+
+class Utilizator(BaseModel):
+    nume: str
+    varsta: int
+    adresa: Adresa                # câmp de tip ALTĂ clasă Pydantic — validare RECURSIVĂ
+    hobby_uri: list[str] = []      # listă de string-uri, implicit vidă
+
+date_primite = {
+    "nume": "Ana",
+    "varsta": 25,
+    "adresa": {"strada": "Str. Lungă 5", "oras": "Cluj"},
+    "hobby_uri": ["citit", "alergat"]
+}
+
+utilizator = Utilizator(**date_primite)     # '**' despachetare (revezi L9)
+print(utilizator.adresa.oras)                  # "Cluj" — acces prin ATRIBUT, nu prin cheie dicționar
+```
+
+Pydantic validează recursiv structuri imbricate — un dicționar imbricat sub `"adresa"` e validat automat conform clasei `Adresa`, cu propriile regului de tip, fără cod suplimentar de validare manuală pentru fiecare nivel de imbricare. Rezultatul e un obiect Python cu **acces prin atribut** (`.nume`, `.adresa.oras`), nu prin cheie dicționar (`["nume"]`) — mai sigur, cu autocompletare în IDE, verificat static de unelte de tip mypy.
+
+{/* TABLE */}
+
+| Validare manuală (dicționare brute) | Pydantic (`BaseModel`) |
+|---|---|
+| `if "cheie" not in dict: raise ...` pentru fiecare câmp | Declarativ, prin type hints, automat |
+| Acces prin `dict["cheie"]` — poate arunca `KeyError` | Acces prin `obiect.atribut` — verificat static |
+| Nicio conversie automată de tip | Coerciune inteligentă (`"25"` → `25`) |
+| Erori generice sau inconsistente | `ValidationError` structurat, cu locația exactă a erorii |
+| Boilerplate repetitiv la fiecare structură nouă | O clasă, câteva linii, validare completă |
+
+### Structured outputs — legătura directă cu API-urile AI
+
+```python
+from pydantic import BaseModel
+
+class ExtragereEveniment(BaseModel):
+    nume_eveniment: str
+    data: str
+    participanti: list[str]
+
+# API-urile moderne (OpenAI, Anthropic) accept un schema Pydantic direct ca "formă garantată" a răspunsului:
+raspuns = client.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=[{"role": "user", "content": "Extrage evenimentul din acest text: ..."}],
+    response_format=ExtragereEveniment    # modelul e CONSTRÂNS să producă exact această structură
+)
+
+eveniment = raspuns.choices[0].message.parsed   # deja un obiect ExtragereEveniment, validat
+print(eveniment.participanti)                      # listă de string-uri, tip GARANTAT
+```
+
+Acesta e exact scenariul din HOOK, rezolvat structural: în loc să speri că modelul AI produce mereu JSON corect și să validezi manual după fapt, **transmiți schema Pydantic direct API-ului**, care constrânge generarea modelului să respecte exact acea structură — eliminând complet clasa de erori "modelul a scris ceva aproape corect, dar nu chiar."
+
+<CosmoHint emotion="excited">
+Structured outputs cu Pydantic sunt fundația tehnică pentru majoritatea agenților AI care "apelează unelte" — schema Pydantic descrie exact ce parametri acceptă o unealtă (`citeste_fisier(cale: str)`), modelul e constrâns să producă apeluri valide conform acelei scheme, iar codul care execută unealta primește garantat date de tipul corect, fără validare manuală suplimentară. Legătura cu JSON-RPC din C3 L25 e directă: schema Pydantic descrie forma exactă a `params`-ului dintr-un mesaj JSON-RPC, validat automat înainte de execuție.
+</CosmoHint>
+
+### Serializare înapoi — de la obiect Pydantic la JSON
+
+```python
+utilizator_json = utilizator.model_dump_json(indent=2)    # obiect Pydantic -> string JSON
+utilizator_dict = utilizator.model_dump()                    # obiect Pydantic -> dict Python normal
+```
+
+Conversia e simetrică — poți valida date primite (JSON → Pydantic) și serializa date proprii (Pydantic → JSON) cu aceeași claritate, fără cod manual de conversie repetat de fiecare dată.
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Etapă | Fără Pydantic | Cu Pydantic |
+|---|---|---|
+| Primire date externe (API, fișier) | `dict` brut, nevalidat | `MeuModel(**date)` — validat automat |
+| Verificare tip | Manual, `isinstance()` repetat | Automat, prin type hints |
+| Acces la câmpuri | `dict["cheie"]`, risc `KeyError` | `obiect.atribut`, verificat static |
+| Structuri imbricate | Validare manuală recursivă | Automat, declarativ |
+| Eroare de validare | Cod custom, inconsistent | `ValidationError` structurat |
+
+<FactBox>
+**JSON + Pydantic în cifre:**
+- JSON: format standard din anii 2000, corespondență aproape 1-la-1 cu structurile native Python
+- Pydantic: creat de Samuel Colvin, **2017**; folosit nativ de FastAPI pentru validarea cererilor
+- `ensure_ascii=False`: obligatoriu pentru text cu diacritice românești lizibil în JSON exportat
+- Coerciune de tip Pydantic: `"25"` (string) → `25` (int), conversii inteligente similare
+- Structured outputs (OpenAI/Anthropic): constrâng generarea modelului la o schemă Pydantic exactă
+- `model_dump()`/`model_dump_json()`: conversie simetrică, obiect Pydantic ↔ dict/JSON
+</FactBox>
+
+---
+
+## ÎNCHEIERE
+
+Pydantic transformă validarea de date dintr-un exercițiu manual, repetitiv și predispus la omisiuni într-o declarație clară, bazată pe type hints deja familiare din L9 — o singură clasă descrie complet forma, tipurile și regulile datelor tale. Structured outputs extind acest principiu direct la generarea de conținut prin modele AI, eliminând incertitudinea despre formatul exact al unui răspuns generat.
+
+Ai scris cod Python, dar l-ai rulat mereu presupunând că interpretorul și toate bibliotecile necesare (`requests`, `pydantic`) sunt deja disponibile. Lecția următoare arată exact cum se instalează și se izolează aceste dependențe, corect, fără să contaminezi restul sistemului — `uv` și virtual environments.
