@@ -1,0 +1,128 @@
+---
+title: "Firewall: Portarul care citește fiecare pachet"
+order: 18
+type: lesson
+module_index: 3
+duration: 14
+difficulty: 3
+---
+
+# Firewall: Portarul care citește fiecare pachet
+
+## HOOK
+
+O echipă de infrastructură deschide temporar portul 27017 (MongoDB) către internet, "doar pentru testare", pe un server de producție. Uită să-l închidă. Șase ore mai târziu, un scanner automat — unul din miile care baleiază constant tot spațiul IPv4 public — găsește portul deschis, se conectează, descoperă că baza de date n-are autentificare configurată, și extrage integral tabelul de utilizatori. Nimeni n-a "spart" nimic. Nu a existat nicio vulnerabilitate în cod. A existat doar o regulă lipsă acolo unde ar fi trebuit să fie una.
+
+Un firewall nu previne bug-uri. Nu criptează nimic — asta e treaba TLS-ului din L17. Face un singur lucru, dar îl face pentru fiecare pachet care trece: decide, pe baza unui set de reguli, dacă pachetul are voie să continue sau e aruncat. E cel mai vechi și cel mai fundamental strat de apărare al unei rețele — și, paradoxal, cel mai des configurat greșit.
+
+---
+
+## CONTEXT
+
+Primele firewall-uri, de la finalul anilor '80, erau simple **filtre de pachete** (packet filters): verificau IP sursă, IP destinație, port, protocol — pentru fiecare pachet, independent, fără memorie despre pachetele anterioare. Rapide, dar ușor de păcălit: un atacator putea trimite pachete TCP cu flag-ul ACK setat, pretinzând că fac parte dintr-o conexiune existentă, iar filtrul le lăsa să treacă.
+
+Anii '90 aduc **stateful inspection** (Check Point, 1994): firewall-ul ține o tabelă de conexiuni active și verifică fiecare pachet nou în contextul stării conexiunii lui — dacă nu există un SYN inițial înregistrat, un pachet cu doar ACK e respins automat, indiferent de reguli. Acesta e standardul de bază azi, pe orice firewall modern, de la `iptables` la un router de acasă.
+
+Ultimul pas, **Next-Generation Firewall (NGFW)**, din anii 2000, adaugă inspecție la Layer 7: firewall-ul nu se mai uită doar la porturi, ci deschide pachetul și citește protocolul aplicație — poate distinge trafic HTTPS legitim de trafic tunelat prin portul 443 care pretinde a fi HTTPS.
+
+---
+
+## MIEZUL
+
+### Filtrarea fără stare vs. cu stare
+
+Un filtru **stateless** verifică fiecare pachet izolat, pe baza unui tuple de câmpuri: IP sursă, IP destinație, port sursă, port destinație, protocol (TCP/UDP/ICMP). O regulă tipică: "permite trafic TCP către portul 443, refuză tot restul de intrare." Problema: pentru ca un răspuns să se întoarcă la client, ai nevoie și de o regulă separată de ieșire — sau, mai rău, de o regulă de intrare care permite orice pachet cu sursă portul 443, ceea ce un atacator poate falsifica ușor (sursa portului e un câmp pe care expeditorul îl controlează complet).
+
+Un firewall **stateful** rezolvă asta cu o **connection tracking table**: la primul SYN al unei conexiuni TCP ieșite, firewall-ul creează automat o intrare temporară care permite pachetele de răspuns (SYN-ACK, apoi ACK-urile din sesiune), fără să existe o regulă explicită de intrare. Tabela reține tuple-ul complet (IP/port sursă, IP/port destinație, protocol) plus starea conexiunii — `NEW`, `ESTABLISHED`, `RELATED` (conexiuni conexe, ex. canalul de date FTP deschis dinamic după canalul de control), `INVALID`.
+
+Consecința practică: pe majoritatea rețelelor rezidențiale și corporate, regula implicită e "refuză tot traficul de intrare neinvitat, permite tot traficul de ieșire". Device-ul tău poate iniția orice conexiune spre internet; nimeni de pe internet nu poate iniția o conexiune spre tine, decât dacă ai deschis explicit un port.
+
+<CosmoHint emotion="thinking">
+De ce port forwarding-ul de pe routerul de acasă e, tehnic, o gaură deliberată în firewall? Când deschizi portul 25565 pentru un server Minecraft, spui routerului: "orice pachet TCP nou către acest port, tratează-l ca deja permis, redirecționează-l la 192.168.1.50." Combinat cu NAT-ul din L11, e exact mecanismul invers al conexiunilor ieșite normale — și motivul pentru care orice port deschis manual trebuie justificat, nu lăsat "pentru orice eventualitate."
+</CosmoHint>
+
+### Anatomia unei reguli — `iptables`/`nftables`
+
+Linux implementează filtrarea de pachete prin **Netfilter**, framework-ul din kernel accesat clasic prin `iptables` și, în distribuțiile moderne, prin succesorul lui, `nftables`. Regulile sunt organizate în **chains** (lanțuri), fiecare atașat unui punct din traseul pachetului prin kernel:
+
+{/* TABLE */}
+
+| Chain | Când se aplică |
+|---|---|
+| `PREROUTING` | Imediat ce pachetul intră, înainte de decizia de rutare |
+| `INPUT` | Pachete destinate acestei mașini |
+| `FORWARD` | Pachete care trec prin mașină (routing/NAT) |
+| `OUTPUT` | Pachete generate local, înainte să plece |
+| `POSTROUTING` | Imediat înainte ca pachetul să părăsească interfața |
+
+```bash
+# Politica implicită: refuză tot ce nu e permis explicit
+iptables -P INPUT DROP
+
+# Permite conexiuni deja stabilite/conexe (esențial — altfel niciun răspuns nu trece)
+iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+
+# Permite loopback (procesele locale care se conectează la ele însele)
+iptables -A INPUT -i lo -j ACCEPT
+
+# Permite SSH doar de la un IP anume
+iptables -A INPUT -p tcp -s 203.0.113.10 --dport 22 -j ACCEPT
+
+# Permite HTTPS de la oricine
+iptables -A INPUT -p tcp --dport 443 -j ACCEPT
+```
+
+Regulile se evaluează **în ordine**, de sus în jos, iar prima potrivire câștigă — de aceea `ESTABLISHED,RELATED` e mereu aproape de vârf: fără ea, fiecare pachet de răspuns ar fi reevaluat de la zero prin toate regulile specifice, cu risc de a fi refuzat. Politica implicită (`-P INPUT DROP`) se aplică doar dacă niciun pachet nu s-a potrivit cu nicio regulă din lanț — e plasa de siguranță finală.
+
+### DROP vs. REJECT
+
+Diferență subtilă, dar cu impact direct asupra a ce vede un atacator care scanează rețeaua. `DROP` aruncă pachetul silențios — sursa nu primește niciun răspuns, așteaptă timeout. `REJECT` trimite explicit un pachet ICMP `destination unreachable` sau un TCP `RST`, informând imediat expeditorul că portul e închis.
+
+Pentru porturi expuse public, `DROP` e alegerea implicită de securitate: un scanner care primește `RST` instant știe imediat că portul există dar e blocat; unul care nu primește nimic nu poate distinge ușor "port filtrat" de "host inexistent" — încetinește reconnaissance-ul, deși nu-l blochează complet (scanere sofisticate deduc oricum din alte semnale).
+
+### Web Application Firewall (WAF) — filtrare la Layer 7
+
+Un firewall clasic vede porturi și IP-uri. Un **WAF** — Cloudflare, AWS WAF, ModSecurity — stă în fața aplicației web și inspectează conținutul cererilor HTTP: parametri din URL, body-ul unui POST, header-ele. Detectează tipare cunoscute de atac direct în payload: `' OR '1'='1` (SQL injection), `<script>` în câmpuri text (XSS), secvențe `../../../etc/passwd` (path traversal).
+
+Regulile WAF sunt de obicei **semnături** (pattern matching, uneori cu OWASP Core Rule Set ca bază) combinate cu **rate limiting** — dacă un IP trimite 500 de cereri de login pe minut, WAF-ul îl blochează temporar, indiferent dacă cererile individuale par legitime sintactic. WAF-ul completează firewall-ul de rețea, nu îl înlocuiește: un pachet poate trece perfect prin `iptables` (port 443 deschis, cum trebuie) și totuși să conțină un payload malițios pe care doar inspecția Layer 7 îl prinde.
+
+<CosmoHint emotion="encouraging">
+`ss -tulnp` (Linux) îți arată exact ce porturi ascultă pe mașina ta chiar acum și ce proces le deține — cel mai rapid mod de a verifica dacă ai lăsat ceva deschis din greșeală, înainte să te uiți măcar la regulile de firewall. Dacă un port apare acolo și n-ai idee de ce, ai o problemă de investigat imediat.
+</CosmoHint>
+
+### Egress filtering — direcția ignorată
+
+Majoritatea configurațiilor se concentrează pe traficul de intrare și lasă ieșirea complet deschisă. Problemă: dacă un atacator reușește să execute cod pe un server (prin altă vulnerabilitate), primul lucru pe care-l face e să deschidă o conexiune de **ieșire** către infrastructura lui — un reverse shell, sau exfiltrare de date către un server extern. Fără reguli de egress, acea conexiune trece nestingherită prin firewall, pentru că "totul de ieșire e permis" era premisa inițială.
+
+**Egress filtering** inversează asta pentru medii sensibile: serverul de producție are voie să se conecteze *doar* la o listă explicită de destinații necesare (baza de date internă, API-urile third-party folosite, registry-ul de imagini Docker) — orice altă conexiune de ieșire e blocată. Costă efort de configurare și întreținere, dar transformă exfiltrarea de date dintr-un simplu `curl` reușit într-o operațiune blocată la sursă.
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Tip firewall | Nivel OSI | Ce vede | Exemplu |
+|---|---|---|---|
+| Filtru de pachete (stateless) | L3/L4 | IP, port, protocol | ACL simplu pe router |
+| Stateful inspection | L3/L4 + stare | Ca mai sus + contextul conexiunii | `iptables`/`nftables`, pfSense |
+| Next-Gen Firewall | L3-L7 | Ca mai sus + aplicația/protocolul real | Palo Alto, Fortinet |
+| WAF | L7 (doar HTTP/S) | Conținutul cererilor web | Cloudflare, ModSecurity |
+
+<FactBox>
+**Firewall în cifre:**
+- Netfilter/`iptables`: parte din kernelul Linux din **1998** (2.4, apărut 2001 ca succesor al `ipchains`)
+- 5 chain-uri standard: `PREROUTING`, `INPUT`, `FORWARD`, `OUTPUT`, `POSTROUTING`
+- Scanere automate baleiază **întregul spațiu IPv4 public** (~4.3 miliarde de adrese) în ore, nu zile
+- Regulă implicită recomandată: `DROP` la intrare, whitelist explicit — nu blacklist
+- OWASP Core Rule Set (WAF): peste **200** reguli de detecție predefinite
+- `nftables`: succesorul `iptables`, integrat implicit din kernel **3.13** (2014), unificat sub un singur framework
+</FactBox>
+
+---
+
+## ÎNCHEIERE
+
+Un firewall e o listă de reguli, evaluate în ordine, care decide soarta fiecărui pachet: trece sau moare. Stateful inspection a adăugat memorie — firewall-ul știe dacă un pachet aparține unei conversații deja aprobate. NGFW și WAF au adăugat context — nu doar *de unde* vine pachetul, ci *ce conține*.
+
+Dar un firewall filtrează pe baza a *ce este* traficul — port, protocol, conținut. Nu ascunde *de unde* vii și nu te protejează pe o rețea pe care nu ai încredere deloc, cum e Wi-Fi-ul public din exemplul de mai devreme. Pentru asta ai nevoie de un tunel complet criptat între tine și o rețea de încredere — subiectul lecției următoare: VPN.
