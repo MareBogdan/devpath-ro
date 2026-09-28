@@ -1,0 +1,152 @@
+---
+title: "Notarea Big O — și de ce atenția e O(n²)"
+order: 3
+type: lesson
+module_index: 5
+duration: 15
+difficulty: 3
+---
+
+# Notarea Big O — și de ce atenția e O(n²)
+
+## HOOK
+
+L1 a arătat, cu cifre concrete, diferența dintre o buclă simplă și una imbricată. L2 a arătat diferența dintre căutarea liniară și cea binară, tot cu cifre concrete. Dar "cifre concrete" înseamnă un exemplu numeric specific — 10.000 de utilizatori, un milion de elemente. Ai nevoie de un limbaj care descrie tiparul de creștere **independent** de orice număr specific, un limbaj în care poți compara doi algoritmi fără să rulezi vreodată vreunul dintre ei.
+
+Acel limbaj e **notația Big O** — și motivul pentru care titlul acestei lecții numește specific O(n²) ca "atenția" ta nu e arbitrar: mecanismul de **self-attention**, inima arhitecturii Transformer care stă la baza fiecărui model de limbaj modern (GPT, Claude, Gemini), are complexitate O(n²) în raport cu lungimea secvenței de intrare. Fiecare limitare de context pe care ai întâlnit-o vreodată la un chatbot AI are, la rădăcină, exact această notație — nu ca teorie abstractă, ci ca motiv tehnic direct, măsurabil.
+
+---
+
+## CONTEXT
+
+Notația Big O a fost introdusă de matematicianul german Paul Bachmann în 1894, pentru analiza asimptotică a funcțiilor — cum se comportă o funcție pe măsură ce argumentul ei tinde spre infinit. Donald Knuth a adaptat și popularizat-o pentru informatică în anii '70, ca standard universal de descriere a eficienței algoritmilor, exact contextul menționat deja în L1.
+
+Ideea centrală: Big O descrie **cum crește** timpul de execuție (sau memoria folosită) pe măsură ce dimensiunea datelor de intrare (notată convențional `n`) crește, ignorând deliberat constantele exacte și detaliile de implementare specifice unui hardware anume. Nu spune "acest algoritm durează 3 milisecunde" — spune "acest algoritm durează un timp proporțional cu `n²`", o afirmație adevărată indiferent dacă rulează pe un telefon vechi sau pe un server dedicat.
+
+---
+
+## MIEZUL
+
+### De ce ignorăm constantele — intuiția din spatele abstractizării
+
+```python
+def suma_simpla(lista):
+    total = 0
+    for x in lista:
+        total += x
+    return total
+```
+
+Această buclă face aproximativ `n` operații de adunare. O variantă care ar face de două ori mai multă muncă per element (poate o verificare suplimentară inutilă) ar face `2n` operații — dar Big O **nu distinge** între `n` și `2n`: ambele sunt notate O(n), pentru că amândouă cresc **liniar** cu `n`. Motivul: la scară suficient de mare, diferența dintre "de două ori mai lent" și "de zece ori mai lent" devine irelevantă comparativ cu diferența dintre "crește liniar" și "crește pătratic" — exact diferența demonstrată numeric în L1. Big O captează *forma* curbei de creștere, nu punctul exact pe ea.
+
+$$O(n) \neq O(2n) \text{ ca formule, dar } O(n) = O(2n) \text{ ca notație Big O}$$
+
+### Regulile de simplificare — cum ajungi la notația finală
+
+{/* TABLE */}
+
+| Expresie reală (numărul de operații) | Notație Big O | Regula aplicată |
+|---|---|---|
+| `3n + 5` | O(n) | Ignoră constantele aditive și multiplicative |
+| `n² + n + 100` | O(n²) | Păstrează doar termenul dominant |
+| `n² + n³` | O(n³) | Termenul care crește cel mai rapid domină |
+| `5` (constant, indiferent de n) | O(1) | Timp constant |
+| `log(n) + n` | O(n) | Termenul liniar domină termenul logaritmic |
+
+Regula practică: găsești termenul care crește cel mai rapid pe măsură ce `n` devine foarte mare, îl păstrezi, arunci tot restul — constante, termeni de ordin inferior. La `n` mic, diferențele astea contează vizual; la `n` mare (exact scenariul relevant pentru orice sistem care va scala), termenul dominant "mănâncă" complet contribuția celorlalți.
+
+<CosmoHint emotion="thinking">
+De ce contează doar termenul dominant, dacă și ceilalți termeni tot fac parte din calcul? Ia `n² + 1000n` — la `n = 10`, termenii sunt aproape egali (100 vs. 10.000, termenul liniar domină vizibil). Dar la `n = 1.000.000`, termenul pătratic e `10^12`, iar cel liniar doar `10^9` — de o mie de ori mai mic, practic neglijabil în comparație. Cu cât `n` crește, cu atât diferența dintre termeni se amplifică — motiv pentru care Big O, gândit pentru comportamentul la scară mare (exact unde contează performanța reală), poate ignora sigur tot ce nu e termenul dominant.
+</CosmoHint>
+
+### Familia de clase de complexitate — de la cea mai bună la cea mai rea
+
+{/* TABLE */}
+
+| Notație | Nume | Exemplu | Comportament la n = 1.000.000 |
+|---|---|---|---|
+| O(1) | Constant | Acces la un element din listă după index | Instant, indiferent de n |
+| O(log n) | Logaritmic | Căutare binară (L2) | ~20 pași |
+| O(n) | Liniar | Parcurgerea unei liste o singură dată | 1.000.000 pași |
+| O(n log n) | Log-liniar | Merge Sort (L6) | ~20.000.000 pași |
+| O(n²) | Pătratic | Buclă imbricată (L1), Bubble Sort (L5) | 1.000.000.000.000 pași |
+| O(2ⁿ) | Exponențial | Enumerarea tuturor subseturilor posibile | Practic imposibil de calculat |
+
+Diferența dintre O(n log n) și O(n²) — deși ambele "conțin" un `n` — e enormă la scară: la un milion de elemente, primul face aproximativ 20 de milioane de pași, al doilea un trilion. Această diferență specifică explică exact de ce Merge Sort (L6) a înlocuit, în majoritatea contextelor practice, algoritmi de sortare mai simpli dar O(n²) precum Bubble Sort (L5).
+
+### Cel mai rău caz, cazul mediu, cel mai bun caz
+
+Big O descrie de obicei **cel mai rău caz** (worst-case) — garanția că algoritmul nu va fi *mai lent* decât atât, indiferent de input. Căutarea liniară din L2, de exemplu, are cel mai rău caz O(n) (elementul căutat nu există, sau e ultimul), dar cazul mediu tot O(n) (elimină doar o constantă, `n/2`, irelevantă în notația Big O). Alți algoritmi au comportamente radical diferite în funcție de caz — Quick Sort (menționat în treacăt, un văr al Merge Sort) are cazul mediu O(n log n) dar cel mai rău caz O(n²), pe input-uri special construite să-l încetinească.
+
+Notațiile complementare, `Ω` (Omega, cel mai bun caz) și `Θ` (Theta, comportament exact, când cel mai bun și cel mai rău caz coincid) există formal, dar în conversația practică de zi cu zi, "complexitatea unui algoritm" înseamnă aproape întotdeauna Big O — garanția de cel mai rău caz, cea mai relevantă pentru a proiecta sisteme care nu se prăbușesc pe input-uri neașteptate.
+
+### De ce O(n²) e "atenția" ta — legătura directă cu Transformer
+
+Mecanismul de self-attention dintr-un model de limbaj calculează, pentru fiecare pereche de tokeni din secvența de intrare, o măsură de relevanță reciprocă — "cât de mult ar trebui să 'atragă atenția' tokenul de la poziția i asupra tokenului de la poziția j?" Pentru o secvență de `n` tokeni, asta înseamnă `n × n = n²` perechi de calculat, exact structura buclei imbricate din L1, aplicată la scara reală a unui model de limbaj.
+
+$$\text{Complexitate atenție} = O(n^2 \cdot d)$$
+
+unde `d` e dimensiunea vectorilor de reprezentare internă (constantă pentru un model dat, deci nu afectează forma curbei în raport cu `n`). Această complexitate pătratică explică direct de ce dublarea lungimii contextului unui model (de la 4.000 la 8.000 de tokeni, de exemplu) nu dublează costul de calcul — îl **cvadruplează**, exact tabelul din L1 aplicat la infrastructura reală de antrenare și inferență AI, cu costuri reale, măsurabile în timp de GPU și energie.
+
+### Cum estimezi complexitatea unui algoritm, în practică
+
+```python
+def exemplu(lista):
+    for x in lista:              # bucla 1: O(n)
+        print(x)
+
+    for x in lista:               # bucla 2, SEPARATĂ: încă O(n)
+        for y in lista:              # imbricată: O(n) × O(n) = O(n²)
+            print(x, y)
+
+    # complexitate TOTALĂ: O(n) + O(n²) = O(n²) — termenul dominant câștigă
+```
+
+Regula practică de citire a codului: bucle **secvențiale** (una după alta) se *adună* — dar apoi tot termenul dominant supraviețuiește. Bucle **imbricate** (una în interiorul alteia) se *înmulțesc* — O(n) în interiorul altui O(n) devine O(n²). Recunoașterea vizuală a acestor tipare, direct din structura codului, fără să rulezi nimic, e exact reflexul pe care acest curs îl construiește sistematic, lecție după lecție.
+
+### Complexitatea spațiului — nu doar timpul contează
+
+Big O nu descrie doar timpul de execuție — se aplică identic **memoriei** folosite de un algoritm, notată tot cu O(...), dar referindu-se la câtă memorie suplimentară (dincolo de datele de intrare) consumă algoritmul pe măsură ce `n` crește. O funcție care creează o listă nouă, de aceeași dimensiune ca input-ul, are complexitate de spațiu O(n) — pentru fiecare element de intrare, alocă memorie suplimentară proporțională. O funcție care procesează datele "pe loc" (in-place, revezi conceptul din C4 L16 la mutabilitate), fără să aloce structuri noi proporționale cu `n`, are complexitate de spațiu O(1) — constantă, indiferent cât de mari sunt datele de intrare.
+
+Această a doua dimensiune a complexității devine centrală în L4, care tratează explicit compromisul dintre a economisi timp (adesea cu prețul memoriei suplimentare) și a economisi memorie (adesea cu prețul timpului suplimentar) — cele două resurse nu sunt independente, iar multe decizii de proiectare a algoritmilor se reduc, la bază, la a alege ce resursă e mai critică într-un context specific.
+
+### Un exemplu numeric complet — comparând vizual toate clasele
+
+Pentru `n = 20`, diferențele dintre clase par mici — O(log n) ≈ 4, O(n) = 20, O(n log n) ≈ 86, O(n²) = 400, O(2ⁿ) > 1.000.000. La `n = 20`, chiar și O(2ⁿ), teoretic catastrofal, rămâne calculabil instant pe hardware modern. Dar la `n = 50`, O(2ⁿ) depășește deja un cvadrilion — practic incalculabil în timp util, indiferent de puterea hardware-ului disponibil. Această tranziție bruscă, de la "gestionabil" la "imposibil", pentru clase exponențiale, e motivul pentru care algoritmii de forță brută (care enumerează toate combinațiile posibile) sunt evitați activ oriunde dimensiunea problemei poate crește — un motiv direct pentru care Programarea Dinamică (L15) există ca alternativă practică la enumerarea exhaustivă.
+
+<CosmoHint emotion="encouraging">
+Nu ai nevoie să calculezi formal complexitatea fiecărei linii de cod pe care o scrii — ai nevoie doar să recunoști tiparele vizuale: o buclă simplă (O(n)), bucle imbricate pe aceleași date (O(n²)), o înjumătățire repetată (O(log n)). Aceste patru-cinci tipare acoperă majoritatea codului real pe care-l vei citi și scrie — restul lecțiilor din acest curs îți dau exact vocabularul concret (structuri de date, algoritmi specifici) pentru a alege activ tiparul potrivit, nu doar a-l recunoaște pasiv după fapt.
+</CosmoHint>
+
+<FactBox>
+**Notația Big O în cifre:**
+- Introdusă de Paul Bachmann în **1894**, pentru analiza matematică asimptotică
+- Popularizată în informatică de Donald Knuth, anii **1970**
+- O(n log n) vs O(n²) la 1 milion de elemente: **~20 milioane** vs **1 trilion** de pași
+- Self-attention Transformer: complexitate **O(n² · d)** în raport cu lungimea secvenței
+- Dublarea contextului unui model de limbaj: cvadruplează costul de calcul al atenției, nu îl dublează
+- Quick Sort: cazul mediu O(n log n), cel mai rău caz O(n²) — depinde de structura datelor de intrare
+</FactBox>
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Tipar de cod | Complexitate | Exemplu din acest curs |
+|---|---|---|
+| Acces direct prin index/cheie | O(1) | Acces la element dintr-un dicționar (C4 L13) |
+| Înjumătățire repetată a spațiului de căutare | O(log n) | Căutare binară (L2) |
+| O singură buclă peste date | O(n) | Căutare liniară (L2) |
+| Sortare eficientă | O(n log n) | Merge Sort (L6) |
+| Bucle imbricate pe aceleași date | O(n²) | Bubble Sort (L5), self-attention |
+| Enumerarea tuturor combinațiilor posibile | O(2ⁿ) | Cazuri de forță brută, evitate activ |
+
+---
+
+## ÎNCHEIERE
+
+Big O nu e un exercițiu matematic izolat de codul real — e limbajul precis prin care orice discuție serioasă despre performanță, de la o buclă simplă până la arhitectura unui model de limbaj de miliarde de parametri, devine comparabilă și predictibilă. Termenul dominant, nu detaliile exacte, e ce contează la scară — o lecție care se va repeta, aplicată concret, la fiecare structură de date și algoritm din restul acestui curs.
+
+Ai văzut deja că timpul de execuție nu e singura resursă limitată — orice algoritm folosește și memorie, iar uneori poți alege deliberat să consumi mai multă memorie pentru a economisi timp, sau invers. Lecția următoare formalizează exact acest compromis — space-time tradeoff — primul dintre multele decizii conștiente pe care le vei lua, nu doar accepta pasiv, în proiectarea unui algoritm.
