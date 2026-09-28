@@ -1,0 +1,147 @@
+---
+title: "Tuple-uri: Listele imutabile"
+order: 14
+type: lesson
+module_index: 4
+duration: 11
+difficulty: 1
+---
+
+# Tuple-uri: Listele imutabile
+
+## HOOK
+
+O funcție returnează coordonatele unui punct: latitudine și longitudine. Odată calculate, aceste două valori formează o unitate logică fixă — nu are sens ca altcineva, undeva mai departe în program, să "modifice" latitudinea unui punct deja calculat fără să recalculezi de fapt tot punctul. Ai nevoie de o structură care grupează valori corelate, garantat **neschimbabile** după creare — exact rolul tuple-ului.
+
+Tuple-urile par, la prima vedere, "liste cu paranteze rotunde" — dar diferența de imutabilitate nu e cosmetică. Ea permite tuple-urilor să fie folosite ca **chei de dicționar** (impossibil pentru liste, ai văzut în L13), garantează că datele returnate dintr-o funcție nu pot fi alterate accidental de cod la distanță, și semnalează explicit intenția "acestea sunt valori fixe, corelate, nu o colecție extensibilă".
+
+---
+
+## CONTEXT
+
+Python a introdus tuple-ul ca tip distinct de la primele versiuni ale limbajului, exact pentru a oferi un contrapondere imutabil listelor mutabile — o distincție pe care multe limbaje moderne nu o fac la fel de explicit (JavaScript, de exemplu, nu are un tip tuple nativ separat de array). Decizia reflectă filosofia mai largă a Python de a face distincția mutabil/imutabil vizibilă direct în sintaxă, nu doar în documentație — `[]` pentru mutabil, `()` pentru imutabil, o convenție vizuală memorabilă.
+
+---
+
+## MIEZUL
+
+### Creare și acces — identic cu listele, cu o restricție esențială
+
+```python
+punct = (45.7489, 21.2087)   # latitudine, longitudine — Timișoara
+
+print(punct[0])       # 45.7489 — indexare IDENTICĂ cu listele
+print(punct[1])        # 21.2087
+print(punct[-1])        # ultimul element, la fel ca la liste
+
+punct[0] = 46.0          # TypeError: 'tuple' object does not support item assignment
+```
+
+Indexarea, slicing-ul (`punct[0:1]`), iterarea prin `for` — toate identice sintactic cu listele. Diferența singulară, dar fundamentală: **niciun element nu poate fi modificat, adăugat sau eliminat** după creare. Nu există `.append()`, `.remove()`, `.sort()` pe un tuple — orice metodă care ar modifica structura pur și simplu nu există pe tipul `tuple`.
+
+<CosmoHint emotion="thinking">
+De ce un tuple poate fi folosit ca cheie de dicționar, dar o listă nu (revezi L13)? Pentru că hash map-ul din L13 cere ca cheia să fie imutabilă — hash-ul calculat la inserare trebuie să rămână valid pentru toată durata de viață a cheii. `coordonate_cache = {(45.7489, 21.2087): "Timișoara"}` funcționează perfect — tuple-ul e imutabil, hash-ul lui e stabil. Aceeași structură cu o listă în loc de tuple ar arunca imediat `TypeError: unhashable type`. Acest pattern — tuple ca cheie compusă — e extrem de util pentru cache-uri indexate pe multiple valori simultan (coordonate, combinații de parametri).
+</CosmoHint>
+
+### Sintaxa specială a tuple-ului cu un singur element
+
+```python
+x = (5)          # NU e un tuple — e doar int 5 cu paranteze redundante
+y = (5,)          # ESTE un tuple cu un singur element — virgula e OBLIGATORIE
+z = 5,             # ESTE de asemenea un tuple — parantezele sunt opționale, virgula NU
+
+print(type(x))    # <class 'int'>
+print(type(y))     # <class 'tuple'>
+```
+
+Această regulă surprinde des la început: parantezele, singure, nu creează un tuple — Python le tratează ca simplă grupare, exact ca în matematică (`(5 + 3) * 2`). E **virgula** care semnalează un tuple, nu paranteza. Un tuple gol se scrie `()`, fără nicio ambiguitate posibilă acolo.
+
+### Tuple unpacking — despachetarea revizitată din L3
+
+```python
+punct = (45.7489, 21.2087)
+lat, lon = punct               # despachetare directă, două variabile simultan
+
+def obtine_coordonate():
+    return 45.7489, 21.2087     # returnează un TUPLE, implicit (fără paranteze explicite)
+
+latitudine, longitudine = obtine_coordonate()   # despachetat direct la apel
+```
+
+Acest pattern — returnarea mai multor valori dintr-o funcție — e, tehnic, întotdeauna un singur tuple, chiar dacă sintaxa (`return a, b`) nu arată explicit parantezele. E motivul pentru care Python "pare" să suporte returnarea multiplă de valori, când de fapt returnează mereu un singur obiect (tuple-ul), pur și simplu despachetat convenabil la primire.
+
+**Unpacking extins** (Python 3, `*`) gestionează situații unde numărul de elemente e variabil:
+
+```python
+primul, *restul = (1, 2, 3, 4, 5)
+print(primul)   # 1
+print(restul)    # [2, 3, 4, 5] — restul, colectat într-o LISTĂ (nu tuple!)
+
+primul, *mijloc, ultimul = (1, 2, 3, 4, 5)
+print(mijloc)     # [2, 3, 4]
+```
+
+{/* TABLE */}
+
+| Aspect | Listă | Tuple |
+|---|---|---|
+| Sintaxă | `[1, 2, 3]` | `(1, 2, 3)` |
+| Mutabilitate | Mutabilă | **Imutabilă** |
+| Poate fi cheie de dicționar | Nu | **Da** |
+| Metode de modificare | `.append()`, `.remove()`, `.sort()` etc. | Niciuna |
+| Performanță (creare/iterare) | Ușor mai lentă | **Ușor mai rapidă** — structură fixă |
+| Semantică tipică de uz | Colecție omogenă, extensibilă | Grup fix de valori corelate, adesea eterogene |
+
+### Named tuples — tuple-uri cu câmpuri denumite
+
+Un dezavantaj real al tuple-urilor simple: `punct[0]` nu spune nimic despre *ce* reprezintă acel `0` fără context adițional. `collections.namedtuple` (sau, mai modern, `typing.NamedTuple`) rezolvă asta, adăugând nume semantice fără a pierde imutabilitatea:
+
+```python
+from typing import NamedTuple
+
+class Punct(NamedTuple):
+    latitudine: float
+    longitudine: float
+
+p = Punct(45.7489, 21.2087)
+print(p.latitudine)    # acces prin NUME, la fel de clar ca un dicționar
+print(p[0])              # ACCES prin index, de asemenea posibil — e tot un tuple
+```
+
+Acest pattern combină claritatea de acces a unui dicționar cu imutabilitatea și performanța unui tuple — extrem de folosit pentru structuri fixe, mici, unde cheile sunt cunoscute dinainte (rezultate de funcții, configurări fixe, rânduri dintr-un set de date tabelar).
+
+<CosmoHint emotion="encouraging">
+Multe funcții din biblioteca standard Python returnează deja named tuples fără să observi explicit — `divmod(10, 3)` returnează un tuple `(3, 1)` (cât și rest), și module ca `time` (`time.localtime()`) returnează structuri accesibile ambele feluri, prin index ȘI prin nume de câmp (`.tm_year`, `.tm_mon`). Recunoașterea acestui pattern te ajută să citești și să folosești corect documentația bibliotecilor Python fără confuzie.
+</CosmoHint>
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Cod | Tip rezultat | Observație |
+|---|---|---|
+| `(5)` | `int` | Paranteza singură NU creează tuple |
+| `(5,)` | `tuple` | Virgula e obligatorie |
+| `return a, b` | `tuple` | Returnare "multiplă" = un singur tuple |
+| `{(1, 2): "x"}` | `dict` valid | Tuple ca cheie — posibil, listă — nu |
+| `a, *rest = (1, 2, 3)` | `rest` e `list` | Unpacking extins colectează în listă, nu tuple |
+
+<FactBox>
+**Tuple-uri în cifre:**
+- Sintaxă: paranteze rotunde `()`, dar VIRGULA e adevăratul semnal de tuple, nu paranteza
+- Imutabilitate: permite folosirea ca cheie de dicționar/hash map, spre deosebire de liste
+- `divmod(a, b)`: returnează nativ un tuple `(cât, rest)` din biblioteca standard
+- Named tuples: introduse formal prin modulul `collections` (`namedtuple`), extinse cu `typing.NamedTuple`
+- Performanță: tuple-urile sunt, tipic, ușor mai rapide de creat și iterat decât liste echivalente
+- `return a, b, c`: sintaxă des interpretată greșit ca "returnare multiplă" — e de fapt UN tuple
+</FactBox>
+
+---
+
+## ÎNCHEIERE
+
+Tuple-urile completează listele oferind exact opusul: imutabilitate garantată, folosire ca chei de hash map, și semnalarea clară a intenției "acest grup de valori e fix, nu o colecție extensibilă". Named tuples adaugă claritate semantică fără să sacrifice niciuna dintre aceste garanții.
+
+Listele și tuple-urile păstrează ordinea și permit duplicate. Dar ce faci când vrei garanția opusă — o colecție unde fiecare valoare apare **o singură dată**, indiferent de câte ori încerci s-o adaugi? Lecția următoare introduce set-urile.
