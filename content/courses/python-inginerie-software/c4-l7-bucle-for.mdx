@@ -161,6 +161,95 @@ patrate = [x ** 2 for x in range(10)]
 
 Reține pentru acum doar existența pattern-ului — L18 explică exact sintaxa și când e recomandată.
 
+### `reversed()` și iterarea în ordine inversă
+
+```python
+numere = [1, 2, 3, 4, 5]
+
+for n in reversed(numere):
+    print(n)   # 5, 4, 3, 2, 1
+```
+
+`reversed()` returnează un iterator (nu o listă nouă materializată) care produce elementele în ordine inversă — mai eficient decât slicing-ul `numere[::-1]` din L12 pentru colecții mari, pentru că nu creează o copie completă inversată în memorie, ci parcurge originalul invers, la cerere. Diferența de performanță e neglijabilă pentru liste mici, dar contează la colecții de dimensiuni reale de date.
+
+### Iterarea peste mai multe structuri simultan cu `itertools`
+
+Modulul standard `itertools` extinde capacitățile de bază ale `for` cu combinatori specializați, evitând cod manual repetitiv pentru pattern-uri comune de iterare:
+
+```python
+from itertools import chain, product, count
+
+# chain — concatenează mai multe iterabile într-o singură bucla, fără să le combini manual într-o listă:
+for element in chain([1, 2], [3, 4], [5, 6]):
+    print(element)   # 1, 2, 3, 4, 5, 6, secvențial
+
+# product — toate combinațiile posibile (produsul cartezian), util pentru grid search de hiperparametri:
+for rata, batch_size in product([0.001, 0.01], [16, 32, 64]):
+    print(f"rată={rata}, batch={batch_size}")   # 6 combinații, toate perechile posibile
+
+# count — un contor infinit, folosit tipic cu 'break' explicit sau zip pentru limitare
+for i, valoare in zip(count(start=1), ["a", "b", "c"]):
+    print(i, valoare)   # 1 a, 2 b, 3 c
+```
+
+`product()` din exemplul de mai sus e literalmente mecanismul de bază al **grid search**-ului folosit la optimizarea hiperparametrilor unui model AI — testezi sistematic fiecare combinație posibilă de valori pentru mai mulți parametri, fără să scrii manual bucle imbricate pentru fiecare combinație de parametri noi adăugați.
+
+### Nested loops — iterarea peste structuri imbricate
+
+```python
+matrice = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
+
+for rand in matrice:
+    for element in rand:
+        print(element, end=" ")
+    print()   # linie nouă după fiecare rând
+```
+
+Bucle `for` imbricate — o buclă completă în interiorul corpului alteia — sunt pattern-ul standard pentru procesarea structurilor cu mai multe niveluri (matrici, liste de liste, rezultate paginate care conțin liste de elemente per pagină). Bucla exterioară controlează "rândul" curent, bucla interioară procesează fiecare element din acel rând — exact structura pe care ai văzut-o deja condensată prin list comprehension imbricat în exemplul de mai sus, dar exprimată explicit, linie cu linie, mai lizibilă pentru logică complexă care nu se pretează la o comprehension concisă.
+
+De ce o buclă `for` imbricată, cu `break` în bucla interioară, nu oprește și bucla exterioară? `break` afectează doar bucla cea mai apropiată care-l conține direct — pentru a opri ambele bucle simultan la o condiție găsită în interior, ai nevoie fie de un flag boolean verificat și în bucla exterioară, fie de restructurarea codului într-o funcție separată, din care faci `return` direct (return-ul, spre deosebire de `break`, oprește imediat toată execuția funcției, indiferent de câte bucle imbricate conține).
+
+### Iterarea peste dicționare — cele trei variante, revizitate în context
+
+L13 introduce dicționarele complet, dar iterarea lor cu `for` merită menționată aici, alături de restul formelor de iterare, pentru completitudine:
+
+```python
+configurare = {"model": "gpt-4o-mini", "temperatura": 0.7, "max_tokens": 500}
+
+for cheie in configurare:                     # iterează implicit peste CHEI
+    print(cheie)
+
+for cheie, valoare in configurare.items():      # cheie ȘI valoare, despachetate direct
+    print(f"{cheie} = {valoare}")
+
+for valoare in configurare.values():             # doar valorile, fără chei
+    print(valoare)
+```
+
+Acest tipar — `.items()` pentru a obține perechi cheie-valoare, direct despachetabile ca tuple (L14) — e forma cea mai frecvent folosită în cod real, pentru că oferă acces simultan la ambele informații relevante, fără să fie nevoie de o a doua căutare (`configurare[cheie]`) în interiorul buclei pentru a obține valoarea corespunzătoare cheii curente.
+
+### `sum()`, `max()`, `min()`, `any()`, `all()` — funcții încorporate care evită bucle explicite
+
+O buclă `for` scrisă manual pentru a acumula un rezultat simplu (o sumă, un maxim, o verificare "există vreun element care...") e adesea redundantă — Python oferă funcții încorporate optimizate care fac exact acest lucru, direct peste orice iterabil, inclusiv generatoare (L19):
+
+```python
+numere = [4, 8, 2, 9, 5]
+
+print(sum(numere))          # 28 — suma tuturor elementelor
+print(max(numere))           # 9
+print(min(numere))            # 2
+print(any(n > 8 for n in numere))   # True — cel puțin UN element satisface condiția
+print(all(n > 0 for n in numere))     # True — TOATE elementele satisfac condiția
+```
+
+`any()` se oprește la primul element truthy găsit (short-circuit, exact ca `or` din L5); `all()` se oprește la primul element falsy găsit (exact ca `and`). Pentru orice caz care se reduce la "acumulează un singur rezultat dintr-o colecție," aceste funcții încorporate sunt mai scurte, mai rapide (optimizate intern, în C, nu interpretate ca o buclă Python explicită) și mai clare despre intenție decât o buclă `for` scrisă manual cu un acumulator.
+
+Regula generală de recunoscut: de fiecare dată când o buclă `for` scrisă manual doar acumulează o singură valoare finală (sumă, produs, existența unei potriviri), există aproape sigur o funcție încorporată care exprimă exact aceeași idee, mai concis și, de obicei, mai rapid — verifică întotdeauna documentația bibliotecii standard înainte de a scrie manual o buclă pentru un pattern comun de agregare.
+
+Verificarea rapidă "a trecut testul modelul pe TOATE exemplele din setul de validare?" se scrie natural cu `all(model.prezice(x) == y for x, y in date_validare)` — o singură linie, care combină generator expression (previzualizat deja, detaliat în L19) cu `all()`, fără nicio buclă explicită vizibilă în cod, deși mecanismul de dedesubt parcurge fiecare exemplu exact ca un `for` obișnuit.
+
+---
+
 ---
 
 ## REVEAL
