@@ -148,6 +148,137 @@ Decoratorii se aplică **de jos în sus** — cel mai apropiat de `def` se aplic
 `@functools.lru_cache(maxsize=None)` transformă instant o funcție "pură" (fără efecte secundare, din L9) într-o versiune care reține rezultatele calculate deja — a doua chemare cu aceleași argumente returnează instant valoarea salvată, fără să reexecute logica. Util direct pentru funcții costisitoare, apelate repetat cu aceleași input-uri — o singură linie de decorator, fără să modifici deloc implementarea funcției originale.
 </CosmoHint>
 
+### Decoratori de clasă — aplicați metodelor unei clase
+
+Decoratorii nu se limitează la funcții de nivel de modul — se aplică identic metodelor din interiorul unei clase, un pattern extrem de comun în cod real:
+
+```python
+class ServiciuAPI:
+    @lru_cache(maxsize=100)
+    def obtine_date(self, id_resursa):
+        return apeleaza_api_externa(id_resursa)
+
+    @staticmethod
+    @functools.wraps(functie_originala)
+    def valideaza(date):
+        ...
+```
+
+Ai văzut deja `@staticmethod`/`@classmethod` (L17) ca formă particulară de decorator — ele urmează exact mecanismul discutat aici, doar că "funcția" pe care o transformă e o metodă. Stivuirea decoratorilor funcționează identic în interiorul unei clase, cu aceeași regulă de ordine (de jos în sus) ca la funcții obișnuite.
+
+### Măsurarea timpului de execuție — un decorator util, scris de la zero
+
+```python
+import time
+from functools import wraps
+
+def masoara_timp(functie):
+    @wraps(functie)
+    def functie_impachetata(*args, **kwargs):
+        start = time.perf_counter()
+        rezultat = functie(*args, **kwargs)
+        durata = time.perf_counter() - start
+        print(f"{functie.__name__} a durat {durata:.4f}s")
+        return rezultat
+    return functie_impachetata
+
+@masoara_timp
+def antreneaza_epoca(model, date):
+    ...   # logică de antrenare
+
+antreneaza_epoca(model, date_antrenare)   # afișează automat durata, fără cod suplimentar la fiecare apel
+```
+
+Acest decorator practic — măsurarea timpului fiecărei execuții, fără să modifici funcția originală — e exemplul canonic pentru clasa mai largă de decoratori de **instrumentare**: logging, profiling, monitorizare de performanță, toate implementate identic, ca un strat transparent adăugat peste logica de business existentă, fără s-o polueze cu cod repetitiv de măsurare.
+
+### Decoratori de validare — verificarea argumentelor înainte de execuție
+
+```python
+def valideaza_pozitiv(functie):
+    @wraps(functie)
+    def functie_impachetata(x, *args, **kwargs):
+        if x < 0:
+            raise ValueError(f"Argumentul trebuie să fie pozitiv, primit: {x}")
+        return functie(x, *args, **kwargs)
+    return functie_impachetata
+
+@valideaza_pozitiv
+def calculeaza_radical(x):
+    return x ** 0.5
+```
+
+Acest pattern extrage logica de validare (revezi `try`/`except` din L11) într-un decorator reutilizabil, aplicabil oricărei funcții care are nevoie de aceeași verificare — în loc să repeți manual `if x < 0: raise ...` la începutul fiecărei funcții relevante, centralizezi regula o singură dată, aplicată declarativ prin `@valideaza_pozitiv` oriunde e necesară.
+
+### Decoratori care acceptă argumente opționale — pattern-ul complet
+
+Ai văzut deja decoratori simpli (`@decorator_simplu`) și decoratori cu argumente obligatorii (`@repeta(de_cate_ori=3)`). Un pattern mai avansat, întâlnit în biblioteci sofisticate, permite ambele forme de utilizare pe aceeași funcție decorator:
+
+```python
+def cronometreaza(functie=None, *, prag_avertisment=1.0):
+    def decorator(f):
+        @wraps(f)
+        def impachetata(*args, **kwargs):
+            start = time.perf_counter()
+            rezultat = f(*args, **kwargs)
+            durata = time.perf_counter() - start
+            if durata > prag_avertisment:
+                print(f"AVERTISMENT: {f.__name__} a durat {durata:.2f}s")
+            return rezultat
+        return impachetata
+
+    if functie is None:      # apelat CU argumente: @cronometreaza(prag_avertisment=2.0)
+        return decorator
+    return decorator(functie)   # apelat FĂRĂ argumente: @cronometreaza direct
+
+@cronometreaza
+def functie_a():
+    ...
+
+@cronometreaza(prag_avertisment=0.5)
+def functie_b():
+    ...
+```
+
+Această flexibilitate — funcționează cu `@cronometreaza` simplu SAU cu `@cronometreaza(prag_avertisment=...)` — cere verificarea explicită dacă primul argument e `None` (apel fără paranteze) sau o funcție reală (apel cu paranteze goale sau argumente). E un pattern mai complex, dar util de recunoscut — apare frecvent în framework-uri mature, unde decoratorii oferă atât o formă minimală rapidă, cât și una configurabilă complet, fără să oblige utilizatorul să aleagă o singură sintaxă rigidă.
+
+### Decoratori și metadatele de tip — compatibilitatea cu type checkers
+
+Un detaliu practic pentru cod modern, cu type hints (L9): un decorator scris naiv poate "pierde" informația de tip a funcției originale pentru unelte externe de verificare statică (mypy), chiar dacă `@wraps` păstrează `__name__` și `__doc__`. Biblioteca `typing` oferă `ParamSpec` și `TypeVar`, folosite în semnătura decoratorilor scriși pentru cod de producție serios, exact pentru a păstra și informația de tip a parametrilor și a rezultatului prin întregul lanț de împachetare — un detaliu avansat, dincolo de scopul acestui curs introductiv, dar util de știut că există, pentru momentul în care vei scrie decoratori proprii în cod real, tipizat riguros.
+
+### Cazul special — decoratori pe clase întregi
+
+Decoratorii se pot aplica și claselor complete, nu doar funcțiilor sau metodelor individuale:
+
+```python
+def singleton(clasa):
+    instante = {}
+    @wraps(clasa)
+    def obtine_instanta(*args, **kwargs):
+        if clasa not in instante:
+            instante[clasa] = clasa(*args, **kwargs)
+        return instante[clasa]
+    return obtine_instanta
+
+@singleton
+class ConexiuneBazaDeData:
+    def __init__(self):
+        print("Conexiune nouă creată")
+
+c1 = ConexiuneBazaDeData()   # "Conexiune nouă creată"
+c2 = ConexiuneBazaDeData()     # NU afișează nimic — returnează INSTANȚA deja existentă
+print(c1 is c2)                   # True
+```
+
+Acest exemplu implementează pattern-ul **singleton** (o singură instanță garantată în tot programul) direct printr-un decorator de clasă — `dataclass`, discutat deja în L16, e tot un decorator de clasă, doar cu o funcționalitate diferită (generarea automată de metode), aplicat exact prin același mecanism sintactic `@decorator` peste `class`.
+
+### Decoratori vs. moștenire — două căi spre reutilizare de comportament
+
+L17 a arătat moștenirea ca mecanism de reutilizare — o clasă extinde alta, moștenind comportamentul ei. Decoratorii oferă o cale alternativă, adesea mai flexibilă: în loc să legi permanent o funcție/clasă de un comportament suplimentar prin ierarhie, îl adaugi selectiv, la nevoie, printr-o singură linie de adnotare. Diferența practică contează la scară: dacă ai nevoie de aceeași funcționalitate (logging, caching, validare) aplicată unor funcții din clase complet neînrudite, fără o rădăcină comună naturală de moștenire, un decorator o adaugă transversal, fără să forțezi o ierarhie artificială doar pentru a partaja acel comportament.
+
+### Recunoașterea decoratorilor în cod de bibliotecă — un ghid practic de citire
+
+Când întâlnești un decorator necunoscut în cod străin, întrebările utile de pus, în ordine: ce primește (o funcție simplă, sau argumente proprii înainte de a primi funcția)? ce returnează (funcția originală neschimbată, sau una complet nouă, împachetată)? modifică comportamentul funcției, sau doar o înregistrează undeva (cazul `@app.get(...)`, care înregistrează ruta, dar returnează funcția aproape neschimbată, ca să rămână apelabilă direct și pentru teste)? Răspunsurile la aceste trei întrebări, aplicate sistematic, dezleagă rapid orice decorator necunoscut întâlnit prima dată — de la simplele exemple din această lecție, până la cele mai sofisticate din framework-uri de producție.
+
 ---
 
 ## REVEAL
