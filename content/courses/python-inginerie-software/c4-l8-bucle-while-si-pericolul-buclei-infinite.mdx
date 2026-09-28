@@ -118,6 +118,94 @@ while contor < 5:
 
 Dacă output-ul arată `contor` blocat la aceeași valoare, repetată la infinit, ai găsit imediat cauza — variabila de control nu se modifică undeva unde te-ai aștepta. Această tehnică simplă rezolvă rapid marea majoritate a buclelor infinite accidentale din cod de începător.
 
+### `while`/`else` — clauza rar folosită, dar simetrică cu `for`/`else`
+
+Exact ca bucla `for` din L7, `while` are propria clauză `else`, care se execută doar dacă bucla s-a terminat **normal**, prin condiția devenită falsă, nu printr-un `break`:
+
+```python
+tentative = 0
+maxim_tentative = 3
+
+while tentative < maxim_tentative:
+    raspuns = input("Ghicește numărul: ")
+    if raspuns == "42":
+        print("Corect!")
+        break
+    tentative += 1
+else:
+    print("Ai epuizat toate tentativele.")   # se execută DOAR dacă nu a fost 'break'
+```
+
+Pattern-ul aici e identic conceptual cu cel de la `for`/`else`: `else` comunică "bucla a rulat complet, fără să fi fost interceptată de un `break`" — util pentru a distinge explicit între "am găsit ce căutam și am ieșit prematur" și "am parcurs toată logica, fără succes." Rar folosit în practică (mulți dezvoltatori Python experimentați evită deliberat structura, considerând-o confuză la prima citire), dar util de recunoscut citind cod scris de alții.
+
+### Bucle `while` cu multiple condiții de oprire
+
+O buclă `while` reală, de producție, verifică rareori o singură condiție simplă — de obicei combină mai multe motive posibile de oprire, folosind exact operatorii logici din L5:
+
+```python
+timp_scurs = 0
+raspuns_primit = False
+eroare_critica = False
+
+while timp_scurs < 30 and not raspuns_primit and not eroare_critica:
+    raspuns_primit, eroare_critica = verifica_status()
+    timp_scurs += 1
+
+if eroare_critica:
+    print("Operațiune întreruptă din cauza unei erori.")
+elif raspuns_primit:
+    print("Răspuns primit cu succes.")
+else:
+    print("Timeout — nicio confirmare în 30 de unități de timp.")
+```
+
+Acest pattern combină trei tipuri de condiții de oprire, oricare dintre ele suficientă pentru a termina bucla — un timeout (protecție de siguranță de bază), succesul cazului normal, și un eșec explicit care nu trebuie ignorat. Structura `if`/`elif`/`else` de după buclă distinge apoi *care* dintre condiții a declanșat efectiv ieșirea, informație pe care simpla terminare a buclei n-o comunică singură.
+
+### Comparație directă cu recursivitatea — o alternativă la `while`
+
+Anumite probleme rezolvate natural cu `while` (repetă până se atinge o condiție) au și o formulare recursivă echivalentă — o funcție care se apelează pe sine, cu parametri modificați, până ajunge la un caz de bază:
+
+```python
+def numara_descrescator_while(n):
+    while n > 0:
+        print(n)
+        n -= 1
+
+def numara_descrescator_recursiv(n):
+    if n <= 0:            # caz de bază — oprește recursivitatea
+        return
+    print(n)
+    numara_descrescator_recursiv(n - 1)   # apel recursiv, cu parametru modificat
+```
+
+Python limitează adâncimea maximă de recursivitate (implicit ~1000 de apeluri imbricate, configurabil prin `sys.setrecursionlimit()`) — o buclă `while` echivalentă nu are această limitare, motiv pentru care recursivitatea, oricât de elegantă sintactic pentru anumite probleme (parcurgerea unor structuri arborescente, de exemplu), devine impracticabilă pentru un număr foarte mare de repetări, unde `while`/`for` rămân opțiunea sigură.
+
+Depășirea limitei de recursivitate produce `RecursionError: maximum recursion depth exceeded` — un semnal explicit, ușor de diagnosticat, spre deosebire de o buclă `while` infinită, care nu aruncă nicio eroare, doar rulează la nesfârșit fără să spună nimic. Această diferență de comportament la eșec e un argument practic suplimentar pentru `while` cu o limită de siguranță explicită (`max_pasi`, discutat deja la agentul AI): preferi un eșec clar, rapid, diagnosticabil, în locul unei tăceri infinite care blochează întregul program fără indiciu.
+
+### Polling cu `while` — verificare repetată a unei stări externe
+
+Un pattern practic frecvent, legat direct de conceptele din C3: verificarea repetată a stării unei operațiuni asincrone care rulează în altă parte — un job de antrenare pe un server remote, o cerere de procesare video care durează minute:
+
+```python
+import time
+
+def asteapta_finalizarea(id_job, timeout_secunde=300, interval_verificare=5):
+    timp_scurs = 0
+    while timp_scurs < timeout_secunde:
+        status = verifica_status_job(id_job)
+        if status == "finalizat":
+            return status
+        if status == "eroare":
+            raise RuntimeError(f"Job-ul {id_job} a eșuat")
+        time.sleep(interval_verificare)     # pauză, nu verifici la nesfârșit, agresiv, fără pauză
+        timp_scurs += interval_verificare
+    raise TimeoutError(f"Job-ul {id_job} nu s-a finalizat în {timeout_secunde}s")
+```
+
+Acest cod combină exact elementele discutate: o limită de timeout explicită (protecție contra buclei infinite), o pauză între verificări (`time.sleep()`, evitând busy waiting-ul deja menționat ca antipattern), și gestionare explicită a celor trei rezultate posibile — succes, eroare, sau epuizarea timpului alocat. E structura de bază a oricărui client care așteaptă finalizarea unei operațiuni lungi, întâlnită constant în integrări cu servicii AI care procesează cereri asincron.
+
+Alegerea intervalului de verificare (`interval_verificare`) e un compromis practic constant: prea scurt, generezi trafic inutil de rețea, apropiat de un polling risipitor (revezi discuția din C3 despre polling vs. webhooks); prea lung, întârzii inutil detectarea finalizării reale. Un interval de câteva secunde e tipic suficient pentru majoritatea operațiunilor de durată medie, dar valoarea corectă depinde direct de cât timp durează efectiv operațiunea monitorizată.
+
 ---
 
 ## REVEAL
