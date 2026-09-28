@@ -1,0 +1,174 @@
+---
+title: "Gestionarea Fișierelor (File I/O)"
+order: 22
+type: lesson
+module_index: 4
+duration: 12
+difficulty: 2
+---
+
+# Gestionarea Fișierelor (File I/O)
+
+## HOOK
+
+Un script de preprocesare citește un fișier CSV cu un milion de rânduri de date de antrenare, îl transformă, și scrie rezultatul într-un fișier nou. Undeva pe la rândul 340.000, apare o excepție — un rând corupt, o valoare lipsă. Fără gestionare corectă a fișierului, acesta rămâne **deschis**, blocat de proces, chiar și după ce scriptul crapă — pe unele sisteme de operare, fișierul rămâne inaccesibil altor procese până la restart, sau, mai grav, datele scrise parțial înainte de eroare pot rămâne incomplete, corupte, nescrise complet pe disc.
+
+Gestionarea corectă a fișierelor nu e doar despre citire/scriere — e despre garanția că resursa (handle-ul de fișier, ținut de sistemul de operare, revezi cursul de Sisteme de Operare) e eliberată corect, indiferent ce se întâmplă în interior, exact eroarea sau nu.
+
+---
+
+## CONTEXT
+
+Fiecare fișier deschis de un proces consumă o resursă limitată a sistemului de operare — un **file descriptor** (Linux/macOS) sau **handle** (Windows), dintr-un număr finit disponibil per proces (tipic câteva mii, configurabil). Uitarea sistematică de a închide fișiere deschise, într-un proces de lungă durată (un server web care rulează zile în șir), epuizează eventual acest plafon, producând eroarea `Too many open files` — o clasă de bug notorie, dificil de diagnosticat pentru că simptomul apare mult mai târziu decât cauza reală.
+
+Python a rezolvat elegant problema prin **context managers** (`with`, PEP 343, 2005) — o construcție sintactică care garantează execuția codului de cleanup (închiderea fișierului) indiferent de cum se termină blocul, cu sau fără excepție — exact ce ai văzut manual, mai verbos, cu `try`/`finally` în L11.
+
+---
+
+## MIEZUL
+
+### `with open(...)` — pattern-ul standard, obligatoriu
+
+```python
+with open("date.txt", "r") as fisier:
+    continut = fisier.read()
+    print(continut)
+# fișierul e ÎNCHIS AUTOMAT aici, la ieșirea din blocul 'with' — garantat, indiferent de erori
+```
+
+Comparativ cu varianta manuală, echivalentă dar riscantă:
+
+```python
+fisier = open("date.txt", "r")
+continut = fisier.read()
+fisier.close()   # dacă .read() aruncă o excepție, ACEASTĂ LINIE NU SE EXECUTĂ NICIODATĂ
+```
+
+`with` garantează apelul la `.close()` (sau echivalentul de cleanup specific obiectului) **chiar dacă** o excepție e ridicată în interiorul blocului — mecanism identic conceptual cu `finally` din L11, dar exprimat mai concis, mai puțin predispus la erori de omisiune. Regula practică, fără excepții: **orice** deschidere de fișier folosește `with`, niciodată `open()`/`close()` manual în cod de producție.
+
+<CosmoHint emotion="thinking">
+Cum funcționează `with` la nivel mecanic? Obiectul returnat de `open()` implementează două metode speciale: `__enter__` (rulează la intrarea în blocul `with`, returnează valoarea legată de `as fisier`) și `__exit__` (rulează GARANTAT la ieșire, cu sau fără excepție, și primește detaliile excepției, dacă a existat una). Acest protocol — numit "context manager" — nu e specific fișierelor: orice obiect care implementează `__enter__`/`__exit__` poate fi folosit cu `with` — conexiuni de bază de date, lock-uri de thread, sesiuni HTTP, oricare resursă care are nevoie de cleanup garantat.
+</CosmoHint>
+
+### Modurile de deschidere
+
+{/* TABLE */}
+
+| Mod | Sens | Comportament la fișier inexistent |
+|---|---|---|
+| `"r"` | Citire (implicit) | `FileNotFoundError` |
+| `"w"` | Scriere — **ȘTERGE conținutul existent** | Creează fișierul nou |
+| `"a"` | Append — adaugă la finalul fișierului | Creează fișierul nou |
+| `"x"` | Creare exclusivă | `FileExistsError` dacă fișierul deja există |
+| `"r+"` | Citire ȘI scriere | `FileNotFoundError` |
+| `"rb"`, `"wb"` | Ca mai sus, dar în mod BINAR (bytes, nu text) | — |
+
+<CosmoHint emotion="sad">
+`open("date_importante.txt", "w")` pe un fișier existent îl ȘTERGE instant, complet, fără avertisment, fără confirmare — momentul exact în care conținutul precedent devine irecuperabil. Confuzia `"w"` (write, șterge și rescrie) cu `"a"` (append, adaugă la final) e o greșeală clasică, costisitoare, mai ales în scripturi care rulează automat, fără supraveghere umană directă la momentul execuției. Verifică mereu modul exact înainte de a rula orice script care scrie în fișiere cu date valoroase.
+</CosmoHint>
+
+### Citirea — trei metode, cazuri de uz diferite
+
+```python
+with open("date.txt", "r") as fisier:
+    tot_continutul = fisier.read()          # TOT fișierul într-un singur string — riscant la fișiere mari
+
+with open("date.txt", "r") as fisier:
+    toate_liniile = fisier.readlines()        # listă de string-uri, o linie per element — tot în memorie
+
+with open("date.txt", "r") as fisier:
+    for linie in fisier:                        # ITERARE, o linie la un moment dat — LAZY (revezi L19)
+        proceseaza(linie.strip())                # .strip() elimină '\n' de la final
+```
+
+Pentru fișiere de dimensiuni realiste de date (milioane de rânduri), iterarea directă (`for linie in fisier:`) e obligatorie, nu opțională — `read()`/`readlines()` încarcă tot fișierul în memorie simultan, exact aceeași problemă discutată la generatoare în L19, aplicată aici la fișiere. `for linie in fisier:` funcționează pentru că obiectul fișier e, el însuși, un iterator — produce o linie la cerere, fără să materializeze fișierul complet.
+
+### Scrierea
+
+```python
+with open("rezultat.txt", "w") as fisier:
+    fisier.write("Prima linie\n")     # write() NU adaugă '\n' automat — trebuie explicit
+    fisier.write("A doua linie\n")
+
+with open("rezultat.txt", "w") as fisier:
+    linii = ["Primul rând", "Al doilea rând", "Al treilea rând"]
+    fisier.writelines(f"{linie}\n" for linie in linii)   # generator expression, revezi L18-L19
+```
+
+### JSON și CSV — formate structurate frecvente
+
+```python
+import json
+
+configurare = {"model": "gpt-4", "temperature": 0.7}
+
+with open("config.json", "w") as fisier:
+    json.dump(configurare, fisier, indent=2)      # scrie DIRECT în fișier, formatat citeț
+
+with open("config.json", "r") as fisier:
+    configurare_incarcata = json.load(fisier)        # citește DIRECT din fișier, parsat automat
+```
+
+L24 dedică o lecție completă JSON-ului și validării cu Pydantic — reține pentru acum doar legătura directă: `json.dump()`/`json.load()` combină citirea/scrierea de fișiere cu parsarea JSON într-un singur pas, evitând nevoia de a citi manual string-ul brut și a-l parsa separat.
+
+{/* TABLE */}
+
+| Nevoie | Cod |
+|---|---|
+| Citește tot fișierul ca un singur string | `fisier.read()` |
+| Citește linie cu linie, eficient la fișiere mari | `for linie in fisier:` |
+| Scrie un string, fără newline automat | `fisier.write(text)` |
+| Citește/scrie JSON direct în/din fișier | `json.load(fisier)` / `json.dump(date, fisier)` |
+| Verifică dacă un fișier există, ÎNAINTE de a-l deschide | `os.path.exists(cale)` sau `pathlib.Path(cale).exists()` |
+
+### `pathlib` — manipularea căilor, modern
+
+```python
+from pathlib import Path
+
+cale = Path("date") / "antrenare" / "exemple.csv"   # construcție de căi, independentă de OS ('/' vs '\')
+print(cale.exists())        # True/False
+print(cale.suffix)           # ".csv"
+print(cale.stem)              # "exemple"
+
+for fisier_csv in Path("date").glob("*.csv"):        # iterare peste toate fișierele .csv dintr-un director
+    print(fisier_csv)
+```
+
+`pathlib` (Python 3.4+) e alternativa modernă, orientată pe obiecte, la manipularea căilor cu string-uri brute și `os.path`. Operatorul `/` supraîncărcat pentru concatenarea de căi (`Path("date") / "fisier.txt"`) e un exemplu practic al conceptului de suprascriere de operatori — funcționează identic pe Windows și Linux, eliminând bug-uri clasice legate de separatorul de cale diferit (`\` vs `/`) între sisteme de operare.
+
+<CosmoHint emotion="encouraging">
+Loguri de antrenare AI, checkpoint-uri de model, dataset-uri preprocesate — toate ajung, la un moment dat, scrise pe disc prin exact acest pattern `with open(...) as f:`. Chiar și salvarea unui model PyTorch (`torch.save(model.state_dict(), "model.pt")`) folosește intern context managers pentru scrierea sigură a fișierului binar — aceeași garanție de cleanup, aplicată la o operațiune mult mai complexă decât un simplu text.
+</CosmoHint>
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Situație | Practică corectă |
+|---|---|
+| Deschiderea unui fișier, orice scop | ÎNTOTDEAUNA `with open(...) as f:`, niciodată manual |
+| Fișier mare, citire linie cu linie | `for linie in fisier:` — lazy, memorie constantă |
+| Scriere care ar putea șterge date existente | Verifică modul (`"w"` șterge, `"a"` adaugă) înainte de a rula |
+| Date structurate (configurări, rezultate) | `json.dump()`/`json.load()` direct pe obiectul fișier |
+| Construcție de căi cross-platform | `pathlib.Path`, nu concatenare manuală de string-uri |
+
+<FactBox>
+**File I/O în cifre:**
+- Context managers (`with`): introduse prin **PEP 343** (2005)
+- File descriptor: resursă limitată per proces — tipic câteva mii, epuizabilă la uitarea sistematică de `.close()`
+- Modul `"w"`: ȘTERGE complet conținutul existent la deschidere, fără avertisment
+- `for linie in fisier:`: iterare LAZY — citește o linie la un moment dat, memorie constantă
+- `pathlib`: introdus în **Python 3.4** (2014), alternativa modernă la manipularea de căi cu string-uri
+- `json.dump()`/`json.load()`: combină I/O de fișier cu parsare JSON într-un singur apel
+</FactBox>
+
+---
+
+## ÎNCHEIERE
+
+`with open(...) as f:` e regula, nu opțiunea, pentru orice interacțiune cu fișiere în Python — garantează cleanup-ul resursei indiferent de erori, exact același principiu întâlnit deja la `try`/`finally` în L11. Iterarea directă peste un fișier, în loc de `read()` complet, extinde principiul de eficiență de memorie din generatoare (L19) la citirea de date de pe disc.
+
+Ai citit și scris date locale, pe disc. Dar cea mai mare parte a datelor cu care va lucra codul AI vin de la distanță — API-uri externe, servicii de model. Lecția următoare revine la biblioteca `requests`, văzută superficial în L1, și o explorează complet — modulul standard pentru conectarea Python la orice API din lume.
