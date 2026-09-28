@@ -1,0 +1,158 @@
+---
+title: "Mutabilitate vs. Imutabilitate"
+order: 16
+type: lesson
+module_index: 4
+duration: 12
+difficulty: 2
+---
+
+# Mutabilitate vs. Imutabilitate
+
+## HOOK
+
+```python
+def adauga_scor(scoruri, scor_nou):
+    scoruri.append(scor_nou)
+    return scoruri
+
+scoruri_originale = [85, 90, 78]
+scoruri_actualizate = adauga_scor(scoruri_originale, 95)
+
+print(scoruri_originale)   # [85, 90, 78, 95] — LISTA ORIGINALĂ s-a modificat!
+```
+
+Funcția pare să "returneze" o listă nouă, actualizată — dar de fapt a modificat **direct** lista originală, transmisă ca parametru, ca efect secundar invizibil pentru cine a apelat funcția fără să citească implementarea ei. Dacă `scoruri_originale` era folosit și în altă parte a programului, presupunând că rămâne neschimbat, acel cod se comportă acum greșit, silențios, fără nicio eroare care să semnaleze problema.
+
+Acest capitol adună fire deja întâlnite separat — imutabilitatea din L3, L4, L14; mutabilitatea din L12, L13 — într-un singur concept unificat, cu consecințe practice directe asupra fiecărei funcții pe care o scrii de acum înainte.
+
+---
+
+## CONTEXT
+
+Distincția mutabil/imutabil nu e o particularitate arbitrară Python — reflectă o decizie de design prezentă, în forme diferite, în majoritatea limbajelor moderne. Limbajele funcționale pure (Haskell, Clojure) fac aproape **totul** imutabil implicit — orice "modificare" creează de fapt o structură nouă, o alegere care elimină complet clasa de bug-uri din HOOK, cu prețul unui overhead de memorie pentru copierea structurilor.
+
+Python alege o cale de mijloc pragmatică: unele tipuri sunt imutabile prin design (numere, string-uri, tuple-uri — tipuri pe care le folosești constant, unde "modificarea accidentală" ar fi periculoasă și rareori intenționată), altele mutabile (liste, dicționare, seturi — colecții pe care de obicei *vrei* să le modifici direct, adăugând/eliminând elemente, fără costul recreării integrale la fiecare schimbare).
+
+---
+
+## MIEZUL
+
+### Clasificarea completă — imutabil vs. mutabil
+
+{/* TABLE */}
+
+| Tip | Categorie | Exemplu de "modificare" |
+|---|---|---|
+| `int`, `float`, `bool` | Imutabil | `x += 1` creează un obiect NOU |
+| `str` | Imutabil | `.upper()` returnează un string NOU |
+| `tuple` | Imutabil | Nicio metodă de modificare disponibilă |
+| `frozenset` | Imutabil | Nicio metodă de modificare disponibilă |
+| `list` | **Mutabil** | `.append()` modifică ÎN LOC |
+| `dict` | **Mutabil** | `dictionar["cheie"] = x` modifică ÎN LOC |
+| `set` | **Mutabil** | `.add()` modifică ÎN LOC |
+
+Regula de recunoscut vizual, aproximativă dar utilă: tipurile cu paranteze rotunde/ghilimele/nimic (`tuple`, `str`, numere) tind spre imutabil; tipurile cu paranteze pătrate/acolade (`list`, `dict`, `set`) tind spre mutabil — cu excepția tuple-ului care folosește paranteze rotunde ca și un simplu grup matematic, dar rămâne imutabil prin design explicit, nu prin convenția vizuală.
+
+<CosmoHint emotion="thinking">
+De ce contează practic asta pentru orice funcție pe care o scrii? Când transmiți un obiect MUTABIL ca argument unei funcții, funcția primește o REFERINȚĂ la exact același obiect din exterior (revezi L3) — orice modificare făcută în interiorul funcției (`.append()`, `dictionar[cheie] = x`) se reflectă direct în obiectul original, vizibil oriunde altundeva e referențiat acel obiect. Cu un obiect IMUTABIL, orice "modificare" creează de fapt un obiect nou — funcția nu poate afecta niciodată valoarea originală, indiferent ce face intern.
+</CosmoHint>
+
+### Argumente de funcție — implicații directe
+
+```python
+def modifica_lista(lista):
+    lista.append(999)        # modifică lista ORIGINALĂ, direct — efect secundar vizibil extern
+
+def modifica_numar(numar):
+    numar += 999                # NU modifică numărul original — creează un nou 'numar' LOCAL
+
+l = [1, 2, 3]
+n = 5
+
+modifica_lista(l)
+modifica_numar(n)
+
+print(l)   # [1, 2, 3, 999] — MODIFICATĂ
+print(n)    # 5 — NESCHIMBAT
+```
+
+Diferența nu vine din sintaxa `def` sau `return` — vine strict din tipul obiectului transmis. Python nu are, tehnic, "pass by reference" sau "pass by value" în sensul clasic C/Java — are un singur model consistent, **pass by object reference**, unde comportamentul observat depinde complet de mutabilitatea obiectului referit, nu de mecanismul de transmitere în sine.
+
+### Copii — superficiale vs. profunde, revizitate
+
+```python
+import copy
+
+original = {"nume": "Ana", "hobby": ["citit", "alergat"]}
+
+copie_superficiala = original.copy()
+copie_superficiala["hobby"].append("înot")
+print(original["hobby"])       # ['citit', 'alergat', 'înot'] — MODIFICAT! Sub-lista e PARTAJATĂ
+
+copie_profunda = copy.deepcopy(original)
+copie_profunda["hobby"].append("gătit")
+print(original["hobby"])        # NESCHIMBAT — copia profundă a clonat inclusiv sub-listele
+```
+
+Copia **superficială** (`.copy()`, `list(x)`, `dict(x)`, `x[:]`) clonează doar nivelul exterior — orice obiect mutabil imbricat rămâne partajat între original și copie. Copia **profundă** (`copy.deepcopy()`) clonează recursiv, la orice adâncime, garantând independență completă — cu costul suplimentar, real, de a procesa și duplica întreaga structură imbricată, nu doar referința de nivel superior.
+
+### Prevenirea bug-urilor de mutabilitate — practici standard
+
+```python
+def adauga_scor_sigur(scoruri, scor_nou):
+    scoruri_noi = scoruri.copy()      # NU modifică originalul
+    scoruri_noi.append(scor_nou)
+    return scoruri_noi
+
+# Sau, echivalent, cu concatenare (creează implicit o listă nouă):
+def adauga_scor_sigur_v2(scoruri, scor_nou):
+    return scoruri + [scor_nou]
+```
+
+Practica recomandată pentru funcții "pure" (concept introdus în L9): dacă o funcție primește o colecție mutabilă și trebuie să producă o versiune modificată, **clonează întâi**, modifică clona, returnează clona — originalul rămâne intact, comportamentul funcției e complet previzibil din exterior, fără efecte secundare surprinzătoare pentru apelant.
+
+{/* TABLE */}
+
+| Situație | Risc | Soluție |
+|---|---|---|
+| Funcție care modifică un parametru mutabil primit | Efect secundar invizibil pentru apelant | Clonează înainte de a modifica, sau documentează clar efectul |
+| Parametru implicit mutabil (`def f(x=[]):`) | Partajat între TOATE apelurile (L10) | Folosește `None` + creare în interior |
+| Copie superficială pe structuri imbricate | Sub-obiectele rămân partajate | `copy.deepcopy()` dacă e nevoie de independență completă |
+| Tuple care conține o listă mutabilă (`([1,2], "text")`) | Tuple-ul e imutabil, dar CONȚINUTUL listei se poate schimba! | Reține: imutabilitatea e la nivelul containerului, nu neapărat al conținutului |
+
+<CosmoHint emotion="encouraging">
+Tensorii PyTorch operează pe exact această distincție, la scară mult mai mare: operațiile "in-place" (convenția PyTorch: numele metodei termină cu underscore, `tensor.add_(1)`) modifică tensorul original direct, în memorie, fără să creeze unul nou — identic conceptual cu `.append()` pe o listă. Operațiile fără underscore (`tensor.add(1)`) returnează un tensor NOU, lăsând originalul neschimbat — identic conceptual cu `sorted()` versus `.sort()` din L12. Aceeași distincție fundamentală pe care ai învățat-o aici cu liste simple, aplicată la structuri de date mult mai complexe folosite zilnic în deep learning.
+</CosmoHint>
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Verificare | Comportament |
+|---|---|
+| `x = 5; f(x)` unde `f` face `x += 1` intern | `x` extern NESCHIMBAT — int e imutabil |
+| `l = [1]; f(l)` unde `f` face `l.append(2)` intern | `l` extern MODIFICAT — listă e mutabilă |
+| `a = b = [1, 2]` | `a` și `b` referă ACELAȘI obiect — modificarea unuia afectează celălalt |
+| `a = [1, 2]; b = a.copy()` | Obiecte diferite la nivel 1, dar sub-obiecte imbricate rămân partajate |
+| `copy.deepcopy(a)` | Complet independent, la orice nivel de imbricare |
+
+<FactBox>
+**Mutabilitate în cifre:**
+- Tipuri imutabile de bază Python: `int`, `float`, `bool`, `str`, `tuple`, `frozenset`
+- Tipuri mutabile de bază Python: `list`, `dict`, `set`
+- Python: model unic de transmitere a argumentelor — "pass by object reference", nu by-value/by-reference clasic
+- Copie superficială vs. profundă: diferența devine vizibilă DOAR la structuri cu obiecte mutabile imbricate
+- Convenția PyTorch (`_` la final de metodă): semnalează explicit operație in-place, care modifică direct
+- Un tuple imutabil poate conține o listă mutabilă — imutabilitatea containerului nu se propagă automat la conținut
+</FactBox>
+
+---
+
+## ÎNCHEIERE
+
+Mutabilitatea determină dacă modificarea unui obiect prin o variabilă se propagă automat la toate celelalte variabile care-l referențiază — un fir care leagă direct L3 (variabile ca referințe), L12-L13 (liste și dicționare mutabile), și comportamentul oricărei funcții care primește sau returnează colecții. Practica sigură rămâne constantă: clonează explicit când nu vrei efecte secundare, și fii conștient mereu ce tip transmiți — mutabil sau imutabil — înainte să presupui cum se comportă o funcție.
+
+Ai văzut colecții simple — liste de numere, dicționare de string-uri. Programele reale, mai ales cele care modelează entități complexe (un utilizator, un model AI, o comandă), au nevoie de structuri cu propriul comportament, nu doar date brute. Lecția următoare introduce clasele — fundația programării orientate pe obiecte în Python.
