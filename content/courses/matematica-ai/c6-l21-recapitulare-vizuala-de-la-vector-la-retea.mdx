@@ -1,0 +1,144 @@
+---
+title: "Recapitulare vizuală: de la vector la rețea"
+order: 21
+type: lesson
+module_index: 6
+duration: 16
+difficulty: 3
+---
+
+# Recapitulare vizuală: de la vector la rețea
+
+## HOOK
+
+Ai început acest curs cu o singură observație — un chatbot nu vede cuvântul "pisică", vede un șir de numere. Douăzeci de lecții mai târziu, acel șir de numere are acum un nume precis (vector), o mulțime de operații riguroase (adunare, produs scalar, normalizare), un mecanism care-l transformă (matrici), un limbaj care-i măsoară incertitudinea (entropie, cross-entropie), și un proces complet care-l ajustează, treptat, spre o formă utilă (gradient descent).
+
+Această ultimă lecție nu introduce niciun concept nou — leagă explicit tot ce ai învățat, bloc cu bloc, într-o singură hartă coerentă. E recapitularea care transformă douăzeci de piese separate într-un singur întreg, pregătirea directă pentru tot restul programului de Machine Learning care urmează.
+
+---
+
+## CONTEXT
+
+Structura acestui curs — algebră liniară, apoi probabilitate și informație, apoi calcul diferențial — nu e o alegere arbitrară de ordonare pedagogică. Reflectă exact structura matematică a oricărei lucrări serioase de Deep Learning: o rețea neuronală e definită geometric (ce transformări aplică, prin matrici), evaluată probabilistic (cât de bună e o predicție, prin entropie și divergență), și antrenată analitic (cum se ajustează, prin derivate și gradienți). Manualele de referință ale domeniului — de la *Deep Learning* al lui Goodfellow, Bengio și Courville, până la orice curs universitar serios de Machine Learning — urmează, aproape universal, exact această secvență de trei blocuri, pentru exact același motiv pedagogic: fiecare bloc depinde structural de precedentul.
+
+---
+
+## MIEZUL
+
+### Blocul I — Algebră liniară (L2-L7): limbajul reprezentării
+
+{/* TABLE */}
+
+| Lecție | Concept | Rolul lui |
+|---|---|---|
+| L2 | Scalari, vectori, normă | Unitatea de bază — orice embedding e un vector |
+| L3 | Produs scalar, similaritate cosinus | Măsoară cât de "aliniate" sunt două reprezentări |
+| L4 | Shapes, axe, broadcasting | Vocabularul pentru date organizate în loturi |
+| L5 | Matrici ca transformări | Foaia elastică — fiecare strat deformă spațiul |
+| L6 | Înmulțire matricială | Compunerea transformărilor succesive |
+| L7 | Transpusa, inversa, determinantul | Analiza transformărilor — reversibilitate, pierdere de informație |
+
+Acest bloc răspunde la o singură întrebare: cum reprezinți și transformi informație, geometric, într-un spațiu numeric? Fiecare rețea neuronală, la nivelul ei cel mai brut, e o secvență de exact aceste operații — transformări liniare (matrici), combinate (înmulțire), aplicate unor reprezentări (vectori).
+
+### Blocul II — Probabilitate și informație (L8-L13): limbajul incertitudinii
+
+{/* TABLE */}
+
+| Lecție | Concept | Rolul lui |
+|---|---|---|
+| L8 | Distribuția normală | Modelul de incertitudine folosit la inițializare și zgomot |
+| L9 | Teorema lui Bayes | Actualizarea riguroasă a unei credințe, în lumina unei dovezi |
+| L10 | Entropia Shannon | Măsura cantitativă a incertitudinii unei distribuții |
+| L11 | Cross-entropia | Funcția de pierdere standard — compară predicția cu adevărul |
+| L12 | Softmax | Transformă numere brute în distribuții de probabilitate valide |
+| L13 | Divergența KL | Izolează exact eroarea introdusă de o predicție imperfectă |
+
+Acest bloc răspunde la a doua întrebare: cum măsori dacă o predicție e bună sau greșită, riguros, nu doar intuitiv? Fiecare model de clasificare sau de generare de text calculează, la fiecare pas, exact aceste cantități — o distribuție (softmax), comparată cu adevărul (cross-entropie), pentru a produce un singur număr de minimizat.
+
+<CosmoHint emotion="thinking">
+De ce contează să vezi aceste două blocuri — geometrie și probabilitate — ca separate, dar complementare? Pentru că un model AI face literal două lucruri simultan, la fiecare pas: transformă geometric o reprezentare (blocul I) și produce o predicție probabilistică despre ea (blocul II). Fără primul, n-ai avea nicio reprezentare utilă de transformat; fără al doilea, n-ai avea niciun mod riguros de a spune "cât de bună" e acea reprezentare pentru sarcina dorită. Cele două blocuri lucrează mereu împreună, niciodată izolat.
+</CosmoHint>
+
+### Blocul III — Calcul diferențial (L14-L19): limbajul învățării
+
+{/* TABLE */}
+
+| Lecție | Concept | Rolul lui |
+|---|---|---|
+| L14 | Funcții și continuitate | Fundamentul — o rețea e o singură funcție compusă |
+| L15 | Derivata | Panta locală — rata de schimbare a unei funcții simple |
+| L16 | Regula lanțului | Cum se derivează o compunere lungă de funcții — backpropagation |
+| L17 | Jacobianul | Generalizarea derivatei la transformări vectoriale complete |
+| L18 | Gradientul | Direcția exactă a celui mai abrupt urcuș/coborâș |
+| L19 | Gradient descent | Procedura repetată care antrenează efectiv orice model |
+
+Acest bloc răspunde la a treia întrebare, cea mai practică: cum ajustezi, efectiv, milioane de parametri pentru a reduce eroarea măsurată de blocul II? Răspunsul complet — derivată, regulă a lanțului, gradient, coborâre repetată — e algoritmul literal care rulează în orice sesiune de antrenare a oricărui model AI activ.
+
+### Blocul IV — Sinteza (L1, L20): de ce funcționează geometria sensului
+
+L1 a deschis cursul cu o observație empirică — "rege - bărbat + femeie ≈ regină" — iar L20 a explicat-o complet, folosind toate cele trei blocuri anterioare: vectorii și produsul scalar (blocul I) organizează sensul geometric; entropia și gradientul (blocurile II și III) explică *de ce* antrenarea produce exact acest tipar geometric, nu întâmplător, ci ca o consecință directă a optimizării statistice repetate.
+
+### Teme recurente — aceleași idei, revenite constant sub forme noi
+
+O privire retrospectivă dezvăluie câteva idei care n-au apărut o singură dată, izolat, ci au revenit constant, sub forme diferite, de-a lungul întregului curs. Produsul scalar (L3) nu s-a limitat la exemplul inițial de similaritate — a revenit ca piesă centrală a înmulțirii matriciale (L6), apoi a mecanismului de atenție (L12), apoi implicit în orice calcul de normă sau distanță. Compunerea de funcții — o idee introdusă geometric în L5-L6 pentru transformări liniare — a revenit algebric în L14 pentru rețele neuronale, apoi a devenit motorul întregii reguli a lanțului din L16. Space-time tradeoff-ul, menționat direct din C5 și reamintit constant (memoization în backpropagation, L16), a apărut din nou informal în discuția despre Jacobianul complet versus produsul vector-Jacobian din L17.
+
+Această repetare nu e o coincidență stilistică — reflectă faptul că Machine Learning-ul modern se construiește dintr-un set surprinzător de mic de idei matematice fundamentale, combinate și recombinate la scări din ce în ce mai mari, nu dintr-o colecție infinită de tehnici disparate. Odată ce înțelegi riguros aceste câteva idei de bază — vector, produs scalar, matrice, entropie, derivată, gradient — recunoști aceleași structuri, sub nume diferite, în aproape orice arhitectură nouă pe care o vei întâlni în cursurile viitoare.
+
+### Formula centrală, complet adnotată
+
+Formula de atenție a unui Transformer — menționată treptat, piesă cu piesă, în L3, L7 și L12 — poate fi acum citită complet, fără nicio piesă rămasă neexplicată:
+
+$$\text{Atenție}(Q, K, V) = \underbrace{\text{softmax}}_{L12}\left(\frac{\overbrace{Q}^{L1,L2}\overbrace{K^T}^{L3,L7}}{\sqrt{d_k}}\right)\overbrace{V}^{L1,L2}$$
+
+Fiecare literă, fiecare operație din această formulă, care ar fi părut complet opacă la începutul cursului, corespunde acum unei lecții specifice, deja parcurse și înțelese: $Q$, $K$, $V$ sunt vectori (L1-L2), $K^T$ e o transpusă (L7), $QK^T$ e o înmulțire matricială care calculează produse scalare (L3, L6), iar softmax (L12) transformă rezultatul într-o distribuție validă de "atenție". Antrenarea completă a parametrilor din spatele acestei formule — pentru orice model real — folosește exact aparatul din Blocul III (L14-L19).
+
+<CosmoHint emotion="celebrating">
+Reține acest moment: formula de mai sus e, literal, mecanismul central din spatele fiecărui model de limbaj activ chiar acum — ChatGPT, Claude, orice asistent AI cu care ai interacționat vreodată. Cu douăzeci de lecții în urmă, ar fi fost un șir de simboluri fără sens. Acum, fiecare piesă e o poveste pe care ai parcurs-o și ai înțeles-o — nu memorat, ci construit logic, pas cu pas, de la o săgeată simplă într-un plan 2D până la mecanismul central al inteligenței artificiale moderne.
+</CosmoHint>
+
+### Un exemplu complet, integrat — de la cuvânt la parametru ajustat
+
+Pentru a lega totul narativ, urmărește drumul complet al unei singure informații, prin toate cele trei blocuri, într-un singur pas de antrenare: cuvântul "pisică" intră în model ca token, transformat imediat într-un embedding — un vector (L1-L2). Acel vector trece printr-un strat de rețea, o înmulțire matricială cu o matrice de greutăți $W$ (L5-L6), producând un vector nou, transformat. Într-un model cu mai multe straturi, acest proces se repetă, fiecare strat fiind o nouă "foaie elastică" deformată succesiv (L5), combinate riguros prin compunere (L6).
+
+La final, ultimul strat produce niște numere brute — logits — transformate prin softmax (L12) într-o distribuție de probabilitate. Cross-entropia (L11) compară acea distribuție cu răspunsul corect cunoscut, producând un singur număr — pierderea. De aici începe drumul înapoi: regula lanțului (L16) propagă acea pierdere, strat cu strat, calculând, pentru fiecare parametru din fiecare matrice $W$, gradientul lui exact (L17-L18) — cât de mult a contribuit acel parametru individual la eroarea finală. Formula de actualizare din L18-L19 ajustează fiecare parametru, puțin, în direcția care reduce pierderea. Repetă acest ciclu complet de milioane de ori, pentru milioane de exemple diferite, și obții exact procesul de antrenare al oricărui model real.
+
+Această singură poveste — un cuvânt, transformat, evaluat, corectat — traversează, în ordine, toate cele douăzeci de lecții anterioare ale acestui curs, fiecare contribuind cu o piesă obligatorie, fără de care povestea completă n-ar putea fi spusă riguros.
+
+### De la matematică la intuiție — ce rămâne, practic
+
+Nu tot ce ai văzut trebuie memorat ca formulă — ce contează, practic, pentru restul acestui program, e intuiția solidă din spatele fiecărui concept: un vector e o poziție de sens; produsul scalar măsoară aliniere; o matrice transformă; entropia măsoară incertitudine; gradientul arată direcția de îmbunătățire. Formulele exacte pot fi mereu recuperate dintr-un manual sau din documentația unui framework — intuiția despre *ce fac* și *de ce contează* e ceea ce acest curs a urmărit să construiască, temeinic, nu superficial.
+
+Când, în cursurile viitoare, întâlnești un termen nou — regularizare L2, batch normalization, dropout, attention heads multiple — vei putea, cel mai adesea, să descompui numele sau formula lui exact în piesele deja cunoscute din acest curs: o normă (L2), o distribuție (L8), o transformare liniară (L5-L6), un produs scalar repetat (L3). Fundația construită aici nu e un capitol izolat, de trecut o dată și uitat — e limbajul de bază folosit constant, explicit sau implicit, în orice discuție tehnică serioasă despre Machine Learning care urmează.
+
+<FactBox>
+**Cursul de Matematică pentru AI în cifre:**
+- 21 de lecții de conținut, organizate în 4 blocuri tematice complementare
+- Blocul I (algebră liniară): 6 lecții — limbajul reprezentării geometrice
+- Blocul II (probabilitate și informație): 6 lecții — limbajul incertitudinii
+- Blocul III (calcul diferențial): 6 lecții — limbajul învățării
+- Blocul IV (sinteza): geometria semantică, explicată complet cu toate instrumentele
+- Fiecare simbol din formula de atenție a unui Transformer corespunde unei lecții parcurse deja
+</FactBox>
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Întrebare fundamentală | Bloc | Lecții |
+|---|---|---|
+| Cum reprezinți și transformi informație? | Algebră liniară | L2-L7 |
+| Cum măsori dacă o predicție e bună? | Probabilitate și informație | L8-L13 |
+| Cum ajustezi parametrii pentru a învăța? | Calcul diferențial | L14-L19 |
+| De ce funcționează geometria sensului? | Sinteza | L1, L20 |
+
+---
+
+## ÎNCHEIERE
+
+Acest curs a construit, riguros, întregul aparat matematic minim necesar pentru a înțelege — nu doar folosi mecanic, ci înțelege structural — cum funcționează orice model modern de Machine Learning sau Deep Learning: reprezentare geometrică, evaluare probabilistică, ajustare prin calcul diferențial. Nimic din acest parcurs n-a fost abstract fără scop — fiecare concept a fost ales și ordonat pentru a răspunde unei întrebări concrete, ridicate direct de observațiile din primele lecții.
+
+Cursul următor din acest program, **Date & Embeddings** (C7), folosește direct și constant tot ce ai construit aici — embeddings-urile, similaritatea cosinus, bazele de date vectoriale, căutarea semantică la scară reală — toate pornind exact de la fundația matematică riguroasă parcursă în aceste 21 de lecții. Cursurile de după (Machine Learning, Deep Learning, AI Generativ) vor introduce arhitecturi și tehnici noi — dar niciuna dintre ele nu va cere un nou fundament matematic separat; toate se construiesc, direct, peste exact aceleași trei blocuri parcurse aici: algebră liniară, probabilitate și informație, calcul diferențial.
+
+De la un vector simplu, într-un plan 2D, până la mecanismul complet al unei rețele neuronale moderne — ai parcurs, complet, drumul.

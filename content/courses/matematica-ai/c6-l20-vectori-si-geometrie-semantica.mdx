@@ -1,0 +1,145 @@
+---
+title: "Vectori și geometrie semantică — puntea spre embeddings"
+order: 20
+type: lesson
+module_index: 6
+duration: 15
+difficulty: 3
+---
+
+# Vectori și geometrie semantică — puntea spre embeddings
+
+## HOOK
+
+Prima lecție a acestui curs a afirmat, fără demonstrație, că "rege - bărbat + femeie ≈ regină" — o observație surprinzătoare, prezentată atunci ca un fapt empiric de reținut. Optsprezece lecții mai târziu, ai acum absolut tot aparatul matematic necesar ca s-o înțelegi riguros, nu doar s-o accepți: vectori și operațiile lor (L2), produsul scalar și similaritatea cosinus (L3), matrici ca transformări care produc acești vectori prin antrenare (L5-L6), și procesul complet de antrenare prin gradient descent (L14-L19) care ajustează, treptat, exact acele poziții geometrice.
+
+Această lecție închide bucla — explică, cu instrumentele complete, *de ce* geometria unui spațiu de embeddings codifică sens real, și ce înseamnă, mai exact, "geometrie semantică" — puntea directă către cursul de Date & Embeddings (C7) care urmează imediat.
+
+---
+
+## CONTEXT
+
+Observația că relații semantice se manifestă ca direcții geometrice constante a fost documentată riguros pentru prima dată de echipa lui Tomas Mikolov, în articolul din 2013 care a introdus word2vec (menționat deja în L1) — cercetătorii au testat sistematic mii de perechi analoge ("rege-regină", "Franța-Paris", "mare-mai mare") și au descoperit că vectorul diferență dintre fiecare pereche rămâne aproximativ constant, indiferent de perechea specifică aleasă pentru aceeași relație conceptuală.
+
+Această descoperire a marcat o schimbare de paradigmă în lingvistica computațională: sensul nu mai era tratat ca o etichetă discretă, simbolică (o categorie fixă, dintr-o taxonomie predefinită), ci ca o poziție continuă într-un spațiu geometric, unde operațiile aritmetice — adunare, scădere, distanță — capătă interpretare semantică directă. Un deceniu mai târziu, exact acest principiu, extins masiv, stă la baza fiecărui model de limbaj modern.
+
+---
+
+## MIEZUL
+
+### Formalizarea completă a analogiei
+
+Revenind la exemplul din L1, cu instrumentele complete: calculezi vectorul țintă prin adunare și scădere (L2), apoi cauți, prin similaritate cosinus (L3), cuvântul din vocabular al cărui vector e cel mai apropiat de acel target.
+
+$$\vec{v}_{\text{target}} = \vec{v}_{\text{rege}} - \vec{v}_{\text{bărbat}} + \vec{v}_{\text{femeie}}$$
+
+```python
+import numpy as np
+
+def cea_mai_apropiata(vocabular, target, exclude=set()):
+    cea_mai_buna, scor_maxim = None, -2
+    for cuvant, vector in vocabular.items():
+        if cuvant in exclude:
+            continue
+        scor = np.dot(target, vector) / (np.linalg.norm(target) * np.linalg.norm(vector))
+        if scor > scor_maxim:
+            cea_mai_buna, scor_maxim = cuvant, scor
+    return cea_mai_buna, scor_maxim
+
+target = vocabular["rege"] - vocabular["barbat"] + vocabular["femeie"]
+rezultat, scor = cea_mai_apropiata(vocabular, target, exclude={"rege", "barbat", "femeie"})
+print(rezultat, scor)   # "regina", ~0.85
+```
+
+Această căutare — **nearest neighbor search** — parcurge, în principiu, tot vocabularul, calculând similaritatea cosinus (L3) dintre vectorul țintă și fiecare cuvânt candidat, păstrând-o pe cea mai mare. Pentru un vocabular de zeci de mii de cuvinte, calculul rămâne rapid; pentru bazele de date vectoriale reale, cu milioane sau miliarde de vectori (subiectul detaliat al C7), căutarea exhaustivă devine impracticabilă, motiv pentru care se folosesc structuri de căutare aproximativă (Approximate Nearest Neighbor, ANN), care sacrifică o mică precizie pentru un câștig masiv de viteză.
+
+<CosmoHint emotion="thinking">
+De ce funcționează căutarea prin similaritate cosinus, nu prin distanța euclidiană directă (norma diferenței, L2)? Pentru că, așa cum ai văzut deja în L3, magnitudinea unui vector poate reflecta factori irelevanți semantic (frecvența cuvântului în datele de antrenare), în timp ce direcția lui codifică, mult mai constant, sensul propriu-zis. Similaritatea cosinus izolează exact componenta relevantă — unghiul, nu lungimea — motiv pentru care rămâne metrica standard pentru căutare semantică, nu doar o alegere arbitrară de convenție.
+</CosmoHint>
+
+### Un exemplu numeric complet, de la zero până la rezultat
+
+Pentru a face concretă întreaga procedură, un exemplu mic, cu vectori de doar trei dimensiuni (în realitate ar avea 768 sau mai multe, dar principiul e identic):
+
+```python
+vocabular = {
+    "rege":   np.array([0.90, 0.85, 0.10]),
+    "barbat": np.array([0.10, 0.80, 0.05]),
+    "femeie": np.array([0.15, 0.20, 0.90]),
+    "regina": np.array([0.92, 0.25, 0.88]),
+    "copil":  np.array([0.05, 0.10, 0.15]),
+}
+
+target = vocabular["rege"] - vocabular["barbat"] + vocabular["femeie"]
+print(target)   # [0.95, 0.25, 0.95] — foarte aproape de vectorul lui "regina"
+```
+
+Rezultatul, `[0.95, 0.25, 0.95]`, e aproape identic cu vectorul asignat lui "regina", `[0.92, 0.25, 0.88]` — diferența minoră provine din faptul că vectorii n-au fost construiți perfect matematic, ci reflectă, aproximativ, tiparul observat empiric în embeddings reale. Similaritatea cosinus dintre cei doi (calculată exact ca în L3) confirmă numeric ceea ce ochiul deja sugerează: cei doi vectori sunt aproape aliniați, mult mai apropiați decât oricare alt cuvânt din vocabularul mic de mai sus, precum "copil".
+
+### De ce apar aceste direcții constante — o consecință a antrenării
+
+Explicația riguroasă, nu doar empirică: în timpul antrenării (L14-L19), un model de tip word2vec ajustează vectorii astfel încât cuvinte care apar în contexte similare să primească produse scalare mari (L3) — exact ipoteza distribuțională a lui Firth (L1), transformată în obiectiv de optimizare concret, prin cross-entropie (L11) și gradient descent (L18-L19). Dacă relația "masculin → feminin" apare sistematic, în mii de perechi diferite de-a lungul unui corpus mare de text (rege/regină, actor/actriță, domn/doamnă), gradientul împinge, în mod repetat, aceste perechi să difere printr-o direcție geometrică asemănătoare — nu pentru că modelul "înțelege" conceptul de gen, ci pentru că optimizarea statistică, aplicată consecvent la mii de exemple similare, converge natural spre acest tipar geometric.
+
+### Embeddings statice vs. contextuale — o limitare importantă
+
+O limitare esențială a modelelor de tip word2vec, relevantă direct pentru cursurile viitoare: fiecare cuvânt primește un **singur** vector fix, indiferent de context — "bancă" (instituție financiară) și "bancă" (locul unde stai) ar primi același embedding, deși sensurile sunt complet diferite. Modelele moderne, bazate pe Transformer (subiectul detaliat al C9-C10), rezolvă exact această limitare: fiecare cuvânt primește un embedding **contextual**, recalculat dinamic, prin mecanismul de atenție (L3, L7, L12), în funcție de restul propoziției — "bancă" într-o propoziție despre bani și "bancă" într-una despre o plimbare în parc primesc vectori diferiți, poziționați corect, geometric, în vecinătatea sensului potrivit pentru acel context specific.
+
+{/* TABLE */}
+
+| Tip de embedding | Un cuvânt → | Exemplu |
+|---|---|---|
+| Static (word2vec) | Exact un vector fix | "bancă" are un singur vector, indiferent de context |
+| Contextual (Transformer) | Un vector diferit per context | "bancă" (bani) și "bancă" (parc) primesc vectori diferiți |
+
+Mecanismul concret prin care se produce această contextualizare e exact formula de atenție reconstruită complet pe parcursul acestui curs: fiecare token începe cu un embedding inițial (asemănător unui embedding static), apoi, prin produsul scalar Query-Key (L3, L7) normalizat prin softmax (L12), fiecare token "împrumută" informație de la celelalte tokenuri din propoziție, proporțional cu relevanța lor — rezultatul final e un vector nou, care nu mai reprezintă cuvântul izolat, ci cuvântul *în acel context specific*. Un singur cuvânt, procesat în propoziții diferite, produce, la finalul acestui proces, vectori diferiți, plasați geometric mai aproape de sensul corect pentru fiecare context în parte.
+
+### Anizotropia — o complicație practică a spațiilor reale
+
+O observație practică, mai puțin intuitivă, dar relevantă pentru oricine lucrează efectiv cu embeddings la scară mare: spațiile de embeddings antrenate real nu sunt distribuite uniform, izotrop, în toate direcțiile — tind să se concentreze într-un con îngust al spațiului total disponibil, un fenomen numit **anizotropie**. Consecința practică: similaritatea cosinus brută, între doi vectori aleși aleator, tinde să fie artificial ridicată, doar din cauza acestei concentrări geometrice, nu neapărat din similaritate semantică reală — motiv pentru care sistemele serioase de căutare semantică (subiect C7) aplică adesea tehnici de normalizare sau centrare suplimentară, dincolo de simpla normalizare a normei din L2, pentru a corecta acest efect sistematic.
+
+### Clustere semantice — vecinătăți, nu doar analogii izolate
+
+Dincolo de analogii specifice, un spațiu de embeddings bine antrenat organizează cuvinte înrudite în **clustere** — regiuni compacte ale spațiului, unde cuvinte cu sensuri apropiate se grupează natural. Numele de animale tind să formeze un cluster distinct de numele de instrumente muzicale; verbele de mișcare ("aleargă", "sare", "merge") tind să fie mai apropiate unele de altele decât de substantive abstracte ("libertate", "justiție"). Această organizare emergentă — niciun inginer n-o programează explicit, apare spontan din antrenarea statistică descrisă mai sus — e exact ce face embeddings-urile utile practic pentru sarcini precum clasificarea de text, recomandările de conținut similar, sau gruparea automată a documentelor pe teme, toate subiecte tratate direct în cursul de Date & Embeddings (C7).
+
+### Tensiunea dintre intuiția vizuală și algebra riguroasă
+
+Această tensiune — intuiția vizuală, utilă pentru a înțelege conceptele, versus algebra riguroasă, necesară pentru a le aplica corect la scară reală — a fost, de fapt, firul conducător al întregului curs: fiecare lecție a pornit dintr-o metaforă vizualizabilă (o săgeată, o foaie elastică, un munte sub picioarele unui schior), pentru ca apoi să formalizeze exact aceeași idee algebric, într-o formă care se generalizează fără pierdere la 768 sau 1536 de dimensiuni, chiar dacă desenul rămâne, inevitabil, blocat la trei dimensiuni vizualizabile direct.
+
+### Curse of dimensionality — o observație finală
+
+Un ultim aspect, relevant pentru intuiția geometrică construită pe tot parcursul acestui curs: în spații de dimensiune foarte mare (768, 1536 de dimensiuni), intuițiile geometrice formate în 2D sau 3D (L2) devin înșelătoare în moduri specifice — de exemplu, aproape orice doi vectori aleși aleator tind să fie aproape perpendiculari (produs scalar aproape de zero), un fenomen contraintuitiv cunoscut ca "blestemul dimensionalității" (curse of dimensionality). Această observație nu invalidează instrumentele matematice din acest curs — produsul scalar, normele, matricile rămân definite identic, indiferent de dimensiune — dar avertizează că intuiția vizuală directă, formată pe exemple 2D/3D, trebuie completată cu raționament algebric riguros atunci când lucrezi efectiv cu spații de sute de dimensiuni.
+
+<CosmoHint emotion="celebrating">
+Ai închis acum complet bucla deschisă în prima lecție a acestui curs: "rege - bărbat + femeie ≈ regină" nu mai e doar o observație surprinzătoare — e o consecință explicabilă, riguroasă, a modului în care antrenarea statistică (gradient descent, L14-L19) organizează geometric (vectori, L2-L3) reprezentările învățate de o rețea (matrici, L5-L6), ghidată de un obiectiv probabilistic (cross-entropie, L11). Fiecare piesă matematică din acest curs contribuie direct la acest singur fenomen, altfel imposibil de explicat riguros.
+</CosmoHint>
+
+<FactBox>
+**Geometrie semantică în cifre:**
+- Analogiile geometrice de tip "rege-regină" documentate riguros de Mikolov și echipa: **2013**
+- Similaritatea cosinus, nu distanța euclidiană brută, rămâne metrica standard pentru căutare semantică
+- Embeddings contextuale (Transformer): fiecare cuvânt primește un vector diferit, per context specific
+- Anizotropia: spațiile reale de embeddings se concentrează într-un con îngust, nu uniform
+- Curse of dimensionality: în spații de sute de dimensiuni, vectori aleatori tind să fie aproape perpendiculari
+- Căutarea aproximativă (ANN) devine necesară dincolo de milioane de vectori, în baze de date reale
+</FactBox>
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Concept din C6 | Rolul în geometria semantică |
+|---|---|
+| Vectori, adunare, scădere (L2) | Aritmetica de bază a analogiilor |
+| Similaritate cosinus (L3) | Metrica de căutare a celui mai apropiat cuvânt |
+| Matrici de greutăți (L5-L6) | Transformarea care produce embeddings-urile |
+| Cross-entropie, gradient descent (L11, L14-L19) | Procesul care organizează geometric spațiul |
+
+---
+
+## ÎNCHEIERE
+
+Geometria semantică nu e magie — e consecința directă, explicabilă riguros, a antrenării statistice aplicate consecvent la cantități mari de text, folosind exact instrumentele matematice acumulate pe parcursul acestui curs. Limitările practice — anizotropia, blestemul dimensionalității, diferența dintre embeddings statice și contextuale — rămân la fel de reale, dar acum le poți numi și înțelege precis, nu doar observa empiric.
+
+Acest curs se încheie cu o singură lecție rămasă — o recapitulare vizuală completă, care leagă explicit fiecare concept, de la primul vector din L1 până la ultimul pas de gradient descent din L19, într-o singură hartă coerentă a matematicii din spatele oricărei rețele neuronale moderne.

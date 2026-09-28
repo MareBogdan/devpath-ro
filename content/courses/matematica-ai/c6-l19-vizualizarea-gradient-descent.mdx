@@ -1,0 +1,160 @@
+---
+title: "Vizualizarea gradient descent"
+order: 19
+type: lesson
+module_index: 6
+duration: 16
+difficulty: 4
+---
+
+# Vizualizarea gradient descent
+
+## HOOK
+
+L18 a definit gradientul și formula de actualizare $W_{\text{nou}} = W_{\text{vechi}} - \eta \nabla_W L$ — dar o formulă, privită izolat, rămâne abstractă. Ce se întâmplă de fapt, pas cu pas, când aplici acea formulă în mod repetat, de mii sau milioane de ori, pornind dintr-un punct complet aleator pe "muntele" unei funcții de pierdere?
+
+Această lecție urmărește exact acel proces, număr cu număr, pas cu pas — **gradient descent**, algoritmul de optimizare care transformă tot aparatul matematic construit în L14-L18 într-o procedură concretă, executabilă, care antrenează efectiv orice model AI real, de la cel mai mic clasificator până la cel mai mare model de limbaj.
+
+---
+
+## CONTEXT
+
+Metoda coborârii pe gradient a fost descrisă pentru prima dată riguros de Augustin-Louis Cauchy — același matematician menționat în L14 pentru formalizarea continuității — în 1847, ca tehnică generală pentru rezolvarea sistemelor de ecuații prin aproximări succesive. Cauchy n-avea, evident, nicio legătură cu rețelele neuronale — căuta pur și simplu un mod sistematic de a găsi soluții aproximative acolo unde soluțiile exacte (prin inversarea matricilor, L7) erau prea costisitoare de calculat.
+
+Adaptarea metodei la contexte cu incertitudine statistică — situația reală din Machine Learning, unde datele de antrenare sunt doar un eșantion, nu populația completă — a venit prin lucrarea lui Herbert Robbins și Sutton Monro din 1951, care a formalizat aproximarea stocastică. Combinația dintre coborârea pe gradient a lui Cauchy și aproximarea stocastică a lui Robbins-Monro a devenit, un secol mai târziu, exact algoritmul **Stochastic Gradient Descent (SGD)**, motorul din spatele antrenării oricărei rețele neuronale moderne.
+
+---
+
+## MIEZUL
+
+### Un pas cu pas complet, urmărit numeric
+
+Reia exemplul din L18 — funcția de pierdere $L(w_1, w_2) = (w_1-3)^2 + (w_2-1)^2$, cu minimul exact la $(3, 1)$. Pornind din $(0, 0)$, cu o rată de învățare $\eta = 0.1$, urmărește primii patru pași:
+
+{/* TABLE */}
+
+| Pas | $(w_1, w_2)$ | $\nabla L$ | $(w_1, w_2)$ nou |
+|---|---|---|---|
+| 0 | $(0, 0)$ | $(-6, -2)$ | $(0.6, 0.2)$ |
+| 1 | $(0.6, 0.2)$ | $(-4.8, -1.6)$ | $(1.08, 0.36)$ |
+| 2 | $(1.08, 0.36)$ | $(-3.84, -1.28)$ | $(1.46, 0.49)$ |
+| 3 | $(1.46, 0.49)$ | $(-3.07, -1.02)$ | $(1.77, 0.59)$ |
+
+Fiecare rând aplică exact formula din L18: gradientul, multiplicat cu $-\eta$, ajustat parametrii curenți. Observă tiparul — pe măsură ce te apropii de minim, componentele gradientului scad în magnitudine (de la $-6$ la $-3.07$ pe prima coordonată), pentru că panta "muntelui" devine tot mai lină aproape de fundul văii — exact comportamentul așteptat, geometric, al unei funcții pătratice.
+
+```python
+import numpy as np
+
+def pierdere(w):
+    return (w[0]-3)**2 + (w[1]-1)**2
+
+def gradient(w):
+    return np.array([2*(w[0]-3), 2*(w[1]-1)])
+
+w = np.array([0.0, 0.0])
+eta = 0.1
+for pas in range(50):
+    w = w - eta * gradient(w)
+
+print(w)   # aproximativ [3.0, 1.0] — foarte aproape de minimul real
+```
+
+### Rata de învățare — echilibrul dintre viteză și stabilitate
+
+Alegerea lui $\eta$ nu e un detaliu minor — controlează direct dacă algoritmul converge, cât de repede, și dacă o face deloc:
+
+{/* TABLE */}
+
+| Rată de învățare | Comportament |
+|---|---|
+| Prea mică (ex. $\eta = 0.001$) | Converge, dar extrem de lent — mii de pași inutili |
+| Potrivită (ex. $\eta = 0.1$) | Converge rapid și stabil spre minim |
+| Prea mare (ex. $\eta = 1.5$) | Oscilează violent, poate chiar **diverge** (se depărtează de minim) |
+
+<CosmoHint emotion="thinking">
+De ce o rată de învățare prea mare poate face algoritmul să diverge, în loc doar să meargă mai repede? Gândește-te la un pas prea lung pe un munte cu o vale îngustă — în loc să aterizezi mai aproape de fund, sari peste el, ajungi pe versantul opus, poate chiar mai sus decât unde ai pornit. Fiecare pas corectează în direcția opusă, dar cu o mărime atât de mare încât "depășește" ținta constant, amplificând eroarea în loc s-o reducă — exact fenomenul de instabilitate numerică pe care orice inginer de Machine Learning trebuie să-l evite prin alegerea atentă a acestui hiperparametru.
+</CosmoHint>
+
+### Minime locale, minime globale și puncte șa
+
+Exemplul de mai sus folosește o funcție pătratică simplă, cu un singur minim, ușor de găsit din orice punct de plecare — o funcție **convexă**. Funcțiile de pierdere ale rețelelor neuronale reale, cu milioane de parametri, sunt aproape întotdeauna **non-convexe** — au multiple văi (minime locale), unele mai adânci decât altele (minimul global fiind cel mai adânc dintre toate), și, adesea, **puncte șa** — locuri unde gradientul e exact zero, dar care nu sunt nici minim, nici maxim, ci un punct de tranziție, urcător pe o direcție și coborâtor pe alta.
+
+$$\nabla L = \vec{0} \quad\not\Rightarrow\quad \text{minim garantat}$$
+
+Gradientul zero, condiția din L18 pentru un "candidat de minim", nu garantează, singur, că ai găsit cel mai bun punct posibil — doar că te afli într-un punct critic, care poate fi minim local, punct șa, sau, mai rar, maxim local. Cercetarea recentă în optimizare pentru rețele adânci sugerează că punctele șa, nu minimele locale slabe, sunt de fapt principalul obstacol practic în spații de dimensiune foarte mare — motiv suplimentar pentru tehnicile de extindere ale gradient descent discutate mai jos.
+
+Vizual, pe o suprafață de pierdere non-convexă, "conturul" ei (liniile care unesc puncte de aceeași înălțime, exact ca pe o hartă topografică) arată mai multe văi separate, de adâncimi diferite, uneori unite prin trecători înguste care corespund punctelor șa. Doi antrenamenti identici, care pornesc din puncte inițiale aleatoare diferite (revedere din L8 — inițializarea gaussiană), pot ajunge, plauzibil, în văi diferite — motivul practic pentru care rezultatul final al antrenării unei rețele reale variază ușor între rulări repetate, chiar cu exact aceleași date și arhitectură.
+
+### Când te oprești — criterii practice de convergență
+
+O întrebare practică rămasă deschisă: după câți pași te oprești? Rulezi indefinit un algoritm de coborâre repetată riscă fie să irosești resurse de calcul dincolo de punctul util, fie, invers, să oprești antrenarea prematur, înainte ca modelul să fi ajuns la o performanță bună. Criteriul standard folosește exact norma gradientului (L2, L18): când $\|\nabla_W L\|$ scade sub un prag mic prestabilit, panta locală e aproape plată — continuarea antrenării ar aduce îmbunătățiri neglijabile. În practică, pentru rețele reale, antrenarea se oprește adesea nu la convergență matematică strictă, ci pe baza performanței măsurate pe un set separat de date (validare) — o decizie empirică, nu doar teoretică, care ține cont de riscul de supra-antrenare (overfitting), subiect al cursurilor viitoare de Machine Learning.
+
+### Batch, Stochastic și Mini-batch — trei variante practice
+
+Formula din L18 presupune calculul gradientului pe baza *întregului* set de date de antrenare la fiecare pas — **batch gradient descent**, precis, dar costisitor pentru seturi mari de date. **Stochastic Gradient Descent** (SGD) calculează gradientul pe baza unui *singur* exemplu aleator la fiecare pas — mult mai rapid per pas, dar mai "zgomotos", cu o traiectorie care oscilează în jurul direcției ideale. Compromisul standard, folosit universal în practică, e **mini-batch gradient descent** — calculează gradientul pe un lot mic (batch-ul din L4, tipic 32, 64 sau 128 de exemple), suficient de mare pentru un semnal stabil, suficient de mic pentru viteză practică.
+
+### Momentum — o accelerare inspirată din fizică
+
+O extensie practică frecvent folosită: **momentum**, care acumulează o "viteză" din pașii anteriori, nu doar gradientul curent — analog cu o minge care se rostogolește pe deal, câștigând inerție, nu doar reacționând instant la panta locală. Formula extinde direct actualizarea din L18, introducând un termen suplimentar $v$ (viteza acumulată), ponderat de un factor $\beta$ (tipic 0.9):
+
+$$v_{\text{nou}} = \beta v_{\text{vechi}} + \nabla_W L \qquad W_{\text{nou}} = W_{\text{vechi}} - \eta \, v_{\text{nou}}$$
+
+Această acumulare ajută algoritmul să treacă peste mici denivelări (minime locale superficiale) și să reducă oscilațiile în direcții cu pantă abruptă și inconsistentă — o îmbunătățire practică semnificativă față de gradient descent simplu.
+
+```python
+w = np.array([0.0, 0.0])
+v = np.array([0.0, 0.0])
+eta, beta = 0.1, 0.9
+for pas in range(50):
+    v = beta * v + gradient(w)
+    w = w - eta * v
+```
+
+### Adam — rate de învățare individuale pentru fiecare parametru
+
+Optimizatorul cel mai folosit efectiv în antrenarea rețelelor moderne, **Adam** (Adaptive Moment Estimation, 2014), combină momentum cu o a doua idee: fiecare parametru primește propria lui rată de învățare efectivă, ajustată automat în funcție de cât de mare a fost, în medie, gradientul lui recent. Parametrii cu gradienți constant mari (direcții "abrupte") primesc pași mai mici, cei cu gradienți mici și rari (direcții "plate") primesc pași proporțional mai mari — o compensare automată a diferențelor de scală dintre milioanele de parametri ai unei rețele reale, fără să fie nevoie de reglare manuală separată pentru fiecare. Practic, aproape orice antrenare modernă de rețea neuronală — de la clasificatoare mici la modele de limbaj cu miliarde de parametri — folosește Adam sau o variantă directă a lui, nu gradient descent simplu sau chiar momentum izolat.
+
+### Learning rate scheduling — o rată care se ajustează în timp
+
+O tehnică practică suplimentară, folosită aproape universal la antrenarea rețelelor reale: rata de învățare $\eta$ nu rămâne constantă pe tot parcursul antrenării, ci se reduce treptat, urmând un **program** (schedule) prestabilit. Intuiția: la începutul antrenării, când parametrii sunt încă departe de orice minim bun, pași mari sunt utili — acoperă rapid distanța. Spre finalul antrenării, când parametrii sunt deja aproape de o vale bună, pași mari riscă exact instabilitatea descrisă mai devreme — sări peste minim în loc să te apropii fin de el. Reducerea graduală a lui $\eta$ (liniar, exponențial, sau în trepte, la intervale fixe) combină avantajele ambelor regimuri, fără să sacrifice nici viteza inițială, nici precizia finală.
+
+```python
+eta_initial = 0.1
+for pas in range(1000):
+    eta_curent = eta_initial * (0.99 ** pas)   # decădere exponențială
+    w = w - eta_curent * gradient(w)
+```
+
+<CosmoHint emotion="excited">
+Ai urmărit acum, complet, procesul care transformă o rețea neuronală dintr-o colecție haotică de numere gaussiene (L8) într-un model capabil să genereze text coerent — mii sau milioane de pași repetați exact ca cei din tabelul de mai sus, fiecare ghidat de gradient (L18), calculat prin regula lanțului (L16), aplicat unei rețele construite din straturi de matrici (L5-L6). Nimic din acest proces nu mai e un mister — e o secvență de pași aritmetici, repetabilă, pe care ai văzut-o acum concret, numeric.
+</CosmoHint>
+
+<FactBox>
+**Gradient descent în cifre:**
+- Metoda formalizată de Augustin-Louis Cauchy: **1847**
+- Aproximarea stocastică (Robbins-Monro), baza SGD: **1951**
+- Rată de învățare prea mare: risc real de divergență, nu doar de viteză excesivă
+- Batch, Stochastic, Mini-batch: trei variante, compromis între precizie și viteză
+- Punctele șa, nu minimele locale slabe, sunt principalul obstacol practic în rețele adânci
+- Momentum: acumulează viteză din pașii anteriori, reduce oscilațiile și accelerează convergența
+</FactBox>
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Variantă | Date folosite per pas | Compromis |
+|---|---|---|
+| Batch gradient descent | Tot setul de antrenare | Precis, dar lent pentru seturi mari |
+| Stochastic (SGD) | Un singur exemplu | Rapid, dar zgomotos |
+| Mini-batch | Un lot mic (32-128) | Compromisul standard folosit practic |
+
+---
+
+## ÎNCHEIERE
+
+Gradient descent transformă tot aparatul teoretic construit în L14-L18 — funcții, derivate, regula lanțului, Jacobianul, gradientul — într-o procedură concretă, repetabilă, care coboară sistematic spre un minim, ajustând milioane de parametri simultan, un pas mic odată. Rata de învățare, tipul de batch și extensiile precum momentum sunt deciziile practice care fac diferența dintre o antrenare eficientă și una care eșuează să convergă.
+
+Cu acest bloc complet — algebră liniară (L2-L7), probabilitate și informație (L8-L13), calcul diferențial (L14-L19) — rămâne o singură întrebare de închis: revenind la observația din chiar prima lecție a acestui curs, *de ce* funcționează, matematic, aritmetica pe sensuri precum "rege - bărbat + femeie ≈ regină"? Lecția următoare, **Vectori și geometrie semantică**, oferă răspunsul complet, folosind acum toate instrumentele acumulate pe parcursul acestui curs.
