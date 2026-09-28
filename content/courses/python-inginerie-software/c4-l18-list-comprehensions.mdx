@@ -1,0 +1,157 @@
+---
+title: "List Comprehensions"
+order: 18
+type: lesson
+module_index: 4
+duration: 12
+difficulty: 2
+---
+
+# List Comprehensions
+
+## HOOK
+
+```python
+# Varianta clasică, cu buclă explicită:
+scoruri_valide = []
+for scor in scoruri_brute:
+    if scor is not None and scor >= 0:
+        scoruri_valide.append(scor * 100)
+
+# Varianta list comprehension, aceeași logică:
+scoruri_valide = [scor * 100 for scor in scoruri_brute if scor is not None and scor >= 0]
+```
+
+Șase linii devin una. Nu e doar economie de caractere — codul Python idiomatic, cel pe care-l vei întâlni în aproape orice bibliotecă serioasă (inclusiv preprocesarea de date pentru AI), preferă comprehensions pentru transformări simple de liste, exact pentru că exprimă intenția mai direct: "construiește o listă nouă, dintr-o transformare/filtrare a alteia" — fără zgomotul vizual al inițializării unei liste vide și al `.append()`-ului repetat.
+
+---
+
+## CONTEXT
+
+List comprehensions vin din tradiția matematicii de **notație de construcție de mulțimi** (set-builder notation) — expresii de tipul "mulțimea tuturor x-urilor pentru care condiția P(x) e adevărată," notate compact în matematică de secole. Python a adaptat direct această idee ca sintaxă de limbaj, prezentă chiar din primele versiuni, considerată una din cele mai distinctive și apreciate caracteristici ale limbajului — motiv pentru care apare constant în orice discuție despre "cod Pythonic".
+
+---
+
+## MIEZUL
+
+### Sintaxa de bază — transformare simplă
+
+```python
+numere = [1, 2, 3, 4, 5]
+patrate = [x ** 2 for x in numere]     # [1, 4, 9, 16, 25]
+```
+
+Structura generală: `[expresie for element in iterabil]`. Se citește natural, aproape ca engleza: "pentru fiecare element din iterabil, calculează expresia, colectează rezultatele într-o listă nouă." Complet echivalentă cu:
+
+```python
+patrate = []
+for x in numere:
+    patrate.append(x ** 2)
+```
+
+<CosmoHint emotion="thinking">
+De ce list comprehensions sunt, măsurabil, mai rapide decât bucla explicită echivalentă în CPython? Pentru că interpretorul recunoaște tiparul list comprehension și îl optimizează intern — apelul repetat la `.append()` din bucla clasică implică o căutare de metodă la fiecare iterație (verifică dacă `patrate` are atributul `.append`, apoi îl apelează), în timp ce comprehension-ul evită acest overhead prin bytecode dedicat, specializat. Diferența de viteză e reală, măsurabilă, dar nu spectaculoasă — motivul principal de folosire rămâne LIZIBILITATEA, nu performanța.
+</CosmoHint>
+
+### Filtrare — clauza `if`
+
+```python
+numere = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+pare = [x for x in numere if x % 2 == 0]                # [2, 4, 6, 8, 10]
+patrate_pare = [x ** 2 for x in numere if x % 2 == 0]     # [4, 16, 36, 64, 100]
+```
+
+Structura completă: `[expresie for element in iterabil if conditie]`. `if` filtrează *ce elemente* participă la construcția listei noi — doar cele care satisfac condiția generează un rezultat în lista finală.
+
+### Ternar în interior — expresie condiționată, nu filtrare
+
+```python
+numere = [1, 2, 3, 4, 5]
+etichete = ["par" if x % 2 == 0 else "impar" for x in numere]
+# ['impar', 'par', 'impar', 'par', 'impar']
+```
+
+Diferență esențială de reținut, sursă frecventă de confuzie: `if`/`else` **înainte** de `for` e o expresie ternară (L6) — produce o valoare pentru **fiecare** element, indiferent de condiție, doar valoarea diferă. `if` **după** `for` (fără `else`) e un filtru — elimină elemente complet din rezultat. Le poți combina, dar poziția lor în sintaxă schimbă complet semnificația.
+
+{/* TABLE */}
+
+| Sintaxă | Rol |
+|---|---|
+| `[x for x in colectie]` | Transformare identică (echivalent cu `list(colectie)`) |
+| `[f(x) for x in colectie]` | Transformare — aplică `f` fiecărui element |
+| `[x for x in colectie if conditie]` | Filtrare — păstrează doar elementele care satisfac condiția |
+| `[a if conditie else b for x in colectie]` | Expresie condiționată — fiecare element produce ceva, valoarea diferă |
+| `[x for sub in colectii for x in sub]` | Aplatizare (flatten) — bucle imbricate |
+
+### Bucle imbricate — flatten și combinații
+
+```python
+matrice = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
+aplatizat = [x for rand in matrice for x in rand]   # [1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+# Echivalent cu bucla imbricată explicită:
+aplatizat = []
+for rand in matrice:
+    for x in rand:
+        aplatizat.append(x)
+```
+
+Ordinea clauzelor `for` dintr-un comprehension imbricat urmează **exact** ordinea din care ar fi scrise buclele `for` explicite, imbricate — prima clauză `for` din comprehension e bucla exterioară, a doua e cea interioară. Comprehensions cu mai mult de 2 nivele de imbricare devin rapid greu de citit — dincolo de acel punct, o buclă explicită, tradițională, e de obicei alegerea mai clară.
+
+### Dict și set comprehensions — extensii ale aceleiași idei
+
+```python
+nume = ["Ana", "Ion", "Maria"]
+lungimi = {n: len(n) for n in nume}          # dict comprehension: {'Ana': 3, 'Ion': 3, 'Maria': 5}
+lungimi_unice = {len(n) for n in nume}        # set comprehension: {3, 5}
+```
+
+Sintaxa identică, doar paranteza schimbă tipul rezultat: `[]` pentru listă, `{cheie: valoare ...}` pentru dicționar (ai văzut deja în L13), `{valoare ...}` pentru set (L15). Toate trei sunt, conceptual, aceeași idee de "construcție prin transformare/filtrare a unui iterabil existent".
+
+### Generator expressions — varianta lazy
+
+```python
+suma_patrate = sum(x ** 2 for x in range(1000000))   # FĂRĂ paranteze pătrate — generator expression
+```
+
+Fără parantezele `[]`, aceeași sintaxă devine un **generator expression** — produce valorile una câte una, la cerere, fără să materializeze niciodată lista completă în memorie. Pentru `range(1000000)`, diferența e semnificativă: `[x**2 for x in range(1000000)]` alocă o listă de un milion de elemente în memorie; `sum(x**2 for x in range(1000000))` procesează câte un element deodată, fără acea alocare masivă. L19 dedică o lecție completă generatoarelor — reține pentru acum că **omiterea parantezelor** transformă comprehension-ul din "construiește tot dintr-o dată" în "produce pe măsură ce e cerut".
+
+<CosmoHint emotion="encouraging">
+Preprocesarea unui dataset de text pentru AI e aproape universal scrisă cu comprehensions: `tokenuri_curate = [t.lower() for t in tokenuri if t not in cuvinte_de_ignorat]` — o singură linie, filtrare + transformare simultan, exact pattern-ul explorat aici. Verifică orice notebook de preprocesare de date și vei găsi acest tipar repetat constant, semn că e considerat cod idiomatic, nu doar o curiozitate sintactică.
+</CosmoHint>
+
+### Când NU folosești comprehensions
+
+Regula de bun-simț, la fel ca la ternar (L6): dacă logica din interior are nevoie de mai mult de o expresie simplă, sau de gestionare de excepții (`try`/`except`), sau devine ilizibilă compactată pe o singură linie — folosește o buclă explicită. Comprehensions câștigă claritate doar când transformarea/filtrarea e simplă; forțate peste logică complexă, produc exact opusul scopului lor — cod mai greu de citit, nu mai ușor.
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Cod | Rezultat | Tip |
+|---|---|---|
+| `[x for x in range(5)]` | `[0, 1, 2, 3, 4]` | `list` |
+| `[x for x in range(5) if x > 2]` | `[3, 4]` | `list` (filtrat) |
+| `{x: x**2 for x in range(3)}` | `{0: 0, 1: 1, 2: 4}` | `dict` |
+| `{x % 3 for x in range(10)}` | `{0, 1, 2}` | `set` |
+| `(x for x in range(5))` | Obiect generator (nu evaluat încă) | `generator` |
+
+<FactBox>
+**List comprehensions în cifre:**
+- Origine conceptuală: notația matematică de construcție de mulțimi (set-builder notation)
+- Optimizare internă CPython: comprehensions au bytecode dedicat, mai rapid decât bucla + `.append()` echivalentă
+- Practică recomandată: peste **2 nivele** de imbricare `for`, preferă bucla explicită pentru lizibilitate
+- Dict/set comprehensions: aceeași sintaxă de bază, doar paranteza `{}`/`[]` schimbă tipul rezultat
+- Generator expression: identic sintactic, dar FĂRĂ paranteze pătrate — evaluare lazy, nu materializare completă
+- Cod Python idiomatic: comprehensions preferate constant peste bucle explicite pentru transformări simple
+</FactBox>
+
+---
+
+## ÎNCHEIERE
+
+List comprehensions condensează pattern-ul "transformă și/sau filtrează o colecție" într-o singură linie expresivă, optimizată intern, extrem de răspândită în cod Python real, inclusiv în preprocesarea de date pentru AI. Regula de aur: folosește-le pentru transformări simple, renunță la ele pentru logică complexă unde claritatea suferă.
+
+Ai văzut că omiterea parantezelor pătrate transformă un comprehension într-un generator, evaluat lazy. Lecția următoare explorează exact acest concept, complet — generatoarele și cuvântul-cheie `yield`, fundația conceptuală a oricărui `DataLoader` care alimentează antrenarea unui model AI fără să încarce niciodată tot dataset-ul în memorie simultan.
