@@ -116,6 +116,94 @@ Streaming-ul de tokeni de la o API de model AI (revezi Server-Sent Events din C3
 
 Generatoarele pot, tehnic, primi valori înapoi prin `.send(valoare)`, nu doar produce — o capacitate avansată, rar folosită direct, dar care stă la baza conceptuală a `async`/`await` din L21. Reține doar existența acestei capacități pentru acum; sintaxa completă a corutinelor bidirecționale nu e necesară pentru scopul acestui curs.
 
+### `yield from` — delegarea către un alt generator
+
+Un generator poate delega producerea de valori unui alt iterabil sau generator, printr-o sintaxă dedicată, mai concisă decât o buclă `for` cu `yield` repetat manual:
+
+```python
+def genereaza_primele(n):
+    for i in range(n):
+        yield i
+
+def genereaza_combinat():
+    yield from genereaza_primele(3)     # produce 0, 1, 2 — DELEGATE la generatorul intern
+    yield from [10, 20, 30]                # funcționează pe orice iterabil, nu doar generatoare
+    yield "final"
+
+for valoare in genereaza_combinat():
+    print(valoare)   # 0, 1, 2, 10, 20, 30, "final"
+```
+
+`yield from generator_intern` e echivalent cu `for x in generator_intern: yield x`, dar mai scurt și, într-un context mai avansat (corutine), transferă corect și controlul pentru `.send()`/excepții către generatorul delegat — un detaliu relevant mai ales pentru cod avansat de concurență, dar util de recunoscut chiar la nivel de bază, pentru lizibilitatea codului care compune mai mulți generatori.
+
+### Generatoare infinite — producție fără limită explicită
+
+```python
+def numere_naturale():
+    n = 0
+    while True:          # bucla infinită din L8, dar ÎNTR-UN GENERATOR — sigură, pentru că 'yield' pauzează
+        yield n
+        n += 1
+
+gen = numere_naturale()
+print(next(gen))   # 0
+print(next(gen))    # 1
+print(next(gen))     # 2 — ar putea continua la infinit, dar NU blochează programul
+```
+
+Contrar avertismentului despre bucle infinite din L8, un `while True:` **într-un generator** e complet sigur — `yield` pauzează execuția la fiecare pas, cedând controlul înapoi apelantului, care decide dacă și când cere următoarea valoare. Bucla nu rulează niciodată "la nesfârșit, blocând tot" — rulează exact atâtea iterații câte `next()`-uri sunt cerute explicit, niciuna mai mult. Acest pattern e util pentru secvențe conceptual infinite (un contor, o secvență de ID-uri unice generate progresiv), consumate doar parțial, cât e nevoie.
+
+### Închiderea explicită a unui generator — `.close()`
+
+```python
+gen = numere_naturale()
+print(next(gen))   # 0
+gen.close()           # oprește generatorul, eliberează orice resursă ținută (fișiere, conexiuni)
+next(gen)                # StopIteration — generatorul e definitiv închis
+```
+
+Pentru generatoare care țin resurse deschise intern (un fișier citit linie cu linie, o conexiune de rețea), `.close()` garantează eliberarea acelor resurse dacă generatorul nu mai e consumat complet — similar conceptual cu `finally` din L11, aplicat specific ciclului de viață al unui generator abandonat înainte de epuizare naturală.
+
+### Combinarea generatoarelor cu `itertools` — pipeline-uri de procesare lazy
+
+Modulul `itertools`, menționat deja la bucle (L7), oferă unelte care operează direct peste generatoare, fără să materializeze niciodată rezultatele intermediare — permițând construirea de pipeline-uri complete de procesare, complet lazy, de la un capăt la altul:
+
+```python
+from itertools import islice, takewhile
+
+def numere_naturale():
+    n = 0
+    while True:
+        yield n
+        n += 1
+
+primele_zece = list(islice(numere_naturale(), 10))          # [0, 1, ..., 9] — primele N dintr-un generator infinit
+sub_100 = list(takewhile(lambda x: x < 100, numere_naturale()))   # oprește la primul element care nu satisface condiția
+```
+
+`islice()` extrage un "slice" dintr-un generator (potențial infinit), exact ca slicing-ul de listă din L12, dar aplicabil unei surse care nu are, tehnic, o lungime cunoscută dinainte. `takewhile()` consumă elemente cât timp o condiție rămâne adevărată, oprindu-se la prima nepotrivire — util pentru a extrage un prefix relevant dintr-un flux fără limită naturală de oprire.
+
+Spre deosebire de slicing-ul obișnuit `[start:stop]`, care cere ca lista să existe deja, complet, în memorie, `islice()` funcționează exact peste generatoare încă neconsumate — extrage doar câte elemente sunt necesare, fără să declanșeze producerea celor rămase, un exemplu direct al eficienței de memorie promise de întreaga lecție.
+
+### Generatoare pentru procesarea de fișiere mari — legătura cu L22
+
+```python
+def citeste_linii_relevante(cale_fisier, cuvant_cheie):
+    with open(cale_fisier) as fisier:
+        for linie in fisier:               # iterare LAZY peste fișier, discutată complet în L22
+            if cuvant_cheie in linie:
+                yield linie.strip()
+
+for linie in citeste_linii_relevante("loguri.txt", "ERROR"):
+    print(linie)
+```
+
+Acest pattern combină trei concepte deja introduse — context manager (`with`, detaliat în L22), iterarea lazy peste linii de fișier, și un generator propriu care filtrează pe măsură ce citește — pentru a procesa fișiere de dimensiuni arbitrar de mari (log-uri de gigabytes), fără să încarce niciodată conținutul complet în memorie. Funcția `citeste_linii_relevante` nu citește nimic la apelare — abia consumarea ei (prin `for`) declanșează efectiv citirea, linie cu linie, exact principiul central al acestei lecții aplicat la un caz practic real.
+
+Diferența practică față de o funcție obișnuită care ar citi tot fișierul și ar returna o listă filtrată e semnificativă la scară: o funcție obișnuită ar aloca memorie proporțională cu numărul de linii relevante găsite în tot fișierul, înainte de a returna ceva; generatorul produce prima linie relevantă aproape instant, fără să aștepte parcurgerea completă a fișierului, permițând apelantului să înceapă procesarea imediat, în paralel cu restul citirii.
+
+De ce un generator care deschide un fișier cu `with` în interiorul lui e sigur, chiar dacă apelantul nu-l parcurge complet niciodată? `with` garantează închiderea fișierului la ieșirea din blocul lui — dar dacă generatorul e abandonat înainte de a ajunge la finalul blocului `with` (de exemplu, apelantul se oprește după primele câteva linii), Python garantează, prin mecanismul `.close()` implicit apelat la colectarea de gunoi a generatorului abandonat, că blocul `with` se termină corect, executând cleanup-ul — fișierul se închide, chiar dacă bucla exterioară nu a "terminat" explicit de citit tot fișierul.
+
 ---
 
 ## REVEAL
