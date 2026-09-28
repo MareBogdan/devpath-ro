@@ -1,0 +1,144 @@
+---
+title: "Webhooks: Nu suna tu, te sun eu"
+order: 24
+type: lesson
+module_index: 3
+duration: 13
+difficulty: 3
+---
+
+# Webhooks: Nu suna tu, te sun eu
+
+## HOOK
+
+Un magazin online integrează Stripe pentru plăți. Are o singură întrebare simplă: "s-a finalizat plata?" Varianta naivă — face `GET /plati/123` la fiecare 2 secunde, verificând statusul, până când se schimbă. Funcționează, dar irosește mii de cereri inutile pentru fiecare plată reală, majoritatea cu răspunsul "încă în procesare" — exact problema de polling discutată în L23, dar la nivel de server-to-server, nu browser-to-server.
+
+Stripe rezolvă asta invers: magazinul îi dă lui Stripe un URL (`https://magazin.ro/webhooks/stripe`), iar când plata se finalizează, **Stripe** face `POST` către acel URL, cu detaliile evenimentului. Magazinul nu mai întreabă niciodată — e notificat exact când se întâmplă ceva. E același model ca un apel telefonic invers: în loc să suni constant "ai terminat?", cineva te sună pe tine exact când termină.
+
+---
+
+## CONTEXT
+
+Termenul "webhook" a fost inventat de Jeff Lindsay în 2007, ca o combinație directă între "web" și "hook" — conceptul de *callback* din programare (o funcție pe care o transmiți altcuiva, ca să fie apelată mai târziu, la un eveniment), aplicat peste HTTP, între sisteme complet separate, nu doar în interiorul unui program.
+
+Nu există un RFC pentru webhooks — spre deosebire de WebSocket (RFC 6455) sau OAuth (RFC 6749), webhook-ul e o **convenție arhitecturală**, nu un protocol standardizat. E, tehnic, doar "o cerere HTTP `POST` obișnuită, cu un body JSON, trimisă de sistemul A către un URL configurat de sistemul B" — dar convenția s-a stabilizat atât de consistent în industrie (GitHub, Stripe, Twilio, Slack, GitHub Actions, aproape orice SaaS modern) încât funcționează ca un standard de facto.
+
+---
+
+## MIEZUL
+
+### Anatomia unui webhook
+
+Configurarea unui webhook are trei părți: **abonare** (spui furnizorului la ce evenimente vrei să fii notificat și la ce URL), **livrare** (furnizorul face `POST` la URL-ul tău când evenimentul se întâmplă), și **confirmare** (endpoint-ul tău trebuie să răspundă rapid cu `2xx`, altfel furnizorul consideră livrarea eșuată).
+
+```json
+POST /webhooks/stripe HTTP/1.1
+Host: magazin.ro
+Content-Type: application/json
+Stripe-Signature: t=1699900000,v1=5257a869e7...
+
+{
+  "id": "evt_1NqL2x",
+  "type": "payment_intent.succeeded",
+  "data": {
+    "object": {
+      "id": "pi_3NqL2x",
+      "amount": 4999,
+      "currency": "ron",
+      "status": "succeeded"
+    }
+  }
+}
+```
+
+Endpoint-ul tău primește acest `POST` ca orice cerere HTTP normală — nu ține nicio conexiune deschisă (spre deosebire de WebSocket din L23), nu are nevoie de nicio infrastructură specială de streaming. E doar o rută HTTP obișnuită, apelată de altcineva, la momentul potrivit.
+
+<CosmoHint emotion="thinking">
+De ce webhook-ul e mai eficient decât polling-ul, deși ambele folosesc doar HTTP obișnuit? Pentru că elimină complet cererile "goale" — Stripe nu te contactează niciodată dacă nu s-a întâmplat nimic. Costul se mută complet pe partea care generează evenimentul, nu pe partea care așteaptă. La scară — mii de comercianți, fiecare cu mii de tranzacții — diferența e ordine de mărime în trafic total procesat de infrastructura ambelor părți.
+</CosmoHint>
+
+### Verificarea semnăturii — de ce nu poți avea încredere orbește
+
+Endpoint-ul tău de webhook e un URL public. Oricine îl cunoaște (sau îl ghicește) poate trimite un `POST` fals, pretinzând a fi Stripe, cu un JSON care spune `"status": "succeeded"` pentru o plată care n-a existat niciodată. Fără verificare, un atacator ar putea "confirma" comenzi gratuite.
+
+Soluția standard: furnizorul semnează fiecare payload cu un secret partajat, cunoscut doar de furnizor și de tine (generat la configurarea webhook-ului, niciodată trimis prin rețea). Header-ul `Stripe-Signature` conține un timestamp și un HMAC-SHA256 calculat peste `timestamp + "." + payload_body`, folosind secretul de webhook. Endpoint-ul tău recalculează același HMAC local și-l compară — dacă nu se potrivesc, cererea e respinsă imediat, indiferent cât de convingător arată JSON-ul.
+
+**Timestamp-ul din semnătură** previne și **replay attacks**: chiar dacă un atacator interceptează o cerere legitimă (rar, pentru că traficul e HTTPS/TLS, dar posibil dacă loghezi accidental payload-uri undeva nesecurizat) și o retrimite mai târziu, majoritatea implementărilor refuză semnături cu timestamp mai vechi de câteva minute.
+
+```python
+import hmac, hashlib, time
+
+def verifica_semnatura(payload: bytes, header: str, secret: str) -> bool:
+    parti = dict(p.split("=") for p in header.split(","))
+    timestamp, semnatura_primita = parti["t"], parti["v1"]
+
+    if abs(time.time() - int(timestamp)) > 300:  # 5 minute
+        return False
+
+    mesaj_semnat = f"{timestamp}.{payload.decode()}".encode()
+    semnatura_calculata = hmac.new(
+        secret.encode(), mesaj_semnat, hashlib.sha256
+    ).hexdigest()
+
+    return hmac.compare_digest(semnatura_calculata, semnatura_primita)
+```
+
+`hmac.compare_digest` (nu `==` obișnuit) e obligatoriu aici — o comparație normală de string-uri se oprește la primul byte diferit, scurgând prin *timing attack* informații despre cât de "aproape" e o semnătură ghicită de cea corectă. `compare_digest` rulează în timp constant, indiferent unde apare prima diferență.
+
+### Idempotență — același eveniment poate sosi de două ori
+
+Furnizorii de webhook-uri garantează de obicei livrare **at-least-once**, nu exact-once: dacă endpoint-ul tău nu confirmă rapid cu `2xx` (de exemplu, dacă e temporar lent sau căzut), furnizorul reîncearcă livrarea, uneori de mai multe ori, cu backoff exponențial. Consecința directă: endpoint-ul tău **trebuie** să gestioneze corect primirea aceluiași eveniment de două ori.
+
+Soluția standard: fiecare eveniment are un `id` unic (`evt_1NqL2x` din exemplul de mai sus). Endpoint-ul verifică, înainte de a procesa, dacă acel `id` a fost deja procesat (o simplă interogare într-o tabelă/cache) — dacă da, răspunde `200 OK` fără să repete efectul (aceeași idee ca idempotency keys din L22, dar aplicată invers, la primire, nu la trimitere).
+
+{/* TABLE */}
+
+| Problemă | Soluție standard |
+|---|---|
+| Cerere falsă (nu vine de la furnizor) | Verificare semnătură HMAC |
+| Cerere veche, reluată (replay) | Verificare timestamp în semnătură |
+| Același eveniment livrat de mai multe ori | Deduplicare după `event.id` |
+| Endpoint-ul e lent/căzut temporar | Furnizorul reîncearcă automat, backoff exponențial |
+| Procesare lentă blochează confirmarea | Confirmă rapid `200`, procesează async într-o coadă |
+
+### Confirmă rapid, procesează async
+
+Un pattern greșit comun: endpoint-ul de webhook face procesarea completă (trimite email, actualizează inventar, generează factură PDF) *înainte* de a răspunde. Dacă procesarea durează 8 secunde și furnizorul are un timeout de 5 secunde pentru confirmare, primești un timeout — furnizorul consideră livrarea eșuată și reîncearcă, deși evenimentul chiar s-a procesat, ducând direct la procesare dublă.
+
+Pattern corect: endpoint-ul validează semnătura, verifică deduplicarea, pune evenimentul într-o coadă internă (Redis, SQS, sau simplu o inserare în bază de date), și răspunde imediat `200 OK` — sub câteva sute de milisecunde. Procesarea efectivă (trimiterea email-ului, actualizarea stocului) rulează separat, asincron, dintr-un worker care citește din coadă.
+
+<CosmoHint emotion="encouraging">
+Pentru testare locală, un webhook nu poate ajunge la `localhost:3000` de pe internetul public — furnizorul (Stripe, GitHub) nu poate face `POST` către o adresă din rețeaua ta privată. Unelte ca `stripe listen --forward-to localhost:3000/webhooks` sau ngrok deschid un tunel public temporar către mașina ta locală, exact pentru acest scenariu de dezvoltare — util de reținut prima dată când te întrebi de ce webhook-ul "nu ajunge niciodată" în dev.
+</CosmoHint>
+
+---
+
+## REVEAL
+
+Diferența de arhitectură între polling, WebSocket și webhook:
+
+{/* TABLE */}
+
+| Model | Cine inițiază | Conexiune | Caz de uz tipic |
+|---|---|---|---|
+| Polling | Clientul, repetat | Nouă la fiecare cerere | Simplu, dar irosit dacă evenimentele sunt rare |
+| WebSocket | Ambele, oricând | Una singură, permanentă | Chat live, colaborare în timp real |
+| Webhook | Furnizorul, la eveniment | Una nouă, doar când e nevoie | Notificări server-to-server (plăți, CI/CD, integrări) |
+
+<FactBox>
+**Webhooks în cifre:**
+- Termen inventat de Jeff Lindsay în **2007**
+- Livrare garantată tipic: **at-least-once**, niciodată exact-once
+- Fereastră tipică de validare timestamp: **5 minute** (previne replay attacks)
+- Backoff exponențial la retry: implementat de aproape toți furnizorii majori (Stripe, GitHub, Twilio)
+- Timeout tipic de confirmare așteptat de furnizor: **sub 5-10 secunde**
+- Verificare semnătură: HMAC-SHA256, comparație în timp constant (`compare_digest`)
+</FactBox>
+
+---
+
+## ÎNCHEIERE
+
+Webhook-ul inversează direcția implicită a comunicării web: în loc să întrebi constant, ești sunat exact la momentul potrivit. Costă complexitate suplimentară — verificare de semnătură, deduplicare, procesare asincronă — dar elimină risipa masivă de polling la scară.
+
+Ai văzut acum REST, GraphQL, WebSocket, SSE și webhook-uri — toate transportă JSON peste HTTP, dar cu structuri de mesaj diferite, fiecare cu propriile convenții. Lecția finală a acestui grup arată o alternativă mai veche și mai riguroasă de a structura *exact* aceste mesaje: JSON-RPC.
