@@ -1,0 +1,161 @@
+---
+title: "Clase: Cât să citești un model PyTorch"
+order: 17
+type: lesson
+module_index: 4
+duration: 14
+difficulty: 2
+---
+
+# Clase: Cât să citești un model PyTorch
+
+## HOOK
+
+```python
+class ReteaNeuronala(nn.Module):
+    def __init__(self, dimensiune_input, dimensiune_output):
+        super().__init__()
+        self.strat1 = nn.Linear(dimensiune_input, 128)
+        self.strat2 = nn.Linear(128, dimensiune_output)
+
+    def forward(self, x):
+        x = torch.relu(self.strat1(x))
+        return self.strat2(x)
+```
+
+Deschide fișierul de definire a aproape oricărui model PyTorch și vei găsi exact acest tipar — o `class`, un `__init__`, un `super().__init__()`, o metodă `forward`. Nu ai nevoie să devii expert în programare orientată pe obiecte pentru a citi cod AI, dar fără să înțelegi ce reprezintă efectiv aceste patru elemente, codul de model rămâne o secvență opacă de simboluri magice, memorate mecanic, nu înțelese.
+
+Scopul acestei lecții e minim și precis, exact ca titlul: nu te face expert OOP — te face capabil să citești și să modifici o clasă de model AI cu încredere reală.
+
+---
+
+## CONTEXT
+
+Programarea orientată pe obiecte (OOP) — organizarea codului în jurul unor **obiecte** care combină date (atribute) și comportament (metode) — a apărut din Smalltalk (anii '70) și a devenit dominantă prin C++ și Java în anii '90. Ideea centrală: în loc să ai funcții separate care operează pe structuri de date pasive, grupezi datele **și** funcțiile care le manipulează într-o singură unitate coerentă, numită clasă.
+
+Python suportă OOP complet, dar fără a-l impune — poți scrie programe Python întregi, funcționale, fără nicio clasă proprie (ai făcut-o în toate lecțiile de până acum). Clasele devin necesare când modelezi entități cu **stare internă persistentă** și comportament asociat — exact cazul unui model de rețea neuronală, care are stare (ponderile straturilor) și comportament (cum transformă un input în output).
+
+---
+
+## MIEZUL
+
+### Anatomia minimă a unei clase
+
+```python
+class Utilizator:
+    def __init__(self, nume, varsta):    # constructor — rulează la CREAREA unui obiect nou
+        self.nume = nume                    # atribut de INSTANȚĂ
+        self.varsta = varsta
+
+    def prezentare(self):                  # METODĂ — funcție care aparține clasei
+        return f"{self.nume}, {self.varsta} ani"
+
+ana = Utilizator("Ana", 25)      # creează o INSTANȚĂ (obiect concret) a clasei
+print(ana.prezentare())            # "Ana, 25 ani"
+print(ana.nume)                      # acces direct la atribut: "Ana"
+```
+
+`class Utilizator:` definește un **șablon** (blueprint) — clasa în sine nu e un utilizator concret, e "forma" pe care o vor avea toți utilizatorii creați din ea. `__init__` (constructorul) rulează automat de fiecare dată când creezi o instanță nouă (`Utilizator("Ana", 25)`) — inițializează starea internă a acelui obiect specific.
+
+<CosmoHint emotion="thinking">
+De ce fiecare metodă are `self` ca prim parametru, dar nu-l pasezi explicit la apel (`ana.prezentare()`, nu `ana.prezentare(ana)`)? `self` reprezintă instanța specifică pe care o apelezi metoda — Python îl transmite AUTOMAT, implicit, la fiecare apel `obiect.metoda(...)`. `self.nume` din interiorul metodei se referă la atributul `nume` al ACELUI obiect specific, nu al unui alt utilizator creat din aceeași clasă. Fără `self`, o metodă n-ar avea nicio modalitate de a accesa starea proprie a instanței pe care a fost apelată.
+</CosmoHint>
+
+### `nn.Module` — moștenirea, explicată pe cazul care contează
+
+```python
+class ReteaNeuronala(nn.Module):   # 'ReteaNeuronala' MOȘTENEȘTE din nn.Module
+    def __init__(self, dimensiune_input, dimensiune_output):
+        super().__init__()          # apelează constructorul CLASEI PĂRINTE (nn.Module) ÎNTÂI
+        self.strat1 = nn.Linear(dimensiune_input, 128)
+        self.strat2 = nn.Linear(128, dimensiune_output)
+```
+
+`class ReteaNeuronala(nn.Module):` — sintaxa `(nn.Module)` declară **moștenire**: `ReteaNeuronala` obține automat tot comportamentul definit deja în clasa `nn.Module` din PyTorch — urmărirea automată a parametrilor antrenabili, mutarea pe GPU (`.to("cuda")`), salvarea/încărcarea ponderilor, și multe altele — fără să scrii tu vreo linie din acea logică. Clasa ta adaugă doar ce e specific arhitecturii tale: ce straturi conține, cum le combină.
+
+`super().__init__()` — apelează explicit constructorul clasei părinte (`nn.Module`), **înainte** de a-ți defini propriile straturi. Fără acest apel, mecanismele interne din `nn.Module` (care urmăresc automat toate straturile pe care le atribui prin `self.strat1 = ...`) nu s-ar inițializa corect — o omisiune extrem de comună la cod scris de începători, care produce erori confuze mai târziu, la antrenare.
+
+{/* TABLE */}
+
+| Concept | Rol în exemplul PyTorch |
+|---|---|
+| `class X(Parinte):` | Declară moștenirea — `X` obține comportamentul lui `Parinte` |
+| `super().__init__()` | Inițializează corect partea din clasa părinte, înainte de restul |
+| `self.strat1 = nn.Linear(...)` | Atribut de instanță — un strat specific ACESTUI model |
+| `def forward(self, x):` | Metodă — logica de propagare înainte, specifică arhitecturii |
+
+### `forward()` — de ce nu se apelează direct, dar rulează la `model(x)`
+
+```python
+model = ReteaNeuronala(10, 2)
+rezultat = model(date_input)    # apelezi modelul CA O FUNCȚIE, nu model.forward(date_input) direct
+```
+
+Convenția PyTorch — apelarea unui model ca o funcție (`model(x)`), nu ca o metodă explicită (`model.forward(x)`) — funcționează pentru că `nn.Module` (clasa părinte) definește metoda specială `__call__`, care face verificări suplimentare (hooks, mod de antrenare vs. evaluare) și **apelează** `forward()` intern, automat. Convenția din bibliotecă e să apelezi mereu modelul direct, niciodată `.forward()` manual — chiar dacă tehnic ai avea acces direct la ea.
+
+### Atribute vs. metode — starea vs. comportamentul
+
+```python
+class ContBancar:
+    def __init__(self, sold_initial):
+        self.sold = sold_initial          # ATRIBUT — datele, starea internă
+
+    def depune(self, suma):                 # METODĂ — comportamentul care modifică starea
+        self.sold += suma
+
+    def retrage(self, suma):
+        if suma > self.sold:
+            raise ValueError("Fonduri insuficiente")
+        self.sold -= suma
+```
+
+Fiecare instanță (`ContBancar(100)`, `ContBancar(500)`) are propriile atribute independente — modificarea soldului unui cont nu afectează celălalt, exact cum modificarea ponderilor unui model de rețea neuronală nu afectează o instanță separată a aceleiași arhitecturi (antrenată pe alte date, cu alte valori inițiale).
+
+### Convenția underscore — semnalul de "intern", nu impunere
+
+```python
+class Model:
+    def __init__(self):
+        self.public = "acces liber"
+        self._intern = "convenție: nu accesa direct din afară"
+        self.__foarte_privat = "name mangling — accesare mai greoaie intenționat"
+```
+
+Revizitând convenția menționată în L3: `_intern` (un underscore) semnalează "intenționat pentru uz intern", fără nicio restricție tehnică reală — Python nu are `private`/`public` ca Java. `__foarte_privat` (dublu underscore) declanșează **name mangling** — Python redenumește intern atributul (`_Model__foarte_privat`), făcând accesul accidental din afara clasei mai greoi, dar tot nu impossibil. Codul PyTorch/scikit-learn folosește frecvent underscore simplu pentru atribute interne (`model._modules`), un semnal clar "nu te baza pe asta direct, poate schimba fără avertisment".
+
+<CosmoHint emotion="encouraging">
+`model.parameters()` — o metodă expusă de `nn.Module` — returnează un generator (concept detaliat în L19) peste toți parametrii antrenabili din model, colectați automat din toate atributele `self.strat...` definite în `__init__`. Nu trebuie să adaugi manual niciun strat la o listă separată de parametri — moștenirea din `nn.Module` face asta transparent, exact motivul pentru care fiecare model PyTorch trebuie să extindă `nn.Module`, nu doar să fie o clasă obișnuită de sine stătătoare.
+</CosmoHint>
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Element din cod PyTorch | Ce reprezintă |
+|---|---|
+| `class Model(nn.Module):` | Definire clasă + moștenire din clasa părinte PyTorch |
+| `def __init__(self, ...):` | Constructor — rulează la creare, inițializează starea |
+| `super().__init__()` | Inițializează corect partea din clasa părinte, obligatoriu primul pas |
+| `self.strat = nn.Linear(...)` | Atribut de instanță — un strat specific acestui model |
+| `def forward(self, x):` | Metoda care definește propagarea înainte |
+| `model(x)` | Apelare implicită prin `__call__`, care rulează `forward()` intern |
+
+<FactBox>
+**Clase în cifre:**
+- `self`: transmis automat de Python la fiecare apel `obiect.metoda(...)` — nu se pasează explicit
+- `super().__init__()`: obligatoriu primul apel în `__init__` al oricărei subclase `nn.Module`
+- Name mangling (`__atribut`): redenumire internă automată, nu o restricție de acces reală ca `private` din Java
+- `nn.Module.__call__`: mecanismul care face `model(x)` echivalent (dar mai sigur) cu `model.forward(x)`
+- Convenția underscore simplu (`_atribut`): semnal de intenție, nu impunere tehnică
+- Fiecare instanță are propriile atribute independente — modificarea unei instanțe nu afectează altele
+</FactBox>
+
+---
+
+## ÎNCHEIERE
+
+O clasă combină date (atribute) și comportament (metode) într-o singură unitate reutilizabilă. Moștenirea (`class X(Parinte):`) permite construirea de comportament specializat peste o fundație generică deja scrisă — exact mecanismul prin care fiecare model PyTorch obține, gratuit, urmărirea automată a parametrilor și integrarea cu restul framework-ului, doar prin extinderea `nn.Module`.
+
+Ai văzut list comprehensions menționate de câteva ori deja, fără sintaxa completă. Lecția următoare dedică timpul necesar exact acestui pattern — construirea concisă de liste noi din altele, o unealtă pe care o vei folosi constant, inclusiv la procesarea datelor pentru orice pipeline de AI.
