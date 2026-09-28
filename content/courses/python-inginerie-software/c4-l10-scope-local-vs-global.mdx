@@ -153,6 +153,66 @@ Această capcană combină direct două concepte văzute deja: mutabilitatea (ob
 Pentru un test rapid al ce vede Python în scope-ul curent, `locals()` returnează un dicționar cu toate variabilele locale disponibile în punctul acela din cod, iar `globals()` face la fel pentru scope-ul global al modulului — utile pentru debugging când comportamentul unei variabile pare surprinzător.
 </CosmoHint>
 
+### Scope-ul unui modul — variabile globale, dar per fișier, nu per program
+
+O nuanță importantă a cuvântului "global", ușor de interpretat greșit: o variabilă "globală" în Python nu e globală întregului program, ci doar **modulului** (fișierului `.py`) în care e definită. Fiecare fișier importat are propriul namespace complet separat:
+
+```python
+# fisier_a.py
+CONFIG = {"model": "gpt-4o-mini"}
+
+# fisier_b.py
+import fisier_a
+print(fisier_a.CONFIG)   # acces EXPLICIT, prin numele modulului — nu direct 'CONFIG'
+print(CONFIG)               # NameError — 'CONFIG' nu există direct în scope-ul lui fisier_b
+```
+
+Accesul la o "globală" din alt modul cere întotdeauna calificarea explicită prin numele modulului (`fisier_a.CONFIG`), nu accesul direct al numelui — un mecanism care previne coliziuni accidentale de nume între module diferite, scrise independent, care ar putea folosi întâmplător aceleași nume de variabile pentru concepte complet diferite.
+
+### Closures — funcții care "țin minte" scope-ul care le-a creat
+
+Menționate deja în L9, closures-urile merită o explicație completă aici, direct legată de regula LEGB și de `nonlocal`:
+
+```python
+def creeaza_multiplicator(factor):
+    def multiplica(x):
+        return x * factor   # 'factor' vine din scope-ul ÎNCONJURĂTOR (Enclosing), nu Local sau Global
+    return multiplica
+
+dublare = creeaza_multiplicator(2)
+triplare = creeaza_multiplicator(3)
+
+print(dublare(5))    # 10
+print(triplare(5))     # 15 — fiecare funcție returnată "ține minte" PROPRIA valoare de 'factor'
+```
+
+Fiecare apel al `creeaza_multiplicator()` produce o funcție `multiplica` complet independentă, cu propria "memorie" a valorii `factor` din momentul creării — chiar dacă `creeaza_multiplicator()` s-a terminat de executat de mult, funcția returnată păstrează acces la acea variabilă din scope-ul Enclosing. Acest mecanism — o funcție care "capturează" variabile din scope-ul în care a fost definită — e fundamentul tehnic din spatele decoratorilor (L20) și al multor pattern-uri de programare funcțională în Python.
+
+### De ce variabilele globale sunt evitate în cod profesional
+
+Dincolo de bug-ul `UnboundLocalError` din HOOK, există motive mai profunde pentru care echipele serioase minimizează folosirea variabilelor globale mutabile: o funcție care citește sau modifică o variabilă globală nu mai e **pură** (L9) — comportamentul ei depinde de o stare externă, invizibilă din semnătura funcției, greu de testat izolat și greu de raționat despre în cod concurent, unde mai multe fire de execuție pot modifica aceeași variabilă globală simultan, fără nicio coordonare explicită.
+
+Alternativa idiomatică, aproape universal preferată: transmite starea necesară explicit, ca parametru al funcției, și returnează rezultatul explicit, prin `return` — codul devine mai verbos, dar fiecare funcție declară clar, prin semnătura ei, exact ce date primește și ce produce, fără dependențe ascunse de stare globală mutabilă undeva în afara ei.
+
+### Când o "globală" e, de fapt, acceptabilă
+
+Regula "evită variabilele globale" nu e absolută — există cazuri legitime unde o valoare cu adevărat globală, imutabilă (o constantă de configurare, calculată o singură dată la pornirea programului) e complet potrivită la nivel de modul:
+
+```python
+# config.py
+MODEL_IMPLICIT = "gpt-4o-mini"
+TIMEOUT_IMPLICIT = 30
+VERSIUNE_API = "2024-06-20"
+```
+
+Diferența critică față de scenariul problematic din HOOK: aceste valori nu sunt **modificate** de nicio funcție în timpul rulării — sunt citite, niciodată scrise, motiv pentru care nu apare nevoia de `global` explicit și nu există riscul de stare mutabilă imprevizibilă, împărțită necoordonat între mai multe funcții. Constantele de configurare, în majuscule (revezi convenția din L3), sunt exact tipul de "globală" pe care codul profesional o folosește liber, fără nicio ezitare.
+
+### Verificarea scope-ului la debugging — un flux practic complet
+
+Când o funcție se comportă neașteptat, legat de o variabilă care "ar trebui" să aibă o anumită valoare, secvența de verificare recomandată e sistematică: verifică întâi dacă variabila e într-adevăr definită în scope-ul așteptat (`locals()` sau `globals()`, menționate deja), apoi verifică explicit dacă funcția modifică o copie locală, umbrind neintenționat o variabilă cu același nume din alt scope — cazul clasic fiind exact scenariul din HOOK, unde o simplă atribuire în interiorul unei funcții creează, silențios, o variabilă locală complet nouă, fără nicio legătură cu cea "globală" cu același nume din afara funcției.
+
+Acest tipar de debugging — verifică *unde* trăiește efectiv o variabilă, înainte de a presupune *ce valoare* are — economisește timp considerabil față de a presupune, greșit, că `x` din interiorul unei funcții e mereu "aceeași" `x` de la nivelul modulului, doar pentru că numele coincid.
+
 ---
 
 ## REVEAL
