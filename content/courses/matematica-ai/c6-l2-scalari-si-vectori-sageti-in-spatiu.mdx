@@ -1,0 +1,133 @@
+---
+title: "Scalari și Vectori — săgeți în spațiu"
+order: 2
+type: lesson
+module_index: 6
+duration: 13
+difficulty: 2
+---
+
+# Scalari și Vectori — săgeți în spațiu
+
+## HOOK
+
+Lecția trecută a arătat că "pisică" devine, pentru un model AI, un șir de numere de genul `[0.23, -0.71, ..., 0.18]`. Dar ce e, mai exact, acel obiect matematic? Nu e doar "o listă de numere" — are proprietăți geometrice reale, la fel cum viteza vântului nu e doar "un număr" (20 km/h), ci un număr **plus** o direcție (dinspre nord-vest).
+
+Diferența dintre "un număr" și "un număr cu direcție" e exact diferența dintre cele două obiecte matematice fundamentale ale acestei lecții: **scalarul** și **vectorul**. Fiecare rețea neuronală, fiecare embedding, fiecare gradient pe care-l vei întâlni în restul acestui program se construiește din exact aceste două tipuri de obiecte, combinate riguros — nu există un al treilea tip de bază.
+
+---
+
+## CONTEXT
+
+Vectorii, ca obiect matematic formal, au apărut din fizică, nu din informatică — matematicianul irlandez William Rowan Hamilton a introdus în 1843 quaternionii, o extensie a numerelor complexe folosită pentru a descrie rotații în spațiul tridimensional, iar din acel demers a apărut treptat noțiunea modernă de vector. Fizicienii Josiah Willard Gibbs și Oliver Heaviside au simplificat și popularizat, spre sfârșitul secolului XIX, analiza vectorială folosită astăzi în orice manual de fizică — forță, viteză, accelerație, câmp electric, toate sunt vectori, pentru că toate au atât o mărime, cât și o direcție.
+
+Abstractizarea completă — un vector nu trebuie să reprezinte neapărat ceva fizic, poate fi orice listă ordonată de `n` numere, indiferent dacă `n` e 2, 3, sau 1536 — a venit odată cu formalizarea algebrei liniare, în secolul XX. Această generalizare e exact ce face vectorii utili pentru AI: un embedding cu 768 de dimensiuni nu descrie o poziție fizică în spațiu, dar respectă exact aceleași reguli matematice ca o săgeată din manualul de fizică de liceu.
+
+---
+
+## MIEZUL
+
+### Scalarul — un singur număr, fără direcție
+
+Un **scalar** e pur și simplu un număr — o mărime completă în sine, fără nicio noțiune de direcție asociată. Temperatura camerei (22°C), prețul unui produs (49.99 lei), rata de învățare a unui model (`learning_rate = 0.001`, un parametru pe care-l vei întâlni constant în cursurile de Machine Learning) — toate sunt scalari. Nu are sens să întrebi "în ce direcție e temperatura de 22°C" — întrebarea nu se aplică.
+
+### Vectorul — mărime plus direcție
+
+Un **vector** poartă, pe lângă mărime, și o direcție. Viteza vântului nu e completă dacă spui doar "20 km/h" — ai nevoie și de direcție ("dinspre nord-vest") pentru ca informația să fie utilizabilă. Notația standard pentru un vector folosește o săgeată deasupra literei sau caractere aldine: $\vec{v}$ sau $\mathbf{v}$.
+
+$$\vec{v} = \begin{pmatrix} 3 \\ 4 \end{pmatrix}$$
+
+Acest vector bidimensional se poate desena ca o săgeată care pornește din originea sistemului de coordonate $(0, 0)$ și ajunge în punctul $(3, 4)$ — reprezentarea **geometrică**. Aceeași informație, scrisă ca o pereche ordonată de numere `(3, 4)`, e reprezentarea **algebrică** — cele două perspective descriu exact același obiect, doar din unghiuri diferite, și amândouă rămân utile pe tot parcursul acestui curs.
+
+<CosmoHint emotion="thinking">
+De ce contează diferența dintre reprezentarea geometrică (săgeată desenată) și cea algebrică (listă de numere)? Pentru că geometria funcționează perfect ca intuiție în 2D sau 3D — poți desena o săgeată pe hârtie — dar un embedding are 768 sau 1536 de dimensiuni, imposibil de desenat sau vizualizat direct. Reprezentarea algebrică (lista de numere, operată prin formule) rămâne identică indiferent de câte dimensiuni are vectorul — exact motivul pentru care matematica riguroasă, nu doar intuiția vizuală, e instrumentul care se generalizează la spațiile de dimensiune mare folosite efectiv în AI.
+</CosmoHint>
+
+### Adunarea vectorilor — cap la coadă, sau element cu element
+
+Geometric, adunarea a doi vectori se face "cap la coadă" — muți al doilea vector astfel încât coada lui să pornească exact din capul primului, iar rezultatul e săgeata care unește originea cu capul final. Algebric, aceeași operație e mult mai simplă de calculat: aduni componentele, poziție cu poziție.
+
+$$\vec{a} + \vec{b} = \begin{pmatrix} a_1 \\ a_2 \end{pmatrix} + \begin{pmatrix} b_1 \\ b_2 \end{pmatrix} = \begin{pmatrix} a_1 + b_1 \\ a_2 + b_2 \end{pmatrix}$$
+
+Această operație — adunare "element cu element" (element-wise) — revine constant pe tot parcursul acestui curs și în tot restul programului de Machine Learning, exact tipul de calcul folosit deja informal în L1 pentru "rege - bărbat + femeie ≈ regină".
+
+```python
+import numpy as np
+
+rege = np.array([0.42, -0.11, 0.87])
+barbat = np.array([0.30, -0.05, 0.20])
+femeie = np.array([0.28, 0.15, 0.55])
+
+regina = rege - barbat + femeie
+print(regina)   # array([0.4 , 0.31, 1.22]) — element cu element
+```
+
+`numpy`, biblioteca standard pentru calcul numeric în Python (context deja stabilit în C4), reprezintă intern exact acest tip de obiect — un `np.array` e implementarea practică, computațională, a unui vector matematic, iar operațiile `+`, `-` aplicate direct pe el execută automat calculul element-wise de mai sus, fără nicio buclă explicită scrisă de tine.
+
+### Înmulțirea cu un scalar — întinde sau comprimă vectorul
+
+Înmulțirea unui vector cu un scalar schimbă mărimea lui, păstrându-i direcția (sau inversând-o, dacă scalarul e negativ):
+
+$$2 \cdot \begin{pmatrix} 3 \\ 4 \end{pmatrix} = \begin{pmatrix} 6 \\ 8 \end{pmatrix}$$
+
+Geometric, vectorul rezultat pointează exact în aceeași direcție, dar are de două ori lungimea. Această operație — scalar înmulțit cu vector — apare constant în procesul de antrenare a unei rețele neuronale, unde `learning_rate` (un scalar) înmulțește un vector de ajustări (gradientul, subiectul L18), controlând cât de mult se modifică rețeaua la fiecare pas.
+
+### Magnitudinea (norma) unui vector — cât de "lung" e
+
+Lungimea unui vector, numită **normă** (notată $\|\vec{v}\|$), se calculează direct din teorema lui Pitagora, extinsă la câte dimensiuni are vectorul:
+
+$$\|\vec{v}\| = \sqrt{v_1^2 + v_2^2 + \cdots + v_n^2}$$
+
+Pentru $\vec{v} = (3, 4)$: $\|\vec{v}\| = \sqrt{9 + 16} = \sqrt{25} = 5$. Formula se extinde identic la 768 de dimensiuni — sumezi pătratul fiecărei componente, extragi rădăcina pătrată a totalului — chiar dacă rezultatul nu mai poate fi vizualizat ca o săgeată desenată pe hârtie.
+
+### Vectorul normalizat — direcție pură, fără magnitudine
+
+Împărțind un vector la propria lui normă, obții un **vector unitar** (normalizat) — păstrează exact aceeași direcție, dar are lungimea exact 1:
+
+$$\hat{v} = \frac{\vec{v}}{\|\vec{v}\|}$$
+
+{/* TABLE */}
+
+| Concept | Ce descrie | Formulă |
+|---|---|---|
+| Scalar | O singură mărime, fără direcție | Un număr real oarecare |
+| Vector | Mărime + direcție | $(v_1, v_2, \ldots, v_n)$ |
+| Normă | Lungimea unui vector | $\sqrt{v_1^2 + \cdots + v_n^2}$ |
+| Vector unitar | Doar direcția, lungime 1 | $\vec{v} / \|\vec{v}\|$ |
+
+Normalizarea contează practic pentru embeddings: doi vectori care reprezintă cuvinte similare pot avea lungimi diferite (frecvența cuvântului în datele de antrenare influențează adesea magnitudinea) fără ca asta să schimbe sensul lor — normalizarea izolează exact componenta care contează pentru comparație, direcția, lăsând deoparte magnitudinea, adesea irelevantă semantic. Vei folosi exact această idee în L3, unde similaritatea semantică dintre doi vectori se calculează, cel mai adesea, pe versiunile lor normalizate.
+
+<CosmoHint emotion="excited">
+Fiecare embedding menționat în L1 — vectorul lui "pisică", al lui "rege", al oricărui cuvânt sau propoziție — e, matematic, exact tipul de obiect definit riguros în această lecție: o listă ordonată de numere, cu o normă calculabilă, care poate fi adunată, scăzută, înmulțită cu un scalar și normalizată, indiferent dacă are 2 dimensiuni (desenabile pe hârtie) sau 1536 (imposibil de vizualizat, dar identic din punct de vedere algebric). Ai acum vocabularul matematic complet pentru a descrie precis ce ai văzut deja informal.
+</CosmoHint>
+
+<FactBox>
+**Scalari și vectori în cifre:**
+- Quaternionii lui Hamilton, precursorii vectorilor moderni: **1843**
+- Analiza vectorială modernă (Gibbs, Heaviside): formalizată spre sfârșitul secolului **XIX**
+- Un vector bidimensional $(3, 4)$ are norma exact **5** — teorema lui Pitagora aplicată direct
+- Un embedding tipic are între **128** și **1536** de dimensiuni — algebric identic cu un vector 2D
+- Vectorul unitar are, prin definiție, norma exact **1**
+- `numpy.array` e reprezentarea computațională standard a unui vector, în Python
+</FactBox>
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Operație | Rezultat geometric | Rezultat algebric |
+|---|---|---|
+| $\vec{a} + \vec{b}$ | Săgeți unite cap la coadă | Adunare element cu element |
+| $c \cdot \vec{v}$ | Întinde/comprimă (inversează dacă $c<0$) | Fiecare componentă înmulțită cu $c$ |
+| $\|\vec{v}\|$ | Lungimea săgeții | Rădăcina sumei pătratelor |
+| $\vec{v}/\|\vec{v}\|$ | Aceeași direcție, lungime 1 | Fiecare componentă împărțită la normă |
+
+---
+
+## ÎNCHEIERE
+
+Ai acum definiția riguroasă a celor două obiecte matematice din spatele oricărui embedding: scalarul, o singură mărime, și vectorul, mărime plus direcție, reprezentabil deopotrivă geometric (săgeată) și algebric (listă de numere). Adunarea, scăderea, înmulțirea cu scalar și normalizarea sunt operațiile de bază care le manipulează — exact operațiile folosite informal în exemplul "rege - bărbat + femeie" din L1.
+
+Rămâne o întrebare deschisă, esențială: cum măsori, matematic, *cât de similari* sunt doi vectori — cât de "aproape" sunt "pisică" și "câine" unul de celălalt, în spațiul de sens? Lecția următoare introduce exact instrumentul pentru asta — **produsul scalar** (dot product), operația centrală din spatele oricărui calcul de similaritate din AI modern, de la căutarea semantică până la mecanismul de atenție dintr-un Transformer.

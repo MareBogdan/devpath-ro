@@ -1,0 +1,108 @@
+---
+title: "De ce AI-ul nu înțelege cuvinte — înțelege vectori"
+order: 1
+type: lesson
+module_index: 6
+duration: 14
+difficulty: 3
+---
+
+# De ce AI-ul nu înțelege cuvinte — înțelege vectori
+
+## HOOK
+
+Scrii "pisică" într-un chatbot. Ție ți se pare evident ce înseamnă cuvântul — ai un animal concret în minte, poate o amintire, o senzație. Modelul din spatele chatbot-ului nu vede niciodată litera "p", nici cuvântul întreg. Vede ceva de genul `[0.23, -0.71, 0.05, ..., 0.18]` — un șir de câteva sute sau mii de numere reale. Când scrii "câine", modelul primește un alt șir de numere, dar unul suspect de *apropiat* de primul, în timp ce "algoritm" produce un șir complet îndepărtat de ambele.
+
+Această transformare — de la simbol lingvistic la punct într-un spațiu numeric — nu e un detaliu tehnic minor, ascuns undeva în pipeline. E fundația literală pe care se construiește absolut tot restul acestui curs, și absolut tot restul programului de Machine Learning care urmează. **Vectorul** e unitatea de bază a modului în care o rețea neuronală "gândește" — nu cuvinte, nu imagini, nu sunete, ci coordonate în spațiu.
+
+---
+
+## CONTEXT
+
+Ideea că sensul unui cuvânt poate fi dedus din compania pe care o ține are o origine lingvistică precisă, cu decenii înaintea rețelelor neuronale moderne: lingvistul britanic J.R. Firth a formulat în 1957 principiul — "vei cunoaște un cuvânt după compania pe care o ține" (*you shall know a word by the company it keeps*) — **ipoteza distribuțională**. Cuvintele care apar în contexte similare ("pisică toarce", "câine latră", dar amândouă "e un animal de companie") tind să aibă sensuri similare, indiferent de forma lor scrisă.
+
+Timp de decenii, ideea a rămas mai degrabă teoretică — calculul necesar pentru a o transforma în ceva practic, la scara unui vocabular întreg, nu era fezabil. Abia în 2013, echipa lui Tomas Mikolov de la Google a publicat **word2vec**, primul model care producea vectori denși de cuvinte la scară practică, suficient de buni încât operații aritmetice simple pe ei să producă rezultate surprinzător de sensibile din punct de vedere semantic. Acel moment a marcat trecerea reprezentărilor de text de la simbolice (litere, coduri) la geometrice (poziții în spațiu) — exact tranziția pe care o explorează această lecție.
+
+---
+
+## MIEZUL
+
+### De la text la numere — primul pas obligatoriu
+
+Un calculator, la nivelul lui cel mai fundamental (revedere din C1), nu stochează niciodată litere — stochează numere binare, interpretate ca litere printr-un standard de codare (ASCII, Unicode). Python, limbajul folosit pe tot parcursul C4, reflectă exact această realitate: un șir de caractere e, intern, o secvență de numere, doar afișat convenabil ca text pentru tine. AI-ul duce acest principiu un pas mai departe — nu doar codează fiecare literă ca număr, ci codează fiecare **cuvânt întreg** (sau bucată de cuvânt, numită token) ca un întreg vector de numere, ales astfel încât cuvinte cu sensuri apropiate să primească vectori apropiați.
+
+### One-hot encoding — prima încercare, naivă dar instructivă
+
+Cea mai simplă metodă posibilă de a transforma un cuvânt într-un vector: alocă fiecărui cuvânt din vocabular o poziție unică într-un vector uriaș, plin de zerouri, cu un singur `1` la poziția lui. Pentru un vocabular de 50.000 de cuvinte, "pisică" ar putea fi `[0, 0, ..., 1, ..., 0]` — un vector de 50.000 de numere, cu exact un singur `1`.
+
+{/* TABLE */}
+
+| Proprietate | One-hot encoding | Embeddings dense |
+|---|---|---|
+| Dimensiune tipică | Egală cu mărimea vocabularului (zeci de mii) | Câteva sute (128-1536 tipic) |
+| Similaritate între cuvinte înrudite | Nulă — orice două cuvinte sunt la fel de "diferite" | Capturată direct prin distanța geometrică |
+| Memorie necesară | Foarte mare, majoritatea zerouri (sparse) | Compactă, fiecare număr contează (dense) |
+| Sens semantic codificat | Niciunul — doar identitate | Relații reale între concepte |
+
+Problema centrală a one-hot encoding: din perspectiva geometrică, "pisică" și "câine" sunt la fel de îndepărtate una de alta ca "pisică" și "algoritm" — fiecare cuvânt e complet izolat de toate celelalte, fără nicio noțiune de asemănare. Vectorul nu codifică nimic despre sens, doar despre identitate — exact ca un număr de înmatriculare, care nu spune nimic despre marca sau culoarea mașinii.
+
+<CosmoHint emotion="thinking">
+De ce contează diferența dintre "identitate" și "sens" pentru o rețea neuronală? Pentru că rețeaua învață tipare din matematică pură — distanțe, unghiuri, combinații liniare (concepte pe care le vei formaliza riguros în L2-L6). Dacă doi vectori nu poartă nicio informație despre cât de "asemănătoare" sunt cuvintele pe care le reprezintă, rețeaua nu are de la ce să plece pentru a generaliza. Embeddings dense rezolvă exact acest gol — codifică asemănarea direct în geometria spațiului, nu doar identitatea.
+</CosmoHint>
+
+### Embeddings — vectori denși care codifică sens, nu doar identitate
+
+Un **embedding** e un vector dens (fără zerouri inutile, fiecare dimensiune contribuie cu informație reală) care reprezintă un cuvânt, o propoziție, o imagine, sau practic orice tip de conținut, într-un spațiu numeric de dimensiune mult mai mică decât one-hot encoding — tipic între 128 și 1536 de numere, indiferent cât de mare e vocabularul complet. Aceste numere nu au un sens individual, interpretabil de om ("dimensiunea 47 înseamnă X") — sensul apare doar colectiv, din poziția relativă a vectorilor unii față de alții.
+
+Modelele care produc acești vectori (word2vec istoric, iar astăzi straturile de embedding din interiorul oricărui Transformer modern) îi antrenează astfel încât cuvinte care apar în contexte similare să ajungă, geometric, în puncte apropiate ale spațiului — exact ipoteza distribuțională a lui Firth, transformată în procedură de antrenare concretă, măsurabilă.
+
+### Exemplul clasic — aritmetică pe sensuri
+
+Rezultatul poate cel mai citat din era word2vec, care a convins o generație de cercetători că geometria captează sens real: dacă iei vectorul cuvântului "rege", scazi vectorul lui "bărbat", aduni vectorul lui "femeie", rezultatul e un vector extrem de apropiat de cel al cuvântului "regină".
+
+$$\vec{v}_{\text{rege}} - \vec{v}_{\text{bărbat}} + \vec{v}_{\text{femeie}} \approx \vec{v}_{\text{regină}}$$
+
+Această ecuație nu a fost programată manual de niciun inginer — a apărut spontan din antrenarea modelului pe cantități mari de text, pentru că relația conceptuală "masculin → feminin" tinde să se manifeste ca aceeași direcție geometrică, aproximativ constantă, indiferent de perechea de cuvinte la care se aplică ("actor" - "bărbat" + "femeie" ≈ "actriță", printr-un tipar similar). Adunarea și scăderea de vectori — operații pe care le vei defini riguros în L2 — devin, în acest context, un fel de "algebră a sensului".
+
+<CosmoHint emotion="excited">
+Reține acest exemplu bine, pentru că îl vei revedea, formalizat matematic complet, la finalul acestui bloc de lecții (L20) — vectori și geometrie semantică. Tot ce înveți între această lecție și aceea — scalari, produs scalar, matrici, distribuții de probabilitate, derivate, gradienți — construiește, piesă cu piesă, aparatul matematic necesar ca să înțelegi exact *de ce* funcționează acest tip de aritmetică pe sensuri, nu doar *că* funcționează.
+</CosmoHint>
+
+### De la un cuvânt la o propoziție întreagă — și mai departe
+
+Embeddings nu se opresc la cuvinte individuale. O propoziție întreagă, un paragraf, chiar o imagine sau un fragment audio pot fi reduse la un singur vector dens, care codifică sensul lor global — tehnica exactă din spatele căutării semantice (găsește documente cu sens similar, nu doar cuvinte identice) și a sistemelor RAG, subiecte tratate direct în cursul de Date & Embeddings (C7) care urmează imediat după acesta. Pentru moment, ideea de reținut: orice conținut pe care un model AI îl "înțelege" a fost, la un moment dat în pipeline, transformat într-un vector — nu există altă cale de intrare.
+
+### De ce contează pentru tot restul acestui curs
+
+Fiecare lecție care urmează în acest bloc explorează o piesă diferită a aparatului matematic construit direct în jurul acestei idei centrale: L2 formalizează riguros ce e un vector și un scalar; L3 arată cum se măsoară matematic "cât de similare" sunt doi vectori (produsul scalar, mecanismul din spatele exemplului rege-regină de mai sus); L4-L7 extind ideea la matrici — colecții organizate de vectori, procesate simultan; L8-L13 introduc probabilitatea și informația, limbajul în care se măsoară incertitudinea unei predicții; L14-L19 introduc calculul diferențial, mecanismul prin care un model "învață" ajustându-și treptat proprii vectori interni. Nimic din acest parcurs nu e arbitrar — fiecare piesă răspunde la o întrebare concretă, ridicată direct de observația din această primă lecție.
+
+<FactBox>
+**Vectori și embeddings în cifre:**
+- word2vec, publicat de echipa Mikolov (Google): **2013**
+- Ipoteza distribuțională (J.R. Firth): formulată în **1957**, cu peste 50 de ani înaintea word2vec
+- Dimensiune tipică a unui embedding modern: între **128** și **1536** de numere
+- Vocabular tipic pentru one-hot encoding: zeci de mii de cuvinte — un vector aproape complet umplut cu zerouri
+- Ecuația "rege - bărbat + femeie ≈ regină": rezultat spontan al antrenării, nu programat manual
+- Orice tip de conținut procesat de AI (text, imagine, audio) trece, la un moment dat, printr-o reprezentare vectorială
+</FactBox>
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Concept | Ce reprezintă | Unde apare mai departe în curs |
+|---|---|---|
+| Token / cuvânt | Unitatea de bază a textului de intrare | Punctul de plecare pentru orice embedding |
+| Vector (embedding) | Poziție numerică într-un spațiu de sens | Formalizat riguros în L2 |
+| Similaritate semantică | Distanța/unghiul dintre doi vectori | Produsul scalar, L3 |
+| Antrenare | Procesul care ajustează vectorii pentru a codifica sens corect | Derivate și gradienți, L14-L19 |
+
+---
+
+## ÎNCHEIERE
+
+Tot ce ai văzut în această lecție a fost intuitiv, cu scop — "pisică" și "câine" ajung aproape unul de altul într-un spațiu numeric, "rege" minus "bărbat" plus "femeie" aproximează "regină". Aceste observații sunt reale, verificabile, dar rămân doar observații până când capeți instrumentele matematice care le explică riguros: ce e, mai exact, un vector? Ce înseamnă "distanță" sau "direcție" într-un spațiu cu sute de dimensiuni, imposibil de vizualizat direct?
+
+Lecția următoare răspunde direct la aceste întrebări — **Scalari și Vectori**, definiția formală, geometrică și algebrică, a obiectelor matematice care au apărut deja, informal, de mai multe ori în această primă lecție.
