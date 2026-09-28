@@ -213,6 +213,6 @@ Un detaliu important de reținut: un `Task` creat, dar niciodată `await`-at, po
 
 ## ÎNCHEIERE
 
-`async`/`await` rezolvă exact problema apelurilor de rețea multiple, independente — transformă timpul de așteptare risipit în timp folosit pentru a avansa alte operațiuni concurente, fără costul thread-urilor reale. Cheia mentală de reținut: async ajută la *așteptare* (I/O), nu la *calcul* (CPU) — o distincție care decide direct dacă merită complexitatea suplimentară pentru o situație dată.
+`async`/`await` rezolvă exact problema apelurilor de rețea multiple, independente — transformă timpul de așteptare risipit în timp folosit pentru a avansa alte operațiuni concurente, fără costul thread-urilor reale. Cheia mentală de reținut: async ajută la *așteptare* (I/O), nu la *calcul* (CPU) — o distincție care decide direct dacă merită complexitatea suplimentară pentru o situație dată, indiferent cât de modern sau elegant pare stilul async la prima vedere.
 
-Ai văzut deja `open()` menționat în treacăt la `try`/`finally` din L11. Lecția următoare tratează complet gestionarea fișierelor — citire, scriere, și pattern-ul `with` care garantează închiderea corectă a resurselor, indiferent ce se întâmplă în interior.
+Ai văzut deja `open()` menționat în treacăt la `try`/`finally` din L11. Lecția următoare tratează complet gestionarea fișierelor — citire, scriere, și pattern-ul `with` care garantează închiderea corectă a resurselor, indiferent ce se întâmplă în interior, un context manager care rezolvă pentru fișiere exact același tip de problemă de cleanup garantat pe care `finally` o rezolvă generic.

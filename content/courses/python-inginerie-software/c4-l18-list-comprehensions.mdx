@@ -260,6 +260,6 @@ Detaliul e specific Python 3 — Python 2 avea acest comportament doar pentru co
 
 ## ÎNCHEIERE
 
-List comprehensions condensează pattern-ul "transformă și/sau filtrează o colecție" într-o singură linie expresivă, optimizată intern, extrem de răspândită în cod Python real, inclusiv în preprocesarea de date pentru AI. Regula de aur: folosește-le pentru transformări simple, renunță la ele pentru logică complexă unde claritatea suferă.
+List comprehensions condensează pattern-ul "transformă și/sau filtrează o colecție" într-o singură linie expresivă, optimizată intern, extrem de răspândită în cod Python real, inclusiv în preprocesarea de date pentru AI. Regula de aur: folosește-le pentru transformări simple, renunță la ele pentru logică complexă unde claritatea suferă — o linie densă, greu de citit la a doua parcurgere, nu economisește timp pe termen lung, indiferent cât de elegantă pare la scriere.
 
-Ai văzut că omiterea parantezelor pătrate transformă un comprehension într-un generator, evaluat lazy. Lecția următoare explorează exact acest concept, complet — generatoarele și cuvântul-cheie `yield`, fundația conceptuală a oricărui `DataLoader` care alimentează antrenarea unui model AI fără să încarce niciodată tot dataset-ul în memorie simultan.
+Ai văzut că omiterea parantezelor pătrate transformă un comprehension într-un generator, evaluat lazy. Lecția următoare explorează exact acest concept, complet — generatoarele și cuvântul-cheie `yield`, fundația conceptuală a oricărui `DataLoader` care alimentează antrenarea unui model AI fără să încarce niciodată tot dataset-ul în memorie simultan, exact ideea centrală care leagă direct simplitatea vizuală a unui comprehension de eficiența de memorie necesară la scara reală a datelor de antrenare.
