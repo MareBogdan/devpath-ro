@@ -1,0 +1,177 @@
+---
+title: "Arbori Binari de Căutare (BST)"
+order: 7
+type: lesson
+module_index: 5
+duration: 15
+difficulty: 3
+---
+
+# Arbori Binari de Căutare (BST)
+
+## HOOK
+
+L2 a arătat că o listă sortată permite căutare binară, O(log n) — dar cu un cost ascuns: inserarea unui element nou într-o listă sortată cere deplasarea tuturor elementelor de după el, O(n), pentru a păstra ordinea. L4 a arătat că fiecare optimizare de viteză vine cu un compromis. Aici apare o întrebare naturală: există o structură de date care oferă **și** căutare rapidă **și** inserare rapidă, fără compromisul din listă?
+
+Răspunsul e **arborele binar de căutare** (BST) — o structură care nu ține datele într-o secvență liniară, ci într-o rețea de noduri conectate, fiecare cu cel mult doi copii, organizată astfel încât căutarea binară din L2 devine posibilă direct în structura de date, fără costul de a menține o listă complet sortată. E prima structură de date din acest curs cu adevărat nouă — nu o variație a listelor sau dicționarelor deja cunoscute din cursul de Python, ci o formă complet diferită de a organiza date, gândită special pentru acest compromis.
+
+---
+
+## CONTEXT
+
+Structurile arborescente au apărut în informatică odată cu nevoia de a reprezenta relații ierarhice — sisteme de fișiere (directoare care conțin subdirectoare), structuri de decizie, chiar sintaxa unui limbaj de programare (fiecare expresie Python, la execuție, e parsată într-un arbore sintactic, menționat deja în C4 L1). Arborele binar de căutare, specific, aplică ideea de ierarhie unei probleme foarte concrete: organizarea datelor astfel încât fiecare decizie de căutare ("mă duc stânga sau dreapta?") elimină jumătate din spațiul rămas de căutat — exact intuiția din spatele căutării binare, dar încorporată direct în forma structurii, nu doar în algoritmul care o parcurge.
+
+Diferența structurală fundamentală față de o listă sortată: o listă e un bloc contiguu de memorie, cu poziții fixe; un BST e o colecție de noduri, fiecare legat prin referințe (pointeri) la cel mult doi copii, fără nicio cerință de contiguitate în memorie. Această flexibilitate structurală e exact ce permite inserării și ștergerii să fie rapide, fără deplasarea în masă a elementelor rămase.
+
+---
+
+## MIEZUL
+
+### Proprietatea de ordine — regula care face totul posibil
+
+```python
+class Nod:
+    def __init__(self, valoare):
+        self.valoare = valoare
+        self.stanga = None
+        self.dreapta = None
+```
+
+Fiecare nod dintr-un BST respectă o singură regulă, aplicată recursiv la fiecare nivel: **toate valorile din sub-arborele stâng sunt mai mici decât valoarea nodului, toate valorile din sub-arborele drept sunt mai mari**. Această proprietate — nu structura arborelui în sine, ci regula de ordine impusă asupra ei — e ce transformă un arbore binar oarecare într-un arbore binar de *căutare*, vizibil direct în forma lui, desenată mai jos:
+
+```
+        8
+       / \
+      3   10
+     / \    \
+    1   6    14
+       / \   /
+      4   7 13
+```
+
+Pentru orice nod din acest arbore, verifică regula: `3` are `1` în stânga (mai mic) și `6` în dreapta (mai mare); `10` are doar `14` în dreapta (mai mare, corect, niciun copil stâng necesar). Această structură nu e întâmplătoare — a fost construită exact prin inserări succesive care respectă regula, discutate mai jos.
+
+### Căutarea — exact căutarea binară din L2, aplicată direct structurii
+
+```python
+def cauta(nod, tinta):
+    if nod is None or nod.valoare == tinta:
+        return nod
+    if tinta < nod.valoare:
+        return cauta(nod.stanga, tinta)     # elimină TOT sub-arborele drept dintr-o dată
+    return cauta(nod.dreapta, tinta)
+```
+
+La fiecare pas, compari ținta cu valoarea nodului curent și elimini complet unul din cei doi sub-arbori din căutare — exact înjumătățirea din căutarea binară, dar acum aplicată direct structurii, nu unui interval calculat manual (`stanga`/`dreapta` din L2). Pentru un arbore **balansat** (sub-arborii au aproximativ aceeași înălțime la fiecare nod), complexitatea căutării rămâne O(log n) — aceeași garanție ca la căutarea binară pe o listă sortată, dar fără costul de a menține lista contiguă și complet sortată.
+
+<CosmoHint emotion="thinking">
+De ce complexitatea căutării într-un BST depinde critic de cât de "echilibrat" e arborele? Dacă inserezi valorile în ordine deja sortată (1, 2, 3, 4, 5...), fiecare nod nou devine copilul drept al precedentului — arborele degenerează într-un lanț liniar, identic structural cu o listă simplă. Căutarea într-un asemenea arbore "dezechilibrat" devine O(n), nu O(log n) — exact pierderea garanției pe care BST-ul promitea s-o ofere. Această problemă reală explică de ce structuri mai avansate (arbori AVL, arbori roșu-negru, dincolo de scopul acestei lecții introductive) adaugă reguli suplimentare de rebalansare automată, garantând O(log n) indiferent de ordinea de inserare.
+</CosmoHint>
+
+### Inserarea — de ce nu costă O(n) ca la o listă
+
+```python
+def insereaza(nod, valoare):
+    if nod is None:
+        return Nod(valoare)          # aici se creează noul nod, ca frunză
+    if valoare < nod.valoare:
+        nod.stanga = insereaza(nod.stanga, valoare)
+    else:
+        nod.dreapta = insereaza(nod.dreapta, valoare)
+    return nod
+```
+
+Inserarea urmează exact aceeași logică de decizie stânga/dreapta ca și căutarea, coborând prin arbore până găsește locul corect (un `None`, unde nu există încă niciun nod), și creează acolo noul nod. Nu e nevoie să deplasezi niciun element existent — spre deosebire de o listă sortată, unde inserarea unui element la mijloc cere deplasarea tuturor elementelor ulterioare (O(n)), aici inserarea costă doar O(log n) pentru un arbore balansat — exact coborârea prin arbore, aceeași adâncime ca la o căutare.
+
+### Ștergerea — cazul mai complicat, cu trei scenarii
+
+Ștergerea unui nod dintr-un BST e singura operație cu adevărat complicată, pentru că trebuie să păstreze proprietatea de ordine după eliminare. Trei cazuri posibile:
+
+{/* TABLE */}
+
+| Cazul nodului de șters | Ce se întâmplă |
+|---|---|
+| Fără copii (frunză) | Se elimină direct, fără nicio complicație |
+| Un singur copil | Copilul îi ia locul direct în structura arborelui |
+| Doi copii | Se înlocuiește cu succesorul (cel mai mic element din sub-arborele drept), apoi acel succesor se șterge din poziția lui originală |
+
+Cazul cu doi copii e cel mai subtil: nu poți elimina pur și simplu nodul (ar rupe legăturile la ambii lui copii), așa că-l înlocuiești cu cea mai apropiată valoare care păstrează ordinea — fie cel mai mare din sub-arborele stâng, fie cel mai mic din sub-arborele drept (convențional, succesorul din dreapta) — apoi rezolvi recursiv ștergerea acelei valori din poziția ei originală, unde are garantat cel mult un copil. Complexitatea rămâne O(log n) pe un arbore balansat, indiferent de care dintre cele trei cazuri se aplică — găsirea succesorului cere doar o coborâre suplimentară, tot logaritmică, în sub-arborele drept.
+
+### Traversarea — cum citești toate valorile, în ordine
+
+```python
+def traversare_inordine(nod, rezultat):
+    if nod:
+        traversare_inordine(nod.stanga, rezultat)
+        rezultat.append(nod.valoare)
+        traversare_inordine(nod.dreapta, rezultat)
+    return rezultat
+```
+
+O particularitate elegantă a BST-urilor: parcurgerea "in-order" (stânga, apoi nodul curent, apoi dreapta), aplicată recursiv, produce automat toate valorile **în ordine crescătoare**, fără nicio sortare explicită — o consecință directă a proprietății de ordine impuse la fiecare nod. Această traversare transformă un BST înapoi într-o listă sortată, O(n), oricând ai nevoie de forma liniară a datelor, păstrând totuși avantajele structurii arborescente pentru operațiile de căutare/inserare/ștergere din restul timpului.
+
+### Comparație directă — listă sortată vs. BST balansat
+
+{/* TABLE */}
+
+| Operație | Listă sortată | BST balansat |
+|---|---|---|
+| Căutare | O(log n) — căutare binară | O(log n) |
+| Inserare | O(n) — deplasare elemente | O(log n) |
+| Ștergere | O(n) — deplasare elemente | O(log n) |
+| Găsirea minimului/maximului | O(1) — primul/ultimul element | O(log n) — coboară complet stânga/dreapta |
+| Memorie per element | Minimă, contiguă | Suplimentară (referințe la copii) |
+
+BST-ul câștigă clar pentru date care se modifică frecvent (inserări/ștergeri repetate) — exact cazul unde o listă sortată devine costisitoare. Pentru date statice, rar modificate, o listă sortată căutată binar rămâne suficientă și mai simplă, fără overhead-ul de memorie al referințelor suplimentare dintre noduri.
+
+### De ce arborii apar peste tot în structurile de date reale
+
+BST-ul e cel mai simplu membru al unei familii mult mai largi de structuri arborescente, fiecare rezolvând o variantă specifică a aceleiași tensiuni de bază — organizarea datelor astfel încât o singură decizie la fiecare nivel elimină o porțiune mare din spațiul rămas de căutat. Heap-ul (L8) e un arbore cu o regulă de ordine diferită, optimizată pentru extracția rapidă a extremelor. Trie-ul (L12) e un arbore specializat pentru șiruri de caractere, unde fiecare nivel reprezintă un caracter, nu o valoare comparabilă generic. Toate trei împart aceeași structură de bază — noduri legate ierarhic — dar aplică reguli de ordine complet diferite, potrivite fiecare unui tip specific de interogare frecventă.
+
+### Găsirea minimului și maximului — o consecință directă a structurii
+
+```python
+def gaseste_minim(nod):
+    while nod.stanga is not None:
+        nod = nod.stanga        # cel mai mic element e mereu cel mai din stânga
+    return nod.valoare
+```
+
+Proprietatea de ordine garantează că cel mai mic element dintr-un BST se găsește mereu coborând complet spre stânga, iar cel mai mare coborând complet spre dreapta — o consecință directă și elegantă a regulii impuse la fiecare nod. Această operație costă O(log n) pe un arbore balansat (adâncimea maximă a arborelui), spre deosebire de O(n) pe o listă nesortată, unde ai avea nevoie să parcurgi întreaga colecție pentru a găsi extremul. Comparativ, o listă *deja* sortată face asta în O(1) — un caz unde structura mai simplă câștigă, exact tipul de comparație nuanțată pe care acest curs o construiește constant, nu o regulă universală "BST-ul e mereu mai bun."
+
+Această nuanță — nicio structură de date nu e universal superioară, doar potrivită sau nepotrivită pentru un tipar specific de acces — e firul conducător al întregului curs: fiecare structură nouă întâlnită rezolvă exact o tensiune specifică, cu propriile compromisuri, niciodată o soluție universală valabilă pentru orice problemă.
+
+<CosmoHint emotion="encouraging">
+BST-urile nu sunt doar o curiozitate academică — orice index de bază de date relațională (menționat deja în L4, la discuția despre space-time tradeoff) folosește, intern, variante avansate de arbori de căutare (tipic B-arbori, o generalizare a BST-ului cu mai mulți copii per nod, optimizată pentru citiri de pe disc) pentru a menține date sortate, actualizabile rapid, la scară de milioane sau miliarde de rânduri. Data viitoare când o interogare SQL cu `WHERE` pe o coloană indexată răspunde instant, indiferent cât de mare e tabelul, exact acest principiu — arbore de căutare balansat — rulează dedesubt.
+</CosmoHint>
+
+<FactBox>
+**BST în cifre:**
+- Căutare/inserare/ștergere pe arbore balansat: **O(log n)** garantat pentru toate trei
+- Arbore dezechilibrat (inserare în ordine sortată): degenerează la O(n) — identic cu o listă
+- Traversare "in-order": produce automat toate valorile în ordine crescătoare, O(n)
+- Structurile de baze de date (B-arbori): generalizare a BST-ului, folosită universal pentru indexuri
+- Arbori auto-echilibrați (AVL, roșu-negru): garantează O(log n) indiferent de ordinea de inserare
+- Fiecare nod: maximum **2** copii — motivul numelui "binar"
+</FactBox>
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Situație | Structură recomandată |
+|---|---|
+| Date statice, rar modificate, căutări repetate | Listă sortată + căutare binară (L2) |
+| Date care se modifică frecvent, căutări repetate | BST (ideal, auto-echilibrat) |
+| Nevoie de toate valorile în ordine, periodic | Traversare in-order a unui BST, O(n) |
+| Index de bază de date pe o coloană interogată des | Variantă de arbore de căutare (B-arbore) |
+
+---
+
+## ÎNCHEIERE
+
+BST-ul rezolvă exact tensiunea dintre căutare rapidă și inserare rapidă pe care o listă sortată nu o poate rezolva simultan — prețul e complexitatea suplimentară a structurii și riscul de dezechilibru, care poate degrada garanțiile de la O(log n) înapoi la O(n) fără o strategie explicită de rebalansare. Aceeași idee de organizare ierarhică, cu o regulă de ordine specifică per nod, revine în lecția următoare, într-o formă diferită.
+
+Heap-ul, subiectul lecției următoare, e tot o structură arborescentă — dar cu o regulă de ordine complet diferită, optimizată nu pentru căutarea unei valori oarecare, ci pentru accesul instant, garantat, la cel mai mic (sau cel mai mare) element dintr-o colecție, indiferent de câte elemente conține.
