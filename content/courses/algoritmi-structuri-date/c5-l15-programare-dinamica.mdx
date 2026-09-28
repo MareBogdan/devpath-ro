@@ -1,0 +1,169 @@
+---
+title: "Programare Dinamică — sub-probleme suprapuse, rezolvate sistematic"
+order: 15
+type: lesson
+module_index: 5
+duration: 16
+difficulty: 4
+---
+
+# Programare Dinamică — sub-probleme suprapuse, rezolvate sistematic
+
+## HOOK
+
+Memoization (L14) a rezolvat Fibonacci printr-o singură idee — reține rezultatele deja calculate — aplicată la o singură funcție recursivă specifică. Întrebarea firească: câte alte probleme au exact aceeași structură ascunsă — sub-probleme mai mici, repetate, a căror soluție optimă se construiește direct din soluțiile optime ale sub-problemelor? Răspunsul: o clasă întreagă, surprinzător de largă, de probleme de optimizare — de la "care e cea mai scurtă cale de a scrie o sumă de bani cu monedele disponibile" până la "cât de diferite sunt două secvențe de ADN" sau "care e cea mai probabilă succesiune de cuvinte, date niște sunete ambigue."
+
+**Programarea Dinamică** (PD, sau DP) e numele formal al metodologiei care rezolvă sistematic toată această clasă de probleme — nu o tehnică izolată, ci un cadru general, cu pași repetabili, pe care memoization din L14 e doar un exemplu particular, aplicat unei singure probleme.
+
+---
+
+## CONTEXT
+
+Numele "programare dinamică" are o origine neobișnuită, complet neconectată la sensul intuitiv al cuvintelor: Richard Bellman, care a formalizat metoda în anii 1950 la RAND Corporation, a povestit ulterior că a ales termenul "dinamic" special pentru a suna incitant și greu de criticat de către un ministru de finanțe (sponsorul cercetării, ostil cuvântului "cercetare"), nu pentru că ar descrie literal ceva "dinamic" în sensul obișnuit. "Programare" se referea, la acea vreme, la planificare, în sensul militar/logistic al cuvântului, nu la scrierea de cod — programarea liniară, dezvoltată în aceeași perioadă, folosește termenul cu același sens istoric.
+
+Dincolo de denumire, ideea matematică e precisă: o problemă e rezolvabilă prin PD dacă și numai dacă are două proprietăți simultan — **substructură optimă** (soluția optimă a problemei complete se construiește direct din soluțiile optime ale sub-problemelor ei) și **sub-probleme suprapuse** (aceleași sub-probleme mai mici apar, repetat, în mai multe ramuri ale descompunerii problemei complete). Fibonacci are ambele proprietăți — motiv exact pentru care memoization a funcționat perfect în L14.
+
+---
+
+## MIEZUL
+
+### Cele două condiții, verificate concret
+
+Fără substructură optimă, PD nu se aplică deloc — dacă soluția optimă a problemei mari NU se poate construi din soluțiile optime ale sub-problemelor (există probleme unde combinarea optimelor locale produce un rezultat sub-optim global), niciun cache nu ajută. Fără sub-probleme suprapuse, PD tehnic funcționează, dar nu aduce niciun beneficiu — dacă fiecare sub-problemă apare exact o singură dată (cazul Merge Sort, L6), reținerea rezultatelor nu economisește nimic, exact observația făcută deja în L14.
+
+Recunoașterea acestor două condiții, înainte de a scrie orice cod, e primul pas practic real al PD — restul e, în mare parte, mecanică repetabilă odată identificată structura corectă.
+
+### Exemplul clasic — restul minim de bani (Coin Change)
+
+Problema: dat un set de monede disponibile (de exemplu 1, 5, 10, 25) și o sumă țintă, care e numărul minim de monede necesar pentru a atinge exact suma? Substructura optimă: soluția optimă pentru suma `n` folosește o monedă `c`, urmată de soluția optimă pentru suma rămasă `n - c` — dacă acea sub-soluție n-ar fi optimă, întreaga soluție n-ar fi optimă. Sub-probleme suprapuse: suma `7` apare, identică, ca sub-problemă atât la calcularea soluției pentru `12` (7 + 5), cât și pentru `17` (7 + 10) — exact același tipar de recalculare redundantă văzut la Fibonacci.
+
+```python
+def rest_minim(monede, suma):
+    tabel = [0] + [float("inf")] * suma        # tabel[i] = nr. minim de monede pentru suma i
+    for i in range(1, suma + 1):
+        for moneda in monede:
+            if moneda <= i:
+                tabel[i] = min(tabel[i], tabel[i - moneda] + 1)
+    return tabel[suma] if tabel[suma] != float("inf") else -1
+```
+
+Această versiune e bottom-up (tabulare, terminologia din L14) — construiește soluția pentru fiecare sumă de la `0` până la `suma` țintă, reutilizând direct rezultatele deja calculate pentru sumele mai mici, exact ca tabelul de la Fibonacci tabulare.
+
+<CosmoHint emotion="thinking">
+De ce bucla interioară parcurge fiecare monedă, pentru fiecare sumă posibilă, în loc să încerce direct "cea mai mare monedă posibilă" primul? Pentru că o strategie greedy — alege mereu local cea mai mare monedă care încape — nu garantează optimul global pentru orice set de monede. Cu monedele 1, 3, 4 și suma 6, greedy alege 4 + 1 + 1 (trei monede), dar optimul real e 3 + 3 (două monede). PD nu presupune nimic despre care alegere locală e "evident" cea bună — explorează sistematic toate combinațiile posibile prin sub-probleme, garantând optimul real, nu doar unul plauzibil.
+</CosmoHint>
+
+### Complexitate — tabelul e prețul, garanția e beneficiul
+
+$$O(\text{suma} \times \text{nr. monede})$$
+
+Complexitatea crește proporțional cu produsul dintre mărimea sumei țintă și numărul de monede disponibile — polinomial, nu exponențial, exact reducerea de tip Fibonacci-cu-memoization din L14, aplicată acum unei probleme de optimizare reală, nu doar unui exercițiu matematic abstract. Costul de memorie — tabelul întreg, de mărimea sumei — e prețul plătit pentru garanția că rezultatul returnat e cu adevărat optim, nu doar o aproximare rezonabilă.
+
+### Aceeași problemă, abordare top-down — memoization peste recursivitate
+
+Varianta bottom-up de mai sus nu e singura formă corectă de PD — exact ca la Fibonacci în L14, aceeași problemă se poate rezolva și top-down, prin recursivitate obișnuită plus un cache:
+
+```python
+from functools import lru_cache
+
+def rest_minim_recursiv(monede, suma):
+    @lru_cache(maxsize=None)
+    def rezolva(rest):
+        if rest == 0:
+            return 0
+        if rest < 0:
+            return float("inf")
+        return 1 + min(rezolva(rest - m) for m in monede)
+    rezultat = rezolva(suma)
+    return rezultat if rezultat != float("inf") else -1
+```
+
+Cele două variante calculează exact același rezultat, cu aceeași complexitate polinomială — diferența e doar direcția de construcție: bottom-up pornește de la cele mai mici sub-probleme și urcă sistematic, top-down pornește de la problema completă și coboară recursiv, dar reține (memoizează) fiecare rezultat, exact tehnica din L14. Alegerea dintre cele două variante e adesea o chestiune de claritate a codului, nu de corectitudine — bottom-up evită complet limita de adâncime a stivei de apeluri (L13), top-down rămâne mai apropiat de formularea matematică naturală a problemei.
+
+### Un al doilea exemplu — distanța de editare (Levenshtein)
+
+O problemă complet diferită la suprafață, dar cu aceeași structură matematică ascunsă: câte operații minime (inserare, ștergere, înlocuire de caracter) transformă un cuvânt în altul? Tabelul de PD, de această dată bidimensional, reține la poziția `(i, j)` distanța minimă între primele `i` caractere ale primului cuvânt și primele `j` caractere ale celui de-al doilea.
+
+{/* TABLE */}
+
+| | "" | c | a | t |
+|---|---|---|---|---|
+| "" | 0 | 1 | 2 | 3 |
+| c | 1 | 0 | 1 | 2 |
+| u | 2 | 1 | 1 | 2 |
+| t | 3 | 2 | 2 | 1 |
+
+Distanța dintre "cut" și "cat" e 1 (o singură înlocuire: `u` → `a`), citită direct din colțul din dreapta-jos al tabelului — fiecare celulă se calculează din cele trei celule vecine deja calculate (stânga, sus, diagonală), exact tiparul de substructură optimă și sub-probleme suprapuse descris mai devreme, aplicat acum unei perechi de indici, nu unui singur număr.
+
+### Rucsacul 0/1 — un al treilea exemplu clasic
+
+Problema rucsacului (Knapsack): date obiecte, fiecare cu o greutate și o valoare, și o capacitate maximă a rucsacului, care e subansamblul de obiecte cu valoare totală maximă ce nu depășește capacitatea? Substructura optimă: soluția optimă pentru capacitatea `W` folosind primele `i` obiecte se construiește din soluția optimă pentru `i - 1` obiecte, fie incluzând obiectul `i` (dacă încape), fie excluzându-l — exact aceeași structură de "alegere + sub-problemă mai mică" văzută deja la Coin Change.
+
+```python
+def rucsac(greutati, valori, capacitate):
+    n = len(greutati)
+    tabel = [[0] * (capacitate + 1) for _ in range(n + 1)]
+    for i in range(1, n + 1):
+        for w in range(capacitate + 1):
+            fara = tabel[i - 1][w]
+            cu = tabel[i - 1][w - greutati[i-1]] + valori[i-1] if greutati[i-1] <= w else 0
+            tabel[i][w] = max(fara, cu)
+    return tabel[n][capacitate]
+```
+
+Numele "0/1" vine din restricția specifică — fiecare obiect fie e inclus complet, fie exclus complet, fără fracțiuni posibile. Această restricție pare minoră, dar contează enorm: dacă obiectele ar putea fi împărțite în fracțiuni (rucsacul *fracțional*), problema devine, surprinzător, rezolvabilă direct prin greedy — alege mereu obiectul cu cel mai bun raport valoare/greutate — fără nevoia unui tabel complet de PD. Diferența dintre cele două variante, aparent minoră, ilustrează exact cât de sensibilă e existența proprietății de alegere greedy la detaliile precise ale unei probleme, tema centrală a lecției următoare.
+
+### Legătura cu procesarea limbajului natural
+
+Distanța Levenshtein, calculată exact prin acest tabel de PD, e mecanismul din spatele corectorilor ortografici — "ai vrut să scrii X?" — care găsesc cuvântul din dicționar cel mai apropiat, ca număr de editări, de ceea ce ai scris efectiv. Aceeași tehnică, generalizată, stă la baza alinierii de secvențe în bioinformatică (compararea a două secvențe de ADN, pentru a găsi mutațiile minime care le diferențiază) — o problemă din domeniu complet diferit, rezolvată prin exact același tabel de PD, doar cu un alfabet diferit (A, C, G, T în loc de literele obișnuite).
+
+### Viterbi — programare dinamică pentru cea mai probabilă secvență
+
+Modelele probabilistice de tip lanț Markov ascuns (Hidden Markov Model, folosite istoric în recunoașterea vorbirii și, mai general, în etichetarea de secvențe) folosesc **algoritmul Viterbi** — o aplicație directă de PD — pentru a găsi cea mai probabilă succesiune de stări ascunse (de exemplu, cuvintele reale) care ar fi produs o secvență observată (de exemplu, sunetele ambigue captate de un microfon). Exact ca la Coin Change, alegerea greedy — cea mai probabilă stare la fiecare pas individual — nu garantează cea mai probabilă secvență completă; Viterbi construiește, pas cu pas, un tabel al celor mai bune soluții parțiale, exact metodologia PD aplicată probabilităților în loc de sume de bani.
+
+<CosmoHint emotion="excited">
+Observă tiparul care s-a repetat de trei ori în această lecție, în trei domenii complet diferite — monede, cuvinte, secvențe probabilistice: identifică sub-problemele, construiește un tabel, umple-l sistematic pornind de la cazurile cele mai simple, citește răspunsul final din ultima celulă completată. Această capacitate — de a recunoaște aceeași structură matematică abstractă sub forme de suprafață complet diferite — e exact ce separă rezolvarea "prin încercare" a unei probleme noi de rezolvarea ei sistematică, informată de un tipar deja cunoscut.
+</CosmoHint>
+
+### PD vs. greedy — de ce nu poți alege mereu varianta rapidă
+
+{/* TABLE */}
+
+| Abordare | Garanție de optim | Cost |
+|---|---|---|
+| **Greedy** | Doar pentru probleme cu proprietate specifică (nu general) | Rapid, O(n) sau O(n log n) tipic |
+| **Programare Dinamică** | Garantat optim, pentru orice problemă cu substructură optimă | Polinomial, dar mai costisitor decât greedy |
+| **Recursivitate pură (fără reținere)** | Garantat optim | Adesea exponențial — impractic pentru intrări mari |
+
+Lecția următoare tratează exact prima linie a acestui tabel — algoritmii greedy, alegerea locală rapidă, și limitele precise în care garantează totuși un rezultat optim, nu doar unul plauzibil.
+
+<FactBox>
+**Programare Dinamică în cifre:**
+- Termenul a fost inventat de Richard Bellman în anii **1950**, la RAND Corporation — "dinamic" ales din motive politice, nu tehnice
+- Două condiții obligatorii: **substructură optimă** + **sub-probleme suprapuse**
+- Coin Change: complexitate **O(suma × nr. monede)** — polinomial, nu exponențial
+- Distanța Levenshtein: tabel **2D**, folosit direct de corectoarele ortografice și în bioinformatică
+- Algoritmul Viterbi: aplicație de PD la modele probabilistice de tip lanț Markov ascuns
+- Greedy garantează optimul doar pentru o clasă restrânsă de probleme — PD garantează optimul pentru orice problemă cu substructură optimă
+</FactBox>
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Problemă | Sub-probleme suprapuse | Tabel PD |
+|---|---|---|
+| Fibonacci (L14) | Valori repetate ale lui `n` | 1D, indexat după `n` |
+| Rest minim de bani | Sume intermediare repetate | 1D, indexat după sumă |
+| Distanța de editare | Perechi de prefixuri repetate | 2D, indexat după `(i, j)` |
+| Viterbi (secvențe probabilistice) | Stări intermediare repetate | 2D, indexat după (poziție, stare) |
+
+---
+
+## ÎNCHEIERE
+
+Programarea Dinamică generalizează memoization dintr-un truc aplicat unei singure funcții recursive într-o metodologie completă, aplicabilă oricărei probleme cu substructură optimă și sub-probleme suprapuse — de la sume de bani la secvențe de ADN la recunoașterea vorbirii. Pasul greu nu e scrierea codului (adesea un tabel și două bucle imbricate) — e recunoașterea corectă a structurii ascunse a problemei, înainte de a scrie orice.
+
+Lecția următoare încheie acest bloc cu algoritmii **greedy** — o abordare mult mai simplă și mai rapidă, care renunță la garanția universală a PD în schimbul vitezei, dar care, pentru o clasă specifică, bine definită de probleme, produce totuși exact același rezultat optim, fără costul unui tabel complet.
