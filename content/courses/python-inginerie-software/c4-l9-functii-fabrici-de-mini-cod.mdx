@@ -1,0 +1,157 @@
+---
+title: "Funcții: Fabrici de mini-cod"
+order: 9
+type: lesson
+module_index: 4
+duration: 13
+difficulty: 1
+---
+
+# Funcții: Fabrici de mini-cod
+
+## HOOK
+
+Copiezi și lipești același bloc de 8 linii în 5 locuri diferite din cod — validare de email, verificată în formular, în API, în script de import. Șase luni mai târziu, regula de validare trebuie schimbată (acceptă și domenii noi de top-level). Actualizezi o copie, apoi îți dai seama că mai sunt patru rămase, nesincronizate, fiecare producând comportament diferit pentru aceleași date.
+
+O **funcție** rezolvă exact această problemă structural: definești logica **o singură dată**, îi dai un nume, și o apelezi de oriunde ai nevoie. Modifici implementarea într-un singur loc, și toate cele 5 apeluri se comportă consistent, automat. Funcțiile sunt unitatea fundamentală de organizare a oricărui program non-trivial — de la un simplu script, până la un model PyTorch cu sute de metode.
+
+---
+
+## CONTEXT
+
+Conceptul de subrutină/funcție apărea deja în primele limbaje de asamblare din anii '50, ca răspuns direct la nevoia de a reutiliza cod fără a-l retranscrie manual de fiecare dată — una dintre cele mai vechi idei fundamentale din istoria programării, alături de bucle și condiții.
+
+Python tratează funcțiile ca **cetățeni de primă clasă** (first-class citizens) — o funcție poate fi atribuită unei variabile, transmisă ca argument altei funcții, returnată dintr-o altă funcție, exact ca orice altă valoare (`int`, `str`, listă). Această flexibilitate stă la baza unor pattern-uri avansate pe care le vei întâlni în L20 (decoratori) și e fundamentul întregii programări funcționale disponibile în Python — spre deosebire de limbaje mai vechi (C clasic), unde funcțiile nu pot fi manipulate ca valori la fel de liber.
+
+---
+
+## MIEZUL
+
+### Anatomia unei funcții
+
+```python
+def calculeaza_tva(pret, cota=0.19):
+    """Calculează TVA-ul pentru un preț dat, cu o cotă implicită de 19%."""
+    return pret * cota
+
+rezultat = calculeaza_tva(100)          # folosește cota implicită: 19.0
+rezultat2 = calculeaza_tva(100, 0.09)    # cotă specificată explicit: 9.0
+```
+
+`def` declară o funcție nouă. `pret` — **parametru obligatoriu**, trebuie furnizat la fiecare apel. `cota=0.19` — **parametru cu valoare implicită (default)**, opțional la apel; dacă nu-l specifici, se folosește `0.19` automat. `return` oprește execuția funcției imediat și trimite valoarea înapoi apelantului — o funcție fără `return` explicit returnează implicit `None`.
+
+<CosmoHint emotion="thinking">
+De ce ordinea parametrilor cu valori implicite contează strict? Python impune o regulă: toți parametrii obligatorii trebuie să vină ÎNAINTE de cei cu valoare implicită în definiție — `def f(a, b=1, c=2):` e valid, `def f(a=1, b, c):` aruncă `SyntaxError`. Motivul e mecanic: la apel, Python trebuie să poată determina neambiguu ce argumente poziționale corespund căror parametri, iar parametrii opționali plasați la mijloc ar face asta imposibil de dedus fără informație suplimentară.
+</CosmoHint>
+
+### Argumente poziționale vs. cu nume (keyword)
+
+```python
+def creeaza_utilizator(nume, varsta, oras="București"):
+    return {"nume": nume, "varsta": varsta, "oras": oras}
+
+creeaza_utilizator("Ana", 25)                          # poziționale
+creeaza_utilizator(nume="Ana", varsta=25, oras="Cluj")   # cu nume (keyword)
+creeaza_utilizator("Ana", oras="Cluj", varsta=25)         # mixt — nume oricând, poziționale în ordine
+```
+
+Argumentele **cu nume** (keyword arguments) sunt esențiale pentru lizibilitate când o funcție are mulți parametri, mai ales booleeni sau numerici, unde ordinea poziționala e ambiguă pentru cititor: `antreneaza_model(epoci=10, rata_invatare=0.001, verbose=True)` comunică instant ce reprezintă fiecare valoare, spre deosebire de `antreneaza_model(10, 0.001, True)`, unde niciun argument nu-și explică sensul fără să consulți definiția funcției.
+
+### `*args` și `**kwargs` — număr variabil de argumente
+
+```python
+def suma_tot(*numere):          # colectează argumentele poziționale extra într-un tuple
+    return sum(numere)
+
+suma_tot(1, 2, 3)                # 6
+suma_tot(1, 2, 3, 4, 5)          # 15 — funcționează cu oricâte argumente
+
+def afiseaza_info(**detalii):    # colectează argumentele cu nume extra într-un dicționar
+    for cheie, valoare in detalii.items():
+        print(f"{cheie}: {valoare}")
+
+afiseaza_info(nume="Ana", varsta=25, oras="Iași")
+```
+
+`*args` (numele "args" e convenție, nu obligatoriu — semnul `*` face treaba) colectează orice numere de argumente poziționale suplimentare într-un tuple. `**kwargs` colectează orice argumente cu nume suplimentare într-un dicționar. Ambele apar constant în semnăturile de funcții din biblioteci reale de AI — un wrapper generic peste un model poate accepta `def apeleaza_model(prompt, **parametri_model):`, transmițând transparent orice parametru specific modelului (`temperature`, `max_tokens`) fără ca funcția wrapper să-i cunoască pe toți explicit.
+
+{/* TABLE */}
+
+| Sintaxă | Colectează | Tip rezultat |
+|---|---|---|
+| `def f(a, b):` | Parametri fixați, obligatorii | — |
+| `def f(a, b=1):` | Parametru cu valoare implicită | — |
+| `def f(*args):` | Argumente poziționale extra | `tuple` |
+| `def f(**kwargs):` | Argumente cu nume extra | `dict` |
+| `def f(a, *args, **kwargs):` | Combinație — cel mai flexibil | mixt |
+
+### Type hints — adnotări opționale de tip
+
+Din L1, ai văzut că Python nu cere declarații explicite de tip. **Type hints** (introduse în Python 3.5, extinse constant de atunci) oferă un compromis: adnotezi opțional tipurile, fără să schimbi execuția — Python ignoră complet aceste adnotări la runtime, dar unelte externe (mypy, Pylance, IDE-uri) le folosesc pentru a detecta erori de tip *înainte* de rulare:
+
+```python
+def calculeaza_tva(pret: float, cota: float = 0.19) -> float:
+    return pret * cota
+```
+
+`pret: float` — adnotare de tip parametru. `-> float` — adnotare de tip returnat. Deși pur informative pentru interpretor, type hints sunt aproape universale în cod Python profesional modern, inclusiv în majoritatea bibliotecilor AI (PyTorch, FastAPI, Pydantic — vei vedea Pydantic în detaliu în L24 — se bazează masiv pe type hints pentru validare automată).
+
+<CosmoHint emotion="encouraging">
+`help(functie)` afișează docstring-ul unei funcții direct în terminal sau REPL — util instant pentru a înțelege ce face o funcție necunoscută dintr-o bibliotecă, fără să cauți documentația online. Funcțiile bine scrise din biblioteci serioase (NumPy, PyTorch) au docstring-uri extinse, accesibile exact așa, chiar și offline.
+</CosmoHint>
+
+### Funcții ca valori — trecerea unei funcții ca argument
+
+```python
+def aplica_transformare(lista, transformare):
+    return [transformare(x) for x in lista]
+
+numere = [1, 2, 3, 4]
+patrate = aplica_transformare(numere, lambda x: x ** 2)   # [1, 4, 9, 16]
+
+def dublu(x):
+    return x * 2
+
+dublate = aplica_transformare(numere, dublu)               # [2, 4, 6, 8]
+```
+
+`lambda` creează o funcție anonimă, de o singură expresie, fără nume — utilă pentru funcții mici, folosite o singură dată, ca argument al altei funcții. Echivalentul: `lambda x: x ** 2` e identic funcțional cu `def patrat(x): return x ** 2`, doar mai concis pentru cazuri simple.
+
+Acest pattern — trecerea unei funcții ca argument altei funcții — e omniprezent în framework-urile AI/ML: funcțiile de optimizare (`optimizer.step`), funcțiile de callback la finalul fiecărei epoci de antrenare, funcțiile de activare — toate sunt, la bază, funcții transmise ca parametri altor funcții care le apelează la momentul potrivit.
+
+### Funcții pure vs. cu efecte secundare
+
+O **funcție pură** produce mereu același rezultat pentru aceleași argumente și nu modifică nimic în afara ei (nu scrie fișiere, nu modifică variabile globale, nu face cereri de rețea). O funcție cu **efecte secundare** face exact asta — modifică stare externă, salvează în bază de date, printează. Ambele sunt necesare într-un program real, dar funcțiile pure sunt mult mai ușor de testat, de raționat despre, și de reutilizat în siguranță — o distincție care va deveni centrală când discutăm scope-ul variabilelor în lecția următoare.
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Componentă | Rol |
+|---|---|
+| `def nume(...):` | Declară funcția |
+| Parametri obligatorii | Trebuie furnizați la apel |
+| Parametri cu valoare implicită | Opționali, folosesc valoarea implicită dacă nu sunt specificați |
+| `return valoare` | Trimite rezultatul înapoi apelantului |
+| `*args` / `**kwargs` | Colectează argumente extra, poziționale/cu nume |
+| Type hints (`param: tip`) | Documentare + verificare externă, ignorate la runtime |
+
+<FactBox>
+**Funcții în cifre:**
+- Funcțiile sunt "first-class citizens" în Python — pot fi atribuite, transmise, returnate ca orice altă valoare
+- Type hints: introduse formal în **Python 3.5** (2015), extinse constant în versiunile ulterioare
+- `lambda`: limitat la o singură expresie — pentru logică mai complexă, `def` obișnuit e obligatoriu
+- O funcție fără `return` explicit: returnează implicit `None`
+- Regula de ordine a parametrilor: obligatorii înainte de cei cu valoare implicită, mereu
+- `*args`/`**kwargs`: pattern-uri prezente în semnăturile a aproape oricărei biblioteci Python majore
+</FactBox>
+
+---
+
+## ÎNCHEIERE
+
+Funcțiile transformă cod repetitiv într-o unitate reutilizabilă, testabilă, apelabilă din oriunde ai nevoie de acea logică — schimbarea comportamentului într-un singur loc se propagă automat la toate apelurile. Parametrii cu valoare implicită, `*args`/`**kwargs`, și type hints extind flexibilitatea acestei unități de bază fără să compromită claritatea, dacă sunt folosite cu disciplină.
+
+Dar unde "trăiește" o variabilă definită în interiorul unei funcții? Poate o funcție să vadă și să modifice variabile definite în afara ei? Lecția următoare răspunde precis la aceste întrebări — conceptul de scope, local vs. global.
