@@ -1,0 +1,185 @@
+---
+title: "Operatori aritmetici și logici"
+order: 5
+type: lesson
+module_index: 4
+duration: 12
+difficulty: 1
+---
+
+# Operatori aritmetici și logici
+
+## HOOK
+
+```python
+if utilizator.varsta >= 18 and utilizator.tara == "RO" or utilizator.este_admin:
+    permite_acces()
+```
+
+Această linie pare clară la prima citire — dar ordinea de evaluare a `and`/`or` schimbă complet comportamentul, exact ca `*` și `+` în matematică. Fără paranteze explicite, expresia se citește `(vârstă >= 18 and țară == "RO") or este_admin` — un admin din orice țară, de orice vârstă, trece automat, indiferent de restul condiției. Dacă intenția era altceva — poate "adult din România, SAU admin, dar tot cu restricția de țară" — codul are un bug logic real, care nu aruncă nicio eroare, doar produce decizii greșite tăcut.
+
+Operatorii aritmetici și logici sunt piesele de bază din care se construiește orice condiție, orice calcul, orice decizie automată dintr-un program — inclusiv logica de rutare a unui agent AI care decide ce unealtă să apeleze, sau funcția de cost dintr-un model care decide cât de "greșit" e un răspuns.
+
+---
+
+## CONTEXT
+
+Precedența operatorilor — ordinea în care se evaluează operațiile fără paranteze explicite — vine direct din convențiile matematice standardizate cu secole în urmă (înmulțirea înaintea adunării), extinse de limbajele de programare la operatori logici, care nu au echivalent direct în matematica de școală. Fiecare limbaj de programare definește propriul tabel de precedență — majoritatea urmăresc convenții similare, dar detaliile diferă suficient încât presupunerile dintr-un limbaj nu se transferă automat în altul.
+
+Python moștenește sintaxa operatorilor logici din engleza naturală — `and`, `or`, `not` — spre deosebire de C, Java, JavaScript, care folosesc simboluri (`&&`, `||`, `!`). Decizia de design urmează același principiu de lizibilitate discutat în L2: cod care se citește aproape ca o propoziție engleză, nu ca o secvență criptică de simboluri.
+
+---
+
+## MIEZUL
+
+### Operatorii aritmetici — cei șapte de bază
+
+{/* TABLE */}
+
+| Operator | Nume | Exemplu | Rezultat |
+|---|---|---|---|
+| `+` | Adunare | `5 + 3` | `8` |
+| `-` | Scădere | `5 - 3` | `2` |
+| `*` | Înmulțire | `5 * 3` | `15` |
+| `/` | Împărțire (întotdeauna float) | `5 / 2` | `2.5` |
+| `//` | Împărțire întreagă | `5 // 2` | `2` |
+| `%` | Modulo (restul) | `5 % 2` | `1` |
+| `**` | Ridicare la putere | `5 ** 2` | `25` |
+
+O particularitate Python importantă: `/` întoarce **întotdeauna** un `float`, chiar dacă ambii operanzi sunt `int` și rezultatul e exact (`10 / 2` dă `5.0`, nu `5`). Această decizie, luată la tranziția Python 2→3, elimină o clasă întreagă de bug-uri clasice din C, unde `5 / 2` (ambii `int`) dă `2`, trunchiat silențios, fără avertisment — o sursă notorie de erori de calcul în cod financiar sau statistic scris în limbaje mai vechi.
+
+<CosmoHint emotion="thinking">
+De ce `**` (ridicare la putere) contează direct pentru AI? Funcția de activare sigmoid dintr-o rețea neuronală se scrie:
+
+$$\sigma(x) = \frac{1}{1 + e^{-x}}$$
+
+și folosește exact acest operator pentru a calcula `e ** -x` în Python pur (`math.e ** -x`), deși în practică bibliotecile optimizate (NumPy, PyTorch) au implementări vectorizate mult mai rapide ale acelorași operații matematice de bază. Operatorii aritmetici simpli din Python sunt, literalmente, blocurile din care se compune orice formulă matematică pe care o întâlnești în cursul de Matematică pentru AI.
+</CosmoHint>
+
+### Operatorii de comparație — produc mereu `bool`
+
+{/* TABLE */}
+
+| Operator | Sens | Exemplu |
+|---|---|---|
+| `==` | Egal (valoare) | `5 == 5` → `True` |
+| `!=` | Diferit | `5 != 3` → `True` |
+| `>` | Mai mare | `5 > 3` → `True` |
+| `<` | Mai mic | `5 < 3` → `False` |
+| `>=` | Mai mare sau egal | `5 >= 5` → `True` |
+| `<=` | Mai mic sau egal | `5 <= 3` → `False` |
+
+Python permite **comparații înlănțuite**, sintaxă neobișnuită printre limbajele populare, dar extrem de citeață:
+
+```python
+varsta = 25
+print(18 <= varsta <= 65)   # echivalent cu: 18 <= varsta AND varsta <= 65
+```
+
+În C sau Java, `18 <= varsta <= 65` s-ar evalua greșit (rezultatul primei comparații, un boolean, s-ar compara apoi cu `65` — logic incorect fără avertisment). Python evaluează corect intenția matematică naturală.
+
+### Operatorii logici — `and`, `or`, `not`
+
+```python
+este_adult = varsta >= 18
+are_permis = True
+
+print(este_adult and are_permis)   # True doar dacă AMBELE sunt True
+print(este_adult or are_permis)     # True dacă CEL PUȚIN una e True
+print(not este_adult)                # inversează valoarea
+```
+
+**Short-circuit evaluation** — o optimizare importantă, nu doar o curiozitate: `and` oprește evaluarea imediat ce găsește un operand falsy (nu mai evaluează restul, pentru că rezultatul e deja determinat), `or` oprește imediat ce găsește unul truthy.
+
+```python
+def verificare_costisitoare():
+    print("Am rulat!")
+    return True
+
+False and verificare_costisitoare()   # NU afișează "Am rulat!" — and se oprește la primul False
+True or verificare_costisitoare()      # NU afișează "Am rulat!" — or se oprește la primul True
+```
+
+Acest comportament e folosit intenționat, idiomatic, pentru a evita apeluri costisitoare sau riscante:
+
+```python
+if utilizator is not None and utilizator.este_activ:
+    proceseaza(utilizator)
+```
+
+Dacă `utilizator is None`, Python nu evaluează niciodată `utilizator.este_activ` — evitând un `AttributeError` pe care l-ar fi produs accesarea unui atribut pe `None`. Ordinea contează aici: inversând cele două condiții, codul ar crăpa pentru `utilizator = None`.
+
+### Precedența operatorilor — ordinea reală de evaluare
+
+{/* TABLE */}
+
+| Prioritate (de sus în jos = evaluat primul) | Operatori |
+|---|---|
+| 1 (cea mai mare) | `**` |
+| 2 | `*`, `/`, `//`, `%` |
+| 3 | `+`, `-` |
+| 4 | `<`, `<=`, `>`, `>=`, `==`, `!=` |
+| 5 | `not` |
+| 6 | `and` |
+| 7 (cea mai mică) | `or` |
+
+Exemplul din HOOK, evaluat conform acestui tabel:
+
+```python
+varsta >= 18 and tara == "RO" or este_admin
+# Pas 1: comparațiile (prioritate 4) se evaluează primele
+# Pas 2: 'and' (prioritate 6) leagă primele două rezultate
+# Pas 3: 'or' (prioritate 7, cea mai mică) leagă ce rămâne cu este_admin
+# Rezultă: (varsta >= 18 and tara == "RO") or este_admin
+```
+
+Regula practică, cea mai importantă din toată lecția: **când ai și `and` și `or` în aceeași expresie, folosește paranteze explicite** — nu te baza pe faptul că cititorul (sau tu, peste 6 luni) își amintește tabelul de precedență corect. Codul `(varsta >= 18 and tara == "RO") or este_admin` comunică exact aceeași logică, dar fără ambiguitate vizuală.
+
+<CosmoHint emotion="encouraging">
+`and`/`or` în Python nu returnează neapărat `True`/`False` — returnează **unul dintre operanzii originali**. `0 or "implicit"` dă `"implicit"` (nu `True`), pentru că `or` returnează primul operand truthy găsit, sau ultimul dacă niciunul nu e. Pattern-ul `valoare = parametru_primit or valoare_implicita` e extrem de comun în Python pentru a seta rapid valori implicite fără un `if` explicit.
+</CosmoHint>
+
+### Operatorii de atribuire compusă
+
+```python
+x = 10
+x += 5    # echivalent cu x = x + 5  →  x devine 15
+x -= 3    # x devine 12
+x *= 2    # x devine 24
+x //= 5   # x devine 4
+```
+
+Utili pentru concizie în bucle și acumulatoare — vei folosi `+=` constant începând cu L7 (bucle FOR), de exemplu pentru a acumula o sumă totală sau a construi progresiv un string de rezultate.
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Expresie | Rezultat | Explicație |
+|---|---|---|
+| `10 / 3` | `3.3333...` | Împărțire normală, întotdeauna float |
+| `10 // 3` | `3` | Împărțire întreagă |
+| `2 ** 10` | `1024` | Ridicare la putere |
+| `True and False` | `False` | AND logic |
+| `0 or "implicit"` | `"implicit"` | OR returnează primul truthy |
+| `18 <= 25 <= 65` | `True` | Comparație înlănțuită |
+
+<FactBox>
+**Operatori în cifre:**
+- `/` returnează întotdeauna `float` din **Python 3.0** (2008) — schimbare majoră față de Python 2
+- 7 operatori aritmetici de bază: `+ - * / // % **`
+- Short-circuit evaluation: `and`/`or` opresc evaluarea imediat ce rezultatul e determinat — economie reală de calcul pentru expresii costisitoare
+- Comparații înlănțuite (`a <= b <= c`): particularitate Python, absentă în C/Java/JavaScript
+- Nivele de precedență a operatorilor: **peste 15**, documentate explicit în specificația limbajului
+- `and`/`or`: returnează operanzii originali, nu neapărat `True`/`False`
+</FactBox>
+
+---
+
+## ÎNCHEIERE
+
+Operatorii aritmetici și logici sunt gramatica de bază cu care se construiește orice expresie Python — de la un calcul simplu de TVA, până la condiția care decide dacă un model AI a convers suficient de bine ca să oprești antrenarea. Regula de aur rămâne simplă: dacă expresia amestecă `and` cu `or`, pune paranteze — costă câteva caractere, previne bug-uri logice tăcute.
+
+Până acum ai evaluat expresii care produc o singură valoare `True`/`False`. Lecția următoare arată ce faci concret cu acea valoare — structurile decizionale `if`/`elif`/`else`, mecanismul prin care programul alege ce cale de execuție urmează.
