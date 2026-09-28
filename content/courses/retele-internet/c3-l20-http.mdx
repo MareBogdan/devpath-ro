@@ -118,6 +118,22 @@ QUIC include criptare integrată (echivalentul TLS 1.3 e parte din protocolul de
 `curl -v --http2 https://exemplu.ro` îți arată explicit ce versiune HTTP negociază conexiunea (linia `< HTTP/2 200`). Header-ul de răspuns `alt-svc` semnalizează browserului că serverul suportă și HTTP/3 pentru conexiunile viitoare — un exemplu concret de upgrade progresiv de protocol fără să rupi compatibilitatea.
 </CosmoHint>
 
+### Content negotiation — același URL, forme diferite de răspuns
+
+Același endpoint poate răspunde diferit în funcție de ce acceptă clientul, printr-un mecanism numit **content negotiation**. Header-ul `Accept: application/json` cerut de client semnalează serverului formatul preferat de răspuns; `Accept-Language: ro-RO, en;q=0.8` cere conținut în română, cu engleza ca alternativă acceptabilă (calitatea `q=0.8` indică preferința relativă). Serverul răspunde cu `Content-Type` și `Content-Language` corespunzătoare, sau cu `406 Not Acceptable` dacă nu poate satisface cererea în niciun format cerut.
+
+`Accept-Encoding: gzip, br` cere serverului să compreseze răspunsul înainte de trimitere — `Content-Encoding: gzip` în răspuns confirmă compresia aplicată. Pentru payload-uri text (HTML, JSON, CSS), compresia gzip/Brotli reduce dimensiunea transferată cu 60-80% în cazuri tipice, o optimizare aplicată aproape universal de servere de producție, complet transparentă pentru cod — biblioteca HTTP a clientului decompresează automat înainte de a expune conținutul aplicației.
+
+### Cookie-uri — mecanismul de bază al sesiunilor peste un protocol fără stare
+
+Statelessness-ul discutat deja înseamnă că serverul nu reține nimic automat între cereri — dar aproape orice aplicație web reală are nevoie de continuitate (utilizator autentificat, coș de cumpărături). **Cookie-urile** rezolvă asta la nivelul cel mai de bază al protocolului: serverul trimite `Set-Cookie: sesiune=abc123; HttpOnly; Secure; SameSite=Strict` în răspuns, browserul stochează acea valoare și o retrimite automat, la fiecare cerere ulterioară către același domeniu, în header-ul `Cookie: sesiune=abc123`.
+
+`HttpOnly` blochează accesul la cookie din JavaScript (previne furtul prin XSS). `Secure` cere ca cookie-ul să fie trimis doar peste HTTPS, niciodată peste HTTP simplu (previne interceptarea în plaintext). `SameSite=Strict` blochează trimiterea cookie-ului la cereri inițiate de pe alt domeniu (protecție directă contra CSRF — Cross-Site Request Forgery, unde un site malițios ar încerca să declanșeze acțiuni în numele tău pe alt site, folosind cookie-ul tău existent acolo). Aceste trei flag-uri, împreună, transformă un mecanism simplu de "memorie" într-o suprafață de atac gestionată explicit, cu protecții standard incluse direct în specificația HTTP.
+
+Fiecare cookie are un domeniu și, opțional, o dată de expirare — fără `Expires`/`Max-Age` explicit, cookie-ul e considerat de sesiune, ștears automat la închiderea browserului. Un cookie de autentificare persistent, cu expirare la 30 de zile, e ce permite unui utilizator să rămână logat între vizite separate, fără să reintroducă parola de fiecare dată — costul e o fereastră mai lungă de expunere dacă cookie-ul e furat, motiv pentru care aplicațiile sensibile (bancare) folosesc expirări mult mai scurte sau cer reautentificare explicită pentru acțiuni critice, indiferent de vechimea sesiunii.
+
+Alternativa modernă la cookie-uri de sesiune, tot mai comună în API-uri și aplicații mobile, sunt token-urile transmise explicit în header-ul `Authorization`, nu automat de browser — clientul le stochează el însuși (memorie, storage local) și le atașează manual la fiecare cerere. Diferența practică: un cookie circulă automat, invizibil pentru codul aplicației client, pe orice cerere către domeniul lui; un token în `Authorization` cere cod explicit la fiecare cerere, dar oferă control mai fin asupra momentului exact în care e trimis și expus.
+
 ---
 
 ## REVEAL
