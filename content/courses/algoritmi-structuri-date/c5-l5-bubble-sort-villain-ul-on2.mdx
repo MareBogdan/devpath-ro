@@ -1,0 +1,158 @@
+---
+title: "Bubble Sort — villain-ul O(n²)"
+order: 5
+type: lesson
+module_index: 5
+duration: 13
+difficulty: 2
+---
+
+# Bubble Sort — villain-ul O(n²)
+
+## HOOK
+
+Aproape orice om care învață să programeze, pus în fața problemei "sortează această listă", ajunge la aceeași idee, independent: parcurge lista, compară vecinii doi câte doi, schimbă-i dacă sunt în ordinea greșită, repetă până nu mai faci nicio schimbare. E intuitiv, corect, ușor de explicat unui prieten fără cunoștințe tehnice — și e, aproape întotdeauna, exact algoritmul greșit de folosit pe date reale, la scară reală.
+
+Acest algoritm se numește **Bubble Sort**, numit așa pentru că cele mai mari elemente "plutesc" treptat spre finalul listei, ca bulele într-un lichid. Complexitatea lui — O(n²), exact clasa de complexitate marcată deja ca "atenție" în L3 — îl face perfect pentru a înțelege intuitiv un algoritm prost, înainte de a vedea, în lecția următoare, alternativa corectă. Nu-l vei folosi niciodată în cod de producție serios — dar înțelegerea exactă a *de ce* e lent te pregătește să recunoști instant același tipar oriunde altundeva apare, ascuns într-un cod aparent nevinovat.
+
+---
+
+## CONTEXT
+
+Bubble Sort apare deja în literatura de informatică din anii '50-'60, printre primii algoritmi de sortare documentați formal — nu pentru că era considerat eficient, ci pentru că era simplu de descris și de implementat pe hardware-ul primitiv al epocii. Donald Knuth, în *The Art of Computer Programming*, îl analizează detaliat, dar concluzionează explicit că "algoritmul Bubble Sort pare să nu aibă multe recomandări, cu excepția unui nume atrăgător" — o judecată care a rezistat, aproape neschimbată, până azi.
+
+Motivul pentru care Bubble Sort rămâne totuși predat universal, în orice curs introductiv de algoritmi, nu e utilitatea lui practică — e valoarea lui pedagogică: e algoritmul cel mai simplu prin care poți *observa direct* diferența dintre intuiție (pare rezonabil) și analiza riguroasă (e obiectiv prost la scară), exact tranziția conceptuală pe care acest curs o construiește lecție după lecție.
+
+---
+
+## MIEZUL
+
+### Mecanismul — comparații și schimbări succesive
+
+```python
+def bubble_sort(lista):
+    n = len(lista)
+    for i in range(n):
+        for j in range(0, n - i - 1):
+            if lista[j] > lista[j + 1]:
+                lista[j], lista[j + 1] = lista[j + 1], lista[j]   # swap
+    return lista
+```
+
+Bucla exterioară repetă procesul de `n` ori. Bucla interioară parcurge lista, comparând fiecare pereche de vecini adiacenți — dacă sunt în ordinea greșită, îi schimbă. După o singură trecere completă (o iterație a buclei interioare), cel mai mare element rămas negrupat "s-a ridicat" garantat la poziția lui finală, la finalul segmentului rămas — motiv pentru care intervalul de comparat (`n - i - 1`) se micșorează la fiecare trecere: elementele deja plasate corect, la final, nu mai trebuie reverificate.
+
+Exact structura buclelor imbricate din L1 și L3 — o buclă în interiorul alteia, pe aceleași date — și exact motivul pentru care Bubble Sort e O(n²): pentru fiecare din cele `n` treceri, faci aproximativ `n` comparații, rezultând `n × n` operații totale.
+
+### Trasarea pas cu pas — vizualizarea comportamentului
+
+Pentru lista `[5, 2, 8, 1, 9]`, prima trecere completă:
+
+{/* TABLE */}
+
+| Comparație | Stare listă | Acțiune |
+|---|---|---|
+| 5 vs 2 | `[5, 2, 8, 1, 9]` | Schimbă — 5 > 2 |
+| 5 vs 8 | `[2, 5, 8, 1, 9]` | Nu schimbă — 5 < 8 |
+| 8 vs 1 | `[2, 5, 8, 1, 9]` | Schimbă — 8 > 1 |
+| 8 vs 9 | `[2, 5, 1, 8, 9]` | Nu schimbă — 8 < 9 |
+
+După o singură trecere, `9` — cel mai mare element — a ajuns deja la poziția lui finală, corectă. Restul listei rămâne parțial dezordonat, necesitând trecerile ulterioare. Acest comportament — un singur element "rezolvat" garantat per trecere completă — explică direct de ce sunt necesare până la `n` treceri pentru a sorta complet lista.
+
+<CosmoHint emotion="thinking">
+De ce Bubble Sort face exact "n - i - 1" comparații la trecerea i, nu întotdeauna "n"? Pentru că fiecare trecere completă garantează că *cel puțin* un element suplimentar — cel mai mare rămas nesortat — ajunge la poziția lui finală, la capătul din dreapta al segmentului activ. N-are sens să mai comparăm acel element din nou la treceri viitoare — el nu se va mai muta. Această mică optimizare reduce numărul total de comparații de la exact `n²` la aproximativ `n²/2` — încă O(n²) ca notație Big O (constanta ½ dispare la simplificare, exact regula din L3), dar cu jumătate din operațiile reale, o diferență care contează practic, chiar dacă nu schimbă clasa de complexitate.
+</CosmoHint>
+
+### Optimizarea "early exit" — oprirea la o listă deja sortată
+
+```python
+def bubble_sort_optimizat(lista):
+    n = len(lista)
+    for i in range(n):
+        schimbat = False
+        for j in range(0, n - i - 1):
+            if lista[j] > lista[j + 1]:
+                lista[j], lista[j + 1] = lista[j + 1], lista[j]
+                schimbat = True
+        if not schimbat:
+            break    # nicio schimbare = lista e deja sortată, oprește imediat
+```
+
+Dacă o trecere completă nu produce nicio schimbare, lista e deja complet sortată — continuarea buclei ar fi complet inutilă. Această optimizare transformă cel mai bun caz (o listă deja sortată) din O(n²) în O(n) — o singură trecere, fără nicio schimbare, oprire imediată. Dar cel mai rău caz (o listă sortată exact invers) rămâne O(n²), neschimbat — exact distincția dintre cel mai bun caz și cel mai rău caz introdusă în L3, aplicată concret aici.
+
+### De ce Bubble Sort pierde în fața alternativelor — comparație directă
+
+{/* TABLE */}
+
+| Algoritm | Cel mai rău caz | Cel mai bun caz | Memorie suplimentară |
+|---|---|---|---|
+| Bubble Sort | O(n²) | O(n) cu optimizare | O(1) |
+| Merge Sort (L6) | O(n log n) | O(n log n) | O(n) |
+| Sortarea încorporată Python (Timsort) | O(n log n) | O(n) | O(n) |
+
+Pentru o listă de 10.000 de elemente, Bubble Sort face, în cel mai rău caz, aproximativ 100 de milioane de comparații — Merge Sort face aproximativ 130.000. Diferența nu e o nuanță de optimizare — e diferența dintre secunde și milisecunde, la exact aceeași sarcină. Singurul avantaj real al Bubble Sort — memoria O(1), fără nicio alocare suplimentară — devine practic irelevant, pentru că beneficiul de viteză al alternativelor depășește masiv costul lor mic suplimentar de memorie, pe aproape orice hardware modern.
+
+### `sorted()` din Python — de ce nu folosești niciodată Bubble Sort real
+
+```python
+lista_sortata = sorted([5, 2, 8, 1, 9])   # folosește Timsort intern — O(n log n) garantat
+```
+
+Python (și aproape orice limbaj modern) oferă o funcție de sortare încorporată, optimizată intern, bazată pe algoritmi sofisticați (Timsort, o hibridizare între Merge Sort și Insertion Sort, optimizată pentru date parțial sortate deja) — nu vei scrie niciodată manual Bubble Sort în cod de producție real. Valoarea acestei lecții nu e "cum implementezi sortarea" — e "cum recunoști un tipar O(n²) de bucle imbricate, oriunde apare, chiar dacă nu se numește explicit sortare." Exact aceeași structură de cod care sortează prost printr-o buclă imbricată e structura care căuta duplicate prost în L1 — un singur tipar recunoscut, aplicat corect la fiecare context unde apare.
+
+### Selection Sort și Insertion Sort — verii apropiați ai lui Bubble Sort
+
+Bubble Sort nu e singurul algoritm simplu, intuitiv, dar O(n²) — face parte dintr-o familie de algoritmi de sortare "naivi", care includ și **Selection Sort** (găsește repetat cel mai mic element rămas și îl mută la început) și **Insertion Sort** (construiește progresiv o secțiune sortată, inserând fiecare element nou la poziția lui corectă în acea secțiune). Toate trei au complexitate O(n²) în cel mai rău caz, toate trei sunt ușor de înțeles și de implementat — dar diferă în detalii relevante practic.
+
+{/* TABLE */}
+
+| Algoritm | Idee centrală | Particularitate |
+|---|---|---|
+| Bubble Sort | Schimbă vecini adiacenți repetat | Simplu, dar face multe schimbări inutile |
+| Selection Sort | Găsește minimul rămas, mută-l la poziție | Face mai puține schimbări, dar tot O(n²) comparații |
+| Insertion Sort | Inserează fiecare element în secțiunea deja sortată | Foarte eficient pe date **aproape sortate** deja |
+
+Insertion Sort merită o mențiune specială: pe date aproape sortate (puține elemente în afara poziției corecte), performanța lui reală se apropie de O(n), nu O(n²) — motiv pentru care Timsort, algoritmul folosit intern de `sorted()` în Python, combină exact Insertion Sort (pentru segmente mici sau aproape sortate) cu Merge Sort (pentru segmente mari), luând ce e mai bun din fiecare abordare, în funcție de structura reală a datelor de sortat.
+
+Această hibridizare explică de ce Timsort nu apare niciodată listat separat în tabelele simplificate de clase de complexitate din L3 — e, prin design, un algoritm adaptiv, care-și schimbă strategia internă în funcție de cât de "dezordonate" sunt datele de intrare, garantând totuși O(n log n) în cel mai rău caz, indiferent de structura reală a datelor primite.
+
+### Vizualizarea complexității — de ce Bubble Sort "arată" lent
+
+O modalitate intuitivă de a simți diferența dintre O(n²) și O(n log n), dincolo de cifre abstracte: imaginează-ți o listă de 1.000 de cărți de joc, amestecate complet. Bubble Sort ar face aproximativ 500.000 de comparații pentru a le sorta — dacă fiecare comparație ar dura o secundă (o exagerare intenționată, pentru intuiție), procesul ar dura peste 5 zile. Merge Sort, pe aceleași cărți, ar face aproximativ 10.000 de comparații — puțin peste 2 ore și jumătate, la același ritm ipotetic de o secundă per comparație. Diferența nu e o nuanță de eficiență — e diferența dintre practic și impractic, la o dimensiune de date care, în informatică reală, e considerată încă "mică".
+
+Această intuiție se aplică direct la decizii reale de proiectare: orice funcție care sortează sau compară perechi de elemente dintr-o colecție care ar putea crește — o listă de utilizatori, un catalog de produse, un set de rezultate de căutare — merită verificată explicit pentru exact acest tipar, înainte ca ea să ajungă vreodată la o dimensiune unde diferența devine vizibilă utilizatorilor reali, nu doar testelor de laborator.
+
+<CosmoHint emotion="encouraging">
+Un exercițiu util pentru a internaliza diferența: rulează mental (sau, mai bine, efectiv, în Python) Bubble Sort pe o listă de 10 elemente și numără câte comparații face — apoi imaginează-ți aceeași buclă pe o listă de 10.000 de elemente, folosind proporția din L3 (100 de milioane de comparații). Diferența de la "instant" la "vizibil lent" nu se întâmplă treptat — se întâmplă brusc, exact la dimensiunea unde termenul pătratic începe să domine complet peste orice altă considerație.
+</CosmoHint>
+
+<FactBox>
+**Bubble Sort în cifre:**
+- Cel mai rău caz: O(n²) — pentru 10.000 de elemente, ~100 milioane de comparații
+- Cel mai bun caz (cu optimizarea "early exit"): O(n) — o singură trecere pe date deja sortate
+- Memorie suplimentară: O(1) — singurul avantaj real față de alternative
+- Merge Sort pe aceleași 10.000 de elemente: ~130.000 de comparații — de ~770× mai puține
+- Donald Knuth, în *The Art of Computer Programming*: îl descrie ca având "puține recomandări" practice
+- Python `sorted()`: folosește Timsort, O(n log n) garantat în cel mai rău caz
+</FactBox>
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Etapă Bubble Sort | Ce se întâmplă |
+|---|---|
+| Trecere completă | Parcurge segmentul nesortat, compară vecini adiacenți |
+| Comparație + schimbare | Dacă vecinul din stânga > vecinul din dreapta, schimbă-i |
+| Sfârșitul unei treceri | Cel mai mare element rămas ajunge garantat la poziția finală |
+| Repetare | Segmentul de comparat se micșorează cu un element la fiecare trecere |
+| Optimizare "early exit" | Nicio schimbare într-o trecere = lista e deja sortată, oprire imediată |
+
+---
+
+## ÎNCHEIERE
+
+Bubble Sort e simplu de înțeles și corect din punct de vedere logic — dar exact complexitatea lui O(n²), aceeași clasă marcată deja ca semnal de alarmă în L3, îl face nepotrivit la orice scară reală de date. Valoarea reală a acestei lecții nu e algoritmul în sine, ci reflexul de a recunoaște structura buclelor imbricate care-l produce, oriunde reapare, sub orice nume.
+
+Lecția următoare arată exact alternativa corectă — un algoritm de sortare care nu compară fiecare pereche de elemente, ci împarte problema recursiv în bucăți tot mai mici, le rezolvă separat, apoi le combină eficient. Merge Sort transformă O(n²) în O(n log n) — diferența exactă care separă un algoritm de manual introductiv de unul folosit efectiv în producție.
