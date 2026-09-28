@@ -1,0 +1,131 @@
+---
+title: "Grafuri — noduri și muchii"
+order: 9
+type: lesson
+module_index: 5
+duration: 14
+difficulty: 3
+---
+
+# Grafuri — noduri și muchii
+
+## HOOK
+
+BST-ul din L7 conectează fiecare nod cu cel mult doi copii, într-o ierarhie strictă, de sus în jos. Rețeaua reală de prieteni de pe o platformă socială nu arată deloc așa — o persoană poate fi conectată cu zeci sau sute de altele, fără nicio ierarhie clară de "părinte" și "copil". Rețeaua de drumuri dintr-un oraș, rețeaua de dependențe dintre pachetele unui proiect software, rețeaua de neuroni dintr-un model AI — toate au aceeași proprietate: conexiuni arbitrare, în orice direcție, între oricare două elemente, fără forma restrictivă a unui arbore.
+
+**Graful** e structura de date care modelează exact acest tip de relație generală — noduri (elementele) conectate prin muchii (relațiile dintre ele), fără nicio restricție asupra câte conexiuni poate avea un nod sau în ce formă se organizează întregul ansamblu. E cea mai generală structură din acest curs — de fapt, atât listele cât și arborii (BST, heap) sunt, tehnic, cazuri particulare, mai restrânse, ale unui graf.
+
+---
+
+## CONTEXT
+
+Teoria grafurilor are o origine precisă, neobișnuit de exactă pentru un domeniu matematic: 1736, când Leonhard Euler a rezolvat problema celor șapte poduri din Königsberg — dacă poți traversa orașul trecând exact o singură dată peste fiecare din cele șapte poduri și revenind la punctul de plecare. Euler a demonstrat că răspunsul e "nu", printr-o abstractizare genială: a redus complet forma orașului la un set de puncte (insule, maluri) conectate prin linii (poduri) — primul exemplu documentat de gândire în termeni de graf, cu secole înainte ca informatica să existe.
+
+Această abstractizare — reduce o problemă complexă la puncte și conexiuni, ignoră tot restul detaliilor irelevante — e exact ce face un graf util în informatică: rețele de calculatoare, rute de transport, relații sociale, dependențe de proiect, chiar structura hyperlink-urilor dintre paginile web — toate se reduc la aceeași abstracție fundamentală, indiferent cât de diferite par la suprafață.
+
+---
+
+## MIEZUL
+
+### Vocabularul de bază — noduri, muchii, direcție, greutate
+
+Un graf constă din **noduri** (numite și vârfuri, vertices) și **muchii** (edges) — conexiuni între perechi de noduri. Două distincții fundamentale definesc tipul unui graf:
+
+{/* TABLE */}
+
+| Distincție | Tip A | Tip B |
+|---|---|---|
+| Direcție | **Neorientat** — muchia A-B e identică cu B-A (prietenie reciprocă) | **Orientat** — muchia A→B diferă de B→A (urmărire pe rețea socială) |
+| Greutate | **Neponderat** — toate muchiile sunt "egale" | **Ponderat** — fiecare muchie are un cost/distanță asociată |
+
+Un graf de drumuri e tipic neorientat (dacă poți merge de la A la B, poți și invers) și ponderat (fiecare drum are o distanță sau un timp de parcurs diferit). O rețea de "cine urmărește pe cine" pe o platformă socială e orientată (A urmărește pe B nu implică reciproca) și neponderată. Algoritmul lui Dijkstra, subiectul L11, funcționează specific pe grafuri ponderate — greutatea muchiilor e exact ce decide "cel mai scurt" drum, nu doar "un" drum oarecare.
+
+### Reprezentarea în cod — matrice de adiacență vs. listă de adiacență
+
+```python
+# Matrice de adiacență — un tabel n×n, 1 dacă există muchie, 0 dacă nu
+matrice = {
+    "A": {"B": 1, "C": 0, "D": 1},
+    "B": {"A": 1, "C": 1, "D": 0},
+    "C": {"A": 0, "B": 1, "D": 1},
+    "D": {"A": 1, "B": 0, "C": 1},
+}
+
+# Listă de adiacență — pentru fiecare nod, doar VECINII lui reali
+lista = {
+    "A": ["B", "D"],
+    "B": ["A", "C"],
+    "C": ["B", "D"],
+    "D": ["A", "C"],
+}
+```
+
+Matricea de adiacență cere O(n²) memorie, indiferent câte muchii există efectiv — pentru un graf cu puține conexiuni relativ la numărul de noduri (numit "rar", sparse), asta risipește masiv spațiu pe perechi care nu au nicio muchie între ele. Lista de adiacență cere memorie proporțională cu numărul real de muchii — O(n + m), unde `m` e numărul de muchii — mult mai eficientă pentru grafurile rare, cazul tipic al aproape oricărei rețele reale (o persoană nu e prietenă cu majoritatea celorlalți utilizatori ai unei platforme, doar cu o fracțiune mică).
+
+<CosmoHint emotion="thinking">
+De ce alegerea dintre matrice și listă de adiacență contează practic, nu doar teoretic? Verificarea "există muchie între A și B?" costă O(1) pe matrice (acces direct prin index), dar O(grad(A)) pe listă (trebuie parcursă lista de vecini ai lui A). Invers, parcurgerea TUTUROR vecinilor unui nod costă O(n) pe matrice (verifici fiecare poziție posibilă, majoritatea zero) dar O(grad(A)) pe listă (parcurgi direct doar vecinii reali, fără risipă). Alegerea corectă depinde de operația pe care o faci frecvent — exact tipul de decizie de space-time tradeoff din L4, aplicat la o structură de date specifică.
+</CosmoHint>
+
+### Grade, drumuri, cicluri — vocabularul care descrie structura
+
+**Gradul** unui nod e numărul de muchii conectate direct la el — în graful de mai sus, nodul `A` are gradul 2 (conectat la `B` și `D`). Un **drum** (path) e o secvență de noduri conectate succesiv prin muchii — `A → B → C` e un drum de la `A` la `C`. Un **ciclu** e un drum care revine la nodul de start — `A → B → C → D → A`, dacă toate acele muchii există.
+
+Un graf **conex** (connected) are un drum între oricare două noduri — nu există "insule" izolate. Un graf cu componente deconectate modelează, de exemplu, rețele sociale separate care nu au niciun contact între ele, sau părți dintr-un sistem software complet independente unele de altele.
+
+### Grafuri aciclice orientate (DAG) — structura din spatele dependențelor
+
+Un caz special, extrem de important practic: **DAG** (Directed Acyclic Graph) — un graf orientat, fără niciun ciclu posibil. Această proprietate — imposibilitatea de a reveni vreodată la un nod deja vizitat, urmând direcția muchiilor — modelează perfect relații de **dependență**: pachetele unui proiect software (pachetul A depinde de B, care depinde de C, dar niciodată circular), ordinea task-urilor într-un proiect (task-ul final depinde de cele intermediare, niciodată invers), sau graful de calcul al unei rețele neuronale (fiecare strat depinde de rezultatul stratului anterior, informația curge într-o singură direcție, fără bucle).
+
+$$\text{Ciclu în dependențe} \implies \text{imposibilitate logică (A depinde de B, care depinde de A)}$$
+
+Verificarea că un graf de dependențe e într-adevăr un DAG (fără cicluri) e o operațiune practică reală — `pip install` sau `npm install`, la instalarea de pachete, verifică exact acest lucru, respingând configurații circulare imposibil de rezolvat logic (pachetul A nu poate fi instalat înainte de B, dar B are nevoie de A instalat deja).
+
+### Grafuri și rețelele neuronale — o legătură directă
+
+Structura unei rețele neuronale — subiectul detaliat al cursurilor viitoare de Machine Learning din acest program — e, literal, un graf: neuronii sunt noduri, conexiunile ponderate dintre ei sunt muchii, iar propagarea informației (forward pass) urmează exact structura unui DAG, de la stratul de intrare, prin straturile ascunse, până la ieșire, fără nicio buclă posibilă în arhitecturile clasice feedforward. Chiar și arhitecturi mai complexe, cu conexiuni reziduale (skip connections, folosite în rețele foarte adânci), rămân DAG-uri — muchiile suplimentare "sar" peste straturi, dar niciodată nu formează un ciclu propriu-zis.
+
+### Grafuri ciclice și de ce contează pentru retropropagare (backpropagation)
+
+Deși propagarea înainte (forward pass) urmează un DAG, procesul de **antrenare** a unei rețele neuronale (retropropagarea gradientului, subiectul unei lecții viitoare din acest program) parcurge exact același graf, dar în ordine inversă — de la ieșire înapoi la intrare, calculând contribuția fiecărui neuron la eroarea finală. Faptul că graful de calcul rămâne aciclic e exact ce face această parcurgere inversă posibilă și bine definită: ordinea de calcul e complet determinată, fără ambiguitate despre "ce trebuie calculat înainte de ce", exact proprietatea garantată de absența ciclurilor.
+
+### Subgrafuri și componente conexe — o distincție practică
+
+Un graf mare, real, e adesea format din mai multe **componente conexe** — grupuri de noduri interconectate între ele, dar complet separate de alte grupuri. O rețea socială globală, de exemplu, nu e neapărat un singur graf conex — pot exista comunități izolate, fără nicio conexiune între ele și restul rețelei. Identificarea acestor componente separate (o operațiune care folosește exact tehnicile de parcurgere din L10, BFS sau DFS) e utilă practic pentru a înțelege structura reală a unei rețele — recomandări de prieteni, detectarea de comunități, sau identificarea unor părți izolate ale unui sistem care ar trebui, logic, să fie conectate, dar nu sunt.
+
+Această distincție — un graf conex vs. unul cu mai multe componente separate — nu e doar teoretică: decide direct dacă un algoritm de parcurgere, pornit dintr-un singur nod, va ajunge vreodată să exploreze tot graful, sau doar componenta din care face parte nodul de start, lăsând restul complet neexplorat.
+
+<CosmoHint emotion="excited">
+Fiecare parcurgere pe care o vei învăța în lecțiile următoare — BFS, DFS (L10), algoritmul lui Dijkstra (L11) — operează direct pe exact această structură de graf introdusă aici, indiferent dacă modelează un labirint, o rețea de drumuri, sau relațiile de urmărire dintr-o rețea socială. Vocabularul din această lecție — noduri, muchii, drumuri, cicluri, DAG — e fundația pe care se construiește tot restul acestui bloc de lecții, nu doar un exercițiu izolat de definiții.
+</CosmoHint>
+
+<FactBox>
+**Grafuri în cifre:**
+- Teoria grafurilor: originea precisă e problema celor 7 poduri din Königsberg, rezolvată de Euler în **1736**
+- Matrice de adiacență: memorie **O(n²)**, indiferent de numărul real de muchii
+- Listă de adiacență: memorie **O(n + m)** — eficientă pentru grafuri rare (majoritatea rețelelor reale)
+- DAG: graf orientat, fără cicluri — fundamentul dependențelor de pachete și al rețelelor neuronale feedforward
+- Rețea neuronală: structurată literal ca un graf (DAG), neuroni = noduri, ponderi = muchii
+- `pip`/`npm`: verifică automat absența ciclurilor în graful de dependențe la fiecare instalare
+</FactBox>
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Tip de relație reală | Model de graf potrivit |
+|---|---|
+| Prietenii reciproce pe o platformă | Neorientat, neponderat |
+| Urmăriri unidirecționale (social media) | Orientat, neponderat |
+| Rețea de drumuri, cu distanțe | Neorientat, ponderat |
+| Dependențe de pachete software | Orientat, aciclic (DAG) |
+| Rețea neuronală (forward pass) | Orientat, aciclic (DAG) |
+
+---
+
+## ÎNCHEIERE
+
+Graful generalizează toate structurile văzute până acum — o listă e un graf liniar, un arbore e un graf fără cicluri cu un singur drum între oricare două noduri. Această generalitate e exact ce-l face util pentru a modela aproape orice relație reală, de la rețele sociale la arhitecturi de rețele neuronale, dar și mai costisitor de parcurs — un graf nu are o structură predictibilă precum un arbore, de unde nevoia unor strategii explicite de explorare.
+
+Lecția următoare introduce exact aceste strategii — BFS și DFS, cele două metode fundamentale de a parcurge un graf complet, fiecare cu propriile garanții și cazuri de uz potrivite, direct construite pe vocabularul introdus aici.
