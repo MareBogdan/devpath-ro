@@ -1,0 +1,185 @@
+---
+title: "Algoritmul lui Dijkstra"
+order: 11
+type: lesson
+module_index: 5
+duration: 15
+difficulty: 4
+---
+
+# Algoritmul lui Dijkstra
+
+## HOOK
+
+L10 s-a încheiat cu o limitare explicită a BFS: găsește cel mai scurt drum doar pe grafuri **neponderate**, unde fiecare muchie "costă" la fel. Dar o hartă reală de drumuri nu funcționează așa — un drum de 2 km pe autostradă poate fi mai rapid decât unul de 500 m printr-o zonă blocată. "Cel mai scurt" înseamnă, practic, cel mai ieftin, măsurat în distanță, timp, sau orice altă greutate — nu numărul de segmente traversate.
+
+**Algoritmul lui Dijkstra**, publicat de Edsger Dijkstra în 1959, rezolvă exact această problemă: găsește cel mai scurt drum ponderat de la un nod sursă la toate celelalte noduri dintr-un graf, cu o singură cerință — toate greutățile trebuie să fie nenegative. E algoritmul care rulează, la scară masivă, în spatele fiecărei aplicații de navigație GPS pe care ai folosit-o vreodată, și, sub o formă generalizată, în spatele multor sisteme de rutare de rețea.
+
+---
+
+## CONTEXT
+
+Edsger Dijkstra a conceput algoritmul în 1956, într-un moment neobișnuit pentru istoria informaticii — povestea, spusă chiar de el, e că l-a proiectat mental, în aproximativ 20 de minute, în timp ce lua o cafea cu logodnica lui în Amsterdam, ca demonstrație a capacităților noului calculator ARMAC. L-a publicat abia în 1959, într-o formă concisă, de trei pagini — și de atunci a rămas unul dintre cei mai citați și mai folosiți algoritmi din toată informatica.
+
+Ideea centrală combină direct două concepte deja introduse: strategia de explorare sistematică a BFS (L10) și structura de heap (L8) pentru a decide, la fiecare pas, care nod neexplorat e cel mai apropiat de sursă. Nu e o coincidență că aceste concepte apar exact în această ordine în cursul de față — Dijkstra e, structural, o extensie directă a ideilor deja acoperite, nu un algoritm complet nou de la zero.
+
+---
+
+## MIEZUL
+
+### Intuiția — extindere greedy, ghidată de distanța curentă cunoscută
+
+Algoritmul menține, pentru fiecare nod, cea mai bună distanță cunoscută **până acum** de la sursă — inițial infinit pentru toate, cu excepția sursei (distanță 0). La fiecare pas, alege nodul neexplorat cu cea mai mică distanță cunoscută, îl marchează ca explorat definitiv, apoi verifică dacă poate **îmbunătăți** distanța cunoscută a vecinilor lui, trecând prin el.
+
+$$\text{dacă } \text{dist}(u) + \text{greutate}(u, v) < \text{dist}(v) \implies \text{actualizează } \text{dist}(v)$$
+
+Această verificare — numită **relaxare** — e operația centrală a algoritmului: pentru fiecare muchie explorată, întrebă "am găsit acum un drum mai scurt către acest vecin, trecând prin nodul curent?" Dacă da, actualizează distanța cunoscută și continuă.
+
+### Implementarea — heap-ul din L8, aplicat direct
+
+```python
+import heapq
+
+def dijkstra(graf, start):
+    distante = {nod: float("inf") for nod in graf}
+    distante[start] = 0
+    coada_prioritati = [(0, start)]      # (distanță, nod) — heap-ul din L8
+    vizitate = set()
+
+    while coada_prioritati:
+        dist_curenta, nod = heapq.heappop(coada_prioritati)   # extrage cel mai apropiat, O(log n)
+
+        if nod in vizitate:
+            continue
+        vizitate.add(nod)
+
+        for vecin, greutate in graf[nod].items():
+            distanta_noua = dist_curenta + greutate
+            if distanta_noua < distante[vecin]:
+                distante[vecin] = distanta_noua
+                heapq.heappush(coada_prioritati, (distanta_noua, vecin))
+
+    return distante
+```
+
+Observă direct legătura cu L8 și L10: în loc de coada FIFO simplă a BFS, folosim un **heap** (coadă de priorități) — la fiecare pas, extragem nu "primul intrat," ci **cel mai apropiat** neexplorat, exact garanția O(log n) pe care heap-ul o oferă pentru acces la extremă. Această înlocuire simplă — coadă simplă → coadă de priorități — e diferența structurală exactă între BFS (funcționează doar pe grafuri neponderate) și Dijkstra (funcționează corect pe grafuri ponderate, cu greutăți nenegative).
+
+{/* TABLE */}
+
+| Pas | Nod explorat | Distanțe actualizate |
+|---|---|---|
+| 1 | A (distanță 0) | B: 4, C: 1 |
+| 2 | C (distanță 1, cea mai mică rămasă) | B: 3 (îmbunătățit prin C, nu direct din A) |
+| 3 | B (distanță 3) | D: 7 |
+| 4 | D (distanță 7) | — (fără vecini noi de îmbunătățit) |
+
+Observă cum distanța lui `B` s-a îmbunătățit — inițial 4 (direct din A), apoi actualizată la 3 (mai scurt, trecând prin C) — exact operația de relaxare aplicată corect, garantând că valoarea finală e cea minimă posibilă, indiferent de ordinea în care muchiile au fost descoperite inițial.
+
+<CosmoHint emotion="thinking">
+De ce Dijkstra NU funcționează corect dacă graful are muchii cu greutăți NEGATIVE? Algoritmul presupune, implicit, că odată ce un nod e marcat explorat (distanța lui finală, minimă, e "fixată"), nicio explorare ulterioară nu-l mai poate îmbunătăți — pentru că orice drum alternativ ar trebui să adauge greutăți suplimentare, deci ar fi mai lung, nu mai scurt. O muchie negativă rupe această presupunere: un drum descoperit mai târziu, trecând printr-o muchie negativă, ar putea fi de fapt mai scurt decât distanța deja "fixată" — dar algoritmul nu mai verifică acel nod, pentru că-l consideră deja rezolvat definitiv. Pentru grafuri cu greutăți negative, ai nevoie de un algoritm diferit (Bellman-Ford, dincolo de scopul acestei lecții), mai lent dar corect și în acest caz.
+</CosmoHint>
+
+### Complexitatea — de ce heap-ul contează atât de mult
+
+{/* TABLE */}
+
+| Implementare | Complexitate |
+|---|---|
+| Fără heap (caută minimul liniar, la fiecare pas) | O(n²) |
+| Cu heap (extrage minimul, O(log n) per operație) | O((n + m) log n) |
+
+Pentru un graf rar (`m` aproximativ proporțional cu `n`, cazul tipic al rețelelor reale — vezi discuția din L9), diferența dintre O(n²) și O(n log n) e exact aceeași diferență critică discutată deja în L3 — la scară mare, ordine de mărime de viteză, nu doar o îmbunătățire incrementală. Această alegere de implementare — heap vs. căutare liniară a minimului — e motivul direct pentru care Dijkstra rulează instant pe hărți cu milioane de noduri și muchii, aplicații reale de navigație GPS.
+
+### Reconstruirea drumului complet — nu doar distanța
+
+Exact ca la BFS (L10), varianta de mai sus calculează doar distanțele minime, nu drumurile complete — pentru reconstruirea traseului, fiecare nod trebuie să rețină, la fiecare actualizare de distanță, prin cine a fost atins:
+
+```python
+predecesori = {nod: None for nod in graf}
+
+# În interiorul buclei, la fiecare actualizare reușită:
+predecesori[vecin] = nod
+
+# Reconstruirea, ca la BFS:
+def reconstruieste_drum(predecesori, tinta):
+    drum = []
+    while tinta is not None:
+        drum.append(tinta)
+        tinta = predecesori[tinta]
+    return drum[::-1]
+```
+
+Exact același pattern de reconstruire a drumului din L10, aplicat aici la distanțele ponderate — de la înregistrarea predecesorului la fiecare pas, la parcurgerea inversă pentru a reconstrui traseul complet.
+
+### Oprirea timpurie — optimizare practică frecventă
+
+Algoritmul de mai sus calculează distanța minimă de la sursă la **toate** celelalte noduri — util dacă ai nevoie de toate distanțele simultan (o hartă completă de accesibilitate). Dar dacă ai nevoie doar de drumul către un singur nod țintă specific, poți opri algoritmul imediat ce acel nod e extras din coada de priorități, marcat definitiv explorat — nu are rost să continui explorarea restului grafului, pentru că distanța lui e deja garantat finală în acel moment:
+
+```python
+def dijkstra_pana_la_tinta(graf, start, tinta):
+    distante = {nod: float("inf") for nod in graf}
+    distante[start] = 0
+    coada = [(0, start)]
+    vizitate = set()
+
+    while coada:
+        dist_curenta, nod = heapq.heappop(coada)
+        if nod == tinta:
+            return dist_curenta    # oprire imediată — restul grafului rămâne neexplorat
+        if nod in vizitate:
+            continue
+        vizitate.add(nod)
+        for vecin, greutate in graf[nod].items():
+            distanta_noua = dist_curenta + greutate
+            if distanta_noua < distante[vecin]:
+                distante[vecin] = distanta_noua
+                heapq.heappush(coada, (distanta_noua, vecin))
+
+    return float("inf")   # ținta nu e accesibilă
+```
+
+Această optimizare practică poate reduce dramatic timpul de execuție pe grafuri masive — dacă ținta e "aproape" de sursă, algoritmul se oprește mult înainte de a explora tot restul grafului, o economie reală, direct proporțională cu cât de central sau periferic e nodul țintă în structura grafului.
+
+### A* — o extensie și mai rapidă, folosită în practică
+
+O variantă extrem de răspândită, construită direct peste Dijkstra: algoritmul **A\*** adaugă o **euristică** — o estimare informată a distanței rămase până la țintă (de exemplu, distanța în linie dreaptă pe o hartă, chiar dacă drumul real e mai lung) — pentru a ghida explorarea preferențial spre nodurile mai promițătoare, nu doar spre cele mai apropiate momentan. Cu o euristică bună, A* explorează semnificativ mai puține noduri decât Dijkstra simplu, pentru exact același rezultat corect — motiv pentru care aproape orice sistem real de navigație sau de pathfinding în jocuri video folosește A*, nu Dijkstra brut, deși A* rămâne, structural, o extensie directă a algoritmului învățat în această lecție.
+
+Diferența practică între cele două: Dijkstra explorează "orbește," ghidat doar de distanța deja parcursă; A* adaugă o componentă de "cât mai am probabil de mers," combinând informația reală cu o estimare — o combinație care direcționează explorarea activ spre țintă, în loc să se extindă uniform în toate direcțiile, exact motivul pentru care A* găsește adesea drumul corect mult mai rapid, explorând o fracțiune din nodurile pe care Dijkstra le-ar fi verificat.
+
+### Legătura cu grafurile de dependențe din L9
+
+O aplicație mai puțin evidentă a algoritmilor de tip Dijkstra apare la optimizarea graf-urilor de dependențe (DAG-uri, introduse în L9) — găsirea "drumului critic" printr-un proiect cu task-uri dependente, unde fiecare task are o durată (greutate) și trebuie găsită calea cea mai lungă (nu cea mai scurtă) care determină durata minimă totală a întregului proiect. Aceeași structură algoritmică de bază — relaxare repetată a distanțelor cunoscute, ghidată de o coadă de priorități — se adaptează, cu mici modificări, la această problemă înrudită, cunoscută în managementul de proiecte ca metoda drumului critic (Critical Path Method).
+
+<CosmoHint emotion="excited">
+Fiecare aplicație de navigație pe care ai folosit-o vreodată rulează, esențial, o variantă mult optimizată a exact acestui algoritm — greutățile muchiilor nu sunt doar distanțe fizice, ci combinații ponderate de timp estimat, trafic curent, tipul de drum, chiar preferințele tale (evită autostrăzi, evită taxe). Structura fundamentală rămâne identică: relaxare repetată a distanțelor, ghidată de o coadă de priorități care extrage mereu cel mai promițător nod neexplorat rămas.
+</CosmoHint>
+
+<FactBox>
+**Algoritmul lui Dijkstra în cifre:**
+- Conceput de Edsger Dijkstra în **1956**, în aproximativ 20 de minute, publicat în **1959**
+- Complexitate cu heap: **O((n + m) log n)** — n noduri, m muchii
+- Fără heap (căutare liniară a minimului): O(n²) — mult mai lent pe grafuri mari, rare
+- Cerință obligatorie: toate greutățile muchiilor trebuie să fie **nenegative**
+- Pe muchii negative: rezultate incorecte — necesită Bellman-Ford, un algoritm diferit
+- Extensie directă a BFS (L10): înlocuiește coada simplă cu o coadă de priorități (heap, L8)
+</FactBox>
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Algoritm | Tip de graf | Garantează cel mai scurt drum |
+|---|---|---|
+| BFS (L10) | Neponderat | Da, măsurat în numărul de muchii |
+| Dijkstra | Ponderat, greutăți nenegative | Da, măsurat în suma greutăților |
+| Bellman-Ford (menționat, nu detaliat) | Ponderat, poate avea greutăți negative | Da, dar mai lent |
+
+---
+
+## ÎNCHEIERE
+
+Dijkstra demonstrează cum două idei deja introduse separat — explorarea sistematică din BFS și accesul rapid la extremă din heap — se combină natural pentru a rezolva o problemă mai generală și mai realistă: cel mai scurt drum pe grafuri ponderate. Această capacitate de a recunoaște și recombina tehnici deja cunoscute, în loc să inventezi mereu ceva complet nou, e exact abilitatea pe care acest curs o construiește, lecție după lecție.
+
+Ai văzut deja o structură arborescentă specializată pentru extreme (heap) — lecția următoare introduce o altă structură arborescentă specializată, de data asta pentru un tip complet diferit de date: șiruri de caractere. Trie-ul organizează cuvinte litera cu literă, exact structura din spatele oricărui sistem de autocomplete pe care l-ai folosit vreodată.
