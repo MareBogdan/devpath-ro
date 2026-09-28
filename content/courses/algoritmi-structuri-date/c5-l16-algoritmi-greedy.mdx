@@ -1,0 +1,113 @@
+---
+title: "Algoritmi Greedy — alegerea rapidă, nu întotdeauna cea mai simplă"
+order: 16
+type: lesson
+module_index: 5
+duration: 15
+difficulty: 3
+---
+
+# Algoritmi Greedy — alegerea rapidă, nu întotdeauna cea mai simplă
+
+## HOOK
+
+Lecția trecută s-a încheiat cu un exemplu deliberat de eșec: cu monedele 1, 3, 4 și suma 6, alegerea "evidentă" — ia mereu cea mai mare monedă care încape — produce 4 + 1 + 1, în timp ce optimul real e 3 + 3. Programarea Dinamică (L15) a fost introdusă parțial ca reacție la acest eșec — o metodă care garantează optimul, indiferent de intuiție, prin explorare sistematică a tuturor sub-problemelor.
+
+Dar exemplul acela ascunde o observație la fel de importantă, în sens invers: cu monede standard (1, 5, 10, 25 — sistemul monetar real), alegerea greedy funcționează perfect, de fiecare dată. **Algoritmii greedy** — alege mereu opțiunea local optimă, fără să reconsideri niciodată acea alegere — nu sunt o versiune "naivă" sau inferioară a PD. Sunt abordarea corectă pentru o clasă specifică, bine definită de probleme, unde produc exact același rezultat ca PD, la o fracțiune din cost.
+
+---
+
+## CONTEXT
+
+Numele "greedy" (lacom) descrie exact comportamentul algoritmului: la fiecare pas, alege opțiunea care pare cea mai bună *chiar acum*, fără să ia în calcul consecințele pe termen lung și fără să revină vreodată asupra unei decizii deja luate. Această lipsă de reconsiderare e exact ce face algoritmii greedy rapizi — de obicei O(n) sau O(n log n), fără costul unui tabel complet de sub-probleme — dar și exact motivul pentru care nu funcționează universal, ca PD.
+
+Diferența crucială dintre "greedy funcționează aici" și "greedy eșuează aici" nu e noroc — e o proprietate matematică precisă, numită **proprietatea de alegere greedy** (greedy-choice property): o problemă e rezolvabilă corect prin greedy doar dacă o alegere local optimă, făcută la primul pas, face parte garantat din *cel puțin o* soluție global optimă. Coin Change cu monede arbitrare nu are această proprietate; interval scheduling, exemplul central al acestei lecții, o are.
+
+---
+
+## MIEZUL
+
+### Problema selecției de activități — exemplul canonic
+
+Dat un set de activități, fiecare cu un interval de start și sfârșit, care e numărul maxim de activități care pot fi programate fără suprapunere (aceeași resursă, o singură activitate la un moment dat)? Strategia greedy corectă, contraintuitiv, nu e "alege cea mai scurtă activitate" sau "alege cea care începe cea mai devreme" — e **alege activitatea care se termină cea mai devreme**, dintre cele rămase compatibile.
+
+```python
+def selecteaza_activitati(activitati):
+    # activitati: listă de tupluri (start, sfarsit)
+    activitati.sort(key=lambda a: a[1])       # sortează după momentul de sfârșit
+    selectate = [activitati[0]]
+    for start, sfarsit in activitati[1:]:
+        if start >= selectate[-1][1]:          # compatibilă cu ultima selectată
+            selectate.append((start, sfarsit))
+    return selectate
+```
+
+Alegerea "se termină cel mai devreme" maximizează timpul rămas disponibil pentru activitățile viitoare — exact proprietatea de alegere greedy: această primă alegere face parte garantat dintr-o soluție optimă, demonstrabil prin inducție (dacă ar exista o soluție optimă care nu include activitatea cu cel mai devreme sfârșit, ea poate fi mereu înlocuită cu una care o include, fără să piardă nicio activitate).
+
+<CosmoHint emotion="thinking">
+De ce sortarea după momentul de sfârșit funcționează, dar sortarea după durată sau după momentul de start nu garantează optimul? Pentru că doar momentul de sfârșit determină direct câtă "resursă viitoare" rămâne liberă pentru restul activităților — o activitate scurtă care se termină târziu blochează la fel de mult din viitor ca una lungă cu același sfârșit. Momentul de start, izolat, nu spune nimic despre cât timp rămas ocupă. Această distincție — care variabilă anume garantează proprietatea greedy — e exact ce separă o soluție greedy corectă, demonstrabilă riguros, de una care doar "pare" rezonabilă.
+</CosmoHint>
+
+### Complexitate — costul dominant e sortarea
+
+$$O(n \log n)$$
+
+Complexitatea provine aproape în întregime din sortarea inițială — parcurgerea propriu-zisă, o singură dată prin lista sortată, costă doar O(n). Comparativ cu O(suma × monede) pentru Coin Change prin PD (L15), sau cu costul exponențial al recursivității pure fără memoization (L13, L14), greedy rămâne semnificativ mai rapid — dar numai pentru probleme unde proprietatea de alegere greedy chiar există.
+
+### Codificarea Huffman — greedy pentru compresie
+
+Un al doilea exemplu clasic, cu aplicație practică directă: codificarea Huffman construiește un cod binar de lungime variabilă pentru un set de simboluri, astfel încât simbolurile mai frecvente primesc coduri mai scurte — principiul din spatele multor formate de compresie fără pierderi (ZIP, JPEG folosește o variantă similară). Algoritmul greedy: combină repetat cele două simboluri (sau grupuri deja combinate) cu frecvența cea mai mică, construind un arbore binar de jos în sus — o structură care revine direct la conceptul de arbore introdus în L7 și L8, aplicat acum unei probleme de optimizare, nu de căutare.
+
+Ca și la selecția de activități, alegerea local optimă (combină mereu cele mai rare două elemente) face parte garantat dintr-o soluție global optimă — demonstrabil riguros, nu doar empiric plauzibil, motiv pentru care Huffman rămâne standardul practic de referință pentru compresia optimă bazată pe frecvență, aproape 70 de ani după publicarea sa originală (1952).
+
+### Arbori de acoperire minimă — Kruskal, greedy pe grafuri
+
+Revenind la grafurile din L9-L11: un **arbore de acoperire minimă** (minimum spanning tree) conectează toate nodurile unui graf ponderat, cu cost total minim, folosind exact `n - 1` muchii, fără niciun ciclu. Algoritmul lui Kruskal rezolvă asta greedy: sortează toate muchiile după greutate, adaugă-le pe rând, de la cea mai ieftină, ignorând orice muchie care ar crea un ciclu cu cele deja adăugate — aceeași structură ca selecția de activități, adaptată la grafuri, cu o proprietate de alegere greedy demonstrabilă separat, dar la fel de riguroasă.
+
+### Dijkstra (L11) e, el însuși, un algoritm greedy
+
+O conexiune care merită făcută explicit, privind înapoi: algoritmul lui Dijkstra pentru cel mai scurt drum într-un graf ponderat (L11) e, structural, tot un algoritm greedy — la fiecare pas, alege nodul neexplorat cu cea mai mică distanță cunoscută până acum, îl marchează definitiv, și niciodată nu reconsideră acea alegere. Proprietatea de alegere greedy există aici pentru că toate greutățile sunt nenegative — odată ce un nod are cea mai mică distanță dintre toate nodurile neexplorate, nicio cale ulterioară, printr-un nod cu distanță mai mare, nu poate produce o distanță și mai mică pentru el. Aceeași structură matematică, deja folosită fără să-i spui pe nume în L11, primește acum vocabularul complet: proprietate de alegere greedy, demonstrabilă riguros, exact ca la selecția de activități.
+
+### De ce greedy eșuează la Coin Change general — recapitulare cu context nou
+
+Diferența dintre Coin Change (unde greedy poate eșua) și selecția de activități sau Huffman (unde greedy garantează optimul) nu e despre "cât de complexă" e problema — e strict despre existența sau absența proprietății de alegere greedy. Sistemul monetar standard (1, 5, 10, 25) are, din întâmplare, o structură matematică specială (fiecare valoare e un multiplu convenabil al celei anterioare) care face greedy corect acolo — dar acea structură nu e garantată pentru orice set arbitrar de valori, motiv exact pentru care algoritmul general, corect pentru orice set de monede, rămâne cel din L15, prin PD, nu prin greedy.
+
+### Greedy decoding — de ce un model de limbaj "alege" cuvântul următor
+
+O aplicație directă, surprinzătoare, a acestei intuiții apare chiar la generarea de text de către un model de limbaj: cea mai simplă strategie de generare, numită **greedy decoding**, alege la fiecare pas exact tokenul cu cea mai mare probabilitate, fără să reconsidere niciodată acea alegere ulterior — identic, structural, cu logica din această lecție. Problema: la fel ca la Coin Change general, alegerea local optimă (cel mai probabil cuvânt *acum*) nu garantează cea mai probabilă propoziție completă — un cuvânt ușor sub-optim la pasul 3 poate deschide calea către o continuare mult mai probabilă la pasul 4, pe care greedy decoding n-o va explora niciodată, pentru că nu revine asupra deciziilor trecute.
+
+<CosmoHint emotion="celebrating">
+Ai ajuns la finalul acestui bloc de lecții cu o capacitate reală, nu doar teoretică: poți acum recunoaște, în orice problemă nouă, dacă structura ei permite o alegere greedy rapidă și demonstrabil corectă, sau dacă are nevoie de rigoarea completă a Programării Dinamice — și poți explica, cu exemple concrete, de ce diferența contează. Aceeași întrebare — "aleg local, rapid, sau explorez sistematic?" — revine, sub o formă sau alta, în aproape orice problemă reală de optimizare pe care o vei întâlni, de la infrastructură software la modele de limbaj.
+</CosmoHint>
+
+Din acest motiv, generarea de text de calitate ridicată folosește adesea strategii mai costisitoare decât greedy decoding pur — **beam search** (menține simultan mai multe secvențe candidate, nu doar una) sau eșantionare probabilistică — un compromis explicit între viteza greedy și explorarea mai completă, mai apropiată în spirit de PD, exact tensiunea centrală demonstrată de-a lungul întregii lecții.
+
+<FactBox>
+**Algoritmi Greedy în cifre:**
+- Selecția de activități: complexitate **O(n log n)**, dominată de sortarea inițială
+- Strategia corectă: alege activitatea cu cel mai devreme moment de **sfârșit**, nu cea mai scurtă sau cea care începe prima
+- Codificarea Huffman: publicată în **1952**, încă standardul practic pentru compresia optimă bazată pe frecvență
+- Kruskal: construiește arborele de acoperire minimă al unui graf, greedy, prin sortarea muchiilor după greutate
+- Greedy decoding: alege la fiecare pas tokenul cu probabilitatea maximă — rapid, dar fără garanția celei mai probabile secvențe complete
+- Condiție obligatorie pentru corectitudinea greedy: proprietatea de alegere greedy, demonstrabilă riguros, nu presupusă intuitiv
+</FactBox>
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Abordare | Viteză | Garanție de optim |
+|---|---|---|
+| **Greedy** | O(n log n) tipic | Doar dacă problema are proprietatea de alegere greedy |
+| **Programare Dinamică** | Polinomial, dar mai costisitor | Întotdeauna, pentru probleme cu substructură optimă |
+| **Recursivitate pură, fără reținere** | Adesea exponențial | Întotdeauna, dar adesea impractic pentru intrări mari |
+
+---
+
+## ÎNCHEIERE
+
+Acest bloc de lecții a construit, pas cu pas, o singură intuiție centrală, repetată sub forme din ce în ce mai sofisticate: complexitatea (L2-L4) determină ce e practic posibil de calculat; structurile de date (L5-L12 — liste sortate, arbori, heap-uri, grafuri, trie) determină cât de eficient poți organiza și căuta printr-o cantitate mare de informație; iar tehnicile algoritmice finale (L13-L16 — recursivitate, memoization, programare dinamică, greedy) determină cum transformi o problemă genuin dificilă într-una rezolvabilă la scară, fără să sacrifici corectitudinea.
+
+Aceleași idei — evită recalcularea inutilă, alege structura de date potrivită pentru operația frecventă, recunoaște când o alegere rapidă e suficientă și când ai nevoie de garanția completă a explorării sistematice — nu rămân izolate în acest curs. Le vei regăsi, sub nume tehnice diferite, dar cu exact aceeași structură matematică, în fiecare curs viitor din acest program care atinge Machine Learning sau Deep Learning: complexitatea O(n²) a atenției dintr-un Transformer, KV cache-ul care evită recalcularea, backpropagation-ul ca formă de recursivitate aplicată, greedy decoding versus beam search la generarea de text. Algoritmii și structurile de date nu sunt un capitol separat de inteligența artificială — sunt limbajul ei de bază.
