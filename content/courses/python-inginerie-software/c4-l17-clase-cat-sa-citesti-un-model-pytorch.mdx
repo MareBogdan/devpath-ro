@@ -127,6 +127,117 @@ Revizitând convenția menționată în L3: `_intern` (un underscore) semnaleaz�
 `model.parameters()` — o metodă expusă de `nn.Module` — returnează un generator (concept detaliat în L19) peste toți parametrii antrenabili din model, colectați automat din toate atributele `self.strat...` definite în `__init__`. Nu trebuie să adaugi manual niciun strat la o listă separată de parametri — moștenirea din `nn.Module` face asta transparent, exact motivul pentru care fiecare model PyTorch trebuie să extindă `nn.Module`, nu doar să fie o clasă obișnuită de sine stătătoare.
 </CosmoHint>
 
+### Metode speciale (dunder) — `__init__` nu e singura
+
+`__init__` e cea mai cunoscută metodă specială (dunder — "double underscore"), dar Python definește zeci de altele, fiecare apelată implicit de o operație sau sintaxă specifică:
+
+```python
+class Vector:
+    def __init__(self, x, y):
+        self.x, self.y = x, y
+
+    def __repr__(self):           # apelată de print(), repr(), sau afișarea în REPL
+        return f"Vector({self.x}, {self.y})"
+
+    def __eq__(self, altul):       # apelată de '==' (revezi L5, suprascrierea operatorilor)
+        return self.x == altul.x and self.y == altul.y
+
+    def __len__(self):              # apelată de len(obiect)
+        return int((self.x**2 + self.y**2) ** 0.5)
+
+v1 = Vector(3, 4)
+print(v1)              # Vector(3, 4) — folosește __repr__
+print(len(v1))           # 5 — folosește __len__
+print(v1 == Vector(3, 4))  # True — folosește __eq__
+```
+
+Fără `__repr__` definit explicit, `print(v1)` ar afișa ceva de forma `<__main__.Vector object at 0x7f...>` — adresa de memorie brută, complet neinformativă. Fără `__eq__`, `==` ar compara implicit prin identitate (`is`), nu prin conținut — două instanțe cu aceleași valori `x`/`y` ar fi considerate "diferite". Aceste metode speciale sunt mecanismul prin care clasele custom se integrează natural cu sintaxa și funcțiile încorporate ale limbajului, exact ca operatorii suprascriși din L5.
+
+### Metode de clasă și metode statice — `@classmethod`, `@staticmethod`
+
+```python
+class Utilizator:
+    numar_total = 0   # atribut de CLASĂ — partajat de TOATE instanțele, nu per-instanță
+
+    def __init__(self, nume):
+        self.nume = nume
+        Utilizator.numar_total += 1
+
+    @classmethod
+    def din_dictionar(cls, date):        # 'cls' = clasa însăși, nu o instanță
+        return cls(date["nume"])
+
+    @staticmethod
+    def este_nume_valid(nume):            # NU primește nici self, nici cls — funcție "atașată" clasei
+        return len(nume) > 0
+
+u1 = Utilizator.din_dictionar({"nume": "Ana"})   # constructor alternativ
+print(Utilizator.este_nume_valid("Ion"))            # True — apelabilă direct pe clasă
+```
+
+`@classmethod` primește clasa însăși (`cls`), nu o instanță — util pentru constructori alternativi, ca `din_dictionar` de mai sus, care construiesc o instanță dintr-o formă diferită de date de intrare. `@staticmethod` nu primește nici `self`, nici `cls` — e, efectiv, o funcție obișnuită, grupată logic în interiorul clasei doar pentru organizare, fără să aibă nevoie de acces la starea vreunei instanțe sau a clasei. Atributele de clasă (`numar_total`, definit direct în corpul clasei, nu în `__init__`) sunt partajate între **toate** instanțele — o distincție importantă față de atributele de instanță (`self.nume`), fiecare independent per obiect creat.
+
+### Moștenire multiplă și `super()` în lanțuri mai lungi
+
+L17 a introdus deja moștenirea simplă, cu un singur `super().__init__()`. Python suportă și **moștenire multiplă** — o clasă poate extinde simultan mai multe clase părinte:
+
+```python
+class Salvabil:
+    def salveaza(self):
+        print("Salvat pe disc")
+
+class Loghabil:
+    def logheaza(self, mesaj):
+        print(f"LOG: {mesaj}")
+
+class Model(Salvabil, Loghabil):   # extinde AMBELE clase simultan
+    pass
+
+m = Model()
+m.salveaza()             # "Salvat pe disc" — moștenit de la Salvabil
+m.logheaza("test")         # "LOG: test" — moștenit de la Loghabil
+```
+
+Ordinea claselor părinte în paranteze determină **MRO** (Method Resolution Order) — ordinea în care Python caută o metodă, dacă mai multe clase părinte ar defini-o cu același nume. Moștenirea multiplă e puternică, dar poate deveni rapid confuză cu hierarhii adânci — motiv pentru care multe echipe preferă **compoziția** (o clasă care conține o instanță a alteia, ca atribut, în loc să extindă direct) atunci când relația nu e strict de tip "este un", ci mai degrabă "are un".
+
+Regula practică de decizie, cunoscută larg ca principiul "composition over inheritance": moștenește doar când noua clasă *este cu adevărat* o variantă specializată a părintelui (un `Caine` este cu adevărat un `Animal`); când relația e mai degrabă "folosește" sau "conține" (un `Model` care folosește un `Logger` pentru a-și înregistra evenimentele, dar nu este el însuși un logger), compoziția — un atribut care conține o instanță separată — produce, de regulă, un design mai flexibil și mai ușor de întreținut pe termen lung.
+
+### `isinstance()` cu clase custom — moștenirea recunoscută automat
+
+```python
+class Animal:
+    pass
+
+class Caine(Animal):
+    pass
+
+c = Caine()
+print(isinstance(c, Caine))    # True
+print(isinstance(c, Animal))     # True — 'Caine' MOȘTENEȘTE din 'Animal'
+print(isinstance(c, object))       # True — TOATE clasele moștenesc, ultimativ, din 'object'
+```
+
+Exact ca `isinstance(True, int)` din L4 (unde `bool` e subclasă de `int`), `isinstance()` respectă lanțul complet de moștenire pentru orice clasă custom — un `Caine` e simultan o instanță de `Caine`, de `Animal` (părintele), și de `object` (rădăcina universală a oricărei clase Python, moștenită implicit de orice altă clasă, chiar și fără să o declari explicit).
+
+### Docstrings de clasă — documentarea completă a unui model
+
+```python
+class ReteaNeuronala(nn.Module):
+    """Rețea feedforward simplă cu două straturi liniare.
+
+    Args:
+        dimensiune_input: numărul de caracteristici de intrare.
+        dimensiune_output: numărul de clase de ieșire.
+    """
+    def __init__(self, dimensiune_input, dimensiune_output):
+        super().__init__()
+        ...
+```
+
+Exact ca la funcții (L9), un docstring plasat imediat sub `class NumeClasa:` documentează întreaga clasă, accesibil prin `help(ReteaNeuronala)` sau `ReteaNeuronala.__doc__`. Cod de model AI serios, destinat să fie reutilizat de alți dezvoltatori, documentează explicit ce reprezintă fiecare parametru al constructorului — informație pe care semnătura singură, fără docstring, nu o comunică complet.
+
+Unelte de generare automată de documentație (Sphinx, mkdocs) citesc exact aceste docstring-uri pentru a construi pagini complete de referință API, fără intervenție manuală suplimentară — motiv adițional pentru care biblioteci publice mari, folosite de mii de dezvoltatori externi, investesc consistent în docstring-uri complete și corecte pentru fiecare clasă și metodă publică expusă.
+
 ---
 
 ## REVEAL
