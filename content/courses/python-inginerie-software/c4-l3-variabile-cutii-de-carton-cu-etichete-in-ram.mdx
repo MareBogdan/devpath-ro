@@ -1,0 +1,159 @@
+---
+title: "Variabile: Cutii de carton cu etichete în RAM"
+order: 3
+type: lesson
+module_index: 4
+duration: 12
+difficulty: 1
+---
+
+# Variabile: Cutii de carton cu etichete în RAM
+
+## HOOK
+
+```python
+x = 5
+y = x
+x = 10
+print(y)   # 5 sau 10?
+```
+
+Dacă vii din matematică, unde `x = y` înseamnă egalitate permanentă, răspunsul pare contraintuitiv — `y` rămâne `5`, neschimbat, chiar dacă `x` s-a schimbat la `10` *după* atribuire. Motivul nu e o particularitate ciudată a Python — e o consecință directă a ce înseamnă de fapt o variabilă la nivel de memorie: nu o cutie care conține valoarea, ci o **etichetă** lipită temporar pe un obiect care există independent, undeva în RAM.
+
+Confuzia asta — variabilă ca "recipient" vs. variabilă ca "etichetă" — cauzează bug-uri reale în cod AI, în special când lucrezi cu liste sau tensori PyTorch modificați "din greșeală" prin altă variabilă care păreau "separate". Înțelegerea corectă de aici te scutește de ore de debugging mai târziu.
+
+---
+
+## CONTEXT
+
+Limbajele compilate cu tipare statică (C, Java) tratează o variabilă aproape literal ca o cutie: la declarare (`int x;`), compilatorul rezervă un spațiu fix de memorie, de dimensiune cunoscută dinainte (4 bytes pentru un `int`), și `x` *este* acel spațiu — atribuirea copiază valoarea direct în acea locație fixă.
+
+Python (și majoritatea limbajelor cu tipare dinamică — JavaScript, Ruby) folosește un model diferit: **name binding**. Fiecare valoare creată în program (numărul `5`, string-ul `"Ana"`, o listă) există ca obiect independent în memoria heap, iar o variabilă e doar un **nume** — o referință — care poate fi atașat sau reatașat la orice obiect, oricând. Nu există un tip fix asociat "cutiei" — cutia (numele) poate arăta azi la un `int`, mâine la un `str`, pentru că numele nu e legat de niciun spațiu de memorie fix, doar de o referință care se poate schimba liber.
+
+---
+
+## MIEZUL
+
+### `id()` și `is` — dovada că o variabilă e o referință
+
+Python expune direct identitatea unui obiect prin funcția `id()`, care returnează (în CPython) adresa lui de memorie:
+
+```python
+x = 5
+y = x
+print(id(x), id(y))   # AFIȘEAZĂ ACELAȘI NUMĂR — ambele nume arată către ACELAȘI obiect
+
+x = 10                  # 'x' e reatașat la un obiect NOU (10), y rămâne neschimbat
+print(id(x), id(y))     # ACUM diferă
+```
+
+Operatorul `is` verifică exact această identitate — dacă două nume arată către **același** obiect în memorie, nu doar dacă au valori egale (asta face `==`):
+
+```python
+a = [1, 2, 3]
+b = [1, 2, 3]
+print(a == b)   # True — conținut egal
+print(a is b)   # False — obiecte DIFERITE, la adrese diferite, întâmplător cu același conținut
+
+c = a
+print(a is c)   # True — 'c' e doar un alt nume pentru EXACT ACELAȘI obiect
+```
+
+<CosmoHint emotion="thinking">
+De ce `x = x + 1` nu "modifică" numărul 5 undeva în memorie? Pentru că numerele (int-urile) în Python sunt **imutabile** — odată creat, un obiect `int` nu se schimbă niciodată intern. `x = x + 1` calculează întâi expresia `x + 1` (creează un obiect NOU, `6`), apoi reatașează numele `x` la acest nou obiect. Vechiul obiect `5` rămâne neschimbat undeva în memorie — dacă nimeni altcineva nu-l mai referențiază, garbage collector-ul îl elimină eventual. Vei vedea în L16 diferența critică între obiecte imutabile (int, str, tuple) și mutabile (listă, dicționar) — exact fundamentul comportamentului din HOOK.
+</CosmoHint>
+
+### Reguli de nume — ce e permis, ce nu
+
+```python
+varsta = 25              # valid
+nume_complet = "Ana Pop"  # valid, snake_case (PEP 8)
+_privat = "intern"        # valid — underscore la început e convenție pentru "uz intern"
+CONSTANTA_MAXIMA = 100    # valid — MAJUSCULE = convenție pentru "nu se modifică"
+
+2varsta = 5               # INVALID — nu poate începe cu cifră
+nume-complet = "x"        # INVALID — cratima e operator de scădere, ambiguu
+class = "test"             # INVALID — 'class' e cuvânt rezervat
+```
+
+Python **distinge majuscule de minuscule** (case-sensitive) — `varsta`, `Varsta` și `VARSTA` sunt trei nume complet diferite, referind potențial trei obiecte diferite. O sursă frecventă de bug-uri pentru cineva obișnuit cu limbaje mai permisive.
+
+### Atribuire multiplă și tuple unpacking
+
+Python permite atribuiri elegante, imposibile direct în multe alte limbaje fără sintaxă suplimentară:
+
+```python
+x = y = z = 0              # toate trei arată către ACELAȘI obiect 0 (int, imutabil — sigur aici)
+
+a, b = 1, 2                 # atribuire paralelă
+a, b = b, a                 # SWAP fără variabilă temporară — extrem de comun în Python
+
+nume, varsta, oras = "Ana", 25, "Cluj"   # tuple unpacking
+```
+
+`a, b = b, a` funcționează pentru că Python evaluează întâi complet partea dreaptă (construiește un tuple temporar `(b, a)`), apoi despachetează rezultatul în stânga — nu există niciun moment intermediar unde ai nevoie de o variabilă separată `temp`, cum ai avea în C sau Java.
+
+{/* TABLE */}
+
+| Concept | Python | C |
+|---|---|---|
+| Ce reprezintă o variabilă | Nume/referință către un obiect | Locație fixă de memorie |
+| Tip asociat variabilei | Niciun tip fix — poate schimba tipul obiectului referit | Fix, determinat la declarare |
+| `a = b` | `a` devine un al doilea nume pentru obiectul lui `b` | Valoarea lui `b` e COPIATĂ în spațiul lui `a` |
+| Swap fără temp | `a, b = b, a` | Necesită o variabilă auxiliară |
+| Verificare identitate | Operator `is` | Comparare directă de adrese (pointeri) |
+
+### Scope-ul unei variabile — o previzualizare
+
+O variabilă nu există peste tot în program, indiferent unde e definită — există doar în anumite regiuni de cod, numite **scope**. O variabilă definită în interiorul unei funcții nu e vizibilă în afara ei:
+
+```python
+def calculeaza():
+    rezultat_local = 42
+    return rezultat_local
+
+calculeaza()
+print(rezultat_local)   # NameError: 'rezultat_local' nu există aici
+```
+
+Acest comportament — scope local vs. global — e suficient de important încât are propria lecție dedicată (L10). Pentru acum, reține doar regula de bază: o variabilă "trăiește" doar în blocul unde a fost creată și în blocurile imbricate mai adânc, nu invers.
+
+<CosmoHint emotion="encouraging">
+`del nume_variabila` elimină explicit o legătură nume-obiect — util rar, dar arată direct că o variabilă chiar e doar o etichetă detașabilă, nu memoria propriu-zisă. Dacă alte nume mai referențiază același obiect, obiectul rămâne intact în memorie; doar acel nume specific dispare, iar folosirea lui ulterioară aruncă `NameError`.
+</CosmoHint>
+
+### Convenții de nume — semnal pentru cititor, nu pentru interpretor
+
+Python nu impune la nivel de limbaj nicio distincție reală între "constante" și variabile normale — orice nume poate fi reatribuit oricând. Convenția `CONSTANTA_MAXIMA = 100` (majuscule) e un semnal *pentru programatorii umani* — "nu modifica asta" — pe care interpretorul îl ignoră complet. Similar, `_privat` (underscore la început) semnalează "uz intern, nu accesa din afara modulului" — din nou, doar convenție, nu impusă tehnic. Aceste convenții devin esențiale mai târziu, la clase (L17), unde marchează intenția de încapsulare fără să existe cuvinte-cheie dedicate `private`/`public` ca în Java.
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Operațiune | Ce se întâmplă în memorie |
+|---|---|
+| `x = 5` | Se creează obiectul `5`, numele `x` e legat la el |
+| `y = x` | Se creează un al doilea nume, `y`, legat la ACELAȘI obiect `5` |
+| `x = 10` | Se creează un obiect NOU `10`; `x` e realegat la el; `y` rămâne legat la vechiul `5` |
+| `a is b` | Compară adresele de memorie — același obiect sau nu |
+| `a == b` | Compară valorile/conținutul — pot fi obiecte diferite, egale ca valoare |
+
+<FactBox>
+**Variabile Python în cifre:**
+- `id()`: returnează adresa de memorie a obiectului (specific implementării CPython)
+- Convenția PEP 8 pentru variabile: `snake_case`, pentru constante: `MAJUSCULE_CU_UNDERSCORE`
+- Numere mici (`-5` până la `256`): CPython le cache-uiește intern — `is` poate returna `True` neașteptat pentru ele, spre deosebire de numere mari
+- Python: aproximativ **35** de cuvinte rezervate care nu pot fi folosite ca nume de variabile
+- Swap fără variabilă temporară: unic ca sintaxă directă printre limbajele mainstream populare
+- Case-sensitive: `varsta` ≠ `Varsta` ≠ `VARSTA` — trei nume distincte
+</FactBox>
+
+---
+
+## ÎNCHEIERE
+
+O variabilă în Python nu e memoria propriu-zisă — e un nume lipit temporar pe un obiect care există independent. Reatribuirea unei variabile nu modifică obiectul vechi, doar mută eticheta pe unul nou. Această distincție — subtilă la prima vedere — explică jumătate din comportamentele "ciudate" pe care le vei întâlni mai târziu cu liste și dicționare partajate între variabile aparent separate.
+
+Ai văzut că variabilele pot ține numere sau text, fără nicio declarație explicită de tip. Lecția următoare catalogează exact aceste tipuri primite implicit — int, float, str, bool — și regulile stricte după care Python decide, la runtime, ce tip are fiecare valoare.
