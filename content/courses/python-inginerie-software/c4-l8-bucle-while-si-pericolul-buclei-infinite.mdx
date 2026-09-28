@@ -1,0 +1,150 @@
+---
+title: "Bucle WHILE și pericolul buclei infinite"
+order: 8
+type: lesson
+module_index: 4
+duration: 12
+difficulty: 1
+---
+
+# Bucle WHILE și pericolul buclei infinite
+
+## HOOK
+
+Un agent AI conversațional trebuie să continue să "gândească" — să apeleze unelte, să evalueze rezultate, să decidă pasul următor — **până** ajunge la un răspuns final, nu de un număr fix de ori cunoscut dinainte. Un `for` din L7 nu se pretează aici: nu știi de la început câte iterații va avea nevoie agentul. Ai nevoie de o buclă care continuă **cât timp** o condiție rămâne adevărată, indiferent câte iterații durează asta — exact rolul lui `while`.
+
+Dar aceeași flexibilitate care face `while` puternic e și cea mai frecventă sursă de bug-uri catastrofale pentru începători: dacă condiția nu devine niciodată falsă, bucla rulează la infinit, blocând programul complet — sau, mai rău, într-un serviciu de producție, consumând CPU la 100% până se prăbușește întregul server.
+
+---
+
+## CONTEXT
+
+Bucla `while` e conceptual identică în aproape toate limbajele de programare — o verificare de condiție înaintea fiecărei iterații, repetată câtă vreme condiția rămâne adevărată. Diferența dintre `for` și `while` nu e de putere expresivă (orice `for` poate fi rescris ca `while`, și invers, cu efort) — e de **claritate a intenției**: `for` comunică "știu peste ce iterez", `while` comunică "continui până se schimbă o condiție externă, nu știu exact câte pași".
+
+Bucla infinită necontrolată e una dintre cele mai vechi și mai temute clase de bug din istoria programării — motivul pentru care problema oprii (*halting problem*), demonstrată de Alan Turing în 1936, arată că e matematic **imposibil** să construiești un algoritm general care să determine, pentru orice program arbitrar, dacă acesta se va termina vreodată sau va rula la infinit.
+
+---
+
+## MIEZUL
+
+### Forma de bază
+
+```python
+contor = 0
+while contor < 5:
+    print(contor)
+    contor += 1     # ESENȚIAL — fără asta, condiția nu se schimbă niciodată
+# 0, 1, 2, 3, 4
+```
+
+Condiția e verificată **înainte** de fiecare iterație, inclusiv prima — dacă `contor` ar începe deja la `5`, bucla nu s-ar executa deloc, nici o singură dată. Fiecare iterație trebuie să facă *ceva* care mișcă starea programului mai apropiat de momentul în care condiția devine falsă — omiterea acestui pas (uitarea lui `contor += 1`) produce direct o buclă infinită.
+
+<CosmoHint emotion="sad">
+`while True:` fără niciun `break` în interior e cea mai directă rețetă pentru un program blocat, care nu va răspunde niciodată la nimic — trebuie forțat să se închidă manual (Ctrl+C în terminal, sau kill de proces). Într-un server de producție, o buclă infinită accidentală într-o cerere HTTP poate ocupa un worker întreg la nesfârșit, refuzând să răspundă vreodată — și, la cerințe repetate similare, poate consuma toți worker-ii disponibili, blocând întregul serviciu pentru toți utilizatorii. Verifică ÎNTOTDEAUNA, înainte de a rula cod cu `while`, că există o cale clară către terminare.
+</CosmoHint>
+
+### Pattern-uri sigure — `while True` + `break` condiționat
+
+Contraintuitiv, `while True:` combinat cu `break` explicit e des mai clar decât o condiție complexă în antetul buclei, mai ales când decizia de oprire depinde de logică evaluată *în interiorul* buclei:
+
+```python
+while True:
+    raspuns = input("Introduceți un număr pozitiv (sau 'stop'): ")
+    if raspuns == "stop":
+        break
+    numar = int(raspuns)
+    if numar > 0:
+        print(f"Ai introdus: {numar}")
+        break
+    print("Numărul trebuie să fie pozitiv, încearcă din nou.")
+```
+
+Aici, condiția de oprire depinde de input-ul utilizatorului, evaluat *în timpul* iterației — mult mai natural cu `break` decât cu o precondiție complicată calculată înainte de a intra în buclă.
+
+### `while` pentru un agent AI — cazul de uz real
+
+```python
+def ruleaza_agent(intrebare, max_pasi=10):
+    context = [intrebare]
+    pas = 0
+
+    while pas < max_pasi:
+        raspuns_model = apeleaza_model(context)
+
+        if raspuns_model.este_final:
+            return raspuns_model.continut
+
+        rezultat_unealta = executa_unealta(raspuns_model.unealta_ceruta)
+        context.append(rezultat_unealta)
+        pas += 1
+
+    return "Am atins limita de pași fără un răspuns final."
+```
+
+Acest pattern — `while` cu o **limită maximă de siguranță** (`max_pasi`), nu doar o condiție de terminare "naturală" — e esențial pentru orice logică de agent AI care poate, teoretic, să bucleze fără să convergă niciodată către un răspuns final. Fără `max_pasi`, un model care nu produce niciodată `este_final=True` (din cauza unui prompt prost, unei unelte defectuoase, sau pur și simplu a limitelor modelului) ar bloca execuția la infinit.
+
+{/* TABLE */}
+
+| Situație | Alegere recomandată |
+|---|---|
+| Număr de iterații cunoscut dinainte | `for` (L7) |
+| Repetiție "până se schimbă o condiție externă" | `while conditie:` |
+| Logică de oprire complexă, evaluată în interior | `while True:` + `break` condiționat |
+| Orice buclă care ar putea, teoretic, să nu se termine | Adaugă mereu o limită maximă de siguranță |
+
+### Cum apar buclele infinite accidentale — trei cauze comune
+
+**Uitarea incrementării/modificării variabilei de control**: `contor < 5`, dar linia `contor += 1` a fost ștearsă accidental sau plasată greșit în afara buclei.
+
+**Modificarea greșită a direcției**: `while contor > 0: contor += 1` — condiția verifică descreșterea, dar codul incrementează, nu decrementează. Condiția rămâne mereu adevărată.
+
+**Condiție bazată pe stare externă care nu se actualizează niciodată**: `while not fisier_gata(): pass` — dacă `fisier_gata()` verifică o condiție care nu se va schimba niciodată fără intervenție separată (alt proces, alt thread), bucla rulează la infinit, consumând 100% CPU fără să facă nimic util — un pattern numit **busy waiting**, considerat antipattern exact din acest motiv (soluția corectă e de obicei un mecanism de așteptare eficientă, nu o buclă goală care verifică repetat).
+
+<CosmoHint emotion="encouraging">
+`Ctrl+C` în terminal trimite un semnal `SIGINT` procesului activ — cea mai rapidă metodă de a întrerupe manual o buclă infinită accidentală în timpul dezvoltării. Dacă un script Python rămâne "blocat" fără niciun output vizibil, primul instinct util e să verifici dacă vreo condiție de `while` din codul recent scris nu se actualizează corect — cauza numărul unu a acestui simptom pentru cineva care abia învață bucle.
+</CosmoHint>
+
+### Debugging practic — instrumentarea unei bucle suspecte
+
+Când o buclă `while` nu se termină cum te-ai aștepta, cea mai rapidă tehnică de diagnosticare e să afișezi starea relevantă la fiecare iterație, temporar, doar pentru debugging:
+
+```python
+contor = 0
+while contor < 5:
+    print(f"DEBUG: contor = {contor}")   # temporar, se șterge după debugging
+    # ... restul logicii ...
+    contor += 1
+```
+
+Dacă output-ul arată `contor` blocat la aceeași valoare, repetată la infinit, ai găsit imediat cauza — variabila de control nu se modifică undeva unde te-ai aștepta. Această tehnică simplă rezolvă rapid marea majoritate a buclelor infinite accidentale din cod de începător.
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Semnal | Cauză probabilă |
+|---|---|
+| Programul "îngheață", niciun output nou | Buclă infinită, probabil `while` |
+| CPU la 100% fără progres vizibil | Busy waiting sau buclă infinită fără `sleep`/pauză |
+| Variabila de control afișată identic la fiecare iterație (debugging) | Lipsa actualizării ei în interiorul buclei |
+| Agent AI care nu se oprește niciodată | Lipsa unei limite maxime de pași (`max_pasi`) |
+
+<FactBox>
+**Bucle WHILE în cifre:**
+- Problema opririi (Alan Turing, 1936): demonstrează matematic imposibilitatea unui detector universal de bucle infinite
+- `while True:` + `break`: pattern comun, sigur DOAR cu o cale clară de terminare garantată
+- Busy waiting: antipattern — consumă 100% dintr-un core CPU fără progres util
+- `Ctrl+C`: trimite `SIGINT`, metoda standard de întrerupere manuală a unui proces blocat
+- Orice agent AI cu buclă `while` de raționament: necesită obligatoriu o limită maximă de pași
+- Bucla infinită într-un server de producție: poate bloca un worker/thread la nesfârșit, afectând disponibilitatea întregului serviciu
+</FactBox>
+
+---
+
+## ÎNCHEIERE
+
+`while` completează `for`: unde `for` iterează peste o colecție cunoscută, `while` continuă câtă vreme o condiție rămâne adevărată, indiferent cât durează asta. Puterea suplimentară vine cu un risc real — bucla infinită — pe care orice cod de producție, mai ales logica de agent AI, trebuie să-l elimine explicit printr-o limită maximă de siguranță.
+
+Ai scris deja mici blocuri de logică repetate în buclă. Următorul pas natural e să le împachetezi în unități reutilizabile, apelabile din multiple locuri, cu propriile parametri și rezultate — subiectul lecției următoare: funcțiile.
