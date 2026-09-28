@@ -1,0 +1,142 @@
+---
+title: "3 linii de Python care ating internetul"
+order: 1
+type: lesson
+module_index: 4
+duration: 12
+difficulty: 1
+---
+
+# 3 linii de Python care ating internetul
+
+## HOOK
+
+```python
+import requests
+raspuns = requests.get("https://api.exemplu.ro/utilizatori/42")
+print(raspuns.json()["nume"])
+```
+
+Trei linii. Rulează-le și, sub o secundă, calculatorul tău a rezolvat DNS (C3 L4), a deschis o conexiune TCP (C3 L6), a negociat un handshake TLS (C3 L17), a trimis o cerere HTTP `GET` (C3 L20), a primit un răspuns JSON, l-a parsat, și ți-a afișat un nume. În Java, același lucru cere de obicei 15-20 de linii: import-uri de librării HTTP, construirea manuală a unei conexiuni, gestionarea explicită a stream-urilor de octeți, parsare JSON separată. În C, ai avea nevoie de sute de linii doar pentru partea de socket-uri.
+
+Python nu e "mai puternic" decât Java sau C — face exact aceleași apeluri de sistem, aceleași socket-uri, în cele din urmă. Diferența e câte decizii de nivel jos a luat deja limbajul *pentru* tine, ca să te poți concentra pe *ce* vrei să faci, nu pe *cum* să faci fiecare pas mecanic. Exact motivul pentru care Python a devenit limbajul dominant al AI-ului: cercetătorii vor să testeze o idee rapid, nu să scrie infrastructură.
+
+---
+
+## CONTEXT
+
+Guido van Rossum a început Python în decembrie 1989, în vacanța de Crăciun, ca proiect de hobby — succesorul unui limbaj numit ABC, la care lucrase anterior și considerase prea rigid pentru uz general. Numele vine de la trupa de comedie Monty Python, nu de la șarpe — o alegere deliberat non-tehnică, semnal că limbajul nu se ia prea în serios.
+
+Python 2.0 (2000) a introdus garbage collection generațională și suport Unicode extins. **Python 3.0** (2008) a rupt intenționat compatibilitatea retroactivă — `print` a devenit funcție, nu instrucțiune, string-urile au devenit Unicode implicit — o decizie care a costat ani de migrare pentru ecosistem, dar a curățat inconsistențe fundamentale. Python 2 a ajuns la finalul suportului oficial pe 1 ianuarie 2020.
+
+Explozia recentă vine din AI: **NumPy** (2006, calcul numeric vectorizat), **PyTorch** (2016, Facebook) și **TensorFlow** (2015, Google) au ales Python ca interfață, nu pentru că e cel mai rapid limbaj — e departe de asta — ci pentru că partea de calcul greu rulează oricum în C/C++/CUDA optimizat, iar Python rămâne doar "lipiciul" ușor de scris care orchestrează acele operațiuni.
+
+---
+
+## MIEZUL
+
+### Interpretat, nu compilat — ce înseamnă practic
+
+Un limbaj compilat (C, Rust, Go) transformă codul sursă direct în instrucțiuni mașină, într-un pas separat, *înainte* de execuție — rezultatul e un binar executabil direct de procesor. Python funcționează diferit: **CPython** (implementarea standard, cea pe care o rulezi implicit) compilează codul sursă într-un **bytecode** intermediar (fișierele `.pyc` din directorul `__pycache__`), apoi acest bytecode e executat, instrucțiune cu instrucțiune, de o **mașină virtuală** scrisă în C — interpretorul.
+
+Consecința practică: nu există un pas separat de "build" — rulezi `python script.py` și compilarea în bytecode se întâmplă automat, transparent, la fiecare execuție (cu cache dacă fișierul sursă nu s-a schimbat). Câștigi viteză de dezvoltare — scrii, rulezi, corectezi, imediat, fără așteptare de compilare — dar pierzi performanță brută: fiecare instrucțiune trece prin overhead-ul mașinii virtuale, de unde reputația Python de limbaj "lent" comparativ cu C sau Rust compilate direct.
+
+<CosmoHint emotion="thinking">
+De ce codul de antrenare AI scris în Python nu e de fapt "lent," deși Python în sine e un limbaj interpretat relativ lent? Pentru că operațiile care contează cu adevărat — înmulțirile de matrice masive dintr-un forward pass — nu rulează în bytecode Python interpretat. PyTorch/NumPy deleagă acele calcule unor biblioteci compilate în C++/CUDA, rulate direct pe procesor sau GPU. Python doar orchestrează *când* și *cu ce parametri* se apelează acele funcții native — e dirijorul, nu orchestra.
+</CosmoHint>
+
+### REPL — bucla interactivă de citit-evaluat-afișat
+
+Deschide un terminal și scrie `python3` fără argumente — intri într-un **REPL** (Read-Eval-Print Loop): scrii o expresie, apeși Enter, vezi imediat rezultatul, fără să salvezi niciun fișier:
+
+```python
+>>> 2 + 2
+4
+>>> "Salut " + "lume"
+'Salut lume'
+>>> import math
+>>> math.sqrt(16)
+4.0
+```
+
+REPL-ul e mediul ideal de experimentare — testezi rapid o idee, verifici comportamentul unei funcții, explorezi o bibliotecă necunoscută, fără overhead-ul de a crea un fișier `.py` separat. Jupyter Notebook (folosit masiv în AI/ML) e, conceptual, un REPL extins cu celule persistente și output grafic inline — aceeași idee de feedback imediat, dar organizat pe blocuri reexecutabile.
+
+### Anatomia unui script `.py`
+
+```python
+#!/usr/bin/env python3
+"""Descărcă și afișează numele unui utilizator dintr-o API."""
+
+import requests
+
+URL_BAZA = "https://api.exemplu.ro"
+
+def obtine_utilizator(id_utilizator: int) -> dict:
+    raspuns = requests.get(f"{URL_BAZA}/utilizatori/{id_utilizator}")
+    raspuns.raise_for_status()
+    return raspuns.json()
+
+if __name__ == "__main__":
+    utilizator = obtine_utilizator(42)
+    print(f"Nume: {utilizator['nume']}")
+```
+
+`#!/usr/bin/env python3` — shebang, spune sistemului de operare ce interpretor să folosească dacă fișierul e rulat direct ca executabil (`./script.py`), pe Linux/macOS. `import requests` — biblioteca standard de facto pentru cereri HTTP (nu e parte din biblioteca standard Python, se instalează separat, dar e omniprezentă). `raspuns.raise_for_status()` — verifică dacă statusul HTTP (C3 L20) indică eroare (`4xx`/`5xx`) și, dacă da, ridică o excepție imediat — mai sigur decât să presupui că orice răspuns e valid.
+
+`if __name__ == "__main__":` — un pattern specific Python, esențial de înțeles de la început: `__name__` e o variabilă specială pe care Python o setează automat la `"__main__"` doar când fișierul e rulat direct, nu când e importat ca modul în alt fișier. Fără acest bloc, orice cod de la nivelul de bază al fișierului rulează *de fiecare dată* când fișierul e importat — inclusiv efecte secundare nedorite, ca apeluri de rețea, în module care ar trebui să ofere doar funcții reutilizabile.
+
+{/* TABLE */}
+
+| Aspect | Python | C | Java |
+|---|---|---|---|
+| Execuție | Interpretat (bytecode + VM) | Compilat direct în mașină | Compilat în bytecode JVM |
+| Pas de build separat | Nu (implicit, transparent) | Da, obligatoriu | Da, obligatoriu |
+| Tipare de variabile | Dinamică (la runtime) | Statică (la compilare) | Statică (la compilare) |
+| Linii pentru un `GET` HTTP simplu | ~3 | ~50-100 | ~15-20 |
+| Ecosistem AI/ML dominant | Da (PyTorch, NumPy, etc.) | Nu (folosit ca backend) | Limitat |
+
+### Tiparea dinamică — cost și beneficiu
+
+Spre deosebire de C sau Java, unde declari explicit tipul unei variabile la compilare (`int x = 5;`), Python decide tipul unei variabile **la runtime**, pe baza valorii atribuite: `x = 5` face din `x` un `int`; `x = "text"`, imediat după, îl transformă într-un `str`, fără eroare. Această flexibilitate accelerează masiv scrierea de cod exploratoriu — nu pierzi timp cu declarații de tip pentru fiecare variabilă — dar mută detectarea multor greșeli din faza de compilare (unde C/Java le-ar fi prins instant) în faza de execuție, uneori mult mai târziu, la un utilizator real.
+
+Vei vedea în lecțiile următoare cum Python oferă totuși un compromis modern — **type hints** — adnotări opționale de tip care nu schimbă execuția, dar permit unor unelte externe să detecteze aceleași greșeli înainte de rulare.
+
+<CosmoHint emotion="waving">
+Bine ai venit în cursul de Python! Nu urmărim să te facem backend developer profesionist — urmărim minimul necesar ca să citești, înțelegi și modifici cod AI real: scripturi de antrenare, pipeline-uri de date, apeluri către API-uri de modele. Fiecare lecție de aici construiește direct spre acel obiectiv, cu exemple din exact ce vei întâlni în cursurile viitoare despre Machine Learning și LLM-uri.
+</CosmoHint>
+
+### De ce Python, specific pentru AI
+
+Nu e întâmplător că aproape orice tutorial, paper sau bibliotecă de AI publică exemple în Python. Trei motive concrete: **sintaxă apropiată de pseudocod matematic** (o formulă din L6 Matematică pentru AI se traduce aproape direct în Python, spre deosebire de sintaxa verboasă C++), **ecosistem matur de calcul numeric** (NumPy există din 2006, decenii de optimizare acumulată), și **interoperabilitate C/C++/CUDA** — orice bibliotecă Python de performanță critică (PyTorch, NumPy) e, sub capotă, cod C/C++ compilat, expus printr-un strat subțire Python, exact modelul discutat mai sus la interpretare vs. compilare.
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Pas rulare script Python | Ce se întâmplă |
+|---|---|
+| `python script.py` | Interpretorul CPython pornește |
+| Parsare | Codul sursă e transformat în arbore sintactic (AST) |
+| Compilare în bytecode | AST devine bytecode, cache-uit în `__pycache__` |
+| Execuție | Mașina virtuală Python interpretează bytecode-ul, instrucțiune cu instrucțiune |
+| Apeluri native | Funcții ca `requests.get()` deleagă către cod C compilat unde e nevoie de viteză |
+
+<FactBox>
+**Python în cifre:**
+- Creat de Guido van Rossum, început în **decembrie 1989**
+- Python 3.0: lansat în **2008**; Python 2: end-of-life pe **1 ianuarie 2020**
+- Cel mai popular limbaj în ecosistemul AI/ML din **2016-2017** încoace (adoptat de PyTorch, TensorFlow)
+- Cerere HTTP GET completă: **3 linii** de cod cu `requests`, față de zeci în C
+- NumPy: bibliotecă fundamentală de calcul numeric, din **2006**
+- `.pyc` bytecode cache: evită re-compilarea fișierelor nemodificate la rulări repetate
+</FactBox>
+
+---
+
+## ÎNCHEIERE
+
+Python transformă operațiuni care ar cere zeci de linii în alte limbaje — o cerere HTTP, parsarea unui JSON — în cod aproape la fel de scurt ca descrierea în engleză a ce vrei să faci. Asta nu înseamnă "mai puțină putere" — sub capotă rulează aceleași socket-uri, aceleași biblioteci C optimizate. Înseamnă doar că cea mai mare parte a complexității mecanice a fost deja rezolvată pentru tine, o dată, de creatorii limbajului și ai bibliotecilor lui.
+
+Ai văzut trei linii care funcționează. Lecția următoare disecă exact regulile stricte care fac acele trei linii valide — și de ce Python, oricât de prietenos pare, nu iartă absolut nicio greșeală de sintaxă, exact ca orice alt limbaj de programare.
