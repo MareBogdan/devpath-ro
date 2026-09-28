@@ -1,0 +1,161 @@
+---
+title: "Sintaxa: Instrucțiuni rigide vs. limbaj natural"
+order: 2
+type: lesson
+module_index: 4
+duration: 12
+difficulty: 1
+---
+
+# Sintaxa: Instrucțiuni rigide vs. limbaj natural
+
+## HOOK
+
+Ceri unui model AI, în limbaj natural: "dacă utilizatorul are peste 18 ani, afișează bun venit, altfel refuză accesul." Modelul înțelege perfect — chiar dacă scrii cu greșeli, ambiguu, într-o singură propoziție confuză. Scrii aceeași idee în Python cu o singură indentare greșită:
+
+```python
+def verifica_varsta(varsta):
+    if varsta >= 18:
+    print("Bun venit")
+```
+
+`IndentationError: expected an indented block`. Interpretorul refuză să ruleze *orice*, nu doar linia greșită — întregul program se oprește, fără nicio interpretare "probabilă" a ce ai vrut să spui. Diferența asta — de la tolerant la absolut rigid — e cea mai fundamentală distincție dintre a comunica cu un om (sau cu un LLM antrenat să infereze intenția) și a comunica cu un interpretor de cod. Codul nu ghicește. Codul execută exact ce e scris, sau refuză să execute deloc.
+
+---
+
+## CONTEXT
+
+Limbajele de programare din generația C (C, C++, Java, JavaScript) delimitează blocurile de cod prin acolade `{ }` — indentarea e opțională, doar convenție vizuală pentru programatori, complet ignorată de compilator/interpretor. Poți scrie tot codul pe o singură linie, fără spații, și ar compila identic.
+
+Guido van Rossum a luat o decizie de design radicală pentru Python: **indentarea nu e cosmetică, e sintaxă obligatorie**. Argumentul lui: dacă programatorii oricum indentează codul vizual pentru lizibilitate (o convenție aproape universală, indiferent de limbaj), de ce să existe și acolade *și* indentare, redundant? Elimină acoladele, forțează indentarea consistentă, și codul devine simultan mai scurt și — teoretic — imposibil să "mintă vizual" (cod care arată indentat într-un fel, dar compilatorul îl execută în alt fel din cauza acoladelor plasate greșit — o clasă reală de bug-uri în C).
+
+Decizia a fost controversată la lansare (1991) — mulți programatori din tradiția C au considerat-o o restricție artificială. Trei decenii mai târziu, Python rămâne unul dintre puținele limbaje mainstream cu această regulă, iar lizibilitatea rezultată e des citată ca motiv pentru adopția lui masivă în educație și cercetare.
+
+---
+
+## MIEZUL
+
+### Indentarea ca structură, nu decorație
+
+Fiecare bloc de cod din Python — corpul unei funcții, al unui `if`, al unei bucle — e delimitat exclusiv prin nivelul de indentare, măsurat consistent (convenția standard, din **PEP 8**, ghidul oficial de stil: 4 spații, niciodată tab-uri amestecate cu spații):
+
+```python
+def clasifica_varsta(varsta):
+    if varsta < 18:
+        categorie = "minor"
+    elif varsta < 65:
+        categorie = "adult"
+    else:
+        categorie = "senior"
+    return categorie
+```
+
+Fiecare nivel de indentare suplimentar marchează un bloc imbricat mai adânc. Linia `return categorie`, la același nivel de indentare cu `if`, aparține corpului funcției `clasifica_varsta`, nu blocului `else` — poziția exactă a spațiilor *este* structura logică a programului, nu doar aspectul lui vizual.
+
+<CosmoHint emotion="thinking">
+De ce amestecul de tab-uri și spații e una dintre cele mai frustrante erori pentru începători? Pentru că vizual, în majoritatea editoarelor, un tab și 4 spații pot arăta identic — dar Python le tratează ca caractere diferite la determinarea nivelului de indentare. Un fișier cu linii indentate cu tab pe unele rânduri și spații pe altele poate arăta perfect aliniat vizual și totuși arunca `TabError: inconsistent use of tabs and spaces`. Soluția universală: configurează editorul să convertească automat tab-ul în 4 spații — orice IDE modern face asta implicit pentru fișiere `.py`.
+</CosmoHint>
+
+### Cele două puncte `:` — semnalul de „urmează un bloc”
+
+Orice structură care deschide un bloc nou — funcție, condiție, buclă, clasă — se termină cu `:`, urmat de o linie nouă indentată:
+
+```python
+def nume_functie():        # ':' + bloc indentat
+    ...
+
+if conditie:                # ':' + bloc indentat
+    ...
+
+for element in colectie:    # ':' + bloc indentat
+    ...
+
+while conditie:              # ':' + bloc indentat
+    ...
+
+class NumeClasa:            # ':' + bloc indentat
+    ...
+```
+
+Uitarea acestui `:` e una dintre cele mai frecvente greșeli de sintaxă pentru cineva venit dintr-un limbaj fără el — interpretorul aruncă imediat `SyntaxError: expected ':'`, refuzând să ruleze orice altceva din fișier.
+
+### Comentarii — cod ignorat intenționat de interpretor
+
+```python
+# Comentariu pe o singură linie — orice după '#' e ignorat complet
+
+"""
+Comentariu pe mai multe linii (tehnic, un string literal neatribuit,
+dar folosit convențional ca bloc de comentariu sau docstring).
+"""
+
+def calculeaza_medie(numere):
+    """Docstring: descrie ce face funcția, accesibil prin help()."""
+    return sum(numere) / len(numere)
+```
+
+Un **docstring** — string-ul imediat sub definiția unei funcții/clase — nu e un comentariu obișnuit: Python îl stochează în atributul special `__doc__` al funcției, accesibil la runtime prin `help(calculeaza_medie)` sau `calculeaza_medie.__doc__`. Unelte de documentare automată (Sphinx, majoritatea IDE-urilor) citesc docstring-uri pentru a genera documentație sau afișa tooltip-uri — un comentariu obișnuit cu `#` e complet invizibil pentru orice unealtă, doar pentru ochiul uman care citește sursa direct.
+
+### Expresii vs. instrucțiuni
+
+O distincție subtilă dar importantă: o **expresie** produce o valoare (`2 + 2`, `nume.upper()`), o **instrucțiune** execută o acțiune fără să fie neapărat o valoare în sine (`x = 5`, `if ...`, `return ...`). Diferența contează practic: poți folosi o expresie oriunde e așteptată o valoare (ca argument de funcție, în interiorul unei liste), dar nu poți folosi o instrucțiune obișnuită în același context.
+
+```python
+rezultat = (5 if x > 0 else -5)   # 'if' aici e o EXPRESIE condițională (ternar)
+                                    # diferit de instrucțiunea 'if' obișnuită de mai sus
+```
+
+Forma ternară (`valoare_daca_adevarat if conditie else valoare_daca_fals`) e expresia condițională a Python — echivalentul lui `condiție ? a : b` din C/JavaScript, dar scrisă în ordinea naturală de citire: rezultatul întâi, condiția după.
+
+{/* TABLE */}
+
+| Simbol/convenție | Rol | Exemplu |
+|---|---|---|
+| `:` | Deschide un bloc nou | `if x > 0:` |
+| Indentare (4 spații) | Delimitează apartenența la bloc | corp funcție/condiție/buclă |
+| `#` | Comentariu pe o linie | `# explicație` |
+| `"""..."""` | Docstring/comentariu multi-linie | descriere funcție |
+| `\` (backslash la final de linie) | Continuă o instrucțiune lungă pe linia următoare | rar folosit, preferate parantezele |
+| `;` | Separă mai multe instrucțiuni pe aceeași linie | descurajat de PEP 8 |
+
+### PEP 8 — ghidul de stil oficial
+
+**PEP** (Python Enhancement Proposal) e mecanismul formal prin care se propun și documentează schimbări în limbaj sau convenții. **PEP 8**, specific, definește stilul de cod recomandat: 4 spații de indentare, maxim 79-99 caractere per linie (convenția variază ușor între echipe), `snake_case` pentru variabile și funcții (`numar_total`, nu `numarTotal`), `PascalCase` pentru clase (`ModelUtilizator`).
+
+PEP 8 nu e impus de interpretor — cod care-l încalcă rulează perfect. E impus de **convenție de echipă** și verificat automat prin unelte de linting (`ruff`, `flake8`, `black` pentru formatare automată) — instrumente pe care le vei folosi constant lucrând pe cod AI real, unde consistența stilistică între mii de linii scrise de zeci de contribuitori contează enorm pentru lizibilitate.
+
+<CosmoHint emotion="encouraging">
+`python3 -c "import this"` afișează în terminal "The Zen of Python" — 19 principii scrise de Tim Peters în 1999, parte oficială a limbajului (chiar un easter egg încorporat). "Readability counts" (lizibilitatea contează) și "Explicit is better than implicit" (explicit e mai bun decât implicit) explică direct de ce indentarea obligatorie și sintaxa strictă sunt decizii filozofice, nu doar tehnice.
+</CosmoHint>
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Regulă sintactică | Ce se întâmplă dacă o încalci |
+|---|---|
+| Indentare inconsistentă în același bloc | `IndentationError` |
+| Lipsa `:` la deschiderea unui bloc | `SyntaxError: expected ':'` |
+| Amestec tab/spații | `TabError: inconsistent use of tabs and spaces` |
+| Nume de variabilă care începe cu cifră | `SyntaxError: invalid syntax` |
+| Cuvânt rezervat folosit ca nume de variabilă (`class`, `if`) | `SyntaxError: invalid syntax` |
+
+<FactBox>
+**Sintaxa Python în cifre:**
+- Indentare standard PEP 8: **4 spații**, niciodată tab
+- Lungime maximă de linie recomandată PEP 8: **79 caractere** (unele echipe moderne folosesc 88-99)
+- "The Zen of Python": **19 principii**, scrise de Tim Peters în **1999**
+- Python: aproximativ **35 de cuvinte rezervate** (`if`, `for`, `class`, `def`, etc.) — nu pot fi folosite ca nume de variabile
+- PEP-uri publicate oficial: peste **600** de la începutul procesului
+- `black` (formatator automat): impune un stil unic, elimină dezbaterile de formatare din echipe
+</FactBox>
+
+---
+
+## ÎNCHEIERE
+
+Indentarea obligatorie, cele două puncte, docstring-urile — toate sunt reguli rigide, fără excepții, fără interpretare "probabilă." Spre deosebire de o conversație cu un model AI, care infere intenția ta chiar din instrucțiuni ambigue, interpretorul Python execută exact ce scrii sau refuză să execute deloc. Această rigiditate, contraintuitiv, e ce face codul predictibil și de încredere la scară — milioane de linii scrise de mii de oameni, toate respectând aceleași reguli stricte.
+
+Acum că știi *forma* pe care trebuie s-o respecte codul, lecția următoare intră în *conținutul* lui — primul concept fundamental al oricărui program: variabilele, cutiile în care stochezi date pe măsură ce programul rulează.
