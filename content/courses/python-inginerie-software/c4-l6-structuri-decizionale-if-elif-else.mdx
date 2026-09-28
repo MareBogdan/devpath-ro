@@ -1,0 +1,168 @@
+---
+title: "Structuri decizionale: If/Elif/Else"
+order: 6
+type: lesson
+module_index: 4
+duration: 12
+difficulty: 1
+---
+
+# Structuri decizionale: If/Elif/Else
+
+## HOOK
+
+Un sistem de rate limiting dintr-o API (revezi C3 L22) trebuie să decidă, pentru fiecare cerere: e sub limită → procesează normal; e la limită dar cu grace period → procesează cu avertisment; a depășit limita → respinge cu `429`. Trei căi de execuție complet diferite, dintr-o singură decizie inițială — exact structura pe care `if`/`elif`/`else` o modelează direct în cod.
+
+Fiecare program cu vreo formă de "comportament adaptiv" — de la un simplu formular de validare, până la logica unui agent AI care decide "răspund direct sau apelez o unealtă externă?" — se reduce, la nivelul lui cel mai granular, la o secvență de astfel de ramificări. Nu există magie mai profundă în spatele "deciziei" unui program — există doar condiții evaluate în ordine, prima care e adevărată câștigând execuția.
+
+---
+
+## CONTEXT
+
+Structura `if`/`else` există, sub o formă sau alta, în aproape orice limbaj de programare de la Fortran (1957) încoace — e unul din cele trei elemente fundamentale ale programării structurate (alături de secvență și repetiție), teoretizate formal prin **teorema Böhm-Jacopini** (1966), care demonstrează că orice program calculabil poate fi construit din exact aceste trei tipare de control.
+
+Particularitatea Python — `elif` — e o contracție deliberată de "else if", introdusă pentru a evita indentarea tot mai adâncă pe care limbajele fără acest cuvânt-cheie (unele versiuni vechi de BASIC, de exemplu) o forțau la lanțuri lungi de condiții alternative.
+
+---
+
+## MIEZUL
+
+### Forma de bază — `if`, opțional `elif`, opțional `else`
+
+```python
+varsta = 25
+
+if varsta < 18:
+    categorie = "minor"
+elif varsta < 65:
+    categorie = "adult"
+else:
+    categorie = "senior"
+
+print(categorie)   # "adult"
+```
+
+Regulile de evaluare, esențiale de memorat: Python evaluează condițiile **în ordine**, de sus în jos. Prima condiție care e `True` execută blocul corespunzător, iar **toate celelalte ramuri sunt ignorate complet** — chiar dacă și ele ar fi tehnic adevărate. `else` (opțional) execută doar dacă niciuna dintre condițiile de mai sus n-a fost adevărată.
+
+```python
+x = 10
+if x > 5:
+    print("mare")
+elif x > 0:
+    print("pozitiv")     # NU se execută, chiar dacă x > 0 e adevărat —
+                            # prima condiție (x > 5) a câștigat deja
+```
+
+<CosmoHint emotion="thinking">
+De ce ordinea condițiilor `elif` contează structural, nu doar stilistic? Pentru că evaluarea se oprește la prima potrivire. Dacă ai `if x > 0: ... elif x > 10: ...`, a doua ramură e practic moartă — orice `x > 10` satisface deja `x > 0`, deci prima ramură câștigă mereu, indiferent cât de specifică e a doua condiție. Regula practică: ordonează condițiile de la cea mai *specifică* la cea mai *generală*, sau riști cod care "pare" corect dar nu execută niciodată căile pe care crezi că le acoperă.
+</CosmoHint>
+
+### Imbricarea condițiilor — și de ce devine ilizibilă rapid
+
+```python
+def clasifica_utilizator(varsta, este_activ, tara):
+    if varsta >= 18:
+        if este_activ:
+            if tara == "RO":
+                return "adult activ RO"
+            else:
+                return "adult activ non-RO"
+        else:
+            return "adult inactiv"
+    else:
+        return "minor"
+```
+
+Fiecare nivel de imbricare crește indentarea, iar cititorul trebuie să țină minte simultan toate condițiile părinte pentru a înțelege ce înseamnă un bloc adânc imbricat. Practica recomandată — cunoscută ca **early return** sau **guard clauses** — rescrie exact aceeași logică, plat, mult mai lizibil:
+
+```python
+def clasifica_utilizator(varsta, este_activ, tara):
+    if varsta < 18:
+        return "minor"
+    if not este_activ:
+        return "adult inactiv"
+    if tara == "RO":
+        return "adult activ RO"
+    return "adult activ non-RO"
+```
+
+Fiecare condiție "elimină" un caz și se termină cu `return`, eliberând cititorul de nevoia de a urmări starea acumulată din nivele de imbricare — codul se citește de sus în jos, un caz eliminat pe rând, fără să ții minte contextul anterior.
+
+{/* TABLE */}
+
+| Stil | Avantaj | Dezavantaj |
+|---|---|---|
+| Imbricat (`if` în `if`) | Explicit despre relația logică între condiții | Devine ilizibil rapid peste 2-3 nivele |
+| Early return / guard clauses | Plat, ușor de citit, fiecare caz izolat | Necesită funcție (return-ul întrerupe execuția) |
+| `elif` în lanț | Compact pentru alternative exclusive multiple | Ordinea condițiilor e critică |
+
+### Expresia condițională (ternar) — `if`/`else` ca expresie
+
+Din L2, ai văzut că `if` are și o formă de **expresie**, nu doar de instrucțiune — utilă pentru atribuiri simple, unde un bloc întreg ar fi exagerat:
+
+```python
+status = "adult" if varsta >= 18 else "minor"
+
+# Echivalent, dar mai verbos:
+if varsta >= 18:
+    status = "adult"
+else:
+    status = "minor"
+```
+
+Regula de bun-simț: forma ternară e potrivită pentru decizii **simple, dintr-o singură expresie** per ramură. Pentru logică mai complexă (mai mult de o linie per caz, sau mai mult de 2-3 alternative), `if`/`elif`/`else` obișnuit rămâne mai lizibil — ternarul imbricat (`a if x else b if y else c`) devine rapid criptic.
+
+### Match statement — `switch` structurat, din Python 3.10
+
+Python nu a avut, pentru mult timp, un echivalent direct al `switch`-ului din C/Java. **Python 3.10** (2021) a introdus `match`, mult mai puternic decât un simplu switch — face **pattern matching** structural, nu doar comparație de valori:
+
+```python
+def gestioneaza_comanda(comanda):
+    match comanda:
+        case "start":
+            return "Pornire sistem"
+        case "stop":
+            return "Oprire sistem"
+        case ["restart", intarziere]:       # potrivire pe STRUCTURĂ, nu doar valoare
+            return f"Restart cu întârziere de {intarziere}s"
+        case _:                                # caz implicit — echivalentul lui 'else'
+            return "Comandă necunoscută"
+```
+
+`case _:` (underscore) e caracterul wildcard — se potrivește cu orice, echivalentul explicit al `else` de la finalul unui lanț `elif`. Deși util, `match` rămâne mai puțin folosit în practică decât `if`/`elif`/`else` clasic pentru cazurile simple — util să-l recunoști citind cod modern, dar nu esențial pentru majoritatea logicii de zi cu zi.
+
+<CosmoHint emotion="encouraging">
+Un pattern frecvent în cod AI real: verificarea tipului de răspuns primit de la o API de model — `if raspuns.get("eroare"): gestioneaza_eroare(...) elif raspuns.get("continut_partial"): continua_streaming(...) else: proceseaza_raspuns_final(...)`. Structura decizională simplă din această lecție e literalmente cum orice cod de integrare cu un LLM decide ce ramură de logică să execute pentru fiecare bucată de răspuns primită.
+</CosmoHint>
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Situație | Structură recomandată |
+|---|---|
+| O singură condiție, o singură alternativă | `if`/`else` |
+| Multiple alternative exclusive | `if`/`elif`/`elif`/`else` |
+| Atribuire simplă condiționată | Expresie ternară (`a if cond else b`) |
+| Multe condiții imbricate → cod greu de citit | Refactorizare la early return |
+| Potrivire pe structură/tip de date (Python 3.10+) | `match`/`case` |
+
+<FactBox>
+**Structuri decizionale în cifre:**
+- Teorema Böhm-Jacopini (1966): demonstrează că orice program se reduce la secvență, decizie, repetiție
+- `elif`: contracție de "else if", evită indentare crescută la lanțuri lungi de alternative
+- `match`/`case`: introdus în **Python 3.10** (octombrie 2021)
+- Evaluare `if`/`elif`: se oprește la prima condiție `True`, ignoră restul necondiționat
+- Prag practic recomandat pentru refactorizare (imbricare → early return): peste **2-3 nivele**
+- `case _:`: wildcard, se potrivește necondiționat cu orice valoare rămasă
+</FactBox>
+
+---
+
+## ÎNCHEIERE
+
+`if`/`elif`/`else` transformă o condiție logică (rezultatul operatorilor din L5) într-o ramificare reală de execuție — programul alege, la runtime, ce cale de cod urmează. Regula de aur pentru cod lizibil: evită imbricarea profundă, preferă early return, și rezervă ternarul pentru decizii cu adevărat simple.
+
+O singură decizie, executată o dată, e utilă — dar majoritatea programelor reale trebuie să repete aceeași logică de multe ori, pentru multe elemente diferite. Lecția următoare introduce prima structură de repetiție: bucla `for`.
