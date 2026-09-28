@@ -119,6 +119,113 @@ Configurările de model AI sunt aproape universal reprezentate ca dicționare �
 
 Dacă ordinea numerică e semnificația de bază a datelor tale (o secvență de pași, un istoric cronologic simplu), o listă e alegerea corectă — dicționarul adaugă complexitate inutilă pentru un caz unde poziția *este* semnificația. Dicționarul câștigă exact când accesul e natural prin *nume/identificator*, nu prin *poziție* — utilizatori identificați prin ID, configurări identificate prin nume de parametru, contoare identificate prin categorie.
 
+### `Counter` — numărarea frecvenței, un caz specializat de dicționar
+
+Un pattern extrem de comun — numărarea de câte ori apare fiecare element distinct dintr-o colecție — are o unealtă dedicată în biblioteca standard, mai directă decât un `defaultdict(int)` scris manual:
+
+```python
+from collections import Counter
+
+cuvinte = ["python", "ai", "python", "model", "ai", "python"]
+frecvente = Counter(cuvinte)
+
+print(frecvente)                  # Counter({'python': 3, 'ai': 2, 'model': 1})
+print(frecvente["python"])          # 3
+print(frecvente.most_common(2))       # [('python', 3), ('ai', 2)] — cele mai frecvente 2
+```
+
+`Counter` e, tehnic, o subclasă de `dict`, cu comportament suplimentar util: accesul la o cheie inexistentă returnează `0` implicit (nu `KeyError`), și metoda `.most_common(n)` returnează direct top N elemente după frecvență, sortate descrescător — exact operațiunea pe care ai construi-o manual, cu mai multe linii, folosind `sorted()` cu `key=` (revezi L12) peste `.items()` ale unui dicționar obișnuit.
+
+### `Counter` pentru numărarea vocabularului — legătura cu AI
+
+Construirea unui vocabular de tokeni dintr-un corpus de text — pas fundamental în orice pipeline de procesare de limbaj natural — se reduce, la nivelul cel mai simplu, la exact acest pattern:
+
+```python
+text = "modelul procesează text modelul învață din text"
+tokeni = text.split()
+frecventa_tokenilor = Counter(tokeni)
+
+vocabular = [token for token, count in frecventa_tokenilor.most_common(1000)]   # top 1000 cele mai frecvente
+```
+
+Vocabularele reale ale modelelor de limbaj (tokenizatoare BPE, folosite de GPT și modele similare) sunt construite prin algoritmi mult mai sofisticați decât o simplă numărare de cuvinte — dar principiul de bază, "numără frecvența fiecărei unități distincte, păstrează-le pe cele mai relevante," rămâne conceptual identic celui demonstrat aici, la scară mult mai mare și cu unități mai fine decât cuvinte întregi (sub-cuvinte, caractere individuale).
+
+### `OrderedDict` — o relicvă istorică, azi aproape inutilă
+
+Înainte de Python 3.7 (când ordinea de inserare a devenit garantată pentru dicționarele obișnuite, menționat deja în CONTEXT), `collections.OrderedDict` era singura structură care garanta explicit păstrarea ordinii. Azi rămâne utilă doar pentru câteva capacități suplimentare specifice (comparație de egalitate sensibilă la ordine, metoda `.move_to_end()`) — pentru marea majoritate a cazurilor de uz, un `dict` obișnuit e complet suficient, iar `OrderedDict` apare azi mai ales în cod mai vechi, scris înainte de garanția oficială de ordine.
+
+### Fuzionarea dicționarelor — combinarea mai multor surse de configurare
+
+Un scenariu practic frecvent: combinarea unor valori implicite cu configurări specifice furnizate de utilizator, unde cele din urmă trebuie să aibă prioritate:
+
+```python
+implicite = {"temperature": 0.7, "max_tokens": 500, "model": "gpt-4o-mini"}
+custom = {"temperature": 0.2}
+
+# Operatorul '|' (Python 3.9+) — combină două dicționare, al doilea are prioritate la chei comune:
+final = implicite | custom
+print(final)   # {'temperature': 0.2, 'max_tokens': 500, 'model': 'gpt-4o-mini'}
+
+# Echivalent mai vechi, compatibil cu versiuni Python anterioare:
+final_alt = {**implicite, **custom}   # despachetare cu '**', ultima sursă câștigă la coliziuni
+```
+
+Ambele forme produc un dicționar **nou**, fără să modifice niciunul dintre cele originale — util constant pentru pattern-ul "valori implicite, suprascrise selectiv de configurare specifică," întâlnit la fiecare apel către o API configurabilă (parametri impliciți de model, suprascriși explicit doar acolo unde utilizatorul specifică o valoare diferită).
+
+### `.update()` — fuzionare cu modificare în loc
+
+```python
+configurare = {"temperature": 0.7, "max_tokens": 500}
+configurare.update({"temperature": 0.2, "top_p": 0.9})
+print(configurare)   # {'temperature': 0.2, 'max_tokens': 500, 'top_p': 0.9} — MODIFICAT în loc
+```
+
+Spre deosebire de `|` (creează un dicționar nou), `.update()` modifică dicționarul existent direct, adăugând chei noi și suprascriind cele existente cu valorile din argumentul primit — aceeași distincție filozofică repetată constant în acest curs: o operațiune care creează un obiect nou vs. una care modifică în loc, cu implicații directe asupra oricărei alte variabile care mai referențiază același obiect (revezi L16).
+
+### Chei imbricate și `.get()` în lanț — evitarea `KeyError` pe structuri adânci
+
+```python
+raspuns = {"data": {"utilizator": {"nume": "Ana"}}}
+
+# Risc de KeyError la orice nivel dacă structura nu e exact cea așteptată:
+nume = raspuns["data"]["utilizator"]["nume"]
+
+# Variantă sigură, cu .get() înlănțuit, fiecare cu valoare implicită de dicționar gol:
+nume_sigur = raspuns.get("data", {}).get("utilizator", {}).get("nume", "necunoscut")
+```
+
+Acest pattern — `.get()` înlănțuit, fiecare cu un dicționar gol ca valoare implicită — evită excepțiile la orice nivel lipsă din structura imbricată, comun la parsarea de răspunsuri JSON de la API-uri externe unde structura exactă nu e mereu garantată complet. Pentru validare mai riguroasă și mai lizibilă a structurilor complexe, Pydantic (L24) automatizează complet acest tip de verificare, eliminând nevoia de lanțuri lungi de `.get()`.
+
+### `.pop()` cu valoare implicită — eliminare sigură
+
+```python
+setari = {"debug": True, "verbose": False}
+
+valoare = setari.pop("debug")              # elimină ȘI returnează valoarea — True
+valoare_lipsa = setari.pop("inexistent", "N/A")   # nu aruncă eroare, returnează "N/A"
+```
+
+`.pop()` pe un dicționar combină două operațiuni într-una: elimină cheia și returnează valoarea ei, similar conceptual cu `.pop()` de pe o listă (L12), dar identificând elementul prin cheie, nu prin index. Al doilea argument, opțional, oferă o valoare implicită dacă cheia nu există — exact aceeași convenție de siguranță ca `.get()`, aplicată eliminării în loc de simplei citiri.
+
+### Dicționare ca cache simplu — memoizare manuală
+
+Un pattern practic direct legat de `lru_cache` (menționat deja la decoratori, L20): un dicționar poate servi ca un cache manual, simplu, pentru rezultate costisitoare de calculat:
+
+```python
+cache_rezultate = {}
+
+def calculeaza_scump(n):
+    if n in cache_rezultate:
+        return cache_rezultate[n]           # rezultat deja calculat, returnat instant
+    rezultat = n ** n                          # operațiune presupusă costisitoare
+    cache_rezultate[n] = rezultat                # salvează pentru apeluri viitoare
+    return rezultat
+```
+
+Acest pattern — verifică dacă rezultatul există deja în dicționar, calculează și salvează doar dacă lipsește — se numește **memoizare**, o tehnică de optimizare extrem de comună, aplicabilă oricărei funcții pure (revezi L9) ale cărei rezultate depind exclusiv de argumentele primite, fără efecte secundare care ar face cache-ul invalid. `functools.lru_cache` automatizează exact acest pattern, fără să scrii manual dicționarul de cache — dar înțelegerea versiunii manuale, explicite, ajută la a recunoaște imediat ce face decoratorul atunci când îl întâlnești în cod real.
+
+---
+
 ---
 
 ## REVEAL
