@@ -151,6 +151,100 @@ x //= 5   # x devine 4
 
 Utili pentru concizie în bucle și acumulatoare — vei folosi `+=` constant începând cu L7 (bucle FOR), de exemplu pentru a acumula o sumă totală sau a construi progresiv un string de rezultate.
 
+### Operatorul `is`/`is not` — comparație de identitate, nu de valoare
+
+L3 a introdus deja distincția `is` vs. `==`, dar merită repetată aici, alături de restul operatorilor, pentru completitudine: `is` verifică dacă două nume referă exact același obiect în memorie, `==` verifică dacă valorile sunt egale, indiferent de identitate:
+
+```python
+a = [1, 2, 3]
+b = [1, 2, 3]
+print(a == b)   # True — conținut identic
+print(a is b)    # False — obiecte DIFERITE
+
+print(a is not b)   # True — forma negată, mai citeață decât 'not (a is b)'
+```
+
+`is not`, ca formă unică compusă (nu `not ... is`), e sintaxă Python idiomatică — la fel de validă ca `not in` pentru verificarea absenței dintr-o colecție (`x not in lista`), preferată universal pentru claritate față de echivalentele lor cu `not` plasat separat.
+
+Regula practică rămâne cea din L3: `is`/`is not` se folosesc aproape exclusiv pentru verificarea explicită a lui `None` sau pentru identitate intenționată de obiect — pentru orice comparație obișnuită de valori (numere, string-uri, liste, dicționare), `==`/`!=` rămân alegerea corectă, indiferent cât de tentant ar putea părea `is` ca "scurtătură" mai rapidă.
+
+### Operatorul de apartenență — `in` și `not in`
+
+```python
+fructe = ["măr", "pară", "kiwi"]
+print("măr" in fructe)          # True
+print("ananas" not in fructe)     # True
+
+text = "Python este puternic"
+print("Python" in text)             # True — funcționează și pe substring-uri de string
+```
+
+`in` verifică apartenența unui element la o colecție — comportamentul exact (viteza) depinde de tipul colecției, exact cum ai văzut deja: `O(n)` pe o listă (parcurgere secvențială), `O(1)` pe un set sau pe cheile unui dicționar (căutare prin hash, revezi L13/L15). Pe string-uri, `in` verifică apartenența unui substring, nu a unui caracter izolat — o distincție utilă de reținut, pentru că sintaxa e identică indiferent de tipul din stânga.
+
+Ca și la `+`, comportamentul lui `in` nu e fixat rigid — orice clasă poate defini propria logică de apartenență prin metoda specială `__contains__` (detaliu revizitat mai jos, la suprascrierea operatorilor). Practic, `in` funcționează pe orice obiect care "promite" să poată răspunde la întrebarea "conții X?", nu doar pe cele patru-cinci colecții încorporate din biblioteca standard.
+
+### Operatori de comparație în lanț cu tipuri mixte — o capcană de reținut
+
+Comparațiile înlănțuite din L6 funcționează elegant pentru tipuri compatibile, dar Python nu ridică automat nicio eroare la comparații între tipuri incompatibile semantic — un comportament care poate masca bug-uri logice reale:
+
+```python
+print(1 < "2")   # TypeError în Python 3 — comparație directă între int și str e explicit interzisă
+print(1 < 2.5)     # True — int și float SUNT comparabile, conversie implicită sigură
+print(True < 2)     # True — bool (subclasă de int, revezi L4) comparat cu int, funcționează
+```
+
+Python 3 a devenit strict pe acest front, spre deosebire de Python 2, care permitea comparații arbitrare între tipuri complet diferite, cu rezultate adesea fără sens practic — o altă rupere de compatibilitate deliberată, discutată deja la tranziția majoră a limbajului, motivată explicit de prevenirea bug-urilor logice tăcute.
+
+### Operatorul walrus (`:=`) — atribuire în interiorul unei expresii
+
+Python 3.8 (2019) a introdus o formă compactă de atribuire care poate apărea *în interiorul* unei expresii, nu doar ca instrucțiune separată:
+
+```python
+# Fără walrus — calculezi valoarea de două ori sau ai nevoie de o linie separată:
+rezultat = calculeaza_ceva()
+if rezultat > 10:
+    print(rezultat)
+
+# Cu walrus — atribui ȘI verifici într-o singură expresie:
+if (rezultat := calculeaza_ceva()) > 10:
+    print(rezultat)
+```
+
+Util în special în bucle `while` (L8) unde o valoare trebuie citită și verificată în același pas (`while (linie := fisier.readline()):`), evitând duplicarea codului de citire — o adăugare relativ recentă și controversată la momentul propunerii ei (PEP 572), dar acceptată azi ca parte standard a limbajului, întâlnită tot mai des în cod modern.
+
+### Suprascrierea operatorilor — de ce `+` funcționează diferit pe tipuri diferite
+
+Ai văzut deja că `+` se comportă diferit în funcție de tip: `5 + 3` adună numere, `"a" + "b"` concatenează string-uri, `[1] + [2]` combină liste. Acest comportament nu e magie specială a interpretorului — fiecare tip Python definește explicit ce înseamnă `+` pentru el, printr-o metodă specială numită `__add__`. Când scrii `a + b`, Python apelează, sub capotă, `a.__add__(b)` — exact `+` fiind doar o sintaxă mai citeață pentru acest apel de metodă.
+
+```python
+class Vector2D:
+    def __init__(self, x, y):
+        self.x, self.y = x, y
+
+    def __add__(self, altul):    # definește ce înseamnă '+' pentru DOUĂ obiecte Vector2D
+        return Vector2D(self.x + altul.x, self.y + altul.y)
+
+    def __repr__(self):
+        return f"Vector2D({self.x}, {self.y})"
+
+v1 = Vector2D(1, 2)
+v2 = Vector2D(3, 4)
+print(v1 + v2)   # Vector2D(4, 6) — '+' funcționează pe clase PROPRII, nu doar pe tipuri încorporate
+```
+
+Acest mecanism — numit **suprascrierea operatorilor** (operator overloading) — explică de ce biblioteci precum NumPy sau PyTorch pot folosi `+`, `*`, `@` (înmulțire matriceală) direct pe tensori, cu o sintaxă la fel de naturală ca pe numere obișnuite, deși intern declanșează calcule complexe, posibil paralele, pe mii de valori simultan. Vei revedea acest concept, cu mai multe detalii, la clase (L17) — reține pentru acum doar principiul: operatorii nu sunt fixați rigid la tipurile primitive, orice clasă poate defini propriul comportament pentru ei.
+
+{/* TABLE */}
+
+| Operator | Metodă specială apelată |
+|---|---|
+| `+` | `__add__` |
+| `-` | `__sub__` |
+| `*` | `__mul__` |
+| `==` | `__eq__` |
+| `<` | `__lt__` |
+| `in` | `__contains__` |
+
 ---
 
 ## REVEAL
