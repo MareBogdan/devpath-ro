@@ -111,6 +111,28 @@ Pattern corect: endpoint-ul validează semnătura, verifică deduplicarea, pune 
 Pentru testare locală, un webhook nu poate ajunge la `localhost:3000` de pe internetul public — furnizorul (Stripe, GitHub) nu poate face `POST` către o adresă din rețeaua ta privată. Unelte ca `stripe listen --forward-to localhost:3000/webhooks` sau ngrok deschid un tunel public temporar către mașina ta locală, exact pentru acest scenariu de dezvoltare — util de reținut prima dată când te întrebi de ce webhook-ul "nu ajunge niciodată" în dev.
 </CosmoHint>
 
+### Ordinea evenimentelor — nu presupune niciodată garanția ei
+
+Un furnizor de webhook-uri livrează evenimente **la eveniment**, nu neapărat în ordinea strictă în care s-au produs — rețeaua poate întârzia un pachet față de altul, retry-urile pot amesteca ordinea de livrare finală, iar procesarea paralelă la infrastructura furnizorului nu garantează ordonare globală. Un endpoint care presupune "evenimentul `payment_intent.created` ajunge mereu înainte de `payment_intent.succeeded`" poate întâlni ocazional ordinea inversă, mai ales sub sarcină mare sau după un retry declanșat de o eroare temporară.
+
+Soluția robustă: fiecare eveniment conține un timestamp și, de obicei, starea completă curentă a obiectului (nu doar o schimbare incrementală) — endpoint-ul poate verifica explicit, din payload, dacă evenimentul primit e mai vechi decât starea deja salvată, ignorându-l dacă da, în loc să presupună implicit ordinea cronologică a livrării.
+
+### Webhook-uri de ieșire — responsabilitatea inversă, ca furnizor
+
+Discuția de până acum tratează webhook-uri primite, de la un furnizor extern. Dacă propriul tău sistem expune webhook-uri altor clienți (de exemplu, o platformă SaaS care notifică integrările proprii ale utilizatorilor la evenimente), responsabilitățile se inversează complet: tu ești cel care semnează payload-ul, tu gestionezi retry-urile la eșecuri, tu decizi timeout-ul de confirmare acceptat de la clienții tăi.
+
+Practica standard pentru furnizori serioși: un tablou de bord unde clientul vede istoricul livrărilor (succes/eșec, cod de status primit, timp de răspuns), posibilitatea de retrimitere manuală a unui eveniment ratat, și o politică clară de retry cu backoff exponențial documentată explicit — exact simetricul obligațiilor discutate mai sus, dar din perspectiva celui care trimite, nu a celui care primește.
+
+Generarea semnăturii, ca furnizor, urmează același principiu HMAC descris deja, doar cu rolurile inversate: tu deții secretul de webhook per client (generat unic la înregistrarea URL-ului lor), tu calculezi semnătura peste payload înainte de trimitere, iar clientul tău o verifică folosind exact codul prezentat anterior în această lecție. Această simetrie explică de ce integrarea cu webhook-uri, indiferent de rol, se simte rapid familiară — mecanismul de securitate e identic, doar direcția fluxului de date diferă.
+
+### Alternativa emergentă — WebSub și standardizarea abonării
+
+Webhook-urile, ai văzut deja în CONTEXT, rămân o convenție, nu un standard formal — fiecare furnizor implementează propriile detalii de abonare, semnare, retry. **WebSub** (fostul PubSubHubbub, standardizat prin W3C) încearcă să ofere un protocol comun de abonare/notificare peste HTTP, cu un "hub" central care gestionează abonările multor "publisheri" către mulți "subscriberi" — util în special pentru feed-uri de conținut (RSS/Atom) care vor notificare instant, fără polling.
+
+Adopția rămâne mult mai limitată decât webhook-urile "convenționale" discutate în restul lecției — majoritatea API-urilor comerciale (plăți, CI/CD, mesagerie) continuă să implementeze propriul model ad-hoc, suficient de similar între furnizori (semnătură HMAC, retry cu backoff, `event.id` pentru deduplicare) încât un dezvoltator care a integrat un webhook Stripe recunoaște imediat structura unui webhook GitHub, fără nevoia unui standard formal comun.
+
+De ce mulți furnizori serioși de webhook-uri (Stripe, GitHub) oferă un buton "Resend" în dashboard-ul lor, pentru evenimente livrate deja? Pentru că endpoint-ul destinatarului poate fi temporar căzut mai mult decât fereastra automată de retry (de obicei ore, nu zile) — un incident de infrastructură de câteva zile ar pierde definitiv evenimentele fără această opțiune manuală. Retrimiterea manuală se bazează pe exact aceleași garanții de idempotență discutate deja: același `event.id`, deduplicat corect la destinație, indiferent de câte ori e retrimis, automat sau manual.
+
 ---
 
 ## REVEAL
