@@ -85,6 +85,22 @@ CA-urile rădăcină (DigiCert, Let's Encrypt/ISRG, GlobalSign) sunt preinstalat
 
 Consecința de securitate: numele domeniului cerut e vizibil oricui interceptează traficul, chiar dacă conținutul e criptat. **Encrypted Client Hello (ECH)**, standardizat recent, criptează și această informație, dar adopția e încă parțială.
 
+### Revocarea certificatelor — ce se întâmplă când o cheie privată e compromisă
+
+O cheie privată de server poate fi compromisă înainte de expirarea naturală a certificatului — un server spart, o cheie scursă accidental într-un repository public. Certificatul trebuie invalidat imediat, nu la următoarea reînnoire programată. Mecanismul clasic, **CRL** (Certificate Revocation List), publica periodic o listă completă de serial numbers revocate — browserul trebuia să descarce liste tot mai mari, cu latență și cost de bandă tot mai greu de justificat.
+
+**OCSP** (Online Certificate Status Protocol) a înlocuit acest model cu o interogare punctuală: browserul trimite serial number-ul certificatului unui responder OCSP al CA-ului, primește direct răspunsul "valid" sau "revocat." Problema rămasă: acest schimb adaugă o cerere de rețea suplimentară la fiecare handshake nou, și — mai grav pentru confidențialitate — dă CA-ului vizibilitate exactă asupra a ce site-uri vizitează fiecare utilizator, la fiecare conexiune.
+
+**OCSP stapling** rezolvă ambele probleme deodată: serverul însuși interoghează periodic responder-ul OCSP (nu la fiecare conexiune de client, ci la un interval fix, ore, nu milisecunde) și "capsează" (staple) răspunsul semnat direct în handshake-ul TLS, trimis clientului împreună cu certificatul. Clientul verifică semnătura CA-ului pe acel răspuns capsat, fără nicio cerere suplimentară de rețea și fără să reveleze niciodată CA-ului ce site vizitează. Majoritatea serverelor web moderne (nginx, Apache configurate corect) activează stapling implicit.
+
+Certificate Transparency (CT) — un registru public, append-only, unde fiecare CA e obligat să publice orice certificat emis — a devenit obligatoriu de facto pentru orice certificat acceptat de Chrome din 2018. Practic, orice certificat emis fraudulos pentru domeniul tău (printr-un CA compromis sau păcălit) apare public în acest log, verificabil de oricine — inclusiv de instrumente automate care alertează proprietarii de domenii la apariția unui certificat neautorizat pentru domeniul lor.
+
+### Mutual TLS (mTLS) — când și clientul prezintă un certificat
+
+Handshake-ul descris până acum autentifică doar **serverul** — clientul verifică cine e serverul, dar serverul acceptă orice client care inițiază conexiunea. **mTLS** inversează parțial această asimetrie: în pasul de `ClientKeyExchange`, clientul trimite și el un certificat propriu, semnat de o CA de încredere pentru server, dovedind identitatea lui prin exact același mecanism de semnătură criptografică.
+
+Acest model e rar folosit pentru trafic public (browserul obișnuit nu are, implicit, un certificat client de prezentat), dar e standard în comunicarea server-la-server de mare securitate — microservicii interne într-un mesh de rețea (Istio, Linkerd), API-uri bancare, sau conexiuni între componente ale infrastructurii unde ambele părți trebuie să se identifice reciproc, criptografic, nu doar prin chei API transmise în header-e (revezi C3 L22).
+
 ---
 
 ## REVEAL
