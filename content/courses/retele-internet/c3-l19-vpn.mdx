@@ -103,6 +103,20 @@ Ce **nu** face: nu te face anonim față de furnizorul VPN însuși — el vede 
 - Port UDP implicit WireGuard: **51820**
 </FactBox>
 
+### Kill switch și DNS leaks — de ce un VPN "activ" nu garantează protecție completă
+
+Un VPN corect configurat rutează tot traficul prin tunel — dar câteva scurgeri clasice pot expune informații exact în momentele în care utilizatorul crede că e complet protejat. **DNS leak**: dacă sistemul de operare continuă să trimită interogările DNS (revezi C3 L4) direct către resolverul rețelei locale, în afara tunelului, orice domeniu vizitat rămâne vizibil rețelei locale — chiar dacă traficul HTTP efectiv trece criptat prin VPN. Clienții VPN serioși forțează explicit toate interogările DNS prin tunel, către un resolver controlat de furnizorul VPN, exact pentru a elimina acest canal secundar de scurgere.
+
+**Kill switch**: dacă tunelul VPN se rupe brusc (server căzut, rețea instabilă), un client fără kill switch permite traficului să continue direct, necriptat, pe rețeaua locală neîncrezătoare — exact scenariul pe care VPN-ul trebuia să-l prevină. Un kill switch blochează complet accesul la internet în momentul în care detectează căderea tunelului, până la restabilirea lui, sacrificând disponibilitatea temporară în schimbul garanției că niciun pachet nu circulă vreodată în afara canalului criptat.
+
+De ce IPv6 poate submina un VPN configurat doar pentru IPv4? Multe implementări VPN mai vechi rutează explicit doar traficul IPv4 prin tunel, ignorând IPv6 — dacă rețeaua locală și sistemul de operare au IPv6 activ implicit (comun pe multe rețele moderne), traficul către destinații cu adrese IPv6 poate ieși direct, necriptat, complet pe lângă tunel, fără nicio eroare vizibilă utilizatorului. Soluția standard: dezactivarea explicită a IPv6 la nivel de sistem cât VPN-ul e activ, sau suport IPv6 nativ în configurația tunelului — un detaliu de configurare ignorat frecvent, cu consecințe reale de confidențialitate.
+
+### Mesh VPN — Tailscale și modelul peer-to-peer modern
+
+Modelele clasice discutate până acum presupun un server VPN central, prin care trece tot traficul. **Tailscale** (și proiectul open-source pe care se bazează, WireGuard, deja discutat) popularizează un model diferit: **mesh VPN** — fiecare device dintr-o rețea privată se conectează direct la celelalte, peer-to-peer, fără să treacă traficul printr-un server central, dacă e posibil o conexiune directă (folosind tehnici de NAT traversal, revezi C3 L11).
+
+Un server de coordonare centralizat (control plane) gestionează doar schimbul inițial de chei publice WireGuard între device-uri și politica de acces — traficul efectiv de date nu trece prin el, spre deosebire de un VPN clasic remote-access unde tot traficul e obligatoriu rutat prin serverul VPN. Rezultatul: latență mai mică (conexiune directă între cele două device-uri, nu un salt suplimentar prin server), și fără un punct central unic care ar deveni bottleneck sau țintă de atac pentru interceptarea traficului tuturor utilizatorilor.
+
 ---
 
 ## REVEAL
