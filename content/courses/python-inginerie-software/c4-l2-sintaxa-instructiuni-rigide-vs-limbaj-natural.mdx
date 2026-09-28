@@ -124,6 +124,47 @@ Forma ternară (`valoare_daca_adevarat if conditie else valoare_daca_fals`) e ex
 
 PEP 8 nu e impus de interpretor — cod care-l încalcă rulează perfect. E impus de **convenție de echipă** și verificat automat prin unelte de linting (`ruff`, `flake8`, `black` pentru formatare automată) — instrumente pe care le vei folosi constant lucrând pe cod AI real, unde consistența stilistică între mii de linii scrise de zeci de contribuitori contează enorm pentru lizibilitate.
 
+### Linia continuă și parantezele implicite
+
+O instrucțiune Python se termină implicit la finalul liniei, fără niciun caracter special de terminare (spre deosebire de `;` din C/Java) — dar o expresie prea lungă pentru o singură linie citeață are nevoie de o modalitate explicită de continuare. Python oferă două:
+
+```python
+total = (
+    primul_termen
+    + al_doilea_termen
+    + al_treilea_termen
+)
+
+total_alt = primul_termen + \
+    al_doilea_termen + \
+    al_treilea_termen
+```
+
+Parantezele (`()`, `[]`, `{}`) permit continuarea implicită pe linii multiple, fără niciun caracter special — Python "știe" că expresia nu s-a terminat cât o paranteză rămâne deschisă, indiferent cât de multe linii intermediare urmează. Backslash-ul (`\`) la finalul liniei face același lucru fără paranteze, dar e considerat, prin convenție PEP 8, mai fragil și mai puțin lizibil — un spațiu accidental după `\` rupe continuarea silențios, o eroare greu de observat vizual. Practica idiomatică preferă aproape universal parantezele, motiv pentru care liste, dicționare și apeluri de funcție lungi se scriu natural pe linii multiple, fără backslash, doar prin structura parantezelor deja deschise.
+
+### `pass`, `...` și blocuri goale
+
+Sintaxa Python cere ca orice bloc deschis de `:` să conțină cel puțin o instrucțiune — un `if`, `def`, sau `class` cu corpul complet gol e o eroare de sintaxă, nu o simplă omisiune tolerată:
+
+```python
+def functie_neimplementata_inca():
+    pass    # placeholder EXPLICIT — "nu face nimic, dar sintactic e valid"
+
+class ModelInterfata:
+    def antreneaza(self):
+        ...    # Ellipsis — echivalent funcțional cu 'pass', preferat pentru semnătura unei interfețe
+```
+
+`pass` e o instrucțiune reală, care literalmente nu face nimic — util pentru schelete de cod, funcții planificate dar neimplementate încă, sau ramuri `except` intenționat vide (unde vrei să ignori explicit o eroare, nu s-o gestionezi). `...` (Ellipsis, un obiect încorporat în limbaj) apare tot mai des în cod modern ca alternativă stilistică pentru același rol, în special în fișiere de tip stub (`.pyi`) care descriu doar semnătura unei funcții, fără implementare.
+
+Fiecare exercițiu de cod din acest curs pe care-l vei rezolva probabil începe de la un schelet cu `pass` în locul logicii pe care trebuie s-o scrii tu — exact convenția standard din exerciții și din cod real de "TODO, implementează asta mai târziu," fără să rupi validitatea sintactică a restului fișierului cât timp acea funcție rămâne neterminată.
+
+### Encoding-ul fișierelor sursă
+
+Un fișier `.py` e, la bază, text — și textul are nevoie de o convenție explicită despre cum se traduc bytes-urile de pe disc în caractere. Python 3 presupune implicit **UTF-8** pentru orice fișier sursă, fără nicio declarație suplimentară necesară — diacriticele românești (`ă`, `â`, `î`, `ș`, `ț`) funcționează direct, în comentarii, string-uri, și chiar în nume de variabile (tehnic permis, dar neconvențional). Python 2 cerea o declarație explicită de encoding pe prima linie a fișierului (`# -*- coding: utf-8 -*-`) — o altă sursă de fricțiune eliminată la tranziția spre Python 3, discutată deja în L1.
+
+Problema apare rar în practică pe un sistem modern, unde UTF-8 e presupus universal de editoare, terminale și sisteme de fișiere — dar redevine vizibilă la fișiere scrise sau salvate de unelte vechi, configurate să folosească alt encoding (Windows-1252, de exemplu), unde diacriticele apar corupte, ca șiruri de caractere aparent aleatorii, deși codul rulează sintactic fără eroare. Verificarea encoding-ului fișierului, în editor, e primul pas de diagnosticare pentru acest simptom specific.
+
 <CosmoHint emotion="encouraging">
 `python3 -c "import this"` afișează în terminal "The Zen of Python" — 19 principii scrise de Tim Peters în 1999, parte oficială a limbajului (chiar un easter egg încorporat). "Readability counts" (lizibilitatea contează) și "Explicit is better than implicit" (explicit e mai bun decât implicit) explică direct de ce indentarea obligatorie și sintaxa strictă sunt decizii filozofice, nu doar tehnice.
 </CosmoHint>
