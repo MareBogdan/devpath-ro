@@ -1,0 +1,126 @@
+---
+title: "Derivata — panta muntelui sub schior"
+order: 15
+type: lesson
+module_index: 6
+duration: 15
+difficulty: 3
+---
+
+# Derivata — panta muntelui sub schior
+
+## HOOK
+
+Un schior coboară un munte cu o formă complicată, cu porțiuni abrupte și altele aproape plate. În orice moment, sub tălpile lui, panta locală e precisă — un singur număr care spune exact cât de abruptă e coborârea *chiar acolo*, indiferent de forma restului muntelui. Funcția de pierdere a unui model AI (cross-entropia, L11) e exact acel munte — o suprafață complicată, cu multe dimensiuni, iar antrenarea modelului e, literal, un proces de coborâre căutând panta cea mai favorabilă.
+
+**Derivata** e instrumentul matematic care măsoară exact acea pantă, într-un singur punct, riguros. Fără ea, "antrenarea" unei rețele neuronale n-ar avea niciun sens concret — nu ar exista nicio direcție clară în care să ajustezi parametrii pentru a reduce eroarea.
+
+---
+
+## CONTEXT
+
+Calculul diferențial a fost dezvoltat independent, aproape simultan, de Isaac Newton (care îl numea "metoda fluxiunilor", în jurul anilor 1665-1666, în timpul unei perioade de izolare cauzate de epidemia de ciumă) și Gottfried Wilhelm Leibniz (care a publicat prima notație formală în anii 1670). Cei doi au ajuns la rezultate matematic echivalente, independent unul de celălalt — fapt care a dus la una dintre cele mai aprige dispute de prioritate din istoria matematicii, între susținătorii englezi ai lui Newton și cei continentali ai lui Leibniz.
+
+Notația care s-a impus în cele din urmă, folosită universal astăzi (inclusiv, indirect, în orice framework de Deep Learning), e cea a lui Leibniz — $\frac{dy}{dx}$ — apreciată pentru claritatea și ușurința cu care se manipulează algebric, comparativ cu notația mai greoaie a lui Newton. Peste trei secole mai târziu, exact acest instrument matematic e cel care face posibilă antrenarea oricărui model AI modern.
+
+---
+
+## MIEZUL
+
+### Definiția formală — limita raportului de diferențe
+
+Derivata unei funcții $f$ într-un punct $x$ se definește ca limita ratei medii de schimbare, pe măsură ce intervalul de măsurare devine infinit de mic:
+
+$$f'(x) = \lim_{h \to 0} \frac{f(x+h) - f(x)}{h}$$
+
+Raportul $\frac{f(x+h)-f(x)}{h}$ — numit raport de diferențe — măsoară panta medie *între* două puncte, $x$ și $x+h$. Pe măsură ce $h$ se apropie de zero, cele două puncte devin practic identice, iar panta medie devine panta **exactă**, instantanee, în punctul $x$ — exact panta sub tălpile schiorului, într-un singur moment.
+
+### Interpretarea geometrică — panta tangentei
+
+Geometric, $f'(x)$ e panta liniei **tangente** la graficul funcției, exact în punctul $x$ — linia dreaptă care "atinge" curba în acel punct fără s-o intersecteze, urmând exact direcția locală a curbei.
+
+{/* TABLE */}
+
+| Semnul derivatei | Ce spune despre funcție |
+|---|---|
+| $f'(x) > 0$ | Funcția crește în acel punct |
+| $f'(x) < 0$ | Funcția scade în acel punct |
+| $f'(x) = 0$ | Punct critic — posibil minim, maxim, sau punct de inflexiune |
+
+Punctele unde derivata e exact zero sunt esențiale practic: pentru o funcție de pierdere (L11), un punct cu derivata zero e un candidat pentru un **minim** — exact locul unde vrei să ajungă antrenarea, pentru că acolo eroarea modelului e cât mai mică posibil în vecinătatea locală.
+
+### Reguli de bază — calculezi fără să repeți definiția de fiecare dată
+
+{/* TABLE */}
+
+| Funcție | Derivată | Observație |
+|---|---|---|
+| $f(x) = c$ (constantă) | $f'(x) = 0$ | O constantă nu se schimbă niciodată |
+| $f(x) = x^n$ | $f'(x) = nx^{n-1}$ | Regula puterii, cea mai folosită regulă de bază |
+| $f(x) = c \cdot g(x)$ | $f'(x) = c \cdot g'(x)$ | Constanta "iese" din derivată |
+| $f(x) = g(x) + h(x)$ | $f'(x) = g'(x) + h'(x)$ | Derivata unei sume e suma derivatelor |
+
+Aceste reguli, combinate, permit calculul derivatei pentru aproape orice funcție polinomială simplă fără să aplici de fiecare dată definiția formală cu limită — exact modul practic în care se calculează derivate în orice context real.
+
+<CosmoHint emotion="thinking">
+De ce contează exact definiția cu limită, dacă în practică folosești reguli gata calculate? Pentru că regulile din tabel sunt *derivate* (nu întâmplător, exact cuvântul potrivit) direct din definiția formală — nu sunt postulate arbitrare. Când o funcție de activare nouă sau o arhitectură de rețea nouă apare, cineva trebuie să calculeze riguros derivata ei pornind de la definiție, pentru ca framework-urile de Deep Learning s-o poată folosi corect în backpropagation. Regulile din tabel sunt "prescurtările" utile, dar definiția cu limită rămâne fundația care le garantează corectitudinea.
+</CosmoHint>
+
+### Derivata funcției sigmoid — un exemplu direct relevant pentru AI
+
+Funcția sigmoid, menționată deja în L14 ca alternativă continuă la funcția treaptă, are o proprietate remarcabil de convenabilă din punct de vedere computațional — derivata ei se exprimă direct în termenii propriei valori:
+
+$$\sigma(x) = \frac{1}{1+e^{-x}} \quad\Longrightarrow\quad \sigma'(x) = \sigma(x)\big(1-\sigma(x)\big)$$
+
+Această proprietate face calculul derivatei extrem de ieftin: dacă ai deja calculat $\sigma(x)$ (necesar oricum pentru pasul forward al rețelei), derivata se obține printr-o simplă operație aritmetică suplimentară, fără să repeți niciun calcul costisitor. Această eficiență practică a fost unul dintre motivele istorice pentru care sigmoid a fost, mult timp, funcția de activare preferată în rețelele neuronale timpurii.
+
+```python
+import numpy as np
+
+def sigmoid(x):
+    return 1 / (1 + np.exp(-x))
+
+def sigmoid_derivata(x):
+    s = sigmoid(x)
+    return s * (1 - s)
+
+print(sigmoid_derivata(0))    # 0.25 — panta maximă a sigmoidului, exact la mijloc
+```
+
+### Derivata ca instrument de optimizare
+
+Revenind la metafora inițială: dacă te afli într-un punct al "muntelui" funcției de pierdere și vrei să cobori (să reduci eroarea), derivata îți spune exact în ce direcție să te miști — dacă $f'(x) > 0$, funcția crește spre dreapta, deci trebuie să te miști spre stânga pentru a scădea; dacă $f'(x) < 0$, e adevărat inversul. Această logică simplă, aplicată repetat, pas cu pas, e exact algoritmul **gradient descent**, subiectul detaliat al L18-L19 — dar principiul de bază, urmărirea derivatei pentru a găsi direcția de coborâre, e complet stabilit deja aici.
+
+<CosmoHint emotion="celebrating">
+Fiecare parametru dintr-o rețea neuronală — fiecare număr din fiecare matrice de greutăți (L5-L6) — are, în timpul antrenării, propria lui derivată calculată, care spune exact "dacă mărești puțin acest parametru, eroarea totală crește sau scade, și cu cât?" Milioane sau miliarde de astfel de derivate, calculate simultan pentru fiecare parametru al unui model mare, formează exact obiectul matematic din centrul lecției L18 — gradientul.
+</CosmoHint>
+
+<FactBox>
+**Derivata în cifre:**
+- Calculul diferențial: dezvoltat independent de Newton (**~1665-1666**) și Leibniz (**anii 1670**)
+- Notația $\frac{dy}{dx}$, folosită universal azi: introdusă de Leibniz
+- Regula puterii: $(x^n)' = nx^{n-1}$ — cea mai folosită regulă de derivare de bază
+- Derivata sigmoidului: $\sigma'(x) = \sigma(x)(1-\sigma(x))$ — calculabilă direct din valoarea funcției
+- Derivata sigmoidului la $x=0$: exact **0.25**, panta maximă a curbei
+- Derivata zero: semnalează un punct critic — posibil minim local al funcției de pierdere
+</FactBox>
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Interpretare | Ce reprezintă |
+|---|---|
+| Geometrică | Panta liniei tangente la grafic, în acel punct |
+| Fizică | Rata instantanee de schimbare |
+| Pentru AI | Direcția și magnitudinea ajustării unui parametru, pentru a reduce eroarea |
+
+---
+
+## ÎNCHEIERE
+
+Derivata măsoară exact panta unei funcții simple, cu o singură intrare — dar o rețea neuronală reală e o compunere lungă de funcții (L14), fiecare depinzând de rezultatul celei anterioare. Cum calculezi derivata unei astfel de compuneri, fără să reinventezi totul de la zero pentru fiecare strat?
+
+Lecția următoare răspunde exact la asta — **Regula Lanțului** (Chain Rule), instrumentul matematic care face posibil, structural, algoritmul de backpropagation — mecanismul prin care o rețea cu sute de straturi își poate calcula, eficient, derivata completă, strat cu strat, înapoi de la eroarea finală până la primul parametru.

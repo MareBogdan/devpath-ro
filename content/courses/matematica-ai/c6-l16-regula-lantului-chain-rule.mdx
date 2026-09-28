@@ -1,0 +1,123 @@
+---
+title: "Regula Lanțului (Chain Rule) — vital pentru Backpropagation"
+order: 16
+type: lesson
+module_index: 6
+duration: 16
+difficulty: 4
+---
+
+# Regula Lanțului (Chain Rule) — vital pentru Backpropagation
+
+## HOOK
+
+L14 a stabilit că o rețea neuronală întreagă e o compunere de funcții, strat peste strat: $f(\vec{x}) = f_n(\cdots f_2(f_1(\vec{x}))\cdots)$. L15 a arătat cum calculezi derivata unei funcții simple, cu o singură "piesă". Dar cum calculezi derivata unei compuneri lungi — cum se propagă schimbarea unui parametru din primul strat, prin zeci de straturi intermediare, până la eroarea finală calculată de cross-entropie (L11)?
+
+**Regula Lanțului** răspunde exact la asta — regula matematică ce spune cum se derivează o funcție compusă, "înlănțuind" derivatele fiecărei piese individuale. E, fără nicio exagerare, teorema matematică individuală cea mai importantă din tot Deep Learning-ul — algoritmul de **backpropagation**, care antrenează practic orice rețea neuronală modernă, e, structural, doar aplicarea repetată, sistematică, a acestei singure reguli.
+
+---
+
+## CONTEXT
+
+Regula lanțului își are originea în lucrările timpurii ale lui Leibniz asupra calculului diferențial, din aceeași perioadă menționată în L15, formalizată riguros mai târziu odată cu restul calculului, în secolul XIX. Rămâne, timp de secole, un instrument standard de analiză matematică, fără nicio legătură directă cu rețelele neuronale.
+
+Aplicarea ei sistematică, eficientă, pentru a antrena rețele cu mai multe straturi — algoritmul cunoscut azi ca **backpropagation** — a fost descrisă matematic încă din 1970 (teza de masterat a finlandezului Seppo Linnainmaa, despre diferențiere automată "în sens invers"), dar a rămas necunoscută comunității de Machine Learning până când David Rumelhart, Geoffrey Hinton și Ronald Williams au republicat și popularizat ideea într-un articol influent din 1986, demonstrând practic că poate antrena rețele cu straturi ascunse multiple — momentul care a relansat cercetarea în rețele neuronale, după decenii de stagnare relativă.
+
+---
+
+## MIEZUL
+
+### Formula — derivata exterioară ori derivata interioară
+
+Pentru o funcție compusă $f(g(x))$, regula lanțului spune:
+
+$$\frac{d}{dx}f(g(x)) = f'(g(x)) \cdot g'(x)$$
+
+În cuvinte: derivata compunerii e derivata funcției "exterioare" ($f$), evaluată în punctul produs de funcția "interioară" ($g(x)$), înmulțită cu derivata funcției "interioare" ($g'(x)$). Fiecare "verigă" a lanțului contribuie cu propriul ei factor multiplicativ.
+
+Un exemplu numeric concret: fie $f(u) = u^2$ și $g(x) = 3x+1$, deci $f(g(x)) = (3x+1)^2$. $f'(u) = 2u$, $g'(x) = 3$. Prin regula lanțului: $\frac{d}{dx}(3x+1)^2 = 2(3x+1) \cdot 3 = 6(3x+1)$.
+
+```python
+def f(u):
+    return u**2
+
+def g(x):
+    return 3*x + 1
+
+def f_derivata(u):
+    return 2*u
+
+def g_derivata(x):
+    return 3
+
+def derivata_compusa(x):
+    return f_derivata(g(x)) * g_derivata(x)   # regula lanțului, explicit
+
+print(derivata_compusa(2))   # 6 * (3*2+1) = 42
+```
+
+<CosmoHint emotion="thinking">
+De ce regula lanțului implică o *înmulțire*, nu o adunare a celor două derivate? Gândește-te la unități de măsură intuitive: dacă $y$ depinde de $u$ cu o rată de "2 unități de $y$ per unitate de $u$", iar $u$ depinde de $x$ cu o rată de "3 unități de $u$ per unitate de $x$", atunci $y$ se schimbă cu $2 \times 3 = 6$ unități per unitate de $x$ — ratele se compun multiplicativ, exact cum ratele de schimb valutar se înlănțuie prin înmulțire, nu prin adunare, atunci când convertești printr-o monedă intermediară.
+</CosmoHint>
+
+### Extinderea la lanțuri lungi — exact structura unei rețele reale
+
+Pentru o compunere de mai multe funcții succesive, $y = f_3(f_2(f_1(x)))$, regula lanțului se extinde natural, prin înmulțirea derivatelor fiecărei verigi, în ordine:
+
+$$\frac{dy}{dx} = \frac{dy}{df_3} \cdot \frac{df_3}{df_2} \cdot \frac{df_2}{df_1} \cdot \frac{df_1}{dx}$$
+
+Notația lui Leibniz face explicit, vizual, mecanismul: fiecare termen intermediar ($df_3$, $df_2$) apare atât la numărător cât și la numitor în fracțiile adiacente, "simplificându-se" conceptual, lăsând doar raportul global $\frac{dy}{dx}$. Această structură se potrivește exact peste arhitectura unei rețele neuronale cu $n$ straturi (L14) — fiecare strat e o verigă a lanțului, iar derivata completă, de la eroarea finală până la primul parametru, se obține înmulțind derivatele fiecărui strat intermediar, în ordine.
+
+### Backpropagation — regula lanțului, aplicată sistematic, înapoi
+
+**Backpropagation** e numele algoritmului care aplică exact această idee, sistematic, pentru o rețea întreagă: pornind de la eroarea finală (cross-entropia, L11), calculează derivata ei în raport cu ieșirea ultimului strat, apoi, folosind regula lanțului, "propagă" acea derivată înapoi prin penultimul strat, apoi prin cel dinaintea lui, și tot așa, până la primul parametru al rețelei. Numele "back" descrie exact direcția — opusă fluxului normal, forward, prin care datele curg de la intrare la ieșire.
+
+{/* TABLE */}
+
+| Direcție | Ce se calculează | Ordine |
+|---|---|---|
+| **Forward** (înainte) | Ieșirea rețelei, pentru o intrare dată | De la primul strat la ultimul |
+| **Backward** (înapoi) | Derivata erorii, în raport cu fiecare parametru | De la ultimul strat la primul |
+
+### Legătura directă cu recursivitatea — C5, L13
+
+Observația făcută deja, informal, în C5 L13 (Recursivitate) devine acum complet precisă: backpropagation calculează, pentru fiecare strat, contribuția lui la eroarea finală, presupunând că straturile *de după* el (mai aproape de ieșire) și-au calculat deja corect propria derivată — exact "actul de credință" recursiv descris acolo. Regula lanțului e mecanismul matematic exact care justifică riguros acel act de credință: derivata unui strat depinde, prin înmulțire directă, de derivata deja calculată a stratului următor, nu independent de ea.
+
+### Eficiența — reutilizarea rezultatelor intermediare
+
+O observație practică esențială, care leagă direct de C5 L14 (Memoization): calculul naiv al derivatei complete, pentru fiecare parametru separat, de la zero, ar repeta masiv aceleași calcule intermediare — exact tiparul de ineficiență descris acolo pentru Fibonacci recursiv. Backpropagation evită asta explicit: calculează și **reține** fiecare derivată intermediară o singură dată, în timpul unei singure treceri înapoi prin rețea, reutilizând-o pentru toți parametrii care depind de ea — reducerea de la o complexitate potențial exponențială la una liniară în numărul de straturi, exact același tip de câștig obținut prin memoization asupra recursivității naive.
+
+<CosmoHint emotion="excited">
+Ai acum înțelegerea completă, riguroasă, a mecanismului care face posibilă antrenarea oricărui model AI real: eroarea finală (cross-entropie, L11) se propagă înapoi, strat cu strat, prin regula lanțului, calculând exact cât de mult a contribuit fiecare parametru individual la acea eroare. Fiecare concept din acest curs — vectori, matrici, entropie, derivate — converge acum într-un singur algoritm concret, executat literalmente de milioane de ori pe secundă în orice sesiune de antrenare a unui model de limbaj.
+</CosmoHint>
+
+<FactBox>
+**Regula Lanțului și Backpropagation în cifre:**
+- Rădăcini în calculul diferențial al lui Leibniz, secolul **XVII**, formalizat riguros în secolul XIX
+- Diferențiere automată în sens invers: descrisă de Seppo Linnainmaa în **1970**
+- Popularizată pentru rețele neuronale de Rumelhart, Hinton și Williams: **1986**
+- Formula: $\frac{d}{dx}f(g(x)) = f'(g(x)) \cdot g'(x)$ — derivatele se **înmulțesc**, nu se adună
+- Backpropagation: complexitate liniară în numărul de straturi, prin reutilizarea rezultatelor intermediare
+- Legătură directă cu C5: recursivitate (L13) ca intuiție, memoization (L14) ca tehnică de eficiență
+</FactBox>
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Pas | Ce se întâmplă |
+|---|---|
+| 1. Forward pass | Datele curg prin rețea, strat cu strat, produc o predicție |
+| 2. Calculul erorii | Cross-entropia (L11) compară predicția cu adevărul |
+| 3. Backward pass | Regula lanțului propagă derivata erorii înapoi, strat cu strat |
+| 4. Actualizare | Fiecare parametru se ajustează proporțional cu derivata lui |
+
+---
+
+## ÎNCHEIERE
+
+Regula lanțului transformă derivarea unei funcții compuse complexe într-o secvență gestionabilă de înmulțiri — exact mecanismul din spatele backpropagation, algoritmul care antrenează practic orice rețea neuronală modernă. Tot ce ai văzut până acum în acest curs — de la vectori la entropie — se întâlnește, concret, în acest singur algoritm.
+
+O ultimă piesă tehnică rămâne: până acum, derivatele au fost calculate pentru funcții cu o singură intrare și o singură ieșire. Dar un strat de rețea reală transformă un vector întreg într-un alt vector întreg (L5-L6) — cum arată "derivata" unei astfel de transformări multi-dimensionale? Lecția următoare răspunde la exact asta — **Intuiție Jacobian**.
