@@ -1,0 +1,118 @@
+---
+title: "SSL/TLS Handshake: Cum se încred doi străini în 4 pași"
+order: 17
+type: lesson
+module_index: 3
+duration: 15
+difficulty: 4
+---
+
+# SSL/TLS Handshake: Cum se încred doi străini în 4 pași
+
+## HOOK
+
+Browser-ul tău se conectează la `bank.ro` prin Wi-Fi public, într-o cafenea. La aceeași rețea stă cineva cu Wireshark deschis, capturând fiecare pachet care trece prin router. Vede IP-ul sursă, IP-ul destinație, portul 443. Nu vede parola ta. Nu vede numărul cardului. Nu vede niciun byte din conținutul cererii HTTP.
+
+Motivul nu e magie — e un protocol de negociere de câteva sute de milisecunde, rulat înainte ca vreun byte "util" să circule. În acel interval, browser-ul și serverul rezolvă simultan trei probleme grele: cum se identifică serverul fără să se poată da drept altcineva, cum ajung amândoi la o cheie secretă comună fără să o transmită vreodată, și cum verifică fiecare mesaj ulterior că n-a fost alterat pe drum. Ai văzut deja piesele — criptografia asimetrică din L16, porturile din L9, TCP din L6. TLS handshake e locul unde toate se asamblează într-un protocol real, cel care ține în viață tot comerțul electronic global.
+
+---
+
+## CONTEXT
+
+**SSL 1.0** (Netscape, 1994) n-a fost lansat public — avea găuri de securitate descoperite intern înainte de lansare. **SSL 2.0** (1995) a ajuns în producție dar avea defecte grave: nu proteja handshake-ul însuși împotriva alterării, permițând atacuri de tip *downgrade*. **SSL 3.0** (1996) a rezolvat multe probleme, dar a fost declarat oficial nesigur în 2014, după atacul **POODLE**, care exploata modul de completare (padding) al cifrării CBC.
+
+**TLS 1.0** (1999) e practic SSL 3.1, standardizat de IETF sub un nume nou pentru motive de licențiere. A urmat **TLS 1.1** (2006, corectează vulnerabilități la atacuri CBC), **TLS 1.2** (2008, introduce SHA-256 și suport pentru AEAD), și **TLS 1.3** (RFC 8446, 2018) — primul redesign radical, care elimină tot ce s-a dovedit slab în 20 de ani: RC4, MD5, compresie, renegociere nesigură, chei statice RSA.
+
+Numele "SSL" a rămas în vorbirea curentă din inerție. Certificatul de pe orice site modern e de fapt un certificat **TLS**. Când browser-ul afișează lacătul, rulează TLS 1.2 sau 1.3 — niciodată SSL.
+
+---
+
+## MIEZUL
+
+### Handshake-ul TLS 1.2 — patru mesaje, patru garanții
+
+Handshake-ul complet TLS 1.2 pornește imediat după TCP 3-way handshake (portul 443) și are patru faze, fiecare rezolvând o problemă diferită:
+
+**1. ClientHello** — browserul trimite: versiunile TLS suportate, o listă ordonată de cifruri suportate (*cipher suites*), un număr aleator de 32 de bytes (`client_random`), și extensii — inclusiv **SNI** (Server Name Indication), care spune serverului *ce domeniu* vrea clientul, în plaintext, înainte ca certificatul să fie ales.
+
+**2. ServerHello + Certificate + ServerKeyExchange** — serverul alege cifrul din lista clientului, generează propriul `server_random`, trimite lanțul de certificate (vezi mai jos), și — dacă folosește un cifru cu *forward secrecy* — trimite parametrii pentru un schimb Diffie-Hellman efemer, semnați cu cheia privată RSA/ECDSA a serverului.
+
+**3. ClientKeyExchange** — clientul verifică certificatul (lanțul de încredere, expirarea, revocarea), apoi calculează secretul partajat prin DH sau, în cifrurile mai vechi, generează un *pre-master secret* aleator și îl criptează cu cheia publică din certificat.
+
+**4. Finished (bidirecțional)** — ambele părți derivă din `pre-master secret` + `client_random` + `server_random`, printr-o funcție PRF bazată pe HMAC-SHA256, un **master secret** de 48 de bytes, din care se derivă apoi cheile de sesiune simetrice (criptare + MAC, separat pentru fiecare direcție). Fiecare parte trimite un mesaj `Finished` — un hash criptat al întregii negocieri de până acum. Dacă vreun byte al handshake-ului a fost alterat de un atacator, hash-urile nu se potrivesc și conexiunea e abandonată imediat.
+
+Costul: **2 round-trip-uri** complete (2-RTT) înainte ca primul byte de date "util" să circule.
+
+<CosmoHint emotion="thinking">
+Diferența dintre RSA key exchange și Diffie-Hellman efemer (DHE/ECDHE) e critică pentru arhivarea traficului. Cu RSA static, dacă un atacator obține cheia privată a serverului *azi*, poate decripta tot traficul capturat *în trecut*. Cu ECDHE, fiecare sesiune generează o pereche de chei efemere, aruncate imediat după handshake — compromiterea cheii private a serverului nu ajută la nimic pentru sesiuni vechi. Asta se numește **forward secrecy** și e obligatorie în TLS 1.3.
+</CosmoHint>
+
+### TLS 1.3 — de la 2-RTT la 1-RTT (și 0-RTT)
+
+TLS 1.3 restructurează radical fluxul. Clientul trimite `ClientHello` **și** o ghicire a parametrilor Diffie-Hellman în același pachet, presupunând ce grup criptografic va accepta serverul. Dacă ghicirea e corectă (majoritatea cazurilor, pentru că lista de grupuri suportate e mică și stabilă), serverul răspunde cu `ServerHello` + certificat + `Finished` — totul criptat din al doilea mesaj — și handshake-ul complet durează **1 round-trip**.
+
+TLS 1.3 mai adaugă **0-RTT resumption**: dacă browserul s-a mai conectat la același server recent, poate trimite date criptate din primul pachet, folosind un secret salvat din sesiunea anterioară (*session ticket*). Riscul: datele 0-RTT sunt vulnerabile la *replay attacks* — un atacator care capturează pachetul îl poate retrimite. De aceea 0-RTT e permis doar pentru cereri idempotente (GET-uri, nu tranzacții).
+
+TLS 1.3 elimină complet: RSA key exchange static (fără forward secrecy), toate cifrurile bloc fără AEAD, compresia (vector pentru atacul CRIME), și renegocierea în timpul sesiunii (sursă de vulnerabilități istorice).
+
+{/* TABLE */}
+
+| Cipher suite (TLS 1.3) | Key exchange | Criptare | Integritate |
+|---|---|---|---|
+| `TLS_AES_256_GCM_SHA384` | ECDHE (implicit) | AES-256-GCM | AEAD integrat |
+| `TLS_CHACHA20_POLY1305_SHA256` | ECDHE (implicit) | ChaCha20 | AEAD integrat |
+| `TLS_AES_128_GCM_SHA256` | ECDHE (implicit) | AES-128-GCM | AEAD integrat |
+
+Observă: TLS 1.3 are doar **5 cipher suite-uri** în total, față de peste 300 combinații posibile în TLS 1.2. Key exchange-ul (ECDHE) și autentificarea (certificatul) nu mai fac parte din numele suitei — sunt negociate separat, prin extensii dedicate.
+
+### Lanțul de certificate și rădăcina de încredere
+
+Un certificat TLS leagă o cheie publică de o identitate (domeniul), semnat de o **Autoritate de Certificare (CA)**. Browserul nu are încredere direct în certificatul serverului — verifică un **lanț**:
+
+$$\text{Certificat Server} \xrightarrow{\text{semnat de}} \text{CA Intermediar} \xrightarrow{\text{semnat de}} \text{CA Rădăcină}$$
+
+CA-urile rădăcină (DigiCert, Let's Encrypt/ISRG, GlobalSign) sunt preinstalate în *trust store*-ul sistemului de operare sau al browserului — de ordinul a 100-150 de rădăcini, actualizate periodic. Fiecare verigă e validată prin semnătură digitală: browserul folosește cheia publică a CA-ului părinte pentru a verifica semnătura de pe certificatul copil. Dacă orice verigă lipsește, e expirată, sau semnătura nu se potrivește — `NET::ERR_CERT_AUTHORITY_INVALID`.
+
+**Domain Validation (DV)** — cea mai comună azi, verifică doar controlul asupra domeniului (DNS TXT record sau fișier HTTP). **Let's Encrypt**, gratuit din 2015, folosește protocolul **ACME** pentru emitere și reînnoire complet automatizate, la fiecare 90 de zile — interval scurt intenționat, ca să reducă fereastra de expunere dacă o cheie e compromisă. **Extended Validation (EV)**, care verifica identitatea juridică a companiei, a fost practic abandonat de browsere din 2019 — Chrome a eliminat indicatorul vizual special, pentru că utilizatorii nu-l observau oricum.
+
+<CosmoHint emotion="encouraging">
+`curl -vI https://exemplu.ro` îți arată exact lanțul de certificate negociat, cipher suite-ul ales și data de expirare — fără să deschizi DevTools. Rulează-l pe orice domeniu și compară TLS 1.2 vs 1.3 în output-ul `SSL connection using`.
+</CosmoHint>
+
+### SNI și problema hosting-ului partajat
+
+Înainte de SNI (2003), un server cu un singur IP putea servi certificate TLS pentru **un singur domeniu** — decizia despre ce certificat se trimite se lua *după* handshake, dar handshake-ul are nevoie de certificat *înainte* să știe ce domeniu vrea clientul, iar fără SNI serverul nu are cum să afle domeniul cerut decât din header-ul HTTP `Host`, care vine *după* criptare. Extensia SNI rezolvă asta: clientul trimite numele domeniului în `ClientHello`, în plaintext, iar serverul alege certificatul potrivit înainte de a răspunde. Efectul practic: mii de site-uri pot coexista pe același IP, fiecare cu propriul certificat — baza tehnică a oricărui CDN sau platformă de hosting modernă.
+
+Consecința de securitate: numele domeniului cerut e vizibil oricui interceptează traficul, chiar dacă conținutul e criptat. **Encrypted Client Hello (ECH)**, standardizat recent, criptează și această informație, dar adopția e încă parțială.
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Etapă | TLS 1.2 | TLS 1.3 |
+|---|---|---|
+| Round-trip-uri până la date utile | 2-RTT | 1-RTT (sau 0-RTT la reconectare) |
+| Key exchange implicit | RSA static sau ECDHE | Doar ECDHE (forward secrecy obligatoriu) |
+| Cipher suite-uri posibile | peste 300 combinații | 5 |
+| Renegociere în sesiune | permisă (risc istoric) | eliminată |
+| Compresie | posibilă (vulnerabilă la CRIME) | eliminată |
+
+<FactBox>
+**TLS în cifre:**
+- Master secret derivat: **48 bytes**, din `client_random` + `server_random` + pre-master secret
+- Trust store tipic: **100-150** rădăcini CA preinstalate
+- Let's Encrypt: reînnoire certificat la fiecare **90 de zile**
+- TLS 1.3: de la **peste 300** combinații de cipher suite (TLS 1.2) la **5**
+- Heartbleed (CVE-2014-0160, OpenSSL): a expus memorie de server pe **~17%** din serverele HTTPS active la data descoperirii
+- SNI: standardizat prin **RFC 3546**, 2003
+</FactBox>
+
+---
+
+## ÎNCHEIERE
+
+Handshake-ul TLS transformă doi necunoscuți — un browser și un server, fără nicio relație anterioară — într-un canal cu trei garanții simultane: confidențialitate (nimeni altcineva nu citește), integritate (niciun byte alterat trece neobservat) și autentificare (serverul e cine pretinde că e, verificat printr-un lanț de semnături care urcă până la o rădăcină de încredere instalată local). Tot ce ai învățat despre chei publice/private în L16 devine, aici, un protocol care rulează de miliarde de ori pe secundă, global, sub 100ms.
+
+Dar TLS protejează doar *conținutul* pachetelor care ajung la destinație. Nu decide *dacă* un pachet ar trebui să ajungă acolo. Asta e treaba unui alt strat de apărare, montat de obicei chiar la marginea rețelei — firewall-ul. În lecția următoare vezi cum se filtrează traficul înainte ca vreun handshake să înceapă măcar.
