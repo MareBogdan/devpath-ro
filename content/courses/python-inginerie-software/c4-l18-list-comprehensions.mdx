@@ -124,6 +124,114 @@ Preprocesarea unui dataset de text pentru AI e aproape universal scrisă cu comp
 
 Regula de bun-simț, la fel ca la ternar (L6): dacă logica din interior are nevoie de mai mult de o expresie simplă, sau de gestionare de excepții (`try`/`except`), sau devine ilizibilă compactată pe o singură linie — folosește o buclă explicită. Comprehensions câștigă claritate doar când transformarea/filtrarea e simplă; forțate peste logică complexă, produc exact opusul scopului lor — cod mai greu de citit, nu mai ușor.
 
+### Comprehensions cu multiple condiții `if`
+
+```python
+numere = range(1, 101)
+divizibile = [n for n in numere if n % 3 == 0 if n % 5 == 0]   # divizibile ATÂT cu 3 CÂT ȘI cu 5
+print(divizibile)   # [15, 30, 45, 60, 75, 90]
+```
+
+Multiple clauze `if`, una după alta, se comportă ca un `and` implicit — un element trebuie să satisfacă **toate** condițiile pentru a fi inclus. Echivalent, dar mai explicit, ai putea scrie o singură condiție combinată (`if n % 3 == 0 and n % 5 == 0`) — ambele forme sunt valide, alegerea rămâne de stil, dar clauzele separate devin mai lizibile când fiecare condiție reprezintă un criteriu conceptual distinct.
+
+### Comprehensions imbricate cu condiție pe bucla exterioară
+
+```python
+matrice = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
+
+# Aplatizare, dar SĂRI complet rândurile care conțin un anumit element:
+rezultat = [x for rand in matrice if 5 not in rand for x in rand]
+print(rezultat)   # [1, 2, 3, 7, 8, 9] — rândul cu 5 e complet exclus
+```
+
+Clauza `if` poate apărea și pe bucla **exterioară** dintr-un comprehension imbricat, nu doar pe cea interioară — filtrează întregi sub-colecții înainte ca bucla interioară să le proceseze deloc, mai eficient decât a genera toate elementele și a le filtra abia după. Ordinea exactă a clauzelor `for`/`if` urmează, ca întotdeauna, exact structura pe care ar avea-o buclele explicite echivalente, imbricate.
+
+### Walrus operator în comprehensions — evitarea calculului dublu
+
+```python
+date = ["10", "abc", "25", "xyz", "7"]
+
+# Fără walrus — calculezi de DOUĂ ori pentru fiecare element valid:
+rezultate = [int(x) * 2 for x in date if x.isdigit()]
+
+# Cu walrus (L5) — util când transformarea e costisitoare, calculată o singură dată:
+rezultate_optime = [y for x in date if x.isdigit() and (y := int(x) * 2) is not None]
+```
+
+Cazul de uz real pentru walrus în comprehensions apare când transformarea aplicată în condiția de filtrare e identică cu cea folosită în expresia finală, dar costisitoare de recalculat — evită dublarea unui calcul scump, la costul unei sintaxe puțin mai densă. Pentru majoritatea comprehension-urilor simple, fără operații costisitoare repetate, forma obișnuită, fără walrus, rămâne mai clară și suficient de eficientă.
+
+### Performanța comprehensions la scară — o comparație reală
+
+{/* TABLE */}
+
+| Metodă | 1 milion de elemente (aproximativ) |
+|---|---|
+| Buclă `for` + `.append()` | Referință de bază |
+| List comprehension | ~20-30% mai rapid |
+| `map()` + `lambda` | Similar cu comprehension, uneori puțin mai lent |
+| Generator expression (fără materializare completă) | Memorie constantă, timp similar comprehension-ului |
+
+Diferențele exacte variază între versiuni Python și tipul exact al operațiunii, dar tendința generală rămâne constantă: comprehensions bat bucla explicită la viteză, pentru transformări simple, datorită optimizărilor interne deja menționate — un motiv suplimentar, alături de lizibilitate, pentru preferința lor în cod Python idiomatic.
+
+### `map()` și `filter()` — alternativa funcțională la comprehensions
+
+Înainte ca list comprehensions să devină idiomul dominant, Python (și limbajele funcționale în general) foloseau `map()` și `filter()` pentru exact aceleași transformări:
+
+```python
+numere = [1, 2, 3, 4, 5]
+
+# map() aplică o funcție fiecărui element:
+patrate = list(map(lambda x: x ** 2, numere))       # echivalent cu [x**2 for x in numere]
+
+# filter() păstrează doar elementele care satisfac o condiție:
+pare = list(filter(lambda x: x % 2 == 0, numere))     # echivalent cu [x for x in numere if x % 2 == 0]
+```
+
+Ambele returnează, în Python 3, obiecte lazy (similare generatoarelor, L19) — de aici necesitatea `list(...)` explicit pentru a materializa rezultatul într-o listă completă. Comunitatea Python modernă preferă aproape universal comprehensions peste `map()`/`filter()` pentru cazuri simple — sintaxa comprehension e considerată mai citeață, mai "Pythonic" — dar `map()`/`filter()` rămân utile când funcția de transformare/filtrare are deja un nume (nu e o `lambda` ad-hoc), unde `map(functie_existenta, lista)` poate fi mai scurt și mai clar decât un comprehension echivalent.
+
+### Comprehensions peste `zip()` și `enumerate()` — combinarea uneltelor din L7
+
+```python
+nume = ["Ana", "Ion", "Maria"]
+varste = [25, 30, 28]
+
+perechi = [f"{n} ({v} ani)" for n, v in zip(nume, varste)]
+print(perechi)   # ['Ana (25 ani)', 'Ion (30 ani)', 'Maria (28 ani)']
+
+etichetate = [f"{i}: {n}" for i, n in enumerate(nume, start=1)]
+print(etichetate)   # ['1: Ana', '2: Ion', '3: Maria']
+```
+
+Comprehensions se combină natural cu orice iterabil discutat deja — `zip()` pentru iterare paralelă, `enumerate()` pentru index și valoare simultan — pentru că, sub capotă, sintaxa `for x in iterabil` dintr-un comprehension funcționează identic cu `for x in iterabil:` obișnuit, acceptând orice sursă de date iterabilă, nu doar liste sau `range()` simplu.
+
+### Comprehensions pentru transformarea unui dicționar existent
+
+```python
+preturi = {"măr": 3.5, "pară": 4.2, "kiwi": 8.0}
+
+preturi_cu_tva = {produs: pret * 1.19 for produs, pret in preturi.items()}
+produse_scumpe = {produs: pret for produs, pret in preturi.items() if pret > 4}
+```
+
+Combinarea dict comprehension cu `.items()` (L13) permite transformarea sau filtrarea unui dicționar existent, producând unul nou, exact aceeași filosofie ca list comprehensions, aplicată perechilor cheie-valoare în loc de elemente izolate — un pattern extrem de comun pentru normalizarea sau filtrarea configurărilor și structurilor de date primite din surse externe.
+
+### Scope-ul variabilelor într-un comprehension
+
+O particularitate utilă de reținut, legată direct de L10: variabila de iterare a unui comprehension (`x` din `[x for x in lista]`) există **doar** în interiorul acelui comprehension, nu se "scurge" în scope-ul înconjurător — diferență importantă față de o buclă `for` obișnuită, unde variabila de iterare rămâne accesibilă și după terminarea buclei:
+
+```python
+for i in range(5):
+    pass
+print(i)   # 4 — variabila 'i' RĂMÂNE accesibilă după bucla for obișnuită
+
+rezultat = [j for j in range(5)]
+print(j)     # NameError — 'j' NU e accesibil în afara comprehension-ului
+```
+
+Această izolare, introdusă odată cu comprehensions, previne exact un tip de bug pe care bucla `for` obișnuită îl permite — o variabilă de iterare reziduală, care ar putea coincide accidental cu numele altei variabile din scope-ul exterior, umbrind-o neintenționat. Comprehensions creează, tehnic, propriul scope local minimal, separat de funcția sau modulul care le conține.
+
+Detaliul e specific Python 3 — Python 2 avea acest comportament doar pentru comprehensions de tip dicționar și set, nu pentru liste, unde variabila de iterare "scăpa" în scope-ul exterior exact ca la un `for` obișnuit, o inconsistență corectată explicit la proiectarea Python 3.
+
 ---
 
 ## REVEAL
