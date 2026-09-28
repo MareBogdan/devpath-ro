@@ -1,0 +1,176 @@
+---
+title: "REST vs. GraphQL: Aceleași date, două filozofii de acces"
+order: 21
+type: lesson
+module_index: 3
+duration: 14
+difficulty: 3
+---
+
+# REST vs. GraphQL: Aceleași date, două filozofii de acces
+
+## HOOK
+
+Un ecran de profil de utilizator afișează: numele, poza, ultimele 3 postări, numărul de urmăritori. Cu o API REST clasică, aplicația mobilă face patru cereri separate: `GET /utilizatori/42`, `GET /utilizatori/42/postari?limit=3`, `GET /utilizatori/42/urmaritori/count`, poate și `GET /utilizatori/42/poza`. Patru round-trip-uri HTTP (L20), fiecare cu propriul overhead de header-e, pe o conexiune mobilă cu latență de 200ms — aproape o secundă doar în network, înainte să randeze ceva.
+
+Facebook a lovit exact această problemă la scară masivă și a construit, intern, **GraphQL** (2012, open-source din 2015): un singur endpoint, o singură cerere, clientul specifică exact ce câmpuri vrea din ce resurse înrudite, serverul răspunde cu exact acea formă de date — nici un byte în plus. Nu e un înlocuitor universal pentru REST; e o filozofie diferită, cu compromisuri diferite, potrivită pentru probleme diferite.
+
+---
+
+## CONTEXT
+
+**REST** (Representational State Transfer) nu a fost un protocol nou, ci o teză de doctorat — Roy Fielding, 2000, unul dintre autorii specificației HTTP însăși. REST descrie un set de **constrângeri arhitecturale** pentru a folosi HTTP așa cum a fost proiectat: resurse identificate prin URL-uri, manipulate prin metodele standard (`GET`/`POST`/`PUT`/`DELETE` din L20), fără stare pe server între cereri, cu răspunsuri care declară cum pot fi cache-uite.
+
+Problema practică e că "REST" a devenit, în industrie, un termen folosit lax pentru "orice API HTTP cu JSON" — foarte puține API-uri respectă toate constrângerile stricte ale tezei originale (în special HATEOAS — hypermedia as the engine of application state, aproape universal ignorată). Ce numim azi "REST API" e, de fapt, mai corect "API HTTP în stil RESTful."
+
+**GraphQL** rezolvă o problemă specifică apărută din experiența Facebook cu clienți mobili: **over-fetching** (primești mai multe date decât ai nevoie — un `GET /utilizatori/42` care întoarce 40 de câmpuri când ai nevoie de 3) și **under-fetching** (primești prea puține, trebuie să faci cereri suplimentare pentru date înrudite — exact scenariul din HOOK).
+
+---
+
+## MIEZUL
+
+### REST — resurse, verbe, URL-uri
+
+Într-o API REST, structura de bază e resursa: fiecare tip de entitate are un URL propriu, iar operațiile pe ea folosesc metodele HTTP standard:
+
+```
+GET    /utilizatori          → listă utilizatori
+GET    /utilizatori/42       → un utilizator specific
+POST   /utilizatori          → creează utilizator nou
+PUT    /utilizatori/42       → înlocuiește complet utilizatorul 42
+PATCH  /utilizatori/42       → modifică parțial utilizatorul 42
+DELETE /utilizatori/42       → șterge utilizatorul 42
+GET    /utilizatori/42/postari → postările utilizatorului 42 (resursă imbricată)
+```
+
+Fiecare endpoint e o formă fixă de răspuns — serverul decide ce câmpuri include. Clienții diferiți (aplicație mobilă, dashboard admin, integrare third-party) primesc aceeași structură, chiar dacă au nevoi diferite — de aici over-fetching-ul.
+
+**Versionarea** e o problemă structurală în REST: când forma unei resurse se schimbă incompatibil, apar `/v1/utilizatori` și `/v2/utilizatori` în paralel, întreținute simultan, uneori ani de zile, până ce toți clienții migrează.
+
+<CosmoHint emotion="thinking">
+De ce `PUT` și `PATCH` nu sunt interschimbabile, deși ambele "actualizează"? `PUT` e idempotent prin definiție (vezi L20) — trimiți reprezentarea *completă* a resursei, iar serverul o înlocuiește integral; un câmp lipsă din body e interpretat ca șters. `PATCH` trimite doar câmpurile care se schimbă — restul rămân neatinse. Confuzia lor produce bug-uri clasice: un client care face `PUT` cu doar 2 din 10 câmpuri șterge silențios celelalte 8 pe server.
+</CosmoHint>
+
+### GraphQL — o singură interfață, o singură cerere
+
+GraphQL definește o **schemă** de tipuri — un contract explicit despre ce date există și cum se leagă între ele — și expune un **singur endpoint** (de obicei `POST /graphql`), indiferent câte "resurse" logice conține sistemul.
+
+Schema (definită în **SDL**, Schema Definition Language):
+
+```graphql
+type Utilizator {
+  id: ID!
+  nume: String!
+  postari(limit: Int): [Postare!]!
+  numarUrmaritori: Int!
+}
+
+type Postare {
+  id: ID!
+  continut: String!
+  dataCreare: String!
+}
+
+type Query {
+  utilizator(id: ID!): Utilizator
+}
+```
+
+Clientul trimite exact ce vrea, imbricat, într-o singură cerere:
+
+```graphql
+query {
+  utilizator(id: "42") {
+    nume
+    postari(limit: 3) {
+      continut
+    }
+    numarUrmaritori
+  }
+}
+```
+
+Răspunsul reflectă exact forma cerută:
+
+```json
+{
+  "data": {
+    "utilizator": {
+      "nume": "Ana",
+      "postari": [
+        { "continut": "Prima postare" },
+        { "continut": "A doua" },
+        { "continut": "A treia" }
+      ],
+      "numarUrmaritori": 1204
+    }
+  }
+}
+```
+
+O singură cerere HTTP, o singură conexiune, exact câmpurile necesare — problema din HOOK dispare.
+
+### Resolvers — cine populează efectiv datele
+
+Fiecare câmp din schemă are un **resolver** — o funcție care știe de unde ia acea informație. Când vine cererea de mai sus, serverul apelează în cascadă: `Query.utilizator(id: "42")` → interoghează baza de date pentru utilizator → apoi, pentru fiecare câmp cerut din tipul `Utilizator`, apelează resolver-ul lui — `postari` poate interoga o altă tabelă sau chiar un alt microserviciu complet.
+
+Aici apare **problema N+1**: dacă interoghezi o listă de 50 de utilizatori și pentru fiecare ceri `numarUrmaritori`, un resolver naiv face 50 de interogări separate către baza de date — una per utilizator — în loc de una singură, batch. Soluția standard e **DataLoader** (biblioteca originară tot de la Facebook): grupează (*batches*) toate cererile de resolver din același tick al event loop-ului într-o singură interogare batch, plus caching per-cerere.
+
+{/* TABLE */}
+
+| Criteriu | REST | GraphQL |
+|---|---|---|
+| Endpoint-uri | Multiple, câte unul per resursă | Unul singur |
+| Formă a răspunsului | Fixă, decisă de server | Determinată de client, per cerere |
+| Over-/under-fetching | Frecvent | Eliminat prin design |
+| Cache HTTP standard (`Cache-Control`, CDN) | Nativ, ușor | Dificil — totul e `POST` la același URL |
+| Versionare | `/v1`, `/v2` paralele | Evoluție continuă a schemei (câmpuri deprecate, nu versiuni) |
+| Curbă de învățare / tooling | Simplă, universal cunoscută | Necesită schemă, resolvers, unelte dedicate |
+| Risc operațional | Predictibil (endpoint = cost cunoscut) | Cereri complexe imbricate pot costa mult server-side |
+
+### Costul ascuns al GraphQL — cererile imbricate
+
+Flexibilitatea GraphQL e și riscul lui operațional: un client poate cere o structură imbricată adânc — utilizator → postări → comentarii → autor → postările autorului — o singură cerere care declanșează sute de resolver-e în cascadă. Fără protecție, un client (rău-intenționat sau doar prost scris) poate genera o cerere care costă serverul cât un atac de tip denial-of-service.
+
+Contramăsuri standard: **limitare de adâncime** (query depth limiting — refuză cereri cu imbricare peste N niveluri), **cost analysis** (fiecare câmp are un "preț" estimat, cererea totală nu poate depăși un buget), și **persisted queries** (clientul trimite doar un hash al unei cereri pre-aprobate, nu textul liber — elimină posibilitatea unor cereri arbitrare construite de un atacator).
+
+<CosmoHint emotion="encouraging">
+Majoritatea implementărilor GraphQL expun un playground interactiv (GraphiQL sau Apollo Studio) la endpoint-ul `/graphql` în development — introspecția schemei (`__schema`) îți arată live toate tipurile și câmpurile disponibile, fără documentație separată de citit. În producție, introspecția se dezactivează de obicei — expune structura internă completă a datelor oricui.
+</CosmoHint>
+
+### Când alegi ce
+
+REST rămâne alegerea implicită pentru API-uri publice simple, unde cache-ul HTTP standard la nivel de CDN contează (`GET` cache-uibil per URL), și unde consumatorii sunt eterogeni și nu au nevoie de query-uri complexe. GraphQL câștigă când ai clienți multipli cu nevoi de date foarte diferite (web, mobil, TV) consumând aceleași date de bază, sau când forma datelor e intrinsec grafică — relații imbricate, adânci, variabile de la un ecran la altul.
+
+Nu sunt exclusive — multe sisteme mari expun ambele: REST pentru integrări externe simple și webhook-uri, GraphQL intern pentru clienții proprii cu nevoi complexe de agregare.
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Scenariu | Alegere recomandată | De ce |
+|---|---|---|
+| API publică, documentație simplă, mulți consumatori externi | REST | Predictibil, cache HTTP nativ, curbă de învățare joasă |
+| Aplicație mobilă cu date agregate din multe surse | GraphQL | O cerere, forma exactă necesară, mai puțin trafic |
+| Webhook-uri, integrări simple third-party | REST | Semantică HTTP standard, ușor de debugat |
+| Dashboard complex cu date profund imbricate | GraphQL | Elimină cererile în cascadă |
+
+<FactBox>
+**REST vs. GraphQL în cifre:**
+- Teza lui Roy Fielding despre REST: publicată în **2000**
+- GraphQL: dezvoltat intern la Facebook din **2012**, open-source din **2015**
+- Problema N+1: transformă 1 interogare necesară în **N+1** interogări reale, fără batching
+- `Cache-Control` HTTP standard: aplicabil nativ la REST (`GET`), aproape inutilizabil direct la GraphQL (`POST`)
+- Persisted queries: reduc payload-ul cererii de la text complet la un hash de **~64 caractere**
+- DataLoader: batching + cache per-cerere, în interiorul unui singur tick de event loop
+</FactBox>
+
+---
+
+## ÎNCHEIERE
+
+REST și GraphQL rezolvă aceeași problemă fundamentală — accesul structurat la date peste HTTP — cu compromisuri opuse: REST optează pentru predictibilitate și cache-abilitate, GraphQL pentru flexibilitate și eficiență de transfer. Niciuna nu e "mai bună" universal; alegerea depinde de forma reală a consumatorilor tăi de date.
+
+Dar oricare filozofie alegi, tot construiești o **API** — un contract prin care sisteme diferite comunică. Lecția următoare pune un pas înapoi și tratează conceptul în sine: ce înseamnă, tehnic și arhitectural, o API, dincolo de REST sau GraphQL.

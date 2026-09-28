@@ -1,0 +1,129 @@
+---
+title: "VPN: Un tunel privat printr-o rețea publică"
+order: 19
+type: lesson
+module_index: 3
+duration: 14
+difficulty: 3
+---
+
+# VPN: Un tunel privat printr-o rețea publică
+
+## HOOK
+
+Ești conectat la Wi-Fi-ul unui aeroport. Firewall-ul din L18 al rețelei locale nu te apără de nimic — el filtrează ce intră la tine, nu ce văd alții din traficul tău. Un router compromis sau un actor rău-intenționat pe aceeași rețea poate observa la ce IP-uri te conectezi, cât timp, cât trafic. TLS din L17 criptează *conținutul* fiecărei conexiuni HTTPS individuale, dar nu ascunde *faptul* că te conectezi la `hr-portal-companie.com` la ora 14:32, timp de 40 de minute — informație care, agregată, spune multe.
+
+O soluție: în loc să ai zeci de conexiuni individuale, fiecare vizibilă separat rețelei locale, deschizi **un singur tunel criptat** către un punct de încredere — biroul companiei, sau un server VPN comercial — și tot traficul tău trece prin el, ca și cum laptopul tău ar fi conectat fizic la acea rețea de la distanță. Rețeaua aeroportului vede un singur flux criptat, către o singură destinație. Restul e invizibil.
+
+---
+
+## CONTEXT
+
+VPN-urile au apărut din nevoia companiilor de a lega birouri la distanță fără linii fizice dedicate, extrem de scumpe (leased lines). **PPTP** (Microsoft, 1999) a fost prima soluție populară — rapid, dar cu criptografie slabă (MS-CHAPv2), spartă practic în întregime până în 2012. **L2TP/IPsec** a urmat, combinând tunelarea L2TP cu criptarea robustă IPsec, dar cu overhead de configurare mare.
+
+**OpenVPN** (2001) a devenit standardul de facto pentru un deceniu — open-source, bazat pe OpenSSL/TLS, extrem de configurabil, dar cu un stack de cod mare (peste 100.000 de linii) și overhead de userspace. **WireGuard** (Jason Donenfald, 2016; integrat în kernelul Linux din 2020) a rescris regulile: ~4.000 de linii de cod, o singură suită criptografică fixă (fără negociere de cifruri, fără suprafață de atac din compatibilitate legacy), rulează direct în kernel pentru performanță, și e considerat azi cel mai auditabil protocol VPN existent.
+
+---
+
+## MIEZUL
+
+### Ce face de fapt un tunel VPN
+
+Un tunel VPN încapsulează pachete IP întregi în interiorul altor pachete. Laptopul tău generează un pachet normal — să zicem, o cerere HTTP către un server intern al companiei, cu IP sursă `10.8.0.5` (adresa ta *în interiorul* VPN-ului) și IP destinație `10.0.1.20` (serverul intern). Acest pachet complet e criptat, apoi împachetat ca *payload* al unui nou pachet UDP, cu IP sursă laptopul tău real (`192.168.1.50`, adresa din rețeaua aeroportului) și IP destinație serverul VPN (`203.0.113.5`).
+
+Rețeaua aeroportului rutează acest pachet exterior normal — nu are cum să vadă ce e înăuntru, doar că e trafic UDP criptat către un IP oarecare. La celălalt capăt, serverul VPN decriptează, extrage pachetul original, și îl trimite mai departe către `10.0.1.20`, ca și cum ar veni din rețeaua internă. Răspunsul face drumul invers.
+
+Practic, îți **capeți un al doilea IP** — cel din interiorul tunelului (`10.8.0.5`) — și tot traficul destinat rutei tale implicite (sau doar o parte, în configurație split-tunnel) trece prin acest tunel, ieșind în lumea exterioară cu IP-ul serverului VPN, nu al tău.
+
+<CosmoHint emotion="thinking">
+De ce un VPN "schimbă" IP-ul public pe care-l vede orice site pe care-l vizitezi? Pentru că traficul tău nu mai iese direct din rețeaua locală spre internet — iese din tunel, la capătul serverului VPN, care face NAT (vezi L11) pentru toți utilizatorii lui. Site-ul pe care-l vizitezi vede IP-ul serverului VPN, nu al tău. E aceeași tehnică folosită de orice router de acasă pentru dispozitivele din LAN — doar că punctul de ieșire e acum la sute sau mii de kilometri distanță.
+</CosmoHint>
+
+### WireGuard — protocolul modern, minimal
+
+WireGuard folosește **Noise Protocol Framework** pentru handshake, cu o singură combinație criptografică fixă, fără negociere: Curve25519 pentru schimbul de chei (analog conceptual cu Diffie-Hellman din L16/L17, dar pe curbe eliptice, mai rapid), ChaCha20-Poly1305 pentru criptare AEAD, BLAKE2s pentru hashing.
+
+Configurația e radical mai simplă decât OpenVPN — nu există certificate, nu există CA. Fiecare parte are o pereche de chei publică/privată, similar SSH din lecția anterioară a modulului precedent:
+
+```bash
+# Generare pereche de chei
+wg genkey | tee privatekey | wg pubkey > publickey
+```
+
+```ini
+# /etc/wireguard/wg0.conf — configurație client
+[Interface]
+PrivateKey = <cheia_privată_a_clientului>
+Address = 10.8.0.5/24
+
+[Peer]
+PublicKey = <cheia_publică_a_serverului>
+Endpoint = vpn.exemplu.ro:51820
+AllowedIPs = 0.0.0.0/0    # tot traficul trece prin tunel
+```
+
+`AllowedIPs = 0.0.0.0/0` înseamnă *full tunnel*: absolut tot traficul e rutat prin VPN. `AllowedIPs = 10.0.1.0/24` ar însemna *split tunnel*: doar traficul către rețeaua internă a companiei trece prin tunel, restul (Netflix, browsing general) merge direct pe rețeaua locală — mai rapid, dar expune metadata traficului "normal" către rețeaua neîncrezătoare.
+
+Un detaliu de design important: WireGuard e **fără stare la nivel de conexiune** în sensul clasic — nu ține un handshake TCP deschis. Rulează peste UDP, cu re-handshake automat la fiecare 2 minute sau la schimbarea rețelei (roaming între Wi-Fi și 4G păstrează tunelul activ, spre deosebire de multe soluții mai vechi care se rup la schimbarea IP-ului).
+
+### Site-to-Site vs. Remote Access
+
+**Remote Access VPN** — cazul din HOOK: un utilizator individual (laptop, telefon) se conectează la o rețea privată de la distanță. Fiecare device rulează un client VPN.
+
+**Site-to-Site VPN** — leagă permanent două rețele întregi, de obicei între gateway-uri (routere sau firewall-uri dedicate), fără client pe fiecare device. Un birou din București și unul din Cluj, fiecare cu propria rețea locală `10.1.0.0/16` și `10.2.0.0/16`, sunt legate printr-un tunel permanent între cele două gateway-uri — orice device din biroul București poate comunica direct cu orice device din Cluj, ca și cum ar fi pe aceeași rețea fizică, fără ca vreun utilizator individual să configureze ceva.
+
+{/* TABLE */}
+
+| Criteriu | OpenVPN | WireGuard | IPsec/IKEv2 |
+|---|---|---|---|
+| Linii de cod (aprox.) | >100.000 | **~4.000** | variază, mare |
+| Transport | TCP sau UDP | Doar UDP | UDP (ESP) |
+| Locație execuție | Userspace | Kernel (Linux) | Kernel |
+| Roaming (schimbare IP/rețea) | Reconectare lentă | **Instant, nativ** | Suportat (MOBIKE) |
+| Configurație | Certificate + CA, complexă | Chei publice, minimală | Complexă |
+| Viteză tipică | Moderată | **Cea mai rapidă** | Rapidă |
+
+### VPN comercial vs. VPN propriu
+
+Un "VPN" comercial (NordVPN, Mullvad, ProtonVPN) e, tehnic, un Remote Access VPN unde serverul e operat de o companie terță, nu de angajatorul tău. Cumperi acces la un tunel criptat între tine și infrastructura lor — util pentru a ascunde traficul de rețeaua locală neîncrezătoare (Wi-Fi public) și de furnizorul tău de internet, și pentru a apărea cu un IP din altă țară.
+
+Ce **nu** face: nu te face anonim față de furnizorul VPN însuși — el vede tot ce vedea înainte furnizorul tău de internet, doar că e o companie diferită, cu propria politică de logging (verifică întotdeauna dacă e auditată independent, nu doar promisă în marketing). Nu te protejează de tracking prin cookie-uri, fingerprinting de browser sau autentificare cu contul tău real — un VPN schimbă IP-ul de rețea, nu identitatea aplicației.
+
+<CosmoHint emotion="encouraging">
+`ip addr show wg0` (Linux) îți arată dacă interfața WireGuard e activă și ce IP intern ai primit în tunel. `curl ifconfig.me` înainte și după activarea VPN-ului îți confirmă vizual dacă IP-ul public perceput de internet s-a schimbat — cel mai simplu test practic că tunelul funcționează cu adevărat.
+</CosmoHint>
+
+<FactBox>
+**VPN în cifre:**
+- WireGuard: **~4.000** de linii de cod (kernel module) față de **peste 100.000** la OpenVPN
+- Curve25519 (WireGuard): 128 biți securitate echivalentă, cheie de doar **32 bytes**
+- PPTP (MS-CHAPv2): considerat complet spart criptografic din **2012**
+- WireGuard: re-handshake automat la fiecare **~2 minute** sau la schimbarea rețelei
+- WireGuard integrat nativ în kernelul Linux din versiunea **5.6** (martie 2020)
+- Port UDP implicit WireGuard: **51820**
+</FactBox>
+
+---
+
+## REVEAL
+
+Traseul unui pachet prin VPN, complet:
+
+{/* TABLE */}
+
+| Pas | Ce se întâmplă |
+|---|---|
+| 1 | Aplicația generează pachet cu IP sursă/destinație *din interiorul* tunelului |
+| 2 | Clientul VPN criptează pachetul complet (AEAD: ChaCha20-Poly1305 sau AES-GCM) |
+| 3 | Pachetul criptat devine payload al unui nou pachet UDP, cu IP-urile *reale* (client ↔ server VPN) |
+| 4 | Rețeaua locală rutează normal pachetul exterior — vede doar trafic UDP criptat |
+| 5 | Serverul VPN decriptează, extrage pachetul original, îl rutează mai departe (posibil cu NAT) |
+| 6 | Răspunsul face traseul invers, prin același tunel |
+
+---
+
+## ÎNCHEIERE
+
+Un VPN nu adaugă criptare unde nu exista — TLS din L17 rămâne activ pe fiecare conexiune HTTPS individuală. Adaugă un strat suplimentar: ascunde *structura* traficului tău de rețeaua locală și schimbă *punctul de ieșire* spre internet. WireGuard a demonstrat că securitate serioasă nu cere neapărat complexitate — 4.000 de linii auditabile bat 100.000 de linii cu decenii de compatibilitate legacy.
+
+Până acum ai văzut cum circulă, se filtrează și se criptează pachetele. Lecția următoare mută discuția un nivel mai sus — la protocolul care folosește de fapt toată această infrastructură pentru a transporta pagini web, API-uri și aplicații: HTTP.

@@ -1,0 +1,151 @@
+---
+title: "HTTP: Limbajul comun al întregului web"
+order: 20
+type: lesson
+module_index: 3
+duration: 15
+difficulty: 2
+---
+
+# HTTP: Limbajul comun al întregului web
+
+## HOOK
+
+Tastezi `exemplu.ro` în bara de adrese și apeși Enter. În spatele acelui gest simplu se întâmplă, în ordine: DNS rezolvă domeniul într-un IP (L4), se stabilește o conexiune TCP pe portul 443 (L6, L9), rulează handshake-ul TLS (L17) care criptează tot ce urmează — și abia acum, peste acest canal deja criptat și stabilit, browserul trimite primul mesaj util: un text simplu, lizibil de om, care cere efectiv pagina.
+
+Acel mesaj respectă un protocol vechi de peste 30 de ani, aproape neschimbat în structura lui de bază, deși transportă azi tot ce vezi pe internet — pagini, imagini, video, API-uri, chat-uri. HTTP e limbajul pe care-l vorbesc între ele browserul tău și fiecare server din lume, indiferent de limbajul de programare din spate. Python, Node.js, Go, Rust — toate vorbesc, la capătul rețelei, același HTTP.
+
+---
+
+## CONTEXT
+
+Tim Berners-Lee a proiectat **HTTP/0.9** în 1991 la CERN — un protocol de o simplitate brutală: clientul trimite o linie (`GET /pagina.html`), serverul răspunde cu HTML brut, apoi conexiunea TCP se închide. Fără header-e, fără status code-uri, fără alt conținut decât HTML.
+
+**HTTP/1.0** (1996) adaugă header-e, status code-uri, și suport pentru alte tipuri de conținut (imagini, nu doar HTML). Problemă rămasă: fiecare cerere deschidea o conexiune TCP nouă — pentru o pagină cu 20 de imagini, 20 de handshake-uri TCP separate.
+
+**HTTP/1.1** (1997, RFC 2616, actualizat RFC 7230-7235) rezolvă asta cu **conexiuni persistente** (`Connection: keep-alive`) — o singură conexiune TCP servește cereri multiple, secvențial. Rămâne standardul de facto pentru două decenii.
+
+**HTTP/2** (2015, bazat pe protocolul SPDY dezvoltat de Google) rezolvă problema **head-of-line blocking** de la nivel de aplicație prin **multiplexare** — cereri multiple simultan pe aceeași conexiune TCP, fără să aștepte răspunsul una alteia.
+
+**HTTP/3** (2022, RFC 9114) merge un pas mai departe: renunță complet la TCP, rulează peste **QUIC** (construit pe UDP), eliminând și blocarea la nivel de transport care persista în HTTP/2.
+
+---
+
+## MIEZUL
+
+### Anatomia unei cereri și a unui răspuns
+
+O cerere HTTP/1.1 e text structurat, citit de la stânga la dreapta:
+
+```
+GET /api/utilizatori/42 HTTP/1.1
+Host: exemplu.ro
+User-Agent: Mozilla/5.0
+Accept: application/json
+Authorization: Bearer eyJhbGc...
+Connection: keep-alive
+
+```
+
+Linia întâi: **metodă** + **cale** + **versiune protocol**. Urmează **header-e** (chei-valori, un rând fiecare), o linie goală, apoi opțional un **body** (pentru POST/PUT, de exemplu JSON).
+
+Răspunsul are aceeași structură, oglindită:
+
+```
+HTTP/1.1 200 OK
+Content-Type: application/json
+Content-Length: 87
+Cache-Control: max-age=3600
+
+{"id": 42, "nume": "Ana", "email": "ana@exemplu.ro"}
+```
+
+**Statelessness (fără stare)** e principiul de bază: fiecare cerere HTTP e independentă, serverul nu ține minte automat nimic despre cererea anterioară. Sesiunile de login, coșul de cumpărături — toate sunt simulate pe deasupra protocolului fundamental, prin cookie-uri (`Set-Cookie` la răspuns, `Cookie` trimis înapoi de client la fiecare cerere ulterioară) sau token-uri (`Authorization: Bearer ...`).
+
+### Metodele HTTP — verbe cu semantică precisă
+
+{/* TABLE */}
+
+| Metodă | Scop | Idempotentă | Are body |
+|---|---|---|---|
+| `GET` | Citește o resursă | Da | Nu (convenție) |
+| `POST` | Creează o resursă/execută o acțiune | **Nu** | Da |
+| `PUT` | Înlocuiește complet o resursă | Da | Da |
+| `PATCH` | Modifică parțial o resursă | Nu (de obicei) | Da |
+| `DELETE` | Șterge o resursă | Da | De obicei nu |
+| `HEAD` | Ca GET, dar doar header-ele (fără body) | Da | Nu |
+| `OPTIONS` | Interoghează ce metode/header-e sunt permise (CORS preflight) | Da | Nu |
+
+**Idempotent** înseamnă că a repeta aceeași cerere de N ori produce exact același efect ca o singură dată. `DELETE /utilizatori/42` executat de trei ori la rând lasă utilizatorul șters — nu-l "șterge de trei ori". `POST /comenzi` executat de trei ori creează trei comenzi diferite — de aceea browserele avertizează la reîncărcarea unui formular trimis prin POST.
+
+<CosmoHint emotion="thinking">
+De ce `GET` nu ar trebui să aibă body, deși tehnic specificația HTTP nu-l interzice explicit? Pentru că 0-RTT din L17 permite doar cereri idempotente și fără efecte secundare să fie retrimise fără riscul unei tranzacții duble — și pentru că proxy-urile, cache-urile și load balancer-ele din lecțiile anterioare presupun universal că un GET e sigur de repetat sau de servit dintr-un cache. Încalcă asta și rupi presupuneri pe care se bazează jumătate din infrastructura internetului.
+</CosmoHint>
+
+### Status code-urile — cinci familii
+
+{/* TABLE */}
+
+| Clasă | Sens | Exemple |
+|---|---|---|
+| `1xx` | Informațional | `101 Switching Protocols` (upgrade la WebSocket, vezi L23) |
+| `2xx` | Succes | `200 OK`, `201 Created`, `204 No Content` |
+| `3xx` | Redirecționare | `301 Moved Permanently`, `304 Not Modified` (cache valid) |
+| `4xx` | Eroare client | `400 Bad Request`, `401 Unauthorized`, `403 Forbidden`, `404 Not Found`, `429 Too Many Requests` |
+| `5xx` | Eroare server | `500 Internal Server Error`, `502 Bad Gateway`, `503 Service Unavailable` |
+
+Distincția `401` vs `403` scapă des programatorilor: `401 Unauthorized` înseamnă de fapt *neautentificat* — nu ai dovedit cine ești (lipsă token sau token invalid). `403 Forbidden` înseamnă *autentificat, dar fără permisiune* — serverul știe exact cine ești și refuză explicit accesul la acea resursă.
+
+### Header-e esențiale
+
+`Content-Type` spune serverului/clientului cum să interpreteze body-ul (`application/json`, `text/html`, `multipart/form-data` pentru upload-uri de fișiere). `Content-Length` — dimensiunea exactă a body-ului în bytes, necesară ca receptorul să știe unde se termină mesajul pe conexiunea persistentă (fără el, sau fără `Transfer-Encoding: chunked`, receptorul n-ar ști dacă a primit tot).
+
+`Cache-Control` dirijează cache-urile intermediare și browserul: `max-age=3600` (valabil o oră), `no-cache` (revalidează mereu cu serverul înainte de a folosi versiunea locală), `no-store` (nu salva deloc, pentru date sensibile). `ETag` — un hash al conținutului; la cererea următoare browserul trimite `If-None-Match: <etag>`, iar dacă resursa nu s-a schimbat, serverul răspunde `304 Not Modified` fără body — economisește complet transferul de date.
+
+### HTTP/2 — multiplexare peste o singură conexiune
+
+Sub HTTP/1.1, chiar cu keep-alive, cererile pe aceeași conexiune se procesează secvențial (sau prin *pipelining*, rareori folosit din cauza complicațiilor de implementare) — dacă prima cerere durează mult, toate cele din spatele ei așteaptă (**head-of-line blocking**). Soluția clasică era deschiderea a 6 conexiuni TCP paralele per domeniu (limita impusă de majoritatea browserelor) — costisitor, fiecare cu propriul handshake TCP + TLS.
+
+HTTP/2 elimină nevoia asta: pe **o singură conexiune TCP**, cererile și răspunsurile se transmit ca **stream-uri** interleaved, identificate printr-un ID unic per stream, reasamblate corect la celălalt capăt. Adaugă și **HPACK** — compresie de header-e cu un dicționar partajat între client și server, pentru că header-ele HTTP repetă masiv aceleași chei (`User-Agent`, `Cookie`, `Accept`) la fiecare cerere. Un alt element: **server push** (trimite proactiv resurse pe care serverul știe că browserul le va cere, ex. CSS-ul unei pagini) — funcționalitate deprecată ulterior din cauza complexității reduse de câștig real.
+
+### HTTP/3 — eliminarea head-of-line blocking la nivel de transport
+
+HTTP/2 rezolvă blocarea la nivel de aplicație, dar rămâne pe TCP — dacă **un singur pachet TCP** se pierde, tot ce vine după el (indiferent de stream) așteaptă retransmisia, pentru că TCP garantează ordine strictă la nivelul întregii conexiuni. HTTP/3 rulează peste **QUIC**, construit pe UDP, care implementează propriile stream-uri independente la nivel de transport: pierderea unui pachet dintr-un stream nu blochează celelalte stream-uri de pe aceeași conexiune.
+
+QUIC include criptare integrată (echivalentul TLS 1.3 e parte din protocolul de transport, nu un strat separat deasupra), reducând handshake-ul complet (transport + criptare) la un singur round-trip, uneori zero pentru reconectări.
+
+<CosmoHint emotion="encouraging">
+`curl -v --http2 https://exemplu.ro` îți arată explicit ce versiune HTTP negociază conexiunea (linia `< HTTP/2 200`). Header-ul de răspuns `alt-svc` semnalizează browserului că serverul suportă și HTTP/3 pentru conexiunile viitoare — un exemplu concret de upgrade progresiv de protocol fără să rupi compatibilitatea.
+</CosmoHint>
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Versiune | An | Transport | Inovație cheie |
+|---|---|---|---|
+| HTTP/0.9 | 1991 | TCP | Doar GET, doar HTML |
+| HTTP/1.0 | 1996 | TCP (conexiune per cerere) | Header-e, status code-uri |
+| HTTP/1.1 | 1997 | TCP (keep-alive) | Conexiuni persistente |
+| HTTP/2 | 2015 | TCP | Multiplexare + HPACK |
+| HTTP/3 | 2022 | QUIC (peste UDP) | Fără head-of-line blocking la transport |
+
+<FactBox>
+**HTTP în cifre:**
+- HTTP/0.9: protocol de **o singură linie**, fără header-e, fără status code
+- Limita clasică de conexiuni TCP paralele per domeniu (HTTP/1.1): **6** în majoritatea browserelor
+- HTTP/2: adoptat de peste **95%** din browserele moderne la câțiva ani de la standardizare
+- QUIC (HTTP/3): handshake complet (transport + TLS) în **1 round-trip**, uneori 0
+- `304 Not Modified`: economisește 100% din transferul body-ului dacă resursa nu s-a schimbat
+- Status code `429 Too Many Requests`: standardizat prin **RFC 6585**, 2012
+</FactBox>
+
+---
+
+## ÎNCHEIERE
+
+HTTP a rămas, în esență, un protocol de cerere-răspuns text-lizibil de 30 de ani — ce s-a schimbat radical e transportul de dedesubt: de la o conexiune per cerere, la conexiuni persistente, la multiplexare, la eliminarea completă a TCP în favoarea QUIC. Fiecare evoluție a rezolvat exact un tip de blocare identificat empiric la scară globală.
+
+Dar HTTP definește doar *cum circulă* mesajele, nu *cum organizezi* o API construită peste el. Ai `GET`, `POST`, status code-uri — dar cum structurezi zeci de endpoint-uri într-un sistem coerent? Lecția următoare compară cele două filozofii dominante de design de API: REST și GraphQL.
