@@ -63,9 +63,7 @@ Cum funcționează `with` la nivel mecanic? Obiectul returnat de `open()` implem
 | `"r+"` | Citire ȘI scriere | `FileNotFoundError` |
 | `"rb"`, `"wb"` | Ca mai sus, dar în mod BINAR (bytes, nu text) | — |
 
-<CosmoHint emotion="sad">
 `open("date_importante.txt", "w")` pe un fișier existent îl ȘTERGE instant, complet, fără avertisment, fără confirmare — momentul exact în care conținutul precedent devine irecuperabil. Confuzia `"w"` (write, șterge și rescrie) cu `"a"` (append, adaugă la final) e o greșeală clasică, costisitoare, mai ales în scripturi care rulează automat, fără supraveghere umană directă la momentul execuției. Verifică mereu modul exact înainte de a rula orice script care scrie în fișiere cu date valoroase.
-</CosmoHint>
 
 ### Citirea — trei metode, cazuri de uz diferite
 
