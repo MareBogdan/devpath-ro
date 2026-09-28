@@ -109,6 +109,27 @@ Bine ai venit în cursul de Python! Nu urmărim să te facem backend developer p
 
 Nu e întâmplător că aproape orice tutorial, paper sau bibliotecă de AI publică exemple în Python. Trei motive concrete: **sintaxă apropiată de pseudocod matematic** (o formulă din L6 Matematică pentru AI se traduce aproape direct în Python, spre deosebire de sintaxa verboasă C++), **ecosistem matur de calcul numeric** (NumPy există din 2006, decenii de optimizare acumulată), și **interoperabilitate C/C++/CUDA** — orice bibliotecă Python de performanță critică (PyTorch, NumPy) e, sub capotă, cod C/C++ compilat, expus printr-un strat subțire Python, exact modelul discutat mai sus la interpretare vs. compilare.
 
+### Instalarea Python — de unde vine interpretorul pe care-l rulezi
+
+Majoritatea sistemelor de operare moderne (macOS, majoritatea distribuțiilor Linux) vin cu Python preinstalat — dar versiunea de sistem e, de multe ori, veche sau folosită intern de sistemul de operare pentru propriile scripturi, motiv pentru care instalarea unei versiuni separate, dedicate propriei dezvoltări, e practica recomandată. `python.org` oferă instalatoare oficiale pentru fiecare platformă; distribuțiile specializate pentru AI/știință (Anaconda, Miniconda) vin cu NumPy, pandas și alte biblioteci de calcul numeric preinstalate, evitând pasul separat de instalare pentru cineva care începe direct cu proiecte de date.
+
+`python --version` (sau `python3 --version` pe sistemele unde `python` încă rezolvă implicit la Python 2, o convenție veche păstrată din motive de compatibilitate) confirmă exact ce interpretor rulează efectiv — primul pas de diagnosticare când un script se comportă neașteptat, mai ales pe o mașină cu mai multe versiuni Python instalate simultan (des întâlnit, dat fiind că unele sisteme de operare depind intern de o versiune specifică, veche, pe care n-o poți dezinstala fără să rupi alte funcționalități ale sistemului).
+
+### `pip` — instalatorul de pachete, inclus implicit
+
+Fiecare instalare modernă de Python vine cu `pip`, instalatorul standard de pachete din **PyPI** (Python Package Index) — repository-ul central care găzduiește sute de mii de biblioteci publicate de comunitate, de la `requests` la `torch`:
+
+```bash
+pip install requests          # instalează cea mai recentă versiune disponibilă
+pip install requests==2.31.0    # instalează o versiune EXACTĂ, fixată
+pip list                          # arată toate pachetele instalate în mediul curent
+pip show requests                 # detalii despre un pachet specific: versiune, dependențe
+```
+
+L25 dedică o lecție completă gestionării corecte a acestor instalări prin virtual environments — reține pentru acum doar că `pip install` e comanda de bază prin care orice bibliotecă externă (tot ce nu vine "din cutie" cu Python) ajunge disponibilă pentru `import` în codul tău.
+
+De ce prima rulare a unui script care importă o bibliotecă nouă poate fi vizibil mai lentă decât rulările următoare? La prima rulare, interpretorul compilează codul sursă al modulelor importate în bytecode și îl salvează în `__pycache__` (menționat deja în această lecție) — rulările ulterioare, dacă fișierele sursă nu s-au schimbat, sar direct la execuția bytecode-ului cache-uit, evitând pasul de compilare repetată. Diferența e mică pentru scripturi simple, dar vizibilă la biblioteci mari, cu multe module interne.
+
 ---
 
 ## REVEAL
