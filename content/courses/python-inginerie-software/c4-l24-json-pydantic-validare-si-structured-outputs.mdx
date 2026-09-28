@@ -156,6 +156,151 @@ utilizator_dict = utilizator.model_dump()                    # obiect Pydantic -
 
 Conversia e simetrică — poți valida date primite (JSON → Pydantic) și serializa date proprii (Pydantic → JSON) cu aceeași claritate, fără cod manual de conversie repetat de fiecare dată.
 
+### Validatori custom — reguli dincolo de simpla verificare de tip
+
+Pydantic validează automat tipurile de bază (`str`, `int`, `list[str]`), dar multe reguli de business sunt mai specifice — un email trebuie să conțină `@`, o vârstă trebuie să fie pozitivă, o parolă trebuie să respecte o lungime minimă. `@field_validator` adaugă exact acest tip de logică, custom, peste validarea automată de tip:
+
+```python
+from pydantic import BaseModel, field_validator
+
+class Utilizator(BaseModel):
+    nume: str
+    varsta: int
+    email: str
+
+    @field_validator("varsta")
+    @classmethod
+    def varsta_trebuie_pozitiva(cls, valoare):
+        if valoare < 0 or valoare > 150:
+            raise ValueError("Vârsta trebuie să fie între 0 și 150")
+        return valoare
+
+    @field_validator("email")
+    @classmethod
+    def email_trebuie_valid(cls, valoare):
+        if "@" not in valoare:
+            raise ValueError("Email invalid — lipsește @")
+        return valoare
+```
+
+Fiecare validator custom rulează **după** validarea automată de tip (Pydantic confirmă întâi că `varsta` e `int`, apoi rulează logica ta suplimentară) — combinația celor două nivele de validare (tip automat + reguli custom) acoperă majoritatea nevoilor practice fără să scrii manual verificări repetitive pentru fiecare câmp al fiecărei clase.
+
+### Câmpuri opționale și valori implicite avansate
+
+```python
+from typing import Optional
+from pydantic import BaseModel, Field
+
+class ConfigurareModel(BaseModel):
+    nume_model: str
+    temperature: float = Field(default=0.7, ge=0.0, le=2.0)   # ge/le = constrângeri de interval
+    system_prompt: Optional[str] = None
+    tags: list[str] = Field(default_factory=list)               # listă implicită SIGURĂ (revezi L10!)
+```
+
+`Field()` extinde valoarea implicită simplă cu constrângeri suplimentare — `ge`/`le` (greater-equal/less-equal) impun un interval numeric valid, verificat automat la fiecare creare de instanță. `default_factory=list` rezolvă exact capcana argumentelor implicite mutabile discutată în L10 — Pydantic apelează funcția `list` la fiecare creare de instanță, garantând o listă nouă, independentă, nu una partajată accidental între toate instanțele care nu specifică explicit `tags`.
+
+### Pydantic și API-uri REST — validarea automată a cererilor (legătura cu FastAPI)
+
+```python
+from fastapi import FastAPI
+from pydantic import BaseModel
+
+app = FastAPI()
+
+class CerereChat(BaseModel):
+    mesaj: str
+    temperature: float = 0.7
+
+@app.post("/chat")
+async def chat(cerere: CerereChat):   # FastAPI validează AUTOMAT body-ul primit contra CerereChat
+    return {"raspuns": proceseaza(cerere.mesaj, cerere.temperature)}
+```
+
+FastAPI (menționat deja la decoratori, L20, și async, L21) folosește Pydantic nativ pentru validarea automată a corpului cererilor HTTP (revezi C3 L20-L22) — orice cerere `POST /chat` cu un body care nu respectă schema `CerereChat` e respinsă automat, cu `422 Unprocessable Entity` și un mesaj de eroare structurat, **fără** nicio linie de cod suplimentară de validare scrisă de tine. Acest tipar — Pydantic ca strat de validare la marginea aplicației, exact unde datele externe intră în sistem — e motivul principal pentru care Pydantic a devenit, practic, standardul de facto pentru orice API Python modernă.
+
+### Erori de validare — structura completă a `ValidationError`
+
+```python
+from pydantic import ValidationError
+
+try:
+    Utilizator(nume="Ana", varsta="nu-e-un-numar", email="invalid")
+except ValidationError as eroare:
+    for problema in eroare.errors():
+        print(f"Câmp: {problema['loc']}, Problemă: {problema['msg']}")
+```
+
+`ValidationError` colectează **toate** erorile găsite într-o singură validare (nu se oprește la prima) — `.errors()` returnează o listă structurată, cu locația exactă (`loc`, calea către câmpul problematic, utilă mai ales la structuri imbricate) și mesajul specific pentru fiecare eroare. Această colectare completă, nu doar "prima eroare găsită," permite afișarea tuturor problemelor unui formular sau unei cereri API dintr-o singură verificare, în loc să ceri utilizatorului să corecteze o eroare, retrimită, apoi să descopere alta.
+
+### Enum-uri în Pydantic — restrângerea valorilor posibile
+
+```python
+from enum import Enum
+from pydantic import BaseModel
+
+class RolUtilizator(str, Enum):
+    ADMIN = "admin"
+    EDITOR = "editor"
+    VIZITATOR = "vizitator"
+
+class Utilizator(BaseModel):
+    nume: str
+    rol: RolUtilizator
+
+u = Utilizator(nume="Ana", rol="admin")   # validează că e EXACT una din valorile enum-ului
+print(u.rol)                                 # RolUtilizator.ADMIN
+
+Utilizator(nume="Ion", rol="superadmin")     # ValidationError — "superadmin" nu e o valoare validă
+```
+
+`Enum` (parte din biblioteca standard, nu specifică Pydantic) restrânge o valoare la un set fix, cunoscut dinainte de opțiuni valide — combinat cu Pydantic, orice încercare de a atribui o valoare din afara enum-ului declanșează automat `ValidationError`, fără cod suplimentar de verificare manuală. Util constant pentru câmpuri cu un set limitat, cunoscut, de stări sau categorii posibile — status-uri de comandă, roluri de utilizator, tipuri de eveniment — unde un simplu `str` liber ar permite din greșeală valori invalide, nedetectate până la o eroare ulterioară, greu de urmărit înapoi la sursă.
+
+### Modele imbricate cu liste de sub-modele
+
+```python
+class Comanda(BaseModel):
+    id: int
+
+class LinieProdus(BaseModel):
+    nume: str
+    cantitate: int
+    pret: float
+
+class ComandaCompleta(BaseModel):
+    comanda: Comanda
+    produse: list[LinieProdus]      # LISTĂ de sub-modele, fiecare validat individual
+
+date = {
+    "comanda": {"id": 1001},
+    "produse": [
+        {"nume": "Laptop", "cantitate": 1, "pret": 4500.0},
+        {"nume": "Mouse", "cantitate": 2, "pret": 80.0},
+    ],
+}
+
+comanda_validata = ComandaCompleta(**date)
+print(comanda_validata.produse[0].nume)   # "Laptop" — acces prin atribut, la orice adâncime
+```
+
+Această structură — un model care conține o listă de alte modele — validează recursiv fiecare element al listei, individual, contra schemei `LinieProdus` — exact ce ai avea nevoie pentru a valida, de exemplu, un răspuns de la o API care extrage automat linii de comandă dintr-un document, garantând că fiecare element din listă respectă strict forma așteptată, nu doar structura generală a răspunsului.
+
+Dacă un singur element din listă nu respectă schema `LinieProdus`, `ValidationError` raportează exact acea poziție din listă (`produse.1.pret`, de exemplu), nu doar "ceva e greșit undeva în produse" — precizia locației erorii, chiar și la adâncimi mari de imbricare, e unul dintre avantajele practice majore ale validării structurate față de verificări manuale scrise ad-hoc, care rareori oferă acest nivel de detaliu fără efort suplimentar considerabil.
+
+### `TypeAdapter` — validare fără o clasă completă `BaseModel`
+
+Pentru cazuri simple, unde nu ai nevoie de o clasă completă, `TypeAdapter` validează direct un tip, fără boilerplate-ul unei clase `BaseModel`:
+
+```python
+from pydantic import TypeAdapter
+
+adaptor_lista_int = TypeAdapter(list[int])
+rezultat = adaptor_lista_int.validate_python(["1", "2", "3"])   # coerciune automată la int
+print(rezultat)   # [1, 2, 3]
+```
+
+Util pentru validarea rapidă a unor structuri simple (o listă de numere, un dicționar cu tipuri fixe) fără să justifice o clasă `BaseModel` completă — un instrument mai puțin folosit decât `BaseModel`, dar valoros de recunoscut în cod care validează tipuri simple, fără nevoie de câmpuri denumite multiple.
+
 ---
 
 ## REVEAL
