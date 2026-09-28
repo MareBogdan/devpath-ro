@@ -139,6 +139,89 @@ for fisier_csv in Path("date").glob("*.csv"):        # iterare peste toate fiși
 Loguri de antrenare AI, checkpoint-uri de model, dataset-uri preprocesate — toate ajung, la un moment dat, scrise pe disc prin exact acest pattern `with open(...) as f:`. Chiar și salvarea unui model PyTorch (`torch.save(model.state_dict(), "model.pt")`) folosește intern context managers pentru scrierea sigură a fișierului binar — aceeași garanție de cleanup, aplicată la o operațiune mult mai complexă decât un simplu text.
 </CosmoHint>
 
+### Scrierea în fișiere binare — dincolo de text
+
+Toate exemplele de până acum au folosit fișiere text (`"r"`, `"w"`) — dar multe formate reale nu sunt text lizibil: imagini, checkpoint-uri de model, fișiere audio. Modul binar (`"rb"`, `"wb"`) citește/scrie octeți bruți (`bytes`), fără nicio conversie sau interpretare de encoding:
+
+```python
+with open("imagine.png", "rb") as f:
+    date_binare = f.read()          # tip bytes, nu str
+
+with open("copie.png", "wb") as f:
+    f.write(date_binare)               # scriere directă de octeți
+```
+
+Încercarea de a deschide un fișier binar în mod text (`"r"` în loc de `"rb"`) produce fie erori de decodare (Python încearcă să interpreteze octeții ca text UTF-8, eșuând pe secvențe invalide), fie conținut corupt, silențios, dacă interpretarea "reușește" din întâmplare pe octeți care nu reprezintă text valid. Regula simplă: orice fișier care nu e text lizibil de om (imagini, audio, executabile, formate binare proprii de model) se deschide întotdeauna cu `"b"` adăugat la mod.
+
+### `csv` — fișiere tabelare, cel mai comun format de date
+
+```python
+import csv
+
+with open("date.csv", "r") as f:
+    cititor = csv.DictReader(f)         # fiecare rând devine un dicționar, cu cheile din antet
+    for rand in cititor:
+        print(rand["nume"], rand["varsta"])
+
+with open("rezultat.csv", "w", newline="") as f:
+    scriitor = csv.DictWriter(f, fieldnames=["nume", "scor"])
+    scriitor.writeheader()
+    scriitor.writerow({"nume": "Ana", "scor": 95})
+```
+
+`csv.DictReader`/`DictWriter` convertesc automat rândurile unui fișier CSV în dicționare Python (și invers), folosind prima linie ca antet de coloane — evită parsarea manuală, predispusă la erori, a virgulelor și ghilimelelor din formatul CSV brut (care are reguli surprinzător de subtile pentru câmpuri ce conțin virgule sau linii noi în interior). `newline=""` la deschiderea pentru scriere e o particularitate specifică modulului `csv` pe Windows, unde altfel ar apărea linii goale suplimentare nedorite între rânduri.
+
+### Verificarea existenței și crearea de directoare
+
+```python
+from pathlib import Path
+
+cale = Path("date") / "rezultate" / "output.json"
+
+cale.parent.mkdir(parents=True, exist_ok=True)   # creează TOATE directoarele intermediare lipsă
+with open(cale, "w") as f:
+    json.dump({"status": "complet"}, f)
+```
+
+`parents=True` creează recursiv orice director intermediar lipsă din cale (echivalentul `mkdir -p` din linia de comandă); `exist_ok=True` previne o eroare dacă directorul există deja — combinația celor doi parametri e pattern-ul standard pentru "asigură-te că acest director există, indiferent de starea inițială," fără cod condiționat suplimentar de verificare manuală.
+
+### Fișiere temporare — curățare garantată automat
+
+Pentru date intermediare, nedestinate să persiste (rezultate de calcul temporar, fișiere de test), modulul `tempfile` creează fișiere care se șterg automat, fără să lași manual gunoi în urmă:
+
+```python
+import tempfile
+
+with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=True) as f:
+    f.write("date temporare")
+    f.flush()
+    proceseaza_fisier(f.name)
+# fișierul e ȘTERS automat aici, la ieșirea din 'with'
+```
+
+Combinația `tempfile` + `with` extinde garanția de cleanup deja discutată la nivel de un pas suplimentar: nu doar fișierul se închide corect, dar și se elimină definitiv de pe disc, fără să rămână resturi temporare acumulate după rulări repetate — util constant în scripturi de procesare care generează fișiere intermediare doar pentru un pas al pipeline-ului, nu pentru păstrare permanentă.
+
+### Citirea parțială — `.read(n)` pentru fișiere foarte mari
+
+```python
+with open("fisier_masiv.bin", "rb") as f:
+    while bucata := f.read(8192):   # walrus operator (L5), citește câte 8KB la un moment dat
+        proceseaza_bucata(bucata)
+```
+
+Pentru fișiere prea mari chiar și pentru citire linie cu linie eficientă (fișiere binare fără structură de linii, sau text fără delimitatori naturali de linie), `.read(n)` citește exact `n` octeți la fiecare apel, returnând un șir gol când fișierul s-a epuizat complet — combinat cu walrus operator (introdus în L5), acest pattern citește și verifică condiția de oprire într-o singură expresie compactă, evitând duplicarea codului de citire înainte și în interiorul buclei.
+
+### Encoding explicit la deschiderea fișierelor text
+
+```python
+with open("fisier.txt", "r", encoding="utf-8") as f:
+    continut = f.read()
+```
+
+Deși Python presupune de obicei un encoding implicit rezonabil (de obicei UTF-8 pe sisteme moderne), specificarea explicită a `encoding="utf-8"` la deschiderea oricărui fișier text elimină complet dependența de configurarea locală a sistemului de operare pe care rulează codul — un fișier scris cu diacritice românești, citit implicit pe un sistem configurat cu alt encoding decât cel presupus, poate produce `UnicodeDecodeError` sau, mai insidios, text corupt silențios. Practica de producție recomandată: specifică întotdeauna explicit `encoding="utf-8"`, nu te baza pe implicitul sistemului, mai ales pentru cod care va rula pe medii diferite (development local vs. server de producție, posibil cu configurări regionale diferite).
+
+Acest sfat devine mai relevant încă atunci când scripturi Python dezvoltate pe un calculator sunt rulate ulterior pe un altul, cu configurare regională diferită — un simplu `encoding="utf-8"` adăugat explicit la fiecare `open()` elimină complet clasa de bug-uri "funcționa pe mașina mea" legate strict de citirea/scrierea de text cu diacritice.
+
 ---
 
 ## REVEAL
