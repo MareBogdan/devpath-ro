@@ -1,0 +1,185 @@
+---
+title: "Scope: Local vs. Global"
+order: 10
+type: lesson
+module_index: 4
+duration: 12
+difficulty: 2
+---
+
+# Scope: Local vs. Global
+
+## HOOK
+
+```python
+contor_global = 0
+
+def incrementeaza():
+    contor_global += 1   # UnboundLocalError!
+
+incrementeaza()
+```
+
+Această funcție, care pare că doar incrementează o variabilă existentă, aruncă `UnboundLocalError: local variable 'contor_global' referenced before assignment`. Nu e un bug ciudat — e o consecință directă, previzibilă, a regulilor de **scope** din Python: orice variabilă căreia îi atribui o valoare *undeva* în interiorul unei funcții e tratată, implicit, ca variabilă **locală** a acelei funcții, pentru *întreaga* funcție — inclusiv pe linia unde citești valoarea ei înainte de a o modifica.
+
+Regulile de scope determină exact ce variabile "vede" o funcție, ce se întâmplă când numele se repetă în contexte diferite, și de ce modificarea unei variabile globale din interiorul unei funcții cere o sintaxă explicită, nu implicită.
+
+---
+
+## CONTEXT
+
+Conceptul de scope — regiunea de cod în care un nume e valid și accesibil — apare în orice limbaj de programare structurat modern, dar regulile exacte diferă. Python folosește **LEGB** (Local, Enclosing, Global, Built-in) — o ordine strictă de căutare, verificată de fiecare dată când interpretorul întâlnește un nume nedefinit local.
+
+Decizia Python de a determina scope-ul unei variabile **static, la analiza codului** (nu dinamic, la runtime, verificând ce s-a executat efectiv) e ce produce comportamentul din HOOK — Python "vede" atribuirea `contor_global += 1` undeva în corpul funcției, în faza de compilare în bytecode, și decide *de la început* că `contor_global` e local acelei funcții — indiferent că, pe aceeași linie, funcția încearcă și să-l citească înainte de a-l fi creat local.
+
+---
+
+## MIEZUL
+
+### Regula LEGB — ordinea de căutare a unui nume
+
+Când interpretorul întâlnește un nume într-o expresie, îl caută în această ordine, oprindu-se la prima potrivire:
+
+{/* TABLE */}
+
+| Nivel | Ce înseamnă | Exemplu |
+|---|---|---|
+| **L**ocal | Variabile definite în funcția curentă | Parametri, variabile atribuite în interior |
+| **E**nclosing | Scope-ul unei funcții exterioare, dacă funcția curentă e imbricată | Closures (funcție în funcție) |
+| **G**lobal | Variabile definite la nivelul modulului (fișierului) | Constante, configurări la nivel de fișier |
+| **B**uilt-in | Funcții și nume predefinite de Python | `len`, `print`, `range` |
+
+```python
+x = "global"
+
+def exterior():
+    y = "enclosing"
+    def interior():
+        z = "local"
+        print(x, y, z)   # găsește x în Global, y în Enclosing, z în Local
+    interior()
+
+exterior()   # global enclosing local
+```
+
+<CosmoHint emotion="thinking">
+De ce ordinea LEGB începe cu Local, nu cu Global? Pentru izolare — fiecare funcție trebuie să poată defini variabile cu nume comune (`i`, `x`, `rezultat`) fără să interfereze cu variabile identic numite din altă funcție sau din scope-ul global. Fără această izolare, orice funcție ar putea "sparge" accidental starea altei părți a programului, doar prin coincidența numelui unei variabile — exact tipul de bug care făcea programarea la scară mare aproape imposibilă în limbajele fără scope local strict.
+</CosmoHint>
+
+### De ce citirea globalelor funcționează implicit, dar scrierea nu
+
+```python
+contor_global = 0
+
+def citeste():
+    print(contor_global)   # FUNCȚIONEAZĂ — Python caută în Global, nu găsește local, îl citește direct
+
+citeste()   # 0
+```
+
+Citirea unei variabile globale, fără s-o modifici, funcționează perfect implicit — regula LEGB caută în sus, către Global, și găsește valoarea. Problema apare **doar** când vrei să *atribui* o valoare nouă unui nume dintr-o funcție — acolo Python decide, static, că orice nume căruia îi faci vreo atribuire în interiorul funcției e local, prin definiție, exclus de la a fi considerat variabila globală cu același nume.
+
+### `global` — declarația explicită necesară pentru modificare
+
+```python
+contor_global = 0
+
+def incrementeaza():
+    global contor_global   # declară explicit: folosește variabila GLOBALĂ, nu creezi una locală
+    contor_global += 1
+
+incrementeaza()
+incrementeaza()
+print(contor_global)   # 2
+```
+
+Cuvântul-cheie `global` schimbă comportamentul implicit — spune interpretorului explicit "acest nume, în acest scope, se referă la variabila globală, nu la una locală nouă." Fără el, `contor_global += 1` ar crea o variabilă locală nouă (și ar arunca imediat `UnboundLocalError`, pentru că `+=` cere să citească întâi valoarea existentă, care n-ar exista local).
+
+**Folosirea excesivă de `global` e considerată un semnal de design slab** — funcții care modifică stare globală sunt dificil de testat izolat (rezultatul depinde de ordinea de execuție a altor funcții care au modificat aceeași variabilă) și dificil de raționat despre în cod concurent (mai multe funcții/thread-uri modificând aceeași variabilă globală, fără coordonare, produc rezultate imprevizibile). Practica recomandată: preferă parametri și valori returnate explicit, rezervă `global` pentru cazuri rare, justificate (contoare de configurare globală, singleton-uri).
+
+### `nonlocal` — modificarea variabilei din scope-ul înconjurător
+
+O variantă specifică apare la funcții imbricate — modificarea unei variabile din scope-ul **Enclosing** (nu Global), cerută de closures:
+
+```python
+def creeaza_contor():
+    numar = 0
+    def incrementeaza():
+        nonlocal numar   # modifică variabila din scope-ul ÎNCONJURĂTOR (creeaza_contor), nu global
+        numar += 1
+        return numar
+    return incrementeaza
+
+contor = creeaza_contor()
+print(contor())   # 1
+print(contor())   # 2
+print(contor())   # 3
+```
+
+`creeaza_contor()` returnează funcția `incrementeaza`, care "ține minte" variabila `numar` din funcția care a creat-o, chiar după ce `creeaza_contor` s-a terminat de executat — acest fenomen se numește **closure**. `nonlocal` e necesar exact ca `global`, dar pentru un nivel intermediar de scope, nu direct pentru cel global al modulului.
+
+{/* TABLE */}
+
+| Declarație | Scop | Cazul de uz |
+|---|---|---|
+| (fără declarație) | Local implicit la orice atribuire | Majoritatea variabilelor din funcții |
+| `global nume` | Modifică variabila globală (nivel de modul) | Configurări/contoare globale, cu moderație |
+| `nonlocal nume` | Modifică variabila din scope-ul funcției exterioare (closure) | Funcții imbricate, generatoare de funcții cu stare |
+
+### Argumentele implicite mutabile — o capcană clasică legată de scope
+
+```python
+def adauga_element(element, lista=[]):   # PERICULOS — lista implicit e creată O SINGURĂ DATĂ
+    lista.append(element)
+    return lista
+
+print(adauga_element(1))   # [1]
+print(adauga_element(2))   # [1, 2] — NEAȘTEPTAT! Nu [2]
+```
+
+Valoarea implicită a unui parametru (`lista=[]`) e evaluată **o singură dată**, la definirea funcției, nu la fiecare apel — obiectul listă implicit persistă între apeluri succesive, acumulând elemente silențios. Soluția standard, idiomatică:
+
+```python
+def adauga_element(element, lista=None):
+    if lista is None:
+        lista = []       # o listă NOUĂ, creată la fiecare apel
+    lista.append(element)
+    return lista
+```
+
+Această capcană combină direct două concepte văzute deja: mutabilitatea (obiectele listă se pot modifica în loc, discutată în L3) și scope-ul argumentelor implicite (evaluate o singură dată, nu la fiecare apel) — un exemplu concret al modului în care înțelegerea profundă a acestor mecanisme previne bug-uri reale, subtile, extrem de frecvente în cod scris de începători.
+
+<CosmoHint emotion="encouraging">
+Pentru un test rapid al ce vede Python în scope-ul curent, `locals()` returnează un dicționar cu toate variabilele locale disponibile în punctul acela din cod, iar `globals()` face la fel pentru scope-ul global al modulului — utile pentru debugging când comportamentul unei variabile pare surprinzător.
+</CosmoHint>
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Cod | Comportament |
+|---|---|
+| Citire globală, fără atribuire în funcție | Funcționează implicit (regula LEGB) |
+| Atribuire fără `global`, unde numele coincide cu o globală | Creează variabilă LOCALĂ nouă, umbrind global-ul |
+| `x += 1` pe o variabilă fără `global`/`nonlocal` declarat | `UnboundLocalError` dacă `x` nu e definit local înainte |
+| Parametru cu listă implicită (`lista=[]`) | Aceeași listă partajată între TOATE apelurile fără argument |
+
+<FactBox>
+**Scope în cifre:**
+- Regula LEGB: **4 nivele** de căutare — Local, Enclosing, Global, Built-in
+- Determinarea scope-ului: statică, la compilarea în bytecode — nu dinamică, la execuție
+- `global`/`nonlocal`: obligatorii pentru MODIFICAREA (nu citirea) variabilelor din alte scope-uri
+- Closures: funcții care "țin minte" variabile din scope-ul care le-a creat, folosite masiv în programarea funcțională
+- Capcana argumentelor implicite mutabile: una dintre primele **10 greșeli** citate în orice ghid Python pentru începători
+- `locals()`/`globals()`: introspecție directă a variabilelor disponibile într-un scope, la runtime
+</FactBox>
+
+---
+
+## ÎNCHEIERE
+
+Scope-ul determină ce "vede" o funcție și, mai important, ce poate *modifica* fără declarații explicite. Regula LEGB e consistentă și previzibilă odată internalizată: citirea funcționează implicit în sus prin nivele, dar scrierea cere permisiune explicită (`global`/`nonlocal`) pentru orice nivel dincolo de local.
+
+Codul scris până acum poate să crape — orice apel de rețea, orice conversie de tip, orice acces la un index inexistent poate eșua la runtime. Lecția următoare introduce mecanismul prin care Python gestionează aceste eșecuri fără să prăbușească întregul program: `try`/`except`.
