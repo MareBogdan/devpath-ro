@@ -1,0 +1,171 @@
+---
+title: "Tipuri de date primitive: int, float, str, bool"
+order: 4
+type: lesson
+module_index: 4
+duration: 12
+difficulty: 1
+---
+
+# Tipuri de date primitive: int, float, str, bool
+
+## HOOK
+
+```python
+>>> 0.1 + 0.2
+0.30000000000000004
+```
+
+Nu e un bug Python — e o consecință directă a cum reprezintă *orice* limbaj de programare numerele zecimale în hardware. Dacă acest rezultat te surprinde, ești exact în punctul potrivit: înțelegerea corectă a tipurilor primitive — cum reprezintă calculatorul un număr întreg, unul zecimal, un text, o valoare de adevăr — previne o clasă întreagă de bug-uri subtile, de la comparații de prețuri care eșuează silențios până la calcule de loss în antrenarea unui model care par corecte dar acumulează erori minuscule pe milioane de iterații.
+
+Python are patru tipuri primitive fundamentale: `int`, `float`, `str`, `bool`. Par simple — și interfața lor e simplă — dar fiecare ascunde detalii de implementare pe care le vei întâlni garantat lucrând cu date reale.
+
+---
+
+## CONTEXT
+
+Reprezentarea numerelor în calculatoare a fost standardizată prin **IEEE 754** (1985) pentru numerele în virgulă mobilă — folosită azi de aproape orice limbaj de programare, inclusiv Python. Standardul rezolvă o problemă fundamentală: memoria e finită și binară, dar numerele zecimale reale (ca `0.1`) sunt adesea **fracții infinite în binar**, exact cum `1/3` e o fracție infinită în zecimal (`0.333...`). Calculatorul trebuie să trunchieze undeva — de aici erorile mici de precizie vizibile în exemplul din HOOK.
+
+Python are un avantaj particular față de C sau Java la tipul `int`: **precizie arbitrară**. Un `int` în C e limitat la o dimensiune fixă (de obicei 32 sau 64 de biți) — depășește acel interval, și suferă de *integer overflow*, o eroare silențioasă care a cauzat bug-uri celebre (inclusiv explozia rachetei Ariane 5, 1996). Python alocă dinamic câți biți sunt necesari pentru orice `int`, oricât de mare — poți calcula `2 ** 1000` fără nicio grijă de overflow.
+
+---
+
+## MIEZUL
+
+### `int` — precizie arbitrară, fără overflow
+
+```python
+x = 42
+y = -17
+z = 2 ** 1000   # număr cu peste 300 de cifre — Python îl calculează exact, fără overflow
+
+print(type(x))   # <class 'int'>
+print(10 // 3)    # 3 — împărțire întreagă (rotunjește în jos)
+print(10 % 3)     # 1 — restul împărțirii (modulo)
+```
+
+`//` (împărțire întreagă) și `%` (modulo) sunt esențiale în cod real: paginarea (`pagina = index // marime_pagina`), verificarea parității (`numar % 2 == 0`), sau distribuirea batch-urilor de date la antrenare AI (`indice_batch = i // dimensiune_batch`).
+
+### `float` — virgulă mobilă, cu limitele ei
+
+```python
+pret = 19.99
+gravitatie = 9.81
+
+print(type(pret))          # <class 'float'>
+print(0.1 + 0.2 == 0.3)     # False! — eroare de reprezentare binară
+print(round(0.1 + 0.2, 2) == 0.3)   # True — rotunjit la 2 zecimale
+```
+
+Un `float` Python ocupă 64 de biți (dublă precizie IEEE 754): 1 bit de semn, 11 biți de exponent, 52 de biți de mantisă — aproximativ 15-17 cifre zecimale semnificative de precizie. Comparațiile directe de egalitate între floats sunt riscante tocmai din acest motiv — practica standard e să compari cu o toleranță mică (`abs(a - b) < 1e-9`), nu cu `==` direct.
+
+<CosmoHint emotion="thinking">
+De ce contează asta serios în AI/ML? Antrenarea unui model face milioane de operații în virgulă mobilă — fiecare cu o eroare minusculă de rotunjire. Acumulate pe milioane de pași, aceste erori pot devia rezultatul suficient cât încât **același cod, rulat de două ori pe hardware diferit** (CPU vs. GPU, sau GPU-uri diferite), să producă rezultate ușor diferite — nu din cauza vreunui bug, ci din cauza ordinii diferite în care se acumulează erorile de precizie în operațiile paralele. `float32` (folosit masiv în deep learning pentru viteză) are precizie și mai redusă decât `float64` — un compromis deliberat viteză-vs-precizie.
+</CosmoHint>
+
+### `str` — text, imutabil, Unicode implicit
+
+```python
+nume = "Ana"
+mesaj = 'Salut, lume!'          # ghilimele simple sau duble — identice funcțional
+multi_linie = """Prima linie
+A doua linie"""
+
+print(nume[0])          # 'A' — indexare de la 0
+print(nume.upper())     # 'ANA'
+print(len(nume))         # 3
+print(nume + " Pop")     # concatenare: 'Ana Pop'
+```
+
+Din Python 3, orice `str` e Unicode implicit — poți avea diacritice românești (`ă`, `î`, `ș`, `ț`), emoji, caractere chinezești, fără nicio configurare specială. Python 2 avea `str` ca bytes brute și `unicode` ca tip separat — sursa a nenumărate bug-uri de encoding, unul dintre motivele principale ale rupturii de compatibilitate Python 2→3.
+
+**String-urile sunt imutabile** — `nume[0] = "X"` aruncă `TypeError`. Orice operație care "pare" să modifice un string (`.upper()`, `.replace()`) de fapt **creează un string nou**, lăsând originalul neatins — aceeași regulă de imutabilitate discutată la `int` în L3, aplicabilă identic aici.
+
+```python
+f_string = f"Salut, {nume}! Ai {2024 - 1999} ani."   # f-string — interpolare directă
+```
+
+**F-strings** (Python 3.6+) sunt metoda modernă și recomandată de a construi string-uri cu valori interpolate — orice expresie Python validă poate apărea între acolade, evaluată direct la runtime.
+
+{/* TABLE */}
+
+| Tip | Exemplu | Mutabil? | Dimensiune tipică |
+|---|---|---|---|
+| `int` | `42`, `-17`, `2**1000` | Imutabil | Variabilă (precizie arbitrară) |
+| `float` | `19.99`, `9.81` | Imutabil | 64 biți (IEEE 754 dublă precizie) |
+| `str` | `"Ana"`, `'text'` | Imutabil | Variabilă, Unicode |
+| `bool` | `True`, `False` | Imutabil | Subclasă a `int` (`True == 1`) |
+
+### `bool` — de fapt un `int` deghizat
+
+```python
+print(True + True)      # 2 — bool e literalmente o subclasă a int
+print(isinstance(True, int))   # True
+print(True == 1)         # True
+print(False == 0)        # True
+```
+
+`bool` în Python nu e un tip complet separat — `True` și `False` sunt, tehnic, valorile `1` și `0` ale unei subclase specializate a `int`. Consecința practică: poți folosi valori booleene direct în calcule aritmetice (`suma_adevaruri = sum([True, False, True, True])` dă `3`) — un pattern surprinzător de util pentru a număra câte elemente dintr-o colecție satisfac o condiție.
+
+**Truthiness** — orice valoare din Python poate fi evaluată într-un context boolean (`if valoare:`), nu doar `True`/`False` explicit:
+
+```python
+if "":        pass   # fals — string gol
+if []:        pass   # fals — listă goală
+if 0:         pass   # fals — zero
+if None:      pass   # fals — None
+if "text":    pass   # adevărat — string ne-gol
+if [1, 2]:    pass   # adevărat — listă ne-goală
+```
+
+Regula generală: valorile "goale" sau "zero" (string gol, listă goală, `0`, `None`) sunt falsy; aproape orice altceva e truthy. Acest pattern e omniprezent în cod Python idiomatic: `if lista:` în loc de `if len(lista) > 0:` — mai scurt și considerat mai "Pythonic".
+
+<CosmoHint emotion="encouraging">
+`type(valoare)` îți spune tipul exact al unei valori la runtime; `isinstance(valoare, int)` verifică apartenența la un tip, inclusiv prin moștenire (motiv pentru care `isinstance(True, int)` e `True`). Preferă `isinstance()` pentru verificări de tip în cod real — e mai flexibil și mai idiomatic decât compararea directă cu `type()`.
+</CosmoHint>
+
+### Conversii explicite între tipuri
+
+```python
+int("42")       # 42 — conversie string → int
+str(42)         # "42" — conversie int → string
+float("3.14")   # 3.14
+int(3.99)       # 3 — TRUNCHIAZĂ, nu rotunjește!
+bool(0)         # False
+bool("orice text nevid")   # True
+```
+
+`int(3.99)` dă `3`, nu `4` — conversia `int()` **trunchiază** partea zecimală, nu rotunjește. Pentru rotunjire corectă, folosești explicit `round(3.99)` (dă `4`). O confuzie frecventă între aceste două comportamente produce bug-uri subtile de "off-by-one" în calcule financiare sau statistici.
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Verificare | Rezultat | Motiv |
+|---|---|---|
+| `0.1 + 0.2 == 0.3` | `False` | Eroare de reprezentare binară în virgulă mobilă |
+| `10 // 3` | `3` | Împărțire întreagă, rotunjește în jos |
+| `True + True` | `2` | `bool` e subclasă `int` |
+| `int(3.99)` | `3` | Trunchiază, nu rotunjește |
+| `bool([])` | `False` | Colecție goală = falsy |
+| `2 ** 1000` | calculat exact | `int` cu precizie arbitrară |
+
+<FactBox>
+**Tipuri primitive în cifre:**
+- IEEE 754 dublă precizie (`float`): **64 biți**, ~15-17 cifre zecimale semnificative
+- `int` Python: precizie arbitrară — limitat doar de memoria disponibilă, nu de o dimensiune fixă
+- Python 3: `str` Unicode implicit din **2008** (Python 3.0)
+- F-strings: introduse în **Python 3.6** (2016), sintaxa recomandată azi
+- `bool`: subclasă a `int`, `True == 1` și `False == 0` întotdeauna adevărate
+- `float32` (folosit în deep learning): jumătate din precizia `float64`, dar de 2× viteza de calcul pe multe GPU-uri
+</FactBox>
+
+---
+
+## ÎNCHEIERE
+
+Cele patru tipuri primitive par elementare, dar fiecare ascunde comportamente pe care le vei întâlni garantat în cod real: precizia arbitrară a `int`-urilor previne overflow-uri silențioase, imprecizia binară a `float`-urilor cere comparații cu toleranță, imutabilitatea string-urilor înseamnă că orice "modificare" creează de fapt un obiect nou, iar `bool`-ul e, sub capotă, doar un `int` cu haine speciale.
+
+Ai văzut *ce* tipuri de date există. Lecția următoare arată *ce poți face* cu ele — operatorii aritmetici și logici care combină aceste valori în expresii, baza oricărei logici de program.
