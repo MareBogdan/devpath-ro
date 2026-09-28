@@ -1,0 +1,137 @@
+---
+title: "Set-uri: Colecția fără duplicate"
+order: 15
+type: lesson
+module_index: 4
+duration: 11
+difficulty: 2
+---
+
+# Set-uri: Colecția fără duplicate
+
+## HOOK
+
+Un dataset de antrenare are 50.000 de exemple, dar mulți utilizatori au trimis accidental duplicate — același text, salvat de două-trei ori. Vrei rapid lista de valori **unice**. Cu o listă, ai scrie manual o buclă care verifică, pentru fiecare element nou, dacă a mai apărut deja — `O(n²)` în cel mai simplu caz, dureros de lent la scară.
+
+```python
+unic = list(set(lista_cu_duplicate))
+```
+
+O singură linie. **Set-ul** garantează structural că fiecare valoare apare o singură dată — nu prin verificare manuală repetată, ci prin design: aceeași structură de hash care oferă dicționarelor acces `O(1)` din L13 elimină automat duplicatele, pentru că insera aceeași valoare de două ori nu are niciun efect vizibil — set-ul o "vede" deja acolo.
+
+---
+
+## CONTEXT
+
+Setul matematic — o colecție de elemente distincte, fără ordine intrinsecă, cu operații bine definite de reuniune, intersecție, diferență — are secole de teorie formală în spate (teoria mulțimilor, Georg Cantor, secolul XIX). Python implementează direct această structură ca tip nativ, `set`, susținut intern de exact același mecanism de hashing folosit pentru dicționare (L13) — motiv pentru care set-urile au aceleași restricții de conținut (doar elemente imutabile/hashabile) și aceleași garanții de performanță.
+
+---
+
+## MIEZUL
+
+### Creare și operații de bază
+
+```python
+fructe = {"măr", "pară", "kiwi", "măr"}    # "măr" apare o dată în rezultat, duplicatul e ignorat
+print(fructe)                                   # {'kiwi', 'măr', 'pară'} — ORDINEA nu e garantată
+
+fructe.add("banană")           # adaugă un element
+fructe.discard("kiwi")           # elimină, FĂRĂ eroare dacă nu exista
+fructe.remove("pară")             # elimină, ARUNCĂ KeyError dacă nu exista
+
+print("măr" in fructe)             # True — verificare O(1), la fel ca la dicționare
+```
+
+Un set gol **nu** se scrie `{}` — acea sintaxă creează un dicționar gol (o ambiguitate istorică a limbajului). Un set gol se scrie explicit `set()`.
+
+<CosmoHint emotion="thinking">
+De ce set-urile nu au ordine garantată, spre deosebire de liste și (din Python 3.7) dicționare? Pentru că un set nu ține evidența pozițiilor de inserare deloc — stochează elementele exclusiv pe baza hash-ului lor, în structuri interne optimizate pentru căutare rapidă, nu pentru păstrarea secvenței. Dacă ai nevoie de ordine, un set e structural nepotrivit — foloseşte o listă (cu deduplicare manuală, dacă e nevoie) sau `dict.fromkeys()`, care păstrează ordinea de inserare eliminând duplicatele.
+</CosmoHint>
+
+### Operațiile matematice de set — reuniune, intersecție, diferență
+
+{/* TABLE */}
+
+| Operație | Simbol | Metodă | Rezultat |
+|---|---|---|---|
+| Reuniune | `\|` | `.union()` | Toate elementele din ambele set-uri |
+| Intersecție | `&` | `.intersection()` | Doar elementele comune ambelor |
+| Diferență | `-` | `.difference()` | Elemente din primul, dar NU din al doilea |
+| Diferență simetrică | `^` | `.symmetric_difference()` | Elemente în EXACT unul dintre set-uri, nu ambele |
+| Subset | `<=` | `.issubset()` | Toate elementele primului sunt și în al doilea |
+
+```python
+grupa_a = {"Ana", "Ion", "Maria"}
+grupa_b = {"Ion", "Radu", "Elena"}
+
+print(grupa_a | grupa_b)   # {'Ana', 'Ion', 'Maria', 'Radu', 'Elena'} — reuniune
+print(grupa_a & grupa_b)    # {'Ion'} — intersecție (comuni)
+print(grupa_a - grupa_b)     # {'Ana', 'Maria'} — doar în A
+print(grupa_a ^ grupa_b)      # {'Ana', 'Maria', 'Radu', 'Elena'} — în exact una din grupe
+```
+
+Aceste operații sunt implementate direct, optimizate intern, mult mai rapide și mai clare decât rescrierea manuală cu bucle și `if`-uri asupra listelor: "cine e în ambele echipe" (`&`), "cine e doar în prima" (`-`), "cine s-a schimbat de la o versiune la alta a listei" (`^`).
+
+### Cazul de uz canonic — deduplicare rapidă
+
+```python
+raspunsuri_utilizatori = ["da", "nu", "da", "poate", "da", "nu"]
+raspunsuri_unice = set(raspunsuri_utilizatori)
+print(raspunsuri_unice)          # {'da', 'nu', 'poate'}
+print(len(raspunsuri_unice))       # 3 — numărul de valori DISTINCTE
+
+# Verificare rapidă de apartenență la o listă mare de cuvinte interzise:
+cuvinte_interzise = {"spam", "reclama", "escrocherie"}   # SET, nu listă — pentru viteză
+
+def contine_cuvant_interzis(text):
+    cuvinte_text = set(text.lower().split())
+    return bool(cuvinte_text & cuvinte_interzise)   # intersecție ne-vidă = există potrivire
+```
+
+Ultimul exemplu arată un pattern practic important pentru performanță: dacă vei verifica repetat apartenența unui element la o colecție fixă (o listă de cuvinte interzise, o listă de ID-uri permise), convertirea ei la `set` **o singură dată**, la început, transformă fiecare verificare ulterioară din `O(n)` (căutare secvențială într-o listă) în `O(1)` — o optimizare simplă, dar cu impact real la colecții mari, verificate frecvent.
+
+### `frozenset` — versiunea imutabilă
+
+```python
+permis = frozenset({"citire", "scriere"})   # imutabil — nu poate fi modificat după creare
+
+configurari = {permis: "acces standard"}    # POATE fi cheie de dicționar, spre deosebire de set normal
+```
+
+Exact ca relația listă↔tuple din L14, `set`↔`frozenset` urmează același model: versiunea mutabilă nu poate fi cheie de dicționar sau element al altui set (nu e hashabilă); versiunea imutabilă, da. Rar folosit în cod de zi cu zi, dar util de recunoscut când apare în biblioteci care au nevoie de colecții de valori unice, imutabile, ca și configurări fixe.
+
+<CosmoHint emotion="encouraging">
+Elementele unice dintr-un vocabular de tokeni (folosit la tokenizarea textului pentru modele de limbaj) sunt, conceptual, exact un set — fiecare token distinct apare o singură dată în vocabular, indiferent de câte ori apare în textul original de antrenare. `set(text.split())` e o aproximare simplistă, dar corectă conceptual, a primului pas dintr-un pipeline real de construire a unui vocabular.
+</CosmoHint>
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Structură | Ordonată | Duplicate permise | Mutabilă | Poate fi cheie/element în alt set |
+|---|---|---|---|---|
+| Listă | Da | Da | Da | Nu |
+| Tuple | Da | Da | Nu | Da |
+| Dicționar | Da (din 3.7) | Chei: nu; valori: da | Da | Nu |
+| Set | Nu | **Nu** | Da | Nu |
+| Frozenset | Nu | Nu | **Nu** | Da |
+
+<FactBox>
+**Set-uri în cifre:**
+- Verificare apartenență (`in`): **O(1)**, identic cu dicționarele — aceeași structură de hash internă
+- `{}` gol: creează un DICȚIONAR, nu un set — pentru set gol, folosește explicit `set()`
+- Operații matematice native: reuniune, intersecție, diferență, diferență simetrică — toate O(n) sau mai rapide
+- Elemente permise: doar tipuri imutabile/hashabile (string, int, tuple), la fel ca cheile de dicționar
+- `frozenset`: versiunea imutabilă, poate fi folosită ca element al altui set sau cheie de dicționar
+- Deduplicare listă: `list(set(lista))` — pattern extrem de comun, dar pierde ordinea originală
+</FactBox>
+
+---
+
+## ÎNCHEIERE
+
+Set-urile completează trioul de colecții fundamentale Python — liste pentru ordine cu duplicate, dicționare pentru acces prin cheie, set-uri pentru unicitate garantată cu verificare instant. Toate trei se sprijină pe două idei recurente: mutabilitate (și consecințele ei asupra referințelor partajate) și hashing (și restricțiile de conținut pe care le impune).
+
+Ai văzut deja diferența mutabil/imutabil aplicată repetat — la string-uri (L4), liste vs. tuple-uri (L14), set vs. frozenset. Lecția următoare tratează acest concept direct, complet, ca subiect de sine stătător — de ce contează, cum se manifestă exact, și cum previi bug-urile clasice pe care le cauzează confuzia dintre ele.
