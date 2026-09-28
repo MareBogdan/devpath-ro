@@ -1,0 +1,152 @@
+---
+title: "Dicționare (Hash Maps): Acces O(1)"
+order: 13
+type: lesson
+module_index: 4
+duration: 13
+difficulty: 2
+---
+
+# Dicționare (Hash Maps): Acces O(1)
+
+## HOOK
+
+Un răspuns JSON de la o API AI (C3 L20) conține câmpuri numite — `"model"`, `"usage"`, `"choices"` — nu poziții numerice. `raspuns[2]` n-ar avea niciun sens; `raspuns["choices"]` comunică exact ce vrei. Mai mult, cauți acest câmp printre potențial mii de câmpuri posibile, și vrei ca timpul de căutare să rămână **la fel de rapid** indiferent dacă structura are 3 câmpuri sau 3 milioane.
+
+Un **dicționar** rezolvă exact ambele nevoi: acces prin **cheie** (nu poziție numerică) și timp de căutare aproape constant — `O(1)` — indiferent de dimensiunea colecției. Această garanție de performanță nu e o coincidență de implementare, e rezultatul direct al unei structuri de date fundamentale din informatică: hash map-ul.
+
+---
+
+## CONTEXT
+
+**Hash map**-ul (sau hash table) e una din cele mai importante structuri de date din toată informatica — inventat conceptual în anii '50, rafinat constant de atunci. Ideea de bază: în loc să cauți o valoare comparând-o secvențial cu fiecare element existent (`O(n)`, cum ar face o listă), calculezi o **funcție de hash** peste cheie, care produce direct un index în memorie unde ar trebui să fie stocată valoarea — cauți la acea poziție exactă, fără să compari cu nimic altceva.
+
+Dicționarele Python au avut o evoluție notabilă de implementare: până la Python 3.6, ordinea elementelor unui dicționar **nu era garantată** — putea diferi între execuții. Din **Python 3.7**, ordinea de inserare e garantată oficial, ca parte a specificației limbajului (nu doar un detaliu de implementare) — o schimbare care a simplificat mult cod care se baza implicit pe ordinea în care fuseseră adăugate cheile.
+
+---
+
+## MIEZUL
+
+### Creare, acces, modificare
+
+```python
+utilizator = {
+    "nume": "Ana",
+    "varsta": 25,
+    "activ": True
+}
+
+print(utilizator["nume"])        # "Ana" — acces direct prin cheie
+utilizator["oras"] = "Cluj"        # adaugă o cheie NOUĂ
+utilizator["varsta"] = 26          # MODIFICĂ o cheie existentă
+del utilizator["activ"]             # elimină o cheie
+
+print(utilizator["inexistent"])    # KeyError! — cheia nu există
+print(utilizator.get("inexistent", "N/A"))   # "N/A" — .get() cu valoare implicită, FĂRĂ eroare
+```
+
+`[]` aruncă `KeyError` direct dacă cheia nu există — util când **te aștepți** ca cheia să existe și vrei să afli imediat, clar, dacă nu e cazul (revezi filosofia `try`/`except` din L11). `.get(cheie, implicit)` e varianta sigură, care nu aruncă nicio eroare — preferată când absența cheii e un caz normal, așteptat, nu o eroare de gestionat.
+
+<CosmoHint emotion="thinking">
+De ce cheile unui dicționar trebuie să fie IMUTABILE (string, int, tuple — nu listă)? Pentru că hash map-ul calculează hash-ul cheii O SINGURĂ DATĂ, la inserare, și folosește acea valoare pentru a determina poziția de stocare. Dacă cheia s-ar putea modifica după inserare (ca o listă mutabilă), hash-ul ei s-ar schimba, dar poziția în memorie unde a fost deja stocată nu — dicționarul n-ar mai putea găsi valoarea căutând după noul hash. Python previne complet problema: `{[1,2]: "valoare"}` aruncă direct `TypeError: unhashable type: 'list'` la definire.
+</CosmoHint>
+
+### Metode esențiale — iterare completă
+
+```python
+utilizator = {"nume": "Ana", "varsta": 25, "oras": "Cluj"}
+
+for cheie in utilizator:                    # iterează implicit peste CHEI
+    print(cheie)
+
+for cheie, valoare in utilizator.items():    # cheie ȘI valoare simultan
+    print(f"{cheie}: {valoare}")
+
+for valoare in utilizator.values():          # doar valorile
+    print(valoare)
+
+print(list(utilizator.keys()))               # ['nume', 'varsta', 'oras']
+print("nume" in utilizator)                   # True — verifică EXISTENȚA unei chei
+```
+
+`in` pe un dicționar verifică existența unei **chei**, nu a unei valori — și, la fel ca accesul prin `[]`, e tot `O(1)`, nu necesită parcurgerea tuturor cheilor — un avantaj masiv față de `in` pe o listă, unde verificarea e `O(n)`, liniară în numărul de elemente.
+
+{/* TABLE */}
+
+| Operațiune | Listă | Dicționar |
+|---|---|---|
+| Acces prin poziție/cheie | `lista[0]` — O(1) | `dict["cheie"]` — O(1) |
+| Verificare existență (`in`) | O(n) — parcurge secvențial | **O(1)** — hash direct |
+| Căutare valoare specifică | O(n) | O(n) — doar CHEILE au acces rapid |
+| Ordinea elementelor | Garantată, ordinea de inserare | Garantată din Python 3.7, ordinea de inserare |
+| Chei/indici permise | Numai poziții numerice | Orice tip imutabil (str, int, tuple) |
+
+### `defaultdict` și `.setdefault()` — evitarea `KeyError` la agregare
+
+Un pattern extrem de comun: construirea unui dicționar prin agregare, unde fiecare cheie nouă are nevoie de o valoare implicită (o listă goală, un contor la 0) înainte de a putea fi extinsă:
+
+```python
+from collections import defaultdict
+
+grupuri = defaultdict(list)   # orice cheie NOUĂ primește automat o listă vidă implicit
+grupuri["fructe"].append("măr")
+grupuri["fructe"].append("pară")
+grupuri["legume"].append("morcov")
+
+print(dict(grupuri))   # {'fructe': ['măr', 'pară'], 'legume': ['morcov']}
+```
+
+Fără `defaultdict`, ai avea nevoie de o verificare explicită la fiecare adăugare (`if cheie not in grupuri: grupuri[cheie] = []`) — `defaultdict` elimină acest boilerplate, creând automat valoarea implicită prima dată când o cheie e accesată, dacă nu exista deja.
+
+### Dict comprehensions — construcție concisă
+
+```python
+numere = [1, 2, 3, 4]
+patrate = {n: n ** 2 for n in numere}   # {1: 1, 2: 4, 3: 9, 4: 16}
+
+# Inversarea unui dicționar (cheie <-> valoare):
+original = {"a": 1, "b": 2}
+inversat = {v: k for k, v in original.items()}   # {1: 'a', 2: 'b'}
+```
+
+Aceeași idee de list comprehension din L7/L18, aplicată dicționarelor — construiești un dicționar nou printr-o expresie compactă, în loc de o buclă explicită cu `.items()`.
+
+<CosmoHint emotion="encouraging">
+Configurările de model AI sunt aproape universal reprezentate ca dicționare — `parametri = {"temperature": 0.7, "max_tokens": 500, "top_p": 0.9}`, transmis apoi direct ca `**parametri` la o funcție (revezi `**kwargs` din L9). Un JSON de configurare, citit dintr-un fișier, se încarcă direct ca dicționar Python prin `json.loads()` (detalii complete în L24) — legătura dintre JSON și dicționar e practic 1-la-1, motiv pentru care ambele structuri se simt aproape identice de folosit.
+</CosmoHint>
+
+### Când NU folosești un dicționar
+
+Dacă ordinea numerică e semnificația de bază a datelor tale (o secvență de pași, un istoric cronologic simplu), o listă e alegerea corectă — dicționarul adaugă complexitate inutilă pentru un caz unde poziția *este* semnificația. Dicționarul câștigă exact când accesul e natural prin *nume/identificator*, nu prin *poziție* — utilizatori identificați prin ID, configurări identificate prin nume de parametru, contoare identificate prin categorie.
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Nevoie | Metodă |
+|---|---|
+| Acces sigur, cu valoare implicită dacă cheia nu există | `.get(cheie, implicit)` |
+| Verificare existență cheie | `cheie in dictionar` |
+| Iterare cheie + valoare simultan | `.items()` |
+| Agregare cu valoare implicită automată | `defaultdict(list)` sau `defaultdict(int)` |
+| Construcție concisă dintr-o transformare | dict comprehension |
+
+<FactBox>
+**Dicționare în cifre:**
+- Acces prin cheie: complexitate medie **O(1)** — constant, indiferent de numărul de chei
+- Ordinea de inserare: garantată oficial din **Python 3.7** (2018), doar de implementare înainte
+- Chei valide: doar tipuri **imutabile** — string, int, float, tuple (nu listă, nu dicționar)
+- `defaultdict`: parte din modulul standard `collections`
+- JSON ↔ dicționar Python: mapare aproape 1-la-1 prin `json.loads()`/`json.dumps()` (detalii L24)
+- `in` pe dicționar (chei) vs. listă: O(1) vs. O(n) — diferență critică la colecții mari
+</FactBox>
+
+---
+
+## ÎNCHEIERE
+
+Dicționarele oferă exact ce listele nu pot: acces prin identificator semantic, nu poziție numerică, cu performanță constantă indiferent de dimensiune. Combinația listă + dicționar acoperă majoritatea nevoilor de structurare a datelor în cod Python real — și amândouă sunt **mutabile**, cu toate consecințele deja discutate în L3 și L12 despre referințe partajate.
+
+Nu toate colecțiile trebuie să fie modificabile, însă. Lecția următoare introduce tuple-urile — practic liste, dar cu o garanție structurală importantă: odată create, nu se pot schimba niciodată.
