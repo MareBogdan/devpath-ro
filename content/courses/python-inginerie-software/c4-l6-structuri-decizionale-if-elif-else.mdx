@@ -135,6 +135,101 @@ def gestioneaza_comanda(comanda):
 Un pattern frecvent în cod AI real: verificarea tipului de răspuns primit de la o API de model — `if raspuns.get("eroare"): gestioneaza_eroare(...) elif raspuns.get("continut_partial"): continua_streaming(...) else: proceseaza_raspuns_final(...)`. Structura decizională simplă din această lecție e literalmente cum orice cod de integrare cu un LLM decide ce ramură de logică să execute pentru fiecare bucată de răspuns primită.
 </CosmoHint>
 
+### `match` cu pattern-uri de tip și destructurare — dincolo de simplul `switch`
+
+Puterea reală a lui `match` (L2 a introdus doar forma de bază) devine vizibilă la potrivirea pe **structură**, nu doar pe valoare exactă — capacitate pe care niciun `switch` clasic din alte limbaje nu o oferă direct:
+
+```python
+def descrie_raspuns_api(raspuns):
+    match raspuns:
+        case {"status": "eroare", "cod": cod}:
+            return f"Eroare cu codul {cod}"
+        case {"status": "succes", "date": [primul, *restul]}:
+            return f"Succes, primul element: {primul}, încă {len(restul)} rânduri"
+        case {"status": "succes", "date": []}:
+            return "Succes, dar fără date"
+        case _:
+            return "Format necunoscut"
+```
+
+Fiecare `case` descrie simultan **forma** pe care trebuie s-o aibă valoarea (un dicționar cu anumite chei, o listă cu cel puțin un element) și extrage direct sub-valorile relevante în variabile noi (`cod`, `primul`, `restul`) — o combinație de verificare structurală și tuple unpacking (L3, L14) într-o singură construcție. Acest stil de potrivire, împrumutat din limbaje funcționale (Haskell, Rust, Scala), simplifică vizibil cod care altfel ar necesita lanțuri de `if`/`isinstance()`/acces manual la câmpuri imbricate.
+
+### Guard clauses în `match` — condiții suplimentare per caz
+
+```python
+def clasifica_scor(scor):
+    match scor:
+        case n if n >= 90:
+            return "excelent"
+        case n if n >= 70:
+            return "bun"
+        case n if n >= 50:
+            return "satisfăcător"
+        case _:
+            return "insuficient"
+```
+
+Clauza `if` de după un pattern (numită *guard*) adaugă o condiție suplimentară care trebuie satisfăcută pentru ca acel `case` să se potrivească — util pentru intervale numerice sau condiții care nu se pot exprima direct doar prin forma structurală a valorii. Rezultatul se citește aproape identic cu un lanț `elif` echivalent, dar unele echipe preferă `match` pentru claritatea vizuală a alternativelor paralele, mai ales când numărul de cazuri crește peste 4-5 ramuri.
+
+### Operatorii logici ca prescurtare pentru decizii simple
+
+L5 a introdus deja short-circuit evaluation pentru `and`/`or` — merită revizitat aici, în contextul direct al deciziilor, pentru un pattern extrem de comun în cod Python idiomatic:
+
+```python
+# Variantă cu if explicit:
+if utilizator.nume:
+    nume_afisat = utilizator.nume
+else:
+    nume_afisat = "Anonim"
+
+# Variantă echivalentă, mai concisă, folosind 'or':
+nume_afisat = utilizator.nume or "Anonim"
+```
+
+Funcționează pentru că `or` returnează primul operand truthy găsit (revezi L5) — dacă `utilizator.nume` e un string ne-gol (truthy), `or` returnează exact acea valoare, fără să evalueze deloc partea dreaptă; dacă e gol sau `None` (falsy), returnează `"Anonim"`. Această prescurtare e potrivită *doar* pentru valori implicite simple, unde falsy înseamnă corect "lipsă" — nu e potrivită dacă `0` sau `""` ar fi o valoare validă, intenționată, pe care n-ai vrea s-o înlocuiești accidental cu valoarea implicită.
+
+### Verificarea explicită a tipului înainte de o decizie — `isinstance()`
+
+O decizie frecventă în cod care primește date din surse externe (JSON dintr-o API, revezi C3 L20-L22) e verificarea tipului înainte de a proceda, exact pattern-ul deja introdus la `bool` în L4:
+
+```python
+def proceseaza_valoare(valoare):
+    if isinstance(valoare, str):
+        return valoare.strip().lower()
+    elif isinstance(valoare, (int, float)):     # tuple de tipuri — 'sau unul, sau altul'
+        return round(valoare, 2)
+    elif isinstance(valoare, list):
+        return len(valoare)
+    else:
+        return None
+```
+
+`isinstance()` acceptă un al doilea argument fie ca tip unic, fie ca tuple de tipuri acceptate simultan — util când mai multe tipuri trebuie tratate identic (`int` și `float`, ambele numerice, tratate la fel în exemplul de mai sus). Această structură — decizie pe tip, nu pe valoare — apare constant în cod care validează sau normalizează date de formă necunoscută dinainte, exact scenariul pe care Pydantic (L24) îl automatizează complet, dar care rămâne util de înțeles manual pentru cazuri simple, ad-hoc.
+
+Diferența dintre `isinstance()` și verificarea directă cu `type() == ...` merită reținută: `isinstance()` respectă moștenirea (o subclasă a tipului cerut se potrivește, la fel cum `True` s-a potrivit deja cu `int` în L4), în timp ce `type(x) == int` cere o egalitate exactă de tip, ignorând orice relație de moștenire. Practica idiomatică recomandă `isinstance()` aproape universal, exact pentru această flexibilitate suplimentară, fără cost practic.
+
+### Decizii bazate pe excepții vs. decizii bazate pe `if` — EAFP revizitat
+
+L11 introduce filosofia EAFP a Python (easier to ask forgiveness than permission) — merită menționată aici, ca alternativă reală la o structură decizională explicită pentru anumite cazuri:
+
+```python
+# Stil LBYL (look before you leap) — verifici explicit înainte:
+if "cheie" in dictionar:
+    valoare = dictionar["cheie"]
+else:
+    valoare = None
+
+# Stil EAFP — încerci direct, gestionezi eșecul:
+try:
+    valoare = dictionar["cheie"]
+except KeyError:
+    valoare = None
+```
+
+Ambele produc rezultatul identic, dar comunitatea Python preferă în general EAFP pentru cazuri unde eșecul e rar și verificarea explicită ar dubla costul (verifici, apoi accesezi din nou) — o alegere de stil pe care o vei vedea justificată complet abia în L11, dar care merită menționată acum, ca a treia cale posibilă alături de `if`/`elif`/`else` obișnuit.
+
+Alegerea între cele două stiluri nu e strict o chestiune de gust: dacă absența cheii e cazul comun, previzibil, frecvent (verifici sistematic dacă un utilizator opțional a completat un câmp), `if`/`else` explicit comunică mai clar intenția și evită costul de a construi și captura o excepție doar pentru un caz normal, nu excepțional. Dacă absența e rară, o anomalie neobișnuită, EAFP evită overhead-ul verificării repetate pentru un caz care aproape niciodată nu se întâmplă.
+
 ---
 
 ## REVEAL
