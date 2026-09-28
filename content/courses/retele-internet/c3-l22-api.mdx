@@ -1,0 +1,122 @@
+---
+title: "API: Contractul care ascunde complexitatea"
+order: 22
+type: lesson
+module_index: 3
+duration: 13
+difficulty: 2
+---
+
+# API: Contractul care ascunde complexitatea
+
+## HOOK
+
+Un model AI generează un răspuns. Aplicația ta face un `POST` către `api.openai.com/v1/chat/completions`, cu un JSON care conține promptul, primește înapoi un JSON cu răspunsul — fără să știe nimic despre pe ce GPU rulează inferența, în ce datacenter, cu ce framework. Aceeași abstractizare ai văzut-o deja, la alt nivel, în cursul despre sisteme de operare: un program care apelează `write()` nu știe și nici nu-i pasă dacă scrie pe un SSD NVMe sau pe un HDD vechi — kernel-ul ascunde diferența în spatele aceluiași apel.
+
+**API** (Application Programming Interface) e exact acest pattern, repetat la fiecare nivel al informaticii: un contract explicit — "trimite-mi exact aceste date, în acest format, și primești înapoi exact acestea" — care ascunde complet implementarea din spate. L21 a comparat REST și GraphQL ca două stiluri de API *web*, dar API-urile există la orice granulație: o funcție dintr-o bibliotecă, un syscall al kernel-ului, un microserviciu intern, un produs SaaS expus public.
+
+---
+
+## CONTEXT
+
+Termenul "API" precede internetul — apărea deja în anii '60-'70 pentru interfețele dintre module de cod compilat separat. Ce s-a schimbat radical în ultimii 20 de ani e **API-ul web public**: companii care expun explicit funcționalitate internă către dezvoltatori terți, ca produs de sine stătător. **Salesforce** (2000) și **eBay** (2000) sunt printre primele API-uri web comerciale majore. **Twilio** (2008) a construit un model de business întreg pe ideea "API-first" — produsul *este* API-ul, fără interfață grafică pentru consumator final.
+
+Boom-ul actual de API-uri AI (OpenAI, Anthropic, Google) urmează exact aceeași logică: modele antrenate cu costuri masive de infrastructură, expuse ca un simplu apel HTTP cu autentificare prin cheie — orice dezvoltator individual poate integra capabilități care altfel ar necesita mii de GPU-uri și echipe întregi de ML engineers.
+
+---
+
+## MIEZUL
+
+### API-uri la fiecare nivel — aceeași idee, granulații diferite
+
+**Library API** — o funcție dintr-o bibliotecă de cod, apelată direct în același proces. `requests.get(url)` în Python e o API — contractul spune ce parametri accepți și ce obiect returnează, fără ca tu să știi cum construiește intern socket-ul TCP.
+
+**OS API (syscalls)** — kernel-ul expune un set fix de apeluri (`open()`, `read()`, `write()`, `fork()`) pe care orice program trebuie să le folosească pentru a accesa hardware — nu poți scrie direct pe disc din userspace, syscall-ul e singura ușă permisă.
+
+**Web API** — contractul discutat în L20-L21: un server expune funcționalitate peste HTTP, consumată de orice client capabil să facă cereri HTTP, indiferent de limbajul în care e scris.
+
+**SDK (Software Development Kit)** — un wrapper de cod, într-un limbaj specific, peste un web API. `openai.chat.completions.create(...)` în Python e un SDK — sub capotă face exact același `POST` HTTP pe care l-ai putea face manual cu `curl`, dar SDK-ul gestionează serializarea JSON, retry-urile, autentificarea, erorile — pentru tine.
+
+<CosmoHint emotion="thinking">
+De ce un SDK nu e "altceva" decât o API web, ci doar aceeași API cu haine mai comode? Pentru că orice SDK, la un moment dat, tot face request-uri HTTP către același endpoint pe care l-ai apela manual. Diferența e strict de ergonomie — validare de tipuri la compilare (în limbaje tipizate), retry logic încorporat, gestionare automată a paginării. Dacă SDK-ul dispare sau are bug, poți mereu "coborî" la request-uri HTTP brute — contractul de bază rămâne identic.
+</CosmoHint>
+
+### Autentificarea — cine are voie să apeleze
+
+**API key** — cel mai simplu mecanism: un token secret, trimis de obicei în header-ul `Authorization: Bearer sk-...` sau `X-API-Key`. Identifică *aplicația* care apelează, nu neapărat un utilizator uman specific. Simplu de implementat, dar cheia e un secret permanent — dacă se scurge (commit accidental pe GitHub, log expus), rămâne validă până e revocată manual.
+
+**OAuth 2.0** — protocol pentru delegarea accesului fără să împarți parola. Când o aplicație terță cere "Continuă cu Google", nu primește niciodată parola ta de Google — primește un **token de acces** cu scop limitat (`scope=email,profile`), emis de Google după ce tu confirmi explicit, valabil o perioadă limitată și revocabil independent de parola ta reală.
+
+Fluxul **Authorization Code** (cel mai comun pentru aplicații web): utilizatorul e redirecționat la serverul de autorizare (Google), se autentifică acolo, aprobă scope-urile cerute, e redirecționat înapoi cu un **cod temporar** de scurtă durată — aplicația schimbă acest cod, server-to-server (nu vizibil în browser), pentru un **access token** + **refresh token**. Access token-ul expiră rapid (minute-ore); refresh token-ul, stocat securizat server-side, se folosește pentru a obține access token-uri noi fără să ceri utilizatorului să se re-autentifice.
+
+{/* TABLE */}
+
+| Mecanism | Identifică | Revocare | Caz de uz tipic |
+|---|---|---|---|
+| API key | Aplicația | Manuală, prin dashboard | API-uri server-to-server (OpenAI, Stripe) |
+| OAuth 2.0 | Utilizatorul (delegat) | Automată, prin expirare + refresh | "Continuă cu Google/GitHub" |
+| JWT (JSON Web Token) | Utilizatorul, self-contained | Dificilă înainte de expirare | Sesiuni API interne, microservicii |
+| mTLS (certificate client) | Serverul/dispozitivul | Prin revocarea certificatului | Comunicare server-to-server de mare securitate |
+
+### Rate limiting — protecția contra abuzului
+
+Orice API publică serioasă limitează câte cereri poate face un client într-o fereastră de timp — altfel un singur client prost scris (sau malițios) poate satura infrastructura pentru toți ceilalți. Răspunsul standard la depășire e `429 Too Many Requests` (L20), însoțit de header-e care spun clientului exact cât mai are de așteptat:
+
+```
+HTTP/1.1 429 Too Many Requests
+X-RateLimit-Limit: 100
+X-RateLimit-Remaining: 0
+X-RateLimit-Reset: 1699900000
+Retry-After: 42
+```
+
+Algoritmul clasic e **token bucket**: fiecare client are un "bucket" cu N token-uri, fiecare cerere consumă unul, bucket-ul se reumple la o rată fixă (ex. 10 token-uri/secundă). Permite izbucniri scurte de trafic (dacă bucket-ul e plin) fără să oblige la o rată perfect constantă, dar plafonează consumul mediu pe termen lung.
+
+### Idempotency keys — siguranță la retry
+
+Din L20 știi că `POST` nu e idempotent — a-l retrimite creează o resursă nouă. Problemă reală: dacă rețeaua pică exact între trimiterea cererii și primirea răspunsului, clientul nu știe dacă cererea a ajuns sau nu — retrimite din siguranță, riscând să dubleze o plată sau o comandă.
+
+Soluția, folosită de Stripe și majoritatea API-urilor de plăți: clientul generează un **idempotency key** unic (de obicei un UUID) și-l trimite în header (`Idempotency-Key: 7f3a...`). Serverul reține rezultatul primei cereri cu acea cheie; dacă primește din nou aceeași cheie, returnează rezultatul salvat, fără să repete efectul — retry-ul devine sigur, chiar și pentru operațiuni care creează resurse.
+
+<CosmoHint emotion="encouraging">
+Documentația **OpenAPI** (fostă Swagger) descrie o API web complet — endpoint-uri, parametri, scheme de autentificare, formatele exacte de request/response — într-un fișier YAML/JSON mașină-lizibil. Din acel fișier se generează automat documentație interactivă, clienți SDK în orice limbaj, și teste de contract. `openapi.json` sau `swagger.json` la rădăcina unei API e primul loc de verificat când integrezi ceva nou.
+</CosmoHint>
+
+### Paginarea — când răspunsul e prea mare
+
+O API care returnează "toate comenzile" pentru un cont cu un milion de înregistrări nu poate trimite totul într-un singur răspuns. **Offset pagination** (`?page=2&limit=50`) e simplă dar degradează pe seturi mari — baza de date tot trebuie să numere și să sară peste primele N rânduri. **Cursor pagination** (`?after=eyJpZCI6NDJ9`) folosește un cursor opac care încapsulează poziția exactă în date — mult mai eficient pentru seturi mari și stabil chiar dacă se inserează rânduri noi între cereri, motiv pentru care e standardul preferat la API-urile la scară (GitHub, Stripe, majoritatea API-urilor de social media).
+
+### API Gateway — punctul unic de intrare
+
+Într-un sistem cu zeci de microservicii interne, un **API Gateway** (Kong, AWS API Gateway, sau soluții proprii) stă în față ca punct unic public: rutează cererile către serviciul intern corect, aplică rate limiting centralizat, verifică autentificarea o singură dată (nu în fiecare microserviciu), agregă log-uri și metrici. Clientul extern nu știe și nu trebuie să știe câte servicii separate răspund efectiv în spate.
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Nivel | Exemplu concret | Contract |
+|---|---|---|
+| Library API | `json.loads(text)` | Semnătura funcției |
+| OS API | `open()`, `read()`, `write()` | Syscall table |
+| Web API | `POST /v1/chat/completions` | Schemă HTTP + JSON |
+| SDK | `openai.chat.completions.create()` | Wrapper peste web API |
+
+<FactBox>
+**API în cifre:**
+- OAuth 2.0: standardizat prin **RFC 6749**, 2012
+- Access token OAuth: expiră tipic în **minute-ore**; refresh token — zile-luni
+- Token bucket: permite izbucniri scurte peste rata medie configurată, fără să depășească plafonul pe termen lung
+- `429 Too Many Requests`: standardizat prin **RFC 6585**, 2012
+- Idempotency keys (Stripe): rezultatul cererii originale reținut tipic **24 de ore**
+- OpenAPI Specification: peste **90%** din API-urile publice majore publică o schemă machine-readable
+</FactBox>
+
+---
+
+## ÎNCHEIERE
+
+O API e, la orice nivel — funcție, syscall, endpoint HTTP — același contract: input definit, output garantat, implementare complet ascunsă. Autentificarea decide cine intră, rate limiting-ul decide cât de des, idempotency keys decid ce se întâmplă când rețeaua nu cooperează.
+
+Toate API-urile de până acum au fost **cerere-răspuns**: clientul întreabă, serverul răspunde, conexiunea se închide sau așteaptă următoarea cerere. Dar ce faci când serverul trebuie să-ți trimită date *fără* să aștepți o cerere — un mesaj nou de chat, un preț care se schimbă în timp real? Lecția următoare rupe acest model: WebSockets.
