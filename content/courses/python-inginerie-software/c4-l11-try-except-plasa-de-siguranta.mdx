@@ -1,0 +1,163 @@
+---
+title: "Try/Except: Plasa de siguranță"
+order: 11
+type: lesson
+module_index: 4
+duration: 13
+difficulty: 2
+---
+
+# Try/Except: Plasa de siguranță
+
+## HOOK
+
+O aplicație face un apel către o API de model AI (C3 L22). Rețeaua e instabilă — o dată din cincizeci de apeluri, conexiunea expiră (timeout) sau serverul răspunde `503 Service Unavailable`. Fără nicio gestionare, acea a cincizecea cerere prăbușește complet aplicația: excepția netratată se propagă, procesul se termină, toți utilizatorii activi în acel moment pierd sesiunea.
+
+`try`/`except` e mecanismul prin care Python izolează un cod "riscant" de restul programului — dacă ceva eșuează în interiorul unui bloc `try`, execuția sare direct în blocul `except` corespunzător, în loc să prăbușească întregul proces. Nu previne eroarea în sine — previne *propagarea necontrolată* a ei.
+
+---
+
+## CONTEXT
+
+Excepțiile ca mecanism de gestionare a erorilor, spre deosebire de codurile de eroare returnate manual (stilul clasic C, unde fiecare funcție returnează un cod care trebuie verificat explicit după fiecare apel), apar deja în limbaje precum CLU (1975) și PL/I, dar devin mainstream prin C++ și Java în anii '90. Ideea centrală: o eroare "sare" automat prin lanțul de apeluri de funcții, până găsește un handler care o gestionează explicit — fără ca fiecare nivel intermediar să trebuiască să verifice și să repropage manual un cod de eroare.
+
+Python adoptă acest model integral — practic orice eroare de runtime (împărțire la zero, index inexistent, tip greșit) e o **excepție**, o instanță a unei clase care descinde din `BaseException`. Filozofia Python înclină explicit către "e mai ușor să ceri scuze decât permisiune" (**EAFP** — easier to ask forgiveness than permission): încearcă direct operațiunea și gestionează eroarea dacă apare, în loc să verifici exhaustiv toate condițiile posibile de eroare *înainte* de a acționa (stilul opus, **LBYL** — look before you leap, tipic altor limbaje).
+
+---
+
+## MIEZUL
+
+### Structura de bază
+
+```python
+try:
+    numar = int(input("Introduceți un număr: "))
+    rezultat = 100 / numar
+    print(f"Rezultat: {rezultat}")
+except ValueError:
+    print("Nu ai introdus un număr valid.")
+except ZeroDivisionError:
+    print("Nu poți împărți la zero.")
+else:
+    print("Calculul a reușit fără erori.")
+finally:
+    print("Acest bloc rulează ÎNTOTDEAUNA, indiferent de rezultat.")
+```
+
+Cinci componente, fiecare cu rol distinct: `try` — codul riscant, monitorizat. `except TipEroare:` — gestionarea specifică a acelui tip de eroare (pot exista mai multe, fiecare pentru un tip diferit). `else` — rulează doar dacă blocul `try` s-a terminat **fără** nicio excepție. `finally` — rulează **întotdeauna**, fie că a fost excepție sau nu — util pentru cleanup obligatoriu (închiderea unui fișier, eliberarea unei conexiuni).
+
+<CosmoHint emotion="thinking">
+De ce ordinea blocurilor `except` contează, exact ca la `elif` din L6? Python evaluează blocurile `except` în ordine și execută primul care se potrivește tipului excepției ridicate. Dacă pui `except Exception:` (clasa generică, părinte a aproape tuturor excepțiilor) ÎNAINTE de `except ValueError:` specific, al doilea bloc devine cod mort — `Exception` prinde deja totul, inclusiv `ValueError`, înainte ca interpretorul să ajungă la blocul specific. Regula: excepțiile cele mai SPECIFICE primele, cele mai generale la urmă.
+</CosmoHint>
+
+### Ierarhia excepțiilor — de ce `except Exception` prinde (aproape) tot
+
+```python
+try:
+    x = 1 / 0
+except ArithmeticError:      # clasă PĂRINTE a ZeroDivisionError
+    print("Prins de clasa părinte!")
+```
+
+Excepțiile Python formează o **ierarhie de clase** — `ZeroDivisionError` e o subclasă a `ArithmeticError`, care e o subclasă a `Exception`, care e o subclasă a `BaseException`. Un `except` care specifică o clasă părinte prinde automat orice excepție din subclasele ei, nu doar acel tip exact.
+
+{/* TABLE */}
+
+| Excepție | Cauză tipică |
+|---|---|
+| `ValueError` | Valoare de tip corect, dar conținut invalid (`int("abc")`) |
+| `TypeError` | Operație pe tipuri incompatibile (`"text" + 5`) |
+| `KeyError` | Cheie inexistentă într-un dicționar |
+| `IndexError` | Index în afara limitelor unei liste |
+| `AttributeError` | Atribut/metodă inexistentă pe un obiect (`None.ceva`) |
+| `FileNotFoundError` | Fișier inexistent la citire |
+| `ZeroDivisionError` | Împărțire la zero |
+| `ConnectionError` | Eroare de rețea (relevant pentru apeluri API, C3 L20-L22) |
+
+**Anti-pattern-ul de evitat obligatoriu**: `except:` fără nicio clasă specificată prinde absolut *tot*, inclusiv erori care indică bug-uri reale de programare (`NameError`, `SyntaxError` la eval dinamic) sau chiar `KeyboardInterrupt` (Ctrl+C) — mascând complet problema și făcând debugging-ul aproape imposibil. Specifică întotdeauna tipul exact de excepție pe care te aștepți s-o gestionezi.
+
+### Ridicarea excepțiilor proprii — `raise`
+
+```python
+def valideaza_varsta(varsta):
+    if varsta < 0:
+        raise ValueError(f"Vârsta nu poate fi negativă: {varsta}")
+    if varsta > 150:
+        raise ValueError(f"Vârsta pare nerealistă: {varsta}")
+    return varsta
+
+try:
+    valideaza_varsta(-5)
+except ValueError as eroare:
+    print(f"Validare eșuată: {eroare}")   # 'eroare' e OBIECTUL excepției, nu doar un string
+```
+
+`raise` întrerupe execuția imediat, exact ca `return`, dar semnalând explicit un eșec, nu un rezultat normal. `except ValueError as eroare:` capturează instanța excepției într-o variabilă — `str(eroare)` sau `f"{eroare}"` produce mesajul, dar obiectul complet oferă și acces la alte detalii (tip, traceback), util în logging structurat.
+
+### Excepții personalizate — clase proprii de eroare
+
+```python
+class EroareValidareModel(Exception):
+    """Eroare specifică pentru validarea input-ului unui model AI."""
+    pass
+
+def valideaza_prompt(prompt):
+    if len(prompt) > 4096:
+        raise EroareValidareModel(f"Prompt prea lung: {len(prompt)} caractere")
+    return prompt
+
+try:
+    valideaza_prompt("x" * 5000)
+except EroareValidareModel as eroare:
+    print(f"Eroare specifică aplicației: {eroare}")
+```
+
+Definirea propriilor clase de excepție (descendente din `Exception`) permite unui apelant să distingă precis erorile specifice logicii tale de business de erorile generice ale limbajului — un pattern universal în API-uri și biblioteci serioase, inclusiv în SDK-uri de AI, care definesc excepții proprii (`RateLimitError`, `APIConnectionError`) pentru a permite gestionare granulară a diferitelor tipuri de eșecuri.
+
+<CosmoHint emotion="encouraging">
+Codul de integrare cu orice API externă (modele AI, servicii de plăți) ar trebui întotdeauna să distingă cel puțin trei categorii de eșec: eroare temporară de rețea (merită reîncercare — `ConnectionError`, `TimeoutError`), eroare de rate limiting (merită așteptare urmată de reîncercare, revezi `429` din C3 L22), și eroare permanentă (input invalid, autentificare greșită — reîncercarea identică nu ajută, trebuie corectată cauza). Structura `try`/`except` cu blocuri separate pentru fiecare categorie e diferența dintre o aplicație robustă și una care se prăbușește la prima fluctuație de rețea.
+</CosmoHint>
+
+### `finally` și context managers — cleanup garantat
+
+```python
+fisier = open("date.txt", "r")
+try:
+    continut = fisier.read()
+    proceseaza(continut)
+finally:
+    fisier.close()   # se execută ÎNTOTDEAUNA — chiar dacă proceseaza() aruncă o excepție
+```
+
+Acest pattern — `finally` pentru cleanup garantat — e atât de comun (fișiere, conexiuni de rețea, lock-uri) încât Python oferă o sintaxă dedicată, mai concisă și mai sigură: `with` (context manager), pe care o vei întâlni în detaliu în L22, dedicată exact gestionării fișierelor — dar reține deja aici legătura directă: `with` e, sub capotă, exact acest pattern `try`/`finally`, automatizat.
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Bloc | Se execută când |
+|---|---|
+| `try` | Mereu — conține codul monitorizat |
+| `except TipEroare:` | Doar dacă apare o excepție de acel tip (sau subclasă) |
+| `else` | Doar dacă `try` s-a terminat FĂRĂ nicio excepție |
+| `finally` | ÎNTOTDEAUNA — cu sau fără excepție, cu sau fără `return` anterior |
+
+<FactBox>
+**Try/Except în cifre:**
+- Filozofia Python: EAFP (easier to ask forgiveness than permission) — încearcă direct, gestionează eroarea dacă apare
+- Ierarhia excepțiilor: rădăcina e `BaseException`, aproape toate excepțiile uzuale descind din `Exception`
+- `except:` fără tip specificat: anti-pattern — prinde inclusiv `KeyboardInterrupt`, mascând bug-uri reale
+- Ordinea blocurilor `except`: de la cel mai specific la cel mai general, evaluate secvențial
+- `finally`: garantat să ruleze, chiar și după un `return` din blocul `try` sau `except`
+- Excepții personalizate: pattern standard în orice SDK serios (inclusiv API-uri AI) pentru gestionare granulară a erorilor
+</FactBox>
+
+---
+
+## ÎNCHEIERE
+
+`try`/`except` transformă erorile din evenimente catastrofale (care ar prăbuși întregul program) în cazuri gestionate explicit, cu comportament predictibil pentru fiecare tip de eșec posibil. Regula practică rămâne constantă: fii cât mai specific în tipurile de excepție capturate, folosește `finally` pentru cleanup garantat, și nu ascunde niciodată o eroare fără s-o gestionezi corect.
+
+Ai lucrat până acum cu valori individuale — numere, string-uri, booleeni. Programele reale gestionează *colecții* de date — mii de utilizatori, mii de exemple de antrenare. Lecția următoare introduce prima și cea mai fundamentală structură de colecție din Python: listele.
