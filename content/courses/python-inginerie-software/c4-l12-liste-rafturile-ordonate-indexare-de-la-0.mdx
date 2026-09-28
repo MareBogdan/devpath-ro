@@ -1,0 +1,150 @@
+---
+title: "Liste: Rafturile ordonate, indexare de la 0"
+order: 12
+type: lesson
+module_index: 4
+duration: 13
+difficulty: 1
+---
+
+# Liste: Rafturile ordonate, indexare de la 0
+
+## HOOK
+
+Un dataset de antrenare AI conține 50.000 de exemple. Fiecare exemplu are o poziție fixă, o ordine — primul exemplu, al doilea, al 49.999-lea. Ai nevoie de o structură care ține toate aceste elemente, în ordinea exactă în care le-ai adăugat, accesibile individual după poziție, extensibilă (mai adaugi exemple), și modificabilă (elimini exemple corupte). **Lista** e exact această structură — colecția de bază, cea mai folosită din tot Python, prezentă în aproape orice program non-trivial.
+
+Comparativ cu tipurile primitive din L4 — un singur `int`, un singur `str` — o listă ține **mai multe valori, ordonate, sub un singur nume**. E prima structură de date "compusă" pe care o întâlnești în acest curs, și fundația conceptuală pentru dicționare, tuple-uri și set-uri din lecțiile imediat următoare.
+
+---
+
+## CONTEXT
+
+Structurile de date de tip listă/array există în orice limbaj de programare — dar implementarea variază fundamental. Un `array` din C are dimensiune **fixă**, stabilită la creare, cu elemente stocate contiguu în memorie — acces instant prin index (`O(1)`), dar fără posibilitate de a crește dinamic fără realocare manuală completă.
+
+O listă Python e conceptual un **array dinamic**: intern, CPython alocă un buffer contiguu mai mare decât conținutul curent, permițând adăugare rapidă la final fără realocare la fiecare element — realocarea (mai costisitoare) se întâmplă doar ocazional, când buffer-ul se umple complet. Rezultatul practic: liste care cresc și se micșorează liber, cu acces prin index la fel de rapid ca un array C clasic.
+
+---
+
+## MIEZUL
+
+### Creare, indexare, slicing
+
+```python
+fructe = ["măr", "pară", "kiwi", "banană"]
+
+print(fructe[0])     # "măr" — PRIMUL element, index 0
+print(fructe[-1])     # "banană" — ULTIMUL element, index negativ
+print(fructe[1:3])    # ["pară", "kiwi"] — slice: de la index 1 până la 3 (EXCLUSIV)
+print(fructe[:2])      # ["măr", "pară"] — de la început până la index 2
+print(fructe[::2])      # ["măr", "kiwi"] — fiecare al doilea element (pas 2)
+print(fructe[::-1])      # ["banană", "kiwi", "pară", "măr"] — lista INVERSATĂ
+```
+
+Indexarea de la `0` (nu de la `1`) e convenția aproape universală în limbajele de programare moderne — motivul istoric ține de aritmetica de pointeri din C, unde `array[i]` e literal `*(array + i)`, iar primul element e la offset `0` față de adresa de bază. Python o păstrează pentru consistență cu restul ecosistemului, chiar dacă nu manipulează pointeri direct.
+
+**Slicing** (`lista[start:stop:pas]`) e una dintre cele mai puternice unelte pentru manipularea listelor — `stop` e întotdeauna **exclusiv** (nu inclus în rezultat), aceeași convenție ca la `range()` din L7. Indexul negativ (`-1`, `-2`) contează de la finalul listei, evitând nevoia de a calcula manual `len(lista) - 1`.
+
+<CosmoHint emotion="thinking">
+De ce `fructe[10]` pe o listă cu 4 elemente aruncă `IndexError`, dar `fructe[1:100]` NU aruncă nicio eroare, ci returnează pur și simplu ce elemente există? Indexarea directă (`[]` fără `:`) cere o poziție EXACTĂ, validă — orice depășire e o eroare clară. Slicing-ul, în schimb, e conceput să fie tolerant la limite — e util constant pentru "dă-mi primele N elemente, sau toate câte sunt, oricare-i mai mic" fără să verifici manual lungimea listei înainte.
+</CosmoHint>
+
+### Metodele esențiale ale unei liste
+
+{/* TABLE */}
+
+| Metodă | Efect | Complexitate tipică |
+|---|---|---|
+| `.append(x)` | Adaugă `x` la final | O(1) amortizat |
+| `.insert(i, x)` | Inserează `x` la poziția `i` | O(n) — deplasează restul |
+| `.remove(x)` | Elimină PRIMA apariție a valorii `x` | O(n) — caută, apoi deplasează |
+| `.pop(i)` | Elimină și returnează elementul de la index `i` (implicit ultimul) | O(1) pentru ultimul, O(n) altfel |
+| `.sort()` | Sortează lista ÎN LOC (modifică originalul) | O(n log n) |
+| `.index(x)` | Returnează indexul primei apariții a `x` | O(n) |
+| `.extend(alta_lista)` | Adaugă toate elementele altei liste | O(k), k = lungimea adăugată |
+
+```python
+numere = [5, 3, 8, 1]
+numere.append(9)          # [5, 3, 8, 1, 9]
+numere.sort()               # [1, 3, 5, 8, 9] — MODIFICĂ lista, nu returnează una nouă
+numere.pop()                 # elimină și returnează 9 → lista devine [1, 3, 5, 8]
+
+numere_sortate = sorted([5, 3, 8, 1])   # sorted() ÎNTOARCE o listă NOUĂ, originalul intact
+```
+
+Distincția `.sort()` vs. `sorted()` e importantă și generalizabilă: metode care se termină fără a returna explicit ceva relevant (`.sort()`, `.append()`, `.reverse()`) modifică lista **în loc** și returnează `None` — funcțiile de sine stătătoare (`sorted()`, `reversed()`) creează întotdeauna un **obiect nou**, lăsând originalul neschimbat.
+
+### Liste sunt mutabile — consecințe directe din L3
+
+```python
+a = [1, 2, 3]
+b = a              # 'b' e un AL DOILEA NUME pentru ACELAȘI obiect listă (L3)
+b.append(4)
+print(a)             # [1, 2, 3, 4] — 'a' s-a schimbat, deși ai modificat prin 'b'!
+
+c = a.copy()          # copie SUPERFICIALĂ — obiect NOU, dar independent la primul nivel
+c.append(5)
+print(a)               # [1, 2, 3, 4] — 'a' NU s-a schimbat prin 'c'
+```
+
+Aceasta e exact consecința practică promisă în L3: pentru că listele sunt **mutabile**, două nume care referă aceeași listă văd *aceleași* modificări, indiferent prin care nume ai modificat-o. `.copy()` (sau `list(a)`, sau `a[:]`) creează un obiect independent — dar atenție: e o copie **superficială** (shallow copy) — dacă lista conține alte liste imbricate, sub-listele rămân partajate între original și copie. Pentru independență completă la orice nivel de imbricare, ai nevoie de `copy.deepcopy()`.
+
+<CosmoHint emotion="encouraging">
+Un batch de date de antrenare e, la cel mai simplu nivel conceptual, o listă de exemple — `batch = date_antrenare[i:i+dimensiune_batch]`, exact sintaxa de slicing pe care ai văzut-o mai sus. Framework-urile reale (PyTorch DataLoader) folosesc structuri mult mai optimizate intern, dar ideea de bază — extragerea unei "bucăți" ordonate dintr-o colecție mai mare — e identică cu slicing-ul unei liste Python simple.
+</CosmoHint>
+
+### List comprehensions — o previzualizare a L18
+
+```python
+numere = [1, 2, 3, 4, 5]
+patrate = [x ** 2 for x in numere]                # [1, 4, 9, 16, 25]
+pare = [x for x in numere if x % 2 == 0]            # [2, 4]
+```
+
+Ai văzut deja acest pattern menționat în L7 — construirea unei liste noi prin transformarea/filtrarea alteia, într-o singură linie concisă. L18 dedică o lecție completă acestei sintaxe; reține pentru acum doar că listele sunt structura peste care operează cel mai frecvent.
+
+### Liste de liste — matrici simple
+
+```python
+matrice = [
+    [1, 2, 3],
+    [4, 5, 6],
+    [7, 8, 9]
+]
+
+print(matrice[1][2])   # 6 — rândul 1, coloana 2
+```
+
+O listă poate conține alte liste ca elemente — reprezentarea Python cea mai simplă (dar și cea mai lentă la scară) a unei matrici. NumPy (folosit masiv în AI/ML) oferă o structură dedicată, mult mai eficientă, pentru exact acest caz de uz — dar înțelegerea acestei forme simple, cu liste imbricate, e fundamentul conceptual peste care se construiește orice discuție ulterioară despre array-uri N-dimensionale.
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Operațiune | Cod | Rezultat |
+|---|---|---|
+| Primul element | `lista[0]` | Elementul de la index 0 |
+| Ultimul element | `lista[-1]` | Elementul de la finalul listei |
+| Sub-listă (fără ultimul) | `lista[:-1]` | Toate elementele, cu excepția ultimului |
+| Listă inversată | `lista[::-1]` | Elementele în ordine inversă |
+| Adăugare la final | `lista.append(x)` | Modifică lista în loc |
+| Copie independentă (nivel 1) | `lista.copy()` sau `lista[:]` | Obiect nou, shallow copy |
+
+<FactBox>
+**Liste în cifre:**
+- Indexare de la **0**: convenție moștenită din aritmetica de pointeri C, universală în Python
+- Slicing (`lista[start:stop:pas]`): `stop` întotdeauna exclusiv, la fel ca `range()`
+- `.append()`: complexitate O(1) amortizat — array dinamic, realocare rară, nu la fiecare element
+- `.sort()` vs `sorted()`: modifică în loc (returnează `None`) vs. creează o listă nouă
+- Copie superficială (`.copy()`) vs. profundă (`copy.deepcopy()`): diferența contează la liste imbricate
+- Liste de liste: reprezentare simplă de matrice; NumPy oferă alternativa optimizată pentru calcul numeric real
+</FactBox>
+
+---
+
+## ÎNCHEIERE
+
+Listele sunt structura de bază pentru orice colecție ordonată, mutabilă, în Python — indexare de la 0, slicing flexibil, metode care fie modifică în loc, fie creează obiecte noi. Distincția mutabil/imutabil din L3 devine aici concretă și cu consecințe reale: două variabile care referă aceeași listă văd aceleași modificări, indiferent prin care ai modificat-o.
+
+Dar accesul la elemente prin poziție numerică nu e mereu natural — de multe ori vrei să accesezi date prin *nume*, nu prin index (`utilizator["nume"]`, nu `utilizator[0]`). Lecția următoare introduce structura care rezolvă exact această nevoie: dicționarele, cu acces aproape instant, indiferent de câte elemente conțin.
