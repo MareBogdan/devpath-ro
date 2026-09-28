@@ -1,0 +1,149 @@
+---
+title: "Generatoare și yield: Baza DataLoaders"
+order: 19
+type: lesson
+module_index: 4
+duration: 13
+difficulty: 2
+---
+
+# Generatoare și yield: Baza DataLoaders
+
+## HOOK
+
+Un dataset de antrenare pentru un model de limbaj conține 10 milioane de exemple de text — mult mai mult decât încape simultan în RAM sau VRAM. Dacă ai încerca `date = [incarca(exemplu) for exemplu in toate_exemplele]` (list comprehension din L18), programul ar crăpa cu `MemoryError` mult înainte să termine de construit lista.
+
+Soluția reală: nu ai nevoie de *toate* exemplele simultan — ai nevoie de câte un **batch** (lot) la un moment dat, procesat, apoi eliberat din memorie, înainte de a încărca următorul. **Generatoarele** implementează exact acest model — produc valori una câte una, la cerere, fără să materializeze niciodată colecția completă în memorie. `DataLoader`-ul din PyTorch, folosit la fiecare antrenare de model, e construit conceptual pe exact acest principiu.
+
+---
+
+## CONTEXT
+
+Generatoarele Python (**PEP 255**, 2001) au introdus un concept preluat din coroutine — funcții care pot fi "pauzate" la mijlocul execuției și "reluate" mai târziu, exact de unde s-au oprit, cu toată starea internă intactă. Ideea vine din limbaje mai vechi (CLU, Icon), dar Python a popularizat-o masiv prin sintaxa simplă `yield`, aproape identică vizual cu un `return` obișnuit, dar cu comportament fundamental diferit.
+
+Motivația practică pentru adopția largă: pe măsură ce dataset-urile au crescut exponențial (era big data, apoi era deep learning), materializarea completă a datelor în memorie a devenit rapid nesustenabilă. Generatoarele oferă exact soluția — procesare **lazy** (la cerere), memorie constantă indiferent de dimensiunea totală a datelor.
+
+---
+
+## MIEZUL
+
+### `yield` vs. `return` — diferența fundamentală
+
+```python
+def numere_pana_la(n):
+    contor = 0
+    while contor < n:
+        yield contor      # PAUZEAZĂ aici, returnează valoarea, ȚINE MINTE starea
+        contor += 1
+
+gen = numere_pana_la(5)
+print(gen)           # <generator object numere_pana_la at 0x...> — NU e o listă, e un OBIECT generator
+
+print(next(gen))      # 0 — execută codul PÂNĂ la primul yield
+print(next(gen))       # 1 — CONTINUĂ de unde a rămas, nu de la început
+print(next(gen))        # 2
+```
+
+O funcție care conține `yield` **oriunde** în corpul ei devine automat o **funcție generator** — apelarea ei (`numere_pana_la(5)`) nu execută nicio linie de cod imediat; returnează un obiect generator, care execută codul doar la cerere, prin `next()`. Fiecare `yield` "pauzează" execuția exact în acel punct, salvând toată starea locală (valoarea lui `contor`, poziția exactă în buclă) — la următorul `next()`, execuția reia exact de acolo, nu de la începutul funcției.
+
+<CosmoHint emotion="thinking">
+De ce un generator NU poate fi "restartat" — odată epuizat, rămâne epuizat pentru totdeauna? Pentru că starea internă (poziția în execuție, valorile variabilelor locale) e legată de ACEA instanță specifică a generatorului, creată o singură dată la apelul funcției. `for x in gen: ...` urmat de un al doilea `for x in gen: ...` pe același obiect nu va produce nimic la a doua parcurgere — generatorul și-a "consumat" deja toate valorile. Dacă ai nevoie să iterezi de mai multe ori peste aceleași date, apelezi din nou funcția generator, creând o instanță NOUĂ, proaspătă.
+</CosmoHint>
+
+### Iterarea naturală — `for` consumă un generator automat
+
+```python
+def genereaza_batch_uri(date, dimensiune_batch):
+    for i in range(0, len(date), dimensiune_batch):
+        yield date[i:i + dimensiune_batch]
+
+date = list(range(23))
+for batch in genereaza_batch_uri(date, 5):
+    print(batch)
+# [0, 1, 2, 3, 4]
+# [5, 6, 7, 8, 9]
+# [10, 11, 12, 13, 14]
+# [15, 16, 17, 18, 19]
+# [20, 21, 22]
+```
+
+Nu ai nevoie de `next()` explicit când folosești `for` — bucla apelează automat `next()` intern, repetat, până generatorul se epuizează (semnalat intern prin excepția `StopIteration`, gestionată automat de `for`, invizibilă în codul tău). Acest exemplu, redus la esențial, e literalmente principiul de bază al batching-ului din orice pipeline de antrenare AI: divizarea unui set mare de date în bucăți gestionabile, produse pe rând, nu toate simultan.
+
+{/* TABLE */}
+
+| Aspect | List comprehension `[x for x in ...]` | Generator `(x for x in ...)` |
+|---|---|---|
+| Când se calculează valorile | Imediat, toate deodată | La cerere, una câte una |
+| Memorie folosită | Proporțională cu numărul de elemente | Constantă, indiferent de dimensiune |
+| Poate fi iterat de mai multe ori | Da, oricâte ori | **Nu** — o singură parcurgere, apoi epuizat |
+| Acces prin index (`x[5]`) | Da | **Nu** — nu suportă indexare directă |
+| Potrivit pentru | Colecții mici/medii, acces repetat | Flux mare de date, procesat o singură dată |
+
+### Generator expressions — sintaxa concisă din L18, revizitată
+
+```python
+suma = sum(x ** 2 for x in range(1000000))   # generator — nicio listă intermediară în memorie
+
+# Comparație cu comprehension complet (materializează întreaga listă):
+suma_alt = sum([x ** 2 for x in range(1000000)])   # funcționează, dar folosește memorie inutil
+```
+
+Pentru cazuri unde consumi generatorul o singură dată, direct (`sum()`, `max()`, `for`), generator expression e strict superior comprehension-ului complet — același rezultat, memorie constantă. Diferența devine critică la dataset-uri de dimensiuni reale de AI, unde materializarea completă ar fi pur și simplu imposibilă.
+
+### `DataLoader` — legătura directă cu PyTorch
+
+```python
+class DatasetSimplu:
+    def __init__(self, date):
+        self.date = date
+
+    def __iter__(self):                       # face obiectul ITERABIL
+        for i in range(0, len(self.date), 32):
+            yield self.date[i:i + 32]
+
+dataset = DatasetSimplu(date_antrenare)
+for batch in dataset:                           # 'for' apelează __iter__ automat
+    antreneaza_pas(batch)
+```
+
+`DataLoader`-ul real din PyTorch e mult mai sofisticat — shuffling, procesare paralelă pe mai multe procese worker, prefetching (încarcă următorul batch în avans, în timp ce GPU-ul procesează batch-ul curent) — dar mecanismul conceptual de bază, "produce câte un batch la cerere, fără să încarce tot dataset-ul deodată," e exact ce demonstrează acest exemplu simplificat cu `yield`.
+
+<CosmoHint emotion="excited">
+Streaming-ul de tokeni de la o API de model AI (revezi Server-Sent Events din C3 L23) se modelează natural ca generator în cod Python: `for token in stream_raspuns(prompt): print(token, end="")` — fiecare `yield` din implementarea SDK-ului corespunde exact unui nou token primit de la server, procesat imediat, fără să aștepți răspunsul complet înainte de a începe să afișezi ceva. Aceeași idee de "produce la cerere, nu materializezi tot dintr-o dată" apare la fiecare nivel — de la batch-uri de antrenare, la răspunsuri streamate în timp real.
+</CosmoHint>
+
+### `send()` și generatoare bidirecționale — o mențiune, nu o aprofundare
+
+Generatoarele pot, tehnic, primi valori înapoi prin `.send(valoare)`, nu doar produce — o capacitate avansată, rar folosită direct, dar care stă la baza conceptuală a `async`/`await` din L21. Reține doar existența acestei capacități pentru acum; sintaxa completă a corutinelor bidirecționale nu e necesară pentru scopul acestui curs.
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Cod | Comportament |
+|---|---|
+| `def f(): yield 1` | Funcție generator — apelul NU execută nimic imediat |
+| `gen = f(); next(gen)` | Execută până la primul `yield`, returnează valoarea |
+| `for x in gen:` | Consumă generatorul complet, automat, până la epuizare |
+| `(x for x in range(10))` | Generator expression — lazy, memorie constantă |
+| Al doilea `for` pe același generator epuizat | Nu produce nimic — generatorul e "consumat" |
+
+<FactBox>
+**Generatoare în cifre:**
+- Introduse formal prin **PEP 255** (2001)
+- Memorie folosită: **constantă**, indiferent de câte valori produce generatorul în total
+- Un generator poate fi parcurs complet o SINGURĂ dată — nu suportă restart sau indexare
+- `StopIteration`: excepția internă care semnalează epuizarea, gestionată automat de `for`
+- PyTorch `DataLoader`: adaugă shuffling, paralelism și prefetching peste principiul de bază al generatoarelor
+- Generator expression vs. list comprehension: identice sintactic, diferite doar prin absența parantezelor `[]`
+</FactBox>
+
+---
+
+## ÎNCHEIERE
+
+Generatoarele rezolvă exact problema din HOOK: procesarea de volume mari de date fără a le încărca niciodată complet în memorie, printr-un model de producție "la cerere", implementat cu o sintaxă surprinzător de simplă — `yield` în locul lui `return`. Fiecare `DataLoader` folosit la antrenarea unui model AI se sprijină, la nivelul lui cel mai fundamental, pe exact acest principiu.
+
+Ai văzut deja `nn.Linear`, `torch.no_grad()` — funcții și clase folosite ca și cum ar avea proprietăți speciale, dincolo de apelul obișnuit. Lecția următoare explică exact mecanismul din spatele acestor adnotări cu `@` — decoratorii.
