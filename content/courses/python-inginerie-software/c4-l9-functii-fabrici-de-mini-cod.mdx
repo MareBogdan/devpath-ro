@@ -123,6 +123,61 @@ Acest pattern — trecerea unei funcții ca argument altei funcții — e omnipr
 
 O **funcție pură** produce mereu același rezultat pentru aceleași argumente și nu modifică nimic în afara ei (nu scrie fișiere, nu modifică variabile globale, nu face cereri de rețea). O funcție cu **efecte secundare** face exact asta — modifică stare externă, salvează în bază de date, printează. Ambele sunt necesare într-un program real, dar funcțiile pure sunt mult mai ușor de testat, de raționat despre, și de reutilizat în siguranță — o distincție care va deveni centrală când discutăm scope-ul variabilelor în lecția următoare.
 
+### Funcții anonime cu `lambda` — sintaxa completă
+
+L9 a introdus deja `lambda` în trecere, dar merită revizitată direct, alături de restul sintaxei de funcții, pentru claritate completă:
+
+```python
+patrat = lambda x: x ** 2
+adunare = lambda a, b: a + b
+
+print(patrat(5))       # 25
+print(adunare(3, 4))     # 7
+```
+
+O `lambda` e echivalentă funcțional cu un `def` obișnuit, dar restricționată la **o singură expresie** — fără `if`/`elif` explicit (doar ternar), fără bucle, fără mai multe instrucțiuni. Convenția Python (PEP 8) recomandă explicit să nu atribui o `lambda` unui nume separat, ca în exemplul de mai sus — dacă are nevoie de un nume, un `def` obișnuit e considerat mai clar și mai ușor de depanat (are `__name__` propriu, poate avea docstring); `lambda` e rezervată pentru cazuri unde o funcție e transmisă direct ca argument, fără să merite propriul nume.
+
+```python
+numere = [(1, "b"), (3, "a"), (2, "c")]
+numere_sortate = sorted(numere, key=lambda pereche: pereche[1])   # sortează după al doilea element
+print(numere_sortate)   # [(3, 'a'), (1, 'b'), (2, 'c')]
+```
+
+Acest pattern — `lambda` ca argument `key=` pentru `sorted()`, `max()`, `min()`, `filter()` — e cazul de uz canonic, unde funcția anonimă e folosită o singură dată, exact în acel punct, fără nevoia unui nume separat undeva mai sus în cod.
+
+### Recursivitatea — o funcție care se apelează pe sine
+
+O funcție poate apela ea însăși, direct, din propriul corp — pattern-ul numit recursivitate, util pentru probleme care se descompun natural în sub-probleme identice, mai mici:
+
+```python
+def factorial(n):
+    if n <= 1:              # caz de bază — oprește recursivitatea
+        return 1
+    return n * factorial(n - 1)   # apel recursiv, cu argument redus
+
+print(factorial(5))   # 5 * 4 * 3 * 2 * 1 = 120
+```
+
+Fiecare funcție recursivă corectă are obligatoriu un **caz de bază** (condiția care oprește recursivitatea, aici `n <= 1`) și un **pas recursiv** care se apropie garantat de acel caz de bază la fiecare apel (aici, `n - 1`, mereu mai mic). Omiterea cazului de bază, sau un pas recursiv care nu se apropie de el, produce exact `RecursionError`-ul menționat deja în L8 — echivalentul recursiv al buclei infinite.
+
+Deși elegantă pentru probleme naturale recursive (parcurgerea unei structuri arborescente, de exemplu structura de directoare a unui sistem de fișiere), recursivitatea nu e implicit "mai rapidă" sau "mai eficientă" decât o buclă echivalentă — de multe ori e mai lentă, din cauza overhead-ului fiecărui apel de funcție nou (crearea unui nou cadru de stivă, discutat în cursul de Sisteme de Operare). Alegerea între recursivitate și o buclă explicită rămâne, în primul rând, o decizie de lizibilitate, nu de performanță garantată.
+
+### Funcții de nivel de modul vs. funcții imbricate
+
+```python
+def functie_exterioara():
+    def functie_interioara():          # definită ÎN INTERIORUL alteia — vizibilă doar acolo
+        return "rezultat intern"
+    return functie_interioara()
+
+print(functie_exterioara())   # "rezultat intern"
+print(functie_interioara())      # NameError — nu există în afara funcției exterioare
+```
+
+O funcție definită în interiorul alteia (funcție imbricată) e vizibilă *doar* în scope-ul funcției care o conține — exact regula LEGB pe care o vei detalia complet în lecția următoare. Acest pattern devine esențial pentru decoratori (L20) și closures — funcții care "țin minte" starea din funcția care le-a creat, chiar după ce aceasta s-a terminat de executat.
+
+De ce funcțiile pure sunt preferate explicit în cod de testare automată (unit tests)? Pentru că un test al unei funcții pure verifică o singură relație, complet izolată — "pentru input X, aștept output Y" — fără nicio grijă despre starea globală, fișiere, sau rețea. O funcție cu efecte secundare cere fie mock-uri (simulări ale dependențelor externe), fie o bază de date de test separată, complicând semnificativ scrierea și întreținerea testelor. Extrage cât mai multă logică posibil în funcții pure, izolate, și limitează efectele secundare la un strat cât mai mic, la marginea programului — un principiu de design repetat constant în cod profesional.
+
 ---
 
 ## REVEAL
