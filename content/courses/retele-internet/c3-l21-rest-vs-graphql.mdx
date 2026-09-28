@@ -144,6 +144,47 @@ REST rămâne alegerea implicită pentru API-uri publice simple, unde cache-ul H
 
 Nu sunt exclusive — multe sisteme mari expun ambele: REST pentru integrări externe simple și webhook-uri, GraphQL intern pentru clienții proprii cu nevoi complexe de agregare.
 
+### Mutații — scrierea de date în GraphQL
+
+Interogările (`query`) discutate până acum citesc date, fără efecte secundare. GraphQL definește separat **mutații** (`mutation`) pentru operațiuni care modifică starea — echivalentul conceptual al `POST`/`PUT`/`DELETE` din REST, dar tot printr-un singur endpoint, cu aceeași flexibilitate de a specifica exact ce câmpuri vrei înapoi din rezultat:
+
+```graphql
+mutation {
+  creeazaPostare(continut: "Prima mea postare pe platformă") {
+    id
+    dataCreare
+    autor {
+      nume
+    }
+  }
+}
+```
+
+Diferența față de o interogare obișnuită e doar cuvântul-cheie (`mutation` vs `query`) — sub capotă, GraphQL nu impune nicio garanție structurală de idempotență ca REST (revezi C3 L20): responsabilitatea de a face `creeazaPostare` non-idempotent și o altă mutație, poate `actualizeazaProfil`, idempotentă, rămâne complet la latitudinea celui care implementează resolver-ele, nu la protocol.
+
+O consecință practică a acestei libertăți: clientul GraphQL nu poate presupune, doar din numele operațiunii, dacă e sigur să retrimită o mutație eșuată din cauza unei erori de rețea — spre deosebire de REST, unde metoda HTTP (`PUT` vs `POST`) comunică explicit acea garanție prin însuși protocolul de transport. Echipele serioase documentează explicit, per mutație, comportamentul la retry, sau adoptă convenții proprii de idempotency keys (revezi C3 L22), transmise ca parametru al mutației.
+
+Această lipsă de convenție universală e adesea citată drept principalul argument împotriva GraphQL pentru API-uri publice, orientate spre integrări externe necunoscute: un dezvoltator terț poate presupune, din experiența cu mii de alte API-uri REST, cum se comportă un `PUT`, fără să citească documentația specifică — o mutație GraphQL, oricât de bine numită, nu oferă aceeași garanție implicită.
+
+### Subscriptions — timp real peste GraphQL
+
+Dincolo de `query` și `mutation`, specificația GraphQL definește și `subscription` — un al treilea tip de operațiune, pentru actualizări în timp real, tipic implementat peste WebSocket (revezi C3 L23, nu S SE, pentru că e nevoie de un canal persistent bidirecțional):
+
+```graphql
+subscription {
+  postareNoua(autorId: "42") {
+    continut
+    dataCreare
+  }
+}
+```
+
+Clientul deschide o subscripție o singură dată, iar serverul trimite un nou mesaj, cu forma exactă cerută, de fiecare dată când evenimentul relevant se produce — un model care combină flexibilitatea de selecție a câmpurilor din GraphQL cu livrarea proactivă a datelor caracteristică WebSocket-urilor, fără să reinventeze un protocol de transport separat.
+
+Implementarea reală a subscripțiilor cere ca serverul să țină evidența, pentru fiecare conexiune activă, exact ce subscripții sunt deschise și cu ce parametri — o complexitate operațională suplimentară absentă din `query`/`mutation`, unde fiecare cerere e independentă, fără stare persistentă între ea și următoarea. Din acest motiv, multe echipe adoptă GraphQL pentru citire/scriere, dar preferă WebSocket-uri sau Server-Sent Events simple (C3 L23), gestionate separat de restul API-ului, pentru cazurile de timp real — subscripțiile GraphQL rămân utile, dar nu sunt implicit alegerea cea mai simplă disponibilă.
+
+Federația GraphQL (Apollo Federation, folosită la scară de companii cu zeci de microservicii) permite mai multor echipe să expună fiecare propria porțiune din schema globală — un serviciu de utilizatori definește tipul `Utilizator`, un serviciu de comenzi extinde acel tip cu câmpul `comenzi`, fără ca cele două echipe să coordoneze direct un singur cod monolitic. Clientul final vede o schemă unică, coerentă, deși e compusă din multiple servicii independente, dezvoltate și deployate separat.
+
 ---
 
 ## REVEAL
