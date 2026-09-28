@@ -1,0 +1,123 @@
+---
+title: "Matrici — spațiul ca o foaie elastică"
+order: 5
+type: lesson
+module_index: 6
+duration: 14
+difficulty: 3
+---
+
+# Matrici — spațiul ca o foaie elastică
+
+## HOOK
+
+L4 a arătat că o matrice e, formal, doar un tensor de rank 2 — un grid de numere aranjate în rânduri și coloane, cu un shape de forma `(m, n)`. Această definiție e corectă, dar profund incompletă din perspectiva a ceea ce face o matrice cu adevărat utilă în AI: o matrice nu e doar un tabel pasiv de date — e o **funcție**, o transformare care ia un vector și produce alt vector, de obicei rotindu-l, întinzându-l sau deformându-l în vreun fel precis, matematic.
+
+Gândește-te la spațiul în care trăiesc vectorii tăi ca la o foaie elastică de cauciuc. O matrice e regula exactă după care întinzi, rotești sau comprimi acea foaie — punctele care erau apropiate pot rămâne apropiate, sau se pot îndepărta dramatic, în funcție de cum arată matricea. Fiecare strat al unei rețele neuronale e, literal, exact acest tip de transformare.
+
+---
+
+## CONTEXT
+
+Termenul "matrice" a fost introdus formal de matematicianul britanic James Joseph Sylvester în 1850, iar algebra matricială riguroasă — regulile de adunare, înmulțire, structura completă — a fost dezvoltată de colegul și colaboratorul lui, Arthur Cayley, în 1858, în lucrarea *A Memoir on the Theory of Matrices*. Dar ideea de bază — un grid de numere folosit pentru a rezolva sisteme de ecuații — e mult mai veche: textul chinez *Nouă Capitole despre Arta Matematică* (aproximativ 200 î.Hr.) descrie deja o procedură echivalentă cu eliminarea gaussiană modernă, aplicată unor tabele de coeficienți identice structural cu o matrice.
+
+Saltul conceptual crucial pentru AI a venit abia cu interpretarea unei matrice ca **transformare liniară** — o funcție care mapează vectori la alți vectori, respectând anumite reguli precise (adunarea și scalarea se păstrează prin transformare). Această interpretare, dezvoltată pe deplin abia cu algebra liniară modernă din secolul XX, e exact ce transformă matricea dintr-un tabel static de numere într-un instrument computațional activ.
+
+---
+
+## MIEZUL
+
+### Ce e, concret, o matrice
+
+O matrice e un grid dreptunghiular de numere, cu `m` rânduri și `n` coloane — shape-ul `(m, n)` din vocabularul stabilit în L4:
+
+$$A = \begin{pmatrix} a_{11} & a_{12} & a_{13} \\ a_{21} & a_{22} & a_{23} \end{pmatrix}$$
+
+Această matrice are shape `(2, 3)` — 2 rânduri, 3 coloane. Elementul $a_{ij}$ se află la rândul $i$, coloana $j$ — indexarea urmează convenția "rând, apoi coloană", identică cu accesarea `matrice[i, j]` în NumPy.
+
+```python
+import numpy as np
+
+A = np.array([[1, 2, 3],
+              [4, 5, 6]])
+print(A.shape)     # (2, 3)
+print(A[0, 2])      # 3 — rândul 0, coloana 2
+```
+
+### Matricea ca transformare — nu tabel, ci funcție
+
+Interpretarea centrală a acestei lecții: o matrice pătrată, înmulțită cu un vector (mecanismul exact al înmulțirii e subiectul detaliat al L6), produce un vector nou — matricea "transformă" vectorul original. O matrice de **scalare** întinde sau comprimă spațiul de-a lungul axelor:
+
+$$\begin{pmatrix} 2 & 0 \\ 0 & 2 \end{pmatrix} \begin{pmatrix} x \\ y \end{pmatrix} = \begin{pmatrix} 2x \\ 2y \end{pmatrix}$$
+
+Fiecare punct din plan se îndepărtează de origine, de două ori mai mult decât era — foaia elastică se întinde uniform. O matrice de **rotație** cu unghiul $\theta$ rotește fiecare vector în jurul originii, fără să-i schimbe lungimea:
+
+$$R_\theta = \begin{pmatrix} \cos\theta & -\sin\theta \\ \sin\theta & \cos\theta \end{pmatrix}$$
+
+<CosmoHint emotion="thinking">
+De ce contează să vezi o matrice ca transformare, nu doar ca tabel de numere? Pentru că exact această perspectivă explică ce face, structural, un strat al unei rețele neuronale: primește un vector (un embedding, L1-L2), îl înmulțește cu o matrice de "greutăți" (weights), și produce un vector nou, transformat — poate rotit către o direcție mai relevantă pentru sarcina finală, poate întins pe anumite dimensiuni și comprimat pe altele. Antrenarea unei rețele (subiectul L14-L19) e, literal, procesul de a găsi valorile potrivite pentru aceste matrici de transformare.
+</CosmoHint>
+
+### Matricea identitate — transformarea care nu schimbă nimic
+
+O matrice specială merită menționată explicit: **matricea identitate** $I$, cu 1 pe diagonala principală și 0 peste tot altundeva, e transformarea care lasă orice vector complet neschimbat:
+
+$$I = \begin{pmatrix} 1 & 0 \\ 0 & 1 \end{pmatrix}$$
+
+Rolul ei e similar cu numărul 1 la înmulțirea obișnuită de numere — un punct de referință neutru, folosit constant în demonstrații și în inițializarea unor structuri de rețea (unele arhitecturi moderne inițializează straturile aproape de identitate, pentru ca informația să curgă neschimbată la început, ajustându-se treptat prin antrenare).
+
+### Tipuri speciale de matrici
+
+{/* TABLE */}
+
+| Tip | Proprietate | Exemplu de utilizare în AI |
+|---|---|---|
+| **Pătrată** | Număr egal de rânduri și coloane ($n \times n$) | Necesară pentru determinant, inversă (L7) |
+| **Diagonală** | Doar diagonala principală nenulă | Scalare pe fiecare axă independent |
+| **Identitate** | Diagonală, cu 1 peste tot pe diagonală | Transformare neutră, referință |
+| **Simetrică** | $A = A^T$ (identică cu transpusa ei, L7) | Matrici de covarianță, distanțe |
+| **Rectangulară** | $m \neq n$ | Straturi de rețea care schimbă dimensiunea (ex. 768 → 512) |
+
+Straturile unei rețele neuronale folosesc adesea matrici rectangulare, nu pătrate — un strat care primește embeddings de 768 de dimensiuni și produce vectori de 512 folosește o matrice de shape `(512, 768)`, exact operația care schimbă dimensiunea unui tensor menționată în treacăt în L4.
+
+### Foaia elastică — de ce metafora contează practic
+
+Imaginează-ți spațiul vectorial ca o foaie de cauciuc elastică, cu o rețea de linii trasate pe ea. O matrice de transformare deformează acea foaie într-un mod precis, matematic — dar câteva proprietăți rămân mereu adevărate, indiferent de transformare: liniile drepte rămân drepte (nu se curbează), originea rămâne fixă (nu se mută), iar liniile paralele rămân paralele. Aceste trei proprietăți definesc exact ce înseamnă o **transformare liniară** — categoria completă de operații pe care o matrice o poate reprezenta. Transformările care curbează liniile (de exemplu, funcțiile de activare neliniare dintr-o rețea, precum ReLU sau sigmoid, subiect al cursurilor viitoare de Deep Learning) nu pot fi reprezentate printr-o matrice — au nevoie de o operație separată, aplicată *după* transformarea liniară.
+
+### De ce contează pentru fiecare strat de rețea neuronală
+
+Fiecare strat "dens" (fully connected) dintr-o rețea neuronală clasică efectuează exact operația descrisă în această lecție: primește un vector de intrare, îl înmulțește cu o matrice de greutăți, obține un vector de ieșire, posibil de o dimensiune complet diferită. Un model cu multe straturi e, structural, o secvență lungă de astfel de transformări — fiecare foaie elastică deformată succesiv, cu o mică neliniaritate intercalată între ele, până când reprezentarea finală codifică exact informația necesară pentru sarcina modelului (clasificare, generare de text, orice altceva).
+
+<CosmoHint emotion="excited">
+Fiecare cuvânt, fiecare propoziție transformată în embedding (L1) trece, în interiorul unui model real, prin zeci sau sute de astfel de "foi elastice" succesive — fiecare strat al rețelei fiind o matrice diferită, învățată prin antrenare, care rotește, întinde și comprimă reprezentarea, pas cu pas, până ajunge la forma finală utilă pentru sarcina modelului. Ceea ce părea, în L1, un proces misterios de "înțelegere" devine acum o secvență explicabilă de transformări geometrice concrete.
+</CosmoHint>
+
+<FactBox>
+**Matrici în cifre:**
+- Termenul "matrice": introdus de James Joseph Sylvester în **1850**
+- Algebra matricială formală: dezvoltată de Arthur Cayley în **1858**
+- Precursor istoric: *Nouă Capitole despre Arta Matematică*, China, aproximativ **200 î.Hr.**
+- O transformare liniară păstrează exact **3** proprietăți: linii drepte, originea fixă, paralelism
+- Un strat tipic de rețea poate transforma un vector de 768 dimensiuni într-unul de 512 — matrice `(512, 768)`
+- Matricea identitate: transformarea neutră, echivalentul lui "1" la înmulțirea de numere
+</FactBox>
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Tip de transformare | Matrice (2D) | Efect geometric |
+|---|---|---|
+| Scalare | $\begin{pmatrix} c & 0 \\ 0 & c \end{pmatrix}$ | Întinde/comprimă uniform |
+| Rotație | $\begin{pmatrix} \cos\theta & -\sin\theta \\ \sin\theta & \cos\theta \end{pmatrix}$ | Rotește în jurul originii |
+| Identitate | $\begin{pmatrix} 1 & 0 \\ 0 & 1 \end{pmatrix}$ | Nu schimbă nimic |
+
+---
+
+## ÎNCHEIERE
+
+O matrice nu e un tabel pasiv de numere — e o transformare activă, care ia orice vector și produce un altul, rotit, întins sau comprimat într-un mod precis matematic. Fiecare strat al unei rețele neuronale reale e exact acest tip de transformare, aplicată repetat, straturi peste straturi.
+
+Ce lipsește încă din imagine: cum se compun mai multe astfel de transformări una după alta — cum "înlănțui" o rotație urmată de o scalare într-o singură operație echivalentă? Răspunsul, subiectul lecției următoare, e **înmulțirea matricială** — operația centrală, literalmente, a fiecărui calcul din Deep Learning modern.

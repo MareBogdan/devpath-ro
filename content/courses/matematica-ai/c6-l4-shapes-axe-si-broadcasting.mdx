@@ -1,0 +1,137 @@
+---
+title: "Shapes, axe și Broadcasting — de ce tensorul e (32, 512, 768)"
+order: 4
+type: lesson
+module_index: 6
+duration: 15
+difficulty: 3
+---
+
+# Shapes, axe și Broadcasting — de ce tensorul e (32, 512, 768)
+
+## HOOK
+
+Un model de limbaj nu procesează, în practică, un singur cuvânt sau o singură propoziție izolată — procesează simultan un **lot** (batch) de 32 de propoziții, fiecare tăiată sau completată la exact 512 tokenuri, fiecare token reprezentat printr-un embedding de 768 de numere (L1-L3). Structura de date care ține toată această informație organizată, simultan, are o formă — literal, un atribut numit `shape` — de `(32, 512, 768)`. Trei numere, fiecare cu un sens precis, care descriu complet cum sunt aranjate milioane de valori numerice.
+
+Dacă nu înțelegi exact ce înseamnă fiecare dintre aceste trei numere, și cum se combină structuri de forme diferite între ele, orice linie de cod care manipulează date reale de AI devine un exercițiu de ghicit — iar eroarea cea mai frecventă, pentru orice programator la început de drum în Machine Learning, e exact o nepotrivire de shape-uri.
+
+---
+
+## CONTEXT
+
+Termenul **tensor** — folosit azi pentru orice array multidimensional din AI (numele bibliotecii TensorFlow vine direct de aici) — are origini în geometria diferențială de la începutul secolului XX, formalizată de matematicienii italieni Gregorio Ricci-Curbastro și Tullio Levi-Civita. Notația lor a devenit instrumentul matematic esențial al Teoriei Relativității Generale a lui Einstein (1915), care descrie curbura spațiu-timpului folosind exact acest tip de obiect — o generalizare a vectorilor și matricilor la orice număr de dimensiuni.
+
+Deep Learning-ul a împrumutat termenul pentru un scop mult mai practic: organizarea datelor numerice — imagini, text, audio — în structuri manipulabile eficient de hardware specializat (GPU-uri, proiectate exact pentru acest tip de calcul masiv-paralel). `numpy.ndarray`, structura de bază folosită deja informal în L2-L3, e implementarea practică standard a unui tensor — restul acestei lecții formalizează vocabularul complet din jurul lui.
+
+---
+
+## MIEZUL
+
+### De la scalar la tensor — o ierarhie de dimensiuni
+
+{/* TABLE */}
+
+| Nume | Dimensiuni (rank) | Exemplu | Shape |
+|---|---|---|---|
+| Scalar | 0 | Un singur număr, ex. `3.14` | `()` |
+| Vector | 1 | Embedding-ul unui cuvânt (L2) | `(768,)` |
+| Matrice | 2 | O propoziție întreagă (tokenuri × embedding) | `(512, 768)` |
+| Tensor (rank 3+) | 3 sau mai multe | Un lot de propoziții | `(32, 512, 768)` |
+
+Un scalar (L2) e, tehnic, un tensor de rank 0 — nicio dimensiune. Un vector e un tensor de rank 1 — o singură dimensiune, cu `n` elemente. O matrice (subiectul detaliat al L5-L7) e un tensor de rank 2 — două dimensiuni, gândite adesea ca "rânduri" și "coloane". Dincolo de rank 2, termenul folosit generic e simplu "tensor" — nu mai există nume separate pentru rank 3, 4, sau mai mult.
+
+### Shape — tuplul care descrie complet structura
+
+**Shape**-ul unui tensor e un tuplu de numere, câte unul pentru fiecare dimensiune (axă), care spune exact câte elemente are tensorul de-a lungul acelei axe. Pentru `(32, 512, 768)`: prima axă (index 0) are 32 de elemente, a doua (index 1) are 512, a treia (index 2) are 768.
+
+```python
+import numpy as np
+
+lot_propozitii = np.zeros((32, 512, 768))
+print(lot_propozitii.shape)   # (32, 512, 768)
+print(lot_propozitii.ndim)    # 3 — numărul de axe (rank)
+print(lot_propozitii.size)    # 32 * 512 * 768 = 12.582.912 — numărul total de valori
+```
+
+Interpretarea concretă a celor trei numere, pentru un model de limbaj tipic: **32** e mărimea lotului (batch size) — câte propoziții procesează modelul simultan, o decizie de eficiență, nu o proprietate a datelor în sine. **512** e lungimea maximă a secvenței — câte tokenuri conține fiecare propoziție (propozițiile mai scurte se completează cu tokenuri speciale de "padding", cele mai lungi se taie). **768** e dimensiunea embedding-ului per token — exact numărul introdus informal în L1-L2.
+
+<CosmoHint emotion="thinking">
+De ce procesează modelele date în loturi (batch-uri), nu propoziție cu propoziție? Pentru că hardware-ul specializat (GPU) e proiectat să execute aceeași operație simultan pe mii de valori — procesarea unei singure propoziții la un moment dat ar lăsa majoritatea capacității de calcul neutilizată, exact tipul de ineficiență discutat, la nivel general de arhitectură hardware, în C1. Batch size-ul 32 e un compromis practic — suficient de mare pentru a folosi eficient hardware-ul, suficient de mic pentru a încăpea în memoria disponibilă.
+</CosmoHint>
+
+### Axele — fiecare dimensiune are un rol precis
+
+O operație aplicată unui tensor multidimensional trebuie să specifice **pe ce axă** se aplică — rezultatul diferă radical în funcție de alegere. Funcția `sum()`, aplicată fără nicio specificație, adună absolut toate valorile într-un singur scalar; specificată cu un `axis`, adună doar de-a lungul acelei dimensiuni, păstrând restul intacte.
+
+```python
+tensor = np.random.rand(32, 512, 768)
+
+suma_totala = tensor.sum()                # un singur număr
+suma_per_token = tensor.sum(axis=2)        # shape (32, 512) — sumă peste embedding, per token
+suma_per_propozitie = tensor.sum(axis=1)   # shape (32, 768) — sumă peste tokenuri, per propoziție
+```
+
+`axis=2` "colapsează" a treia dimensiune (embedding-ul), păstrând loturile și tokenurile distincte — util, de exemplu, pentru a calcula un singur număr agregat per token. `axis=1` colapsează tokenurile, producând un singur vector per propoziție din lot — exact tehnica folosită pentru a obține un embedding al propoziției întregi dintr-o secvență de embeddings per token, menționată deja informal în L1.
+
+### Broadcasting — cum se combină tensori de forme diferite
+
+O întrebare practică apare constant: poți aduna un vector de shape `(768,)` la un tensor de shape `(32, 512, 768)`? Intuitiv, adunarea element-cu-element (L2) cere ca cele două forme să fie identice — dar NumPy (și orice framework de Deep Learning modern) permite exact această combinație, printr-un mecanism numit **broadcasting**.
+
+Regula: NumPy aliniază shape-urile de la dreapta la stânga, comparând dimensiunile pas cu pas. Dacă o dimensiune lipsește sau are valoarea 1, ea se "întinde" automat pentru a se potrivi cu cealaltă:
+
+```python
+tensor = np.random.rand(32, 512, 768)   # shape (32, 512, 768)
+bias = np.random.rand(768)               # shape (768,)
+
+rezultat = tensor + bias                 # broadcasting: bias se aplică identic peste toate cele 32*512 poziții
+print(rezultat.shape)                    # (32, 512, 768)
+```
+
+Bias-ul de 768 de numere se "repetă" conceptual, fără să ocupe efectiv memorie suplimentară, pentru fiecare din cele 32×512 = 16.384 de poziții din tensor — exact operația folosită la adăugarea unui termen de bias după fiecare înmulțire matricială dintr-un strat de rețea neuronală (subiectul L6).
+
+{/* TABLE */}
+
+| Shape A | Shape B | Compatibile? | Shape rezultat |
+|---|---|---|---|
+| `(32, 512, 768)` | `(768,)` | Da — ultima dimensiune se potrivește | `(32, 512, 768)` |
+| `(32, 512, 768)` | `(512, 768)` | Da — ultimele două dimensiuni se potrivesc | `(32, 512, 768)` |
+| `(32, 512, 768)` | `(1, 512, 768)` | Da — dimensiunea 1 se "întinde" la 32 | `(32, 512, 768)` |
+| `(32, 512, 768)` | `(100, 768)` | **Nu** — 512 ≠ 100, nicio dimensiune nu e 1 | Eroare |
+
+### De ce shape mismatch e cea mai frecventă eroare practică
+
+Aproape orice mesaj de eroare întâlnit la scrierea de cod real de Machine Learning are aceeași cauză rădăcină: două structuri cu shape-uri incompatibile, combinate printr-o operație care presupune compatibilitate. Un strat de rețea antrenat să primească embeddings de 768 de dimensiuni nu poate procesa, fără eroare explicită, un tensor cu ultima dimensiune 512 — diferența nu e vizibilă "cu ochiul liber" în cod, dar devine evidentă imediat prin verificarea explicită a `.shape`, cel mai eficient prim pas de debugging pentru orice eroare de acest tip.
+
+<CosmoHint emotion="celebrating">
+Vocabularul din această lecție — shape, axă, rank, broadcasting — e limbajul practic în care e scris efectiv orice cod real de Machine Learning, indiferent de framework (NumPy, PyTorch, TensorFlow folosesc, cu variații minore de sintaxă, exact aceste concepte). Data viitoare când vezi o eroare de tipul "shapes (32,512,768) and (100,768) not aligned", vei ști exact ce înseamnă și de unde vine — nu doar cum s-o repari prin încercare, ci de ce apare structural.
+</CosmoHint>
+
+<FactBox>
+**Shapes și broadcasting în cifre:**
+- Termenul "tensor": formalizat de Ricci-Curbastro și Levi-Civita, folosit de Einstein în Relativitatea Generală (**1915**)
+- Un tensor de shape `(32, 512, 768)` conține **12.582.912** de valori numerice individuale
+- Rank 0 = scalar, rank 1 = vector, rank 2 = matrice, rank 3+ = tensor generic
+- Broadcasting: o dimensiune de valoare **1** se "întinde" automat pentru a se potrivi cu cealaltă
+- Regula de bază: shape-urile se aliniază de la **dreapta la stânga**
+- `.shape`, `.ndim`, `.size` — primele trei atribute de verificat la orice eroare de tip shape mismatch
+</FactBox>
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Axă în `(32, 512, 768)` | Index | Ce reprezintă |
+|---|---|---|
+| Prima | `axis=0` | Batch size — câte propoziții simultan |
+| A doua | `axis=1` | Lungimea secvenței — câte tokenuri per propoziție |
+| A treia | `axis=2` | Dimensiunea embedding-ului — câte numere per token |
+
+---
+
+## ÎNCHEIERE
+
+Un tensor nu e altceva decât o generalizare naturală a vectorului din L2 — mai multe dimensiuni, organizate sistematic, cu reguli precise pentru cum se combină forme diferite prin broadcasting. Acest vocabular — shape, axă, rank — devine limbajul de bază pentru absolut orice manipulare practică de date în AI.
+
+Rank 2 — matricea, un tensor cu exact două dimensiuni — merită însă un tratament separat și detaliat: e structura centrală din spatele fiecărui strat de rețea neuronală, a fiecărei transformări liniare, a fiecărei operații de bază din Deep Learning. Lecția următoare tratează exact acest caz special — **Matrici — spațiul ca o foaie elastică**.

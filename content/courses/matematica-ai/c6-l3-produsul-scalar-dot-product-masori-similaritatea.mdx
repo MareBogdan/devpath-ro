@@ -1,0 +1,127 @@
+---
+title: "Produsul Scalar (Dot Product) — măsori similaritatea"
+order: 3
+type: lesson
+module_index: 6
+duration: 14
+difficulty: 3
+---
+
+# Produsul Scalar (Dot Product) — măsori similaritatea
+
+## HOOK
+
+L1 a afirmat, fără să demonstreze, că vectorul lui "pisică" ajunge "aproape" de vectorul lui "câine" într-un spațiu de sens. L2 a definit riguros ce e un vector — dar niciuna dintre cele două lecții n-a răspuns la întrebarea centrală: cum calculezi, exact, cât de "aproape" sunt doi vectori? Nu e o întrebare retorică — răspunsul e o singură operație matematică, folosită de mii de ori pe secundă în interiorul oricărui model de limbaj activ chiar acum.
+
+**Produsul scalar** (dot product) e acea operație — ia doi vectori, produce un singur număr, iar acel număr spune exact cât de aliniați sunt vectorii unul cu celălalt. E, probabil, operația matematică individuală cea mai folosită în tot Machine Learning-ul modern — de la calculul de similaritate simplu până la mecanismul de atenție (attention) care stă la baza fiecărui Transformer.
+
+---
+
+## CONTEXT
+
+Produsul scalar are, la fel ca vectorul însuși, rădăcini în fizică, nu în informatică. Conceptul de **lucru mecanic** (work) — cât de multă energie transferă o forță aplicată de-a lungul unei distanțe — se calculează exact ca produsul scalar dintre vectorul forței și vectorul deplasării, ajustat de unghiul dintre ele: o forță perpendiculară pe direcția de mișcare (împingi lateral un cărucior care se mișcă înainte) nu produce niciun lucru mecanic, indiferent cât de puternică e forța. Această intuiție fizică — doar componenta *aliniată* cu direcția de mișcare contează — e exact intuiția pe care o vei folosi, reformulată, pentru similaritate semantică.
+
+Formalizarea matematică modernă a produsului scalar aparține aceleiași perioade și acelorași autori care au sistematizat analiza vectorială — Gibbs și Heaviside, la finalul secolului XIX. Aplicarea lui la reprezentări de text și similaritate semantică e mult mai recentă, dar formula rămâne, literal, neschimbată — aceeași operație din manualele de fizică de acum 150 de ani rulează astăzi, la scară masivă, în centrele de date care antrenează modele de limbaj.
+
+---
+
+## MIEZUL
+
+### Definiția algebrică — sumă de produse, componentă cu componentă
+
+Produsul scalar dintre doi vectori de aceeași dimensiune se calculează înmulțind componentele corespunzătoare, apoi însumând rezultatele:
+
+$$\vec{a} \cdot \vec{b} = a_1 b_1 + a_2 b_2 + \cdots + a_n b_n = \sum_{i=1}^{n} a_i b_i$$
+
+Pentru $\vec{a} = (1, 2, 3)$ și $\vec{b} = (4, 5, 6)$: $\vec{a} \cdot \vec{b} = 1\cdot4 + 2\cdot5 + 3\cdot6 = 4 + 10 + 18 = 32$. Rezultatul e mereu un **scalar** — un singur număr, indiferent cât de multe dimensiuni au vectorii de intrare — de unde și numele "produs scalar", spre deosebire de alte operații pe vectori care produc alți vectori.
+
+```python
+import numpy as np
+
+a = np.array([1, 2, 3])
+b = np.array([4, 5, 6])
+print(np.dot(a, b))     # 32
+print(a @ b)             # 32 — operatorul @ e echivalent, sintaxă preferată în cod modern
+```
+
+### Definiția geometrică — magnitudine și unghi
+
+Aceeași operație admite o a doua formulă, complet echivalentă, dar care dezvăluie intuiția geometrică din spate:
+
+$$\vec{a} \cdot \vec{b} = \|\vec{a}\| \, \|\vec{b}\| \cos(\theta)$$
+
+unde $\theta$ e unghiul dintre cei doi vectori. Această formă face explicit ce ascunde suma de produse: rezultatul depinde de lungimile celor doi vectori (normele, definite în L2), dar și, esențial, de **unghiul** dintre direcțiile lor. Doi vectori perfect aliniați ($\theta = 0°$) au $\cos(0°) = 1$, deci produsul scalar e maxim posibil pentru acele lungimi. Doi vectori perpendiculari ($\theta = 90°$) au $\cos(90°) = 0$ — produsul scalar e exact zero, indiferent de cât de lungi sunt.
+
+<CosmoHint emotion="thinking">
+De ce contează faptul că formula algebrică (sumă de produse) și formula geometrică (lungimi și unghi) sunt matematic echivalente? Pentru că formula algebrică e ușor de calculat direct din vectorii bruți (embeddings, exact ca la NumPy mai sus), în timp ce formula geometrică e ușor de *interpretat*: un produs scalar mare și pozitiv spune "acești vectori pointează în direcții asemănătoare", indiferent dacă ai de-a face cu 2 dimensiuni desenabile pe hârtie sau cu 768, imposibil de vizualizat. Poți calcula cu una, poți gândi cu cealaltă — sunt aceeași realitate matematică, privită din două unghiuri.
+</CosmoHint>
+
+### Interpretarea semnului — aliniat, perpendicular, opus
+
+{/* TABLE */}
+
+| Semn produs scalar | Unghi $\theta$ | Interpretare |
+|---|---|---|
+| Puternic pozitiv | Aproape de $0°$ | Vectori aliniați — foarte similari |
+| Aproape de zero | Aproape de $90°$ | Vectori independenți — fără relație direcțională |
+| Puternic negativ | Aproape de $180°$ | Vectori opuși — sensuri contrare |
+
+Pentru embeddings de cuvinte, această interpretare devine direct utilizabilă: un produs scalar mare între vectorul lui "pisică" și cel al lui "câine" confirmă numeric ceea ce L1 a afirmat informal — cele două cuvinte ocupă direcții apropiate în spațiul de sens, pentru că apar frecvent în contexte similare (ipoteza distribuțională a lui Firth, revizitată acum cu instrumentul matematic care o cuantifică).
+
+### Similaritatea cosinus — separi direcția de magnitudine
+
+Produsul scalar brut are o problemă practică: depinde atât de unghiul dintre vectori, cât și de lungimile lor — doi vectori identici ca direcție, dar unul mult mai "lung" (poate pentru că reprezintă un cuvânt foarte frecvent în datele de antrenare), produc un produs scalar mai mare, chiar dacă direcția — sensul lor semantic — e identică. Soluția, folosind normalizarea din L2: împarte produsul scalar la produsul normelor, izolând exact componenta unghiulară.
+
+$$\cos(\theta) = \frac{\vec{a} \cdot \vec{b}}{\|\vec{a}\| \, \|\vec{b}\|}$$
+
+Această cantitate — **similaritatea cosinus** — variază întotdeauna între $-1$ (opuși complet) și $1$ (identici ca direcție), indiferent de lungimile reale ale vectorilor originali. E metrica standard folosită pentru a compara embeddings în căutarea semantică, sistemele de recomandare, și aproape orice aplicație practică de similaritate din AI modern — exact subiectul detaliat al cursului de Date & Embeddings (C7) care urmează.
+
+```python
+def similaritate_cosinus(a, b):
+    return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
+
+pisica = np.array([0.42, -0.11, 0.87])
+caine = np.array([0.39, -0.08, 0.81])
+algoritm = np.array([-0.6, 0.9, -0.2])
+
+print(similaritate_cosinus(pisica, caine))       # aproape de 1 — foarte similari
+print(similaritate_cosinus(pisica, algoritm))    # aproape de 0 sau negativ — fără relație
+```
+
+### Produsul scalar în mecanismul de atenție
+
+Aplicația practică cea mai importantă a produsului scalar în AI modern apare în mecanismul de **auto-atenție** (self-attention) din arhitectura Transformer — fundamentul fiecărui model de limbaj actual. Pentru fiecare pereche de tokenuri dintr-o propoziție, modelul calculează un produs scalar între vectorul "Query" al unui token și vectorul "Key" al altuia, producând un scor care spune exact cât de "relevant" e al doilea token pentru interpretarea primului. Cu cât produsul scalar e mai mare, cu atât modelul "acordă mai multă atenție" acelui token — mecanismul concret prin care un model decide, de exemplu, că în propoziția "pisica a mâncat pentru că îi era foame", cuvântul "foame" e puternic relevant pentru "a mâncat".
+
+<CosmoHint emotion="excited">
+Complexitatea O(n²) menționată deja, la nivel general, în cursul de Algoritmi (C5, L3 și L9) — costul care crește pătratic cu lungimea unei secvențe — vine tocmai din acest calcul: pentru o propoziție de `n` tokenuri, mecanismul de atenție calculează produsul scalar între *fiecare* pereche posibilă de tokenuri, adică $n^2$ produse scalare. Ceea ce părea, în C5, o observație abstractă despre complexitate, devine acum o consecință directă, concretă, a unei singure operații matematice pe care tocmai ai învățat-o.
+</CosmoHint>
+
+<FactBox>
+**Produsul scalar în cifre:**
+- Formula algebrică: $\vec{a} \cdot \vec{b} = \sum_i a_i b_i$ — o sumă de produse, rezultat întotdeauna scalar
+- Formula geometrică echivalentă: $\|\vec{a}\|\|\vec{b}\|\cos(\theta)$
+- Similaritate cosinus: variază strict între **-1** și **1**, indiferent de lungimile vectorilor originali
+- Vectori perpendiculari ($\theta = 90°$): produs scalar exact **0**
+- Mecanismul de atenție al unui Transformer: calculează produsul scalar între **fiecare** pereche de tokenuri — cost O(n²)
+- Originea fizică: lucrul mecanic $W = \vec{F} \cdot \vec{d}$, formalizat de Gibbs și Heaviside la finalul secolului XIX
+</FactBox>
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Instrument | Ce calculează | Interval rezultat |
+|---|---|---|
+| Produs scalar brut | $\sum a_i b_i$ | Orice număr real, depinde de magnitudini |
+| Similaritate cosinus | Produs scalar normalizat | Între $-1$ și $1$ |
+| Atenție (Transformer) | Produs scalar Query · Key, pentru fiecare pereche | Scor de relevanță per pereche de tokenuri |
+
+---
+
+## ÎNCHEIERE
+
+Produsul scalar transformă întrebarea vagă "cât de similare sunt aceste două cuvinte?" într-un calcul precis, repetabil, aplicabil identic indiferent dacă vectorii au 2 sau 1536 de dimensiuni. E, alături de adunarea și normalizarea din L2, a treia operație fundamentală pe vectori — și, împreună, cele trei formează exact setul minim de instrumente cu care se construiește orice calcul de similaritate din AI modern.
+
+Până acum, fiecare vector a fost tratat individual. Dar un model real nu procesează un singur cuvânt izolat — procesează propoziții întregi, loturi (batch-uri) de mai multe exemple simultan, straturi întregi de rețea, toate organizate în structuri cu mai multe dimensiuni simultan. Lecția următoare introduce exact vocabularul necesar pentru a vorbi despre asta — **shapes, axe și broadcasting**, sau de ce un tensor real din AI are o formă precum `(32, 512, 768)`, nu doar o listă simplă de numere.
