@@ -1,0 +1,141 @@
+---
+title: "uv + Virtual Environments: Setup practic în 6 minute"
+order: 25
+type: lesson
+module_index: 4
+duration: 11
+difficulty: 2
+---
+
+# uv + Virtual Environments: Setup practic în 6 minute
+
+## HOOK
+
+Doi proiecte diferite pe același calculator: unul are nevoie de `numpy==1.24` (o versiune veche, cerută de o bibliotecă mai vechi de vizualizare), celălalt are nevoie de `numpy==2.1` (cerută de un model recent de deep learning). Instalate ambele global, pe același Python de sistem, a doua instalare **suprascrie** prima — orice proiect care se bazează pe versiunea veche se rupe brusc, fără avertisment, la prima rulare după instalarea celei noi.
+
+Un **virtual environment** rezolvă exact această coliziune: fiecare proiect obține propriul director izolat de pachete instalate, complet independent de restul sistemului și de alte proiecte. `numpy==1.24` și `numpy==2.1` pot coexista fericit pe același calculator, fiecare în propriul mediu izolat, fără să interfereze vreodată.
+
+---
+
+## CONTEXT
+
+Instalarea pachetelor Python direct la nivel de sistem (`pip install` fără izolare) a fost, mult timp, sursa numărul unu de bug-uri de mediu — coliziuni de versiuni, permisii cerute pentru instalare la nivel de sistem, imposibilitatea de a reproduce exact mediul unui coleg sau al unui server de producție. **`venv`** (parte din biblioteca standard din Python 3.3, 2012) a standardizat izolarea per-proiect, dar rămânea relativ lent pentru instalarea efectivă a pachetelor.
+
+**`uv`** (Astral, 2024) e cea mai recentă și, la ora scrierii acestui curs, cea mai rapidă unealtă din ecosistem — scrisă în Rust, capabilă să instaleze pachete de ordine de mărime mai rapid decât `pip` clasic, combinând în același timp gestionarea de virtual environments, instalarea de pachete, și rezolvarea de dependențe într-un singur tool coerent, înlocuind un lanț întreg de unelte mai vechi (`pip`, `virtualenv`, `pip-tools`, `poetry`, parțial).
+
+---
+
+## MIEZUL
+
+### Ce e, de fapt, un virtual environment
+
+Un virtual environment e, la bază, un **director** care conține propria copie (sau legături simbolice) a interpretorului Python și un subdirector separat pentru pachete instalate (`site-packages`). Când activezi un environment, variabilele de mediu ale terminalului (`PATH`, în principal) sunt modificate temporar să pointeze spre acel Python izolat, în loc de Python-ul de sistem — orice `pip install` ulterior scrie pachetele **doar** în acel director, invizibil pentru restul sistemului sau alte environment-uri.
+
+```bash
+# Cu venv (biblioteca standard, fără unelte externe):
+python3 -m venv .venv                # creează directorul .venv/ cu Python izolat
+source .venv/bin/activate            # activare pe Linux/macOS (Windows: .venv\Scripts\activate)
+pip install requests pydantic          # instalează DOAR în acest environment
+deactivate                              # revii la Python-ul de sistem
+```
+
+<CosmoHint emotion="thinking">
+De ce activarea unui virtual environment schimbă prompt-ul terminalului, de obicei arătând numele environment-ului între paranteze `(.venv) $`? Semnul e un memento vizual constant al variabilei `PATH` modificate — comanda `python`/`pip` din acel terminal rezolvă acum la interpretorul din `.venv/bin/python`, nu la cel de sistem. Fără acest semnal vizual, e ușor să uiți dacă un environment e activ sau nu, și să instalezi accidental un pachet global, în loc de izolat — motiv pentru care aproape orice unealtă de virtual environment modifică vizibil prompt-ul.
+</CosmoHint>
+
+### `uv` — același concept, viteză radical mai mare
+
+```bash
+# Instalare uv (o singură dată, per sistem)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+uv venv                        # creează .venv/ — echivalent cu 'python -m venv .venv', mult mai rapid
+source .venv/bin/activate
+
+uv pip install requests pydantic   # instalare rapidă, compatibilă cu sintaxa 'pip install' clasică
+```
+
+`uv` menține compatibilitate de comenzi cu `pip` (tranziția e practic instant pentru cineva obișnuit cu fluxul clasic), dar rezolvă dependențele și descarcă pachetele semnificativ mai rapid — diferența devine vizibilă imediat la proiecte cu multe dependențe (comune în AI/ML, unde un singur `pip install torch` poate atrage zeci de dependențe tranzitive).
+
+{/* TABLE */}
+
+| Comandă `venv` clasic + `pip` | Echivalent `uv` |
+|---|---|
+| `python3 -m venv .venv` | `uv venv` |
+| `pip install pachet` | `uv pip install pachet` |
+| `pip freeze > requirements.txt` | `uv pip freeze > requirements.txt` |
+| `pip install -r requirements.txt` | `uv pip install -r requirements.txt` |
+
+### `pyproject.toml` — declararea dependențelor unui proiect
+
+```toml
+[project]
+name = "proiectul-meu"
+version = "0.1.0"
+dependencies = [
+    "requests>=2.31",
+    "pydantic>=2.0",
+]
+```
+
+`pyproject.toml` (standardul modern, **PEP 621**, care a înlocuit gradual vechiul `requirements.txt` neversionat de proiecte serioase) declară exact ce pachete, în ce interval de versiuni, are nevoie proiectul — un fișier care poate fi comis în git, permițând oricui altcuiva să reconstruiască exact același environment:
+
+```bash
+uv sync   # citește pyproject.toml, instalează EXACT dependențele declarate, creează .venv automat dacă nu există
+```
+
+`uv sync` unifică pașii "creare environment" + "instalare dependențe" într-o singură comandă — un colaborator nou clonează proiectul, rulează `uv sync`, și are exact mediul funcțional, fără pași manuali suplimentari.
+
+### `requirements.txt` — versiunea mai veche, tot des întâlnită
+
+```
+requests==2.31.0
+pydantic==2.5.1
+numpy==1.26.4
+```
+
+Multe proiecte mai vechi (sau notebook-uri, scripturi simple de AI) folosesc încă acest format simplu, listă plată de pachete cu versiuni exacte fixate (`==`) sau minime (`>=`). Fixarea exactă a versiunilor (`==`, nu doar `>=`) garantează reproductibilitate perfectă — același `requirements.txt`, instalat oriunde, produce exact același set de versiuni, eliminând clasa de bug-uri "funcționează pe calculatorul meu, nu pe al tău" cauzată de versiuni divergente ale aceleiași biblioteci.
+
+<CosmoHint emotion="encouraging">
+Orice repository serios de cod AI/ML pe GitHub are, aproape garantat, un `pyproject.toml` sau `requirements.txt` la rădăcină — primul lucru de verificat înainte de a rula cod dintr-un proiect necunoscut. `uv sync` (sau `pip install -r requirements.txt` în workflow-uri mai vechi) e primul pas standard, universal, înainte de a putea rula orice script din acel proiect — omiterea lui produce garantat `ModuleNotFoundError` la prima linie de `import`.
+</CosmoHint>
+
+### De ce NU instalezi niciodată direct la nivel de sistem
+
+```bash
+pip install --global torch    # EVITĂ — poluează Python-ul de sistem, greu de curățat, risc de coliziuni
+```
+
+Instalarea globală de pachete (fără virtual environment) e considerată practică proastă, indiferent de convenabilitatea aparentă — riscul de coliziuni de versiuni între proiecte diferite (exact scenariul din HOOK) crește direct proporțional cu numărul de proiecte pe același calculator. Pe multe sisteme moderne (Linux recent, macOS cu Python gestionat de Homebrew), instalarea globală e chiar **blocată** implicit de sistemul de operare, cerând explicit un environment izolat — o măsură de protecție introdusă direct ca urmare a acestei clase frecvente de probleme.
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Pas | Comandă `uv` |
+|---|---|
+| Creează environment izolat | `uv venv` |
+| Activează environment-ul | `source .venv/bin/activate` |
+| Instalează un pachet | `uv pip install nume_pachet` |
+| Sincronizează din `pyproject.toml` | `uv sync` |
+| Dezactivează environment-ul | `deactivate` |
+
+<FactBox>
+**uv + Virtual Environments în cifre:**
+- `venv`: parte din biblioteca standard Python din versiunea **3.3** (2012)
+- `uv`: lansat de Astral în **2024**, scris în Rust, ordine de mărime mai rapid decât `pip` clasic
+- `pyproject.toml`: standardizat prin **PEP 621**, format modern preferat față de `requirements.txt` simplu
+- Fixarea exactă de versiuni (`==`): elimină bug-uri de tip "funcționează pe calculatorul meu"
+- Multe sisteme moderne: blochează instalarea globală de pachete Python implicit, forțând izolarea
+- `uv sync`: un singur pas — creează environment + instalează dependențe exacte declarate
+</FactBox>
+
+---
+
+## ÎNCHEIERE
+
+Virtual environments elimină complet clasa de bug-uri produsă de coliziunea versiunilor de pachete între proiecte diferite pe același calculator — fiecare proiect obține propriul spațiu izolat, reproductibil oriunde prin `pyproject.toml`/`requirements.txt`. `uv` aduce aceeași garanție de izolare, dar la o viteză care schimbă practic fluxul de lucru zilnic al oricărui dezvoltator Python.
+
+Un ultim instrument rămâne esențial pentru orice muncă serioasă de dezvoltare, dincolo de gestionarea pachetelor: urmărirea schimbărilor din cod în timp, colaborarea cu alți dezvoltatori, și recuperarea în siguranță dintr-o greșeală. Lecția finală a acestui curs — Git — încheie fundația practică necesară pentru a lucra confortabil cu orice bază de cod reală, inclusiv cele mai mari proiecte open-source de AI.
