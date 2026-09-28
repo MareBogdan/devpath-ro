@@ -104,6 +104,110 @@ Exact ca relația listă↔tuple din L14, `set`↔`frozenset` urmează același 
 Elementele unice dintr-un vocabular de tokeni (folosit la tokenizarea textului pentru modele de limbaj) sunt, conceptual, exact un set — fiecare token distinct apare o singură dată în vocabular, indiferent de câte ori apare în textul original de antrenare. `set(text.split())` e o aproximare simplistă, dar corectă conceptual, a primului pas dintr-un pipeline real de construire a unui vocabular.
 </CosmoHint>
 
+### Set comprehensions — construcție concisă, revizitată în context
+
+Exact ca la liste (L18) și dicționare (L13), set-urile au propria formă de comprehension, cu sintaxa aproape identică, doar cu acolade în loc de paranteze pătrate:
+
+```python
+numere = [1, 2, 2, 3, 3, 3, 4]
+patrate_unice = {n ** 2 for n in numere}   # {16, 1, 4, 9} — duplicatele din 'numere' nu contează
+
+cuvinte = ["Python", "python", "PYTHON", "java"]
+cuvinte_normalizate = {c.lower() for c in cuvinte}   # {'python', 'java'} — normalizare + deduplicare
+```
+
+Al doilea exemplu combină transformarea (normalizarea la litere mici) cu deduplicarea automată, într-o singură expresie — util constant pentru curățarea de date de intrare unde aceeași valoare logică poate apărea în variante ușor diferite de formatare (majuscule/minuscule, spații suplimentare).
+
+### Operatori de actualizare in-place — `|=`, `&=`, `-=`
+
+Exact ca operatorii aritmetici compuși din L5, operațiile de set au echivalente care modifică setul existent direct, în loc să creeze unul nou:
+
+```python
+permise = {"citire", "scriere"}
+permise |= {"executare"}          # echivalent cu .update() — adaugă elemente, ÎN LOC
+print(permise)                       # {'citire', 'scriere', 'executare'}
+
+permise &= {"citire", "executare"}    # păstrează DOAR intersecția, ÎN LOC
+print(permise)                          # {'citire', 'executare'}
+```
+
+`|=` (reuniune in-place, echivalent cu `.update()`), `&=` (intersecție in-place, echivalent cu `.intersection_update()`), `-=` (diferență in-place) — toate modifică setul existent direct, spre deosebire de `|`, `&`, `-` obișnuiți, care creează întotdeauna un set nou, lăsând operanzii originali neschimbați. Aceeași distincție filozofică repetată constant în acest curs: operator care creează vs. operator/metodă care modifică în loc.
+
+### Complexitatea operațiilor de set — de ce sunt eficiente la scară
+
+{/* TABLE */}
+
+| Operație | Complexitate tipică |
+|---|---|
+| `x in set_a` | O(1) |
+| `set_a.add(x)` | O(1) amortizat |
+| `set_a \| set_b` (reuniune) | O(len(a) + len(b)) |
+| `set_a & set_b` (intersecție) | O(min(len(a), len(b))) |
+| `set_a - set_b` (diferență) | O(len(a)) |
+
+Fiecare operație de set rămâne liniară sau mai bună în raport cu dimensiunea totală implicată — niciodată pătratică, spre deosebire de echivalentele naive scrise manual cu bucle imbricate peste liste (verifică fiecare element din `a` împotriva fiecărui element din `b`, o operațiune O(n×m)). Această diferență de complexitate explică de ce conversia explicită la `set`, chiar și temporară, doar pentru o singură verificare de apartenență repetată, merită costul inițial de conversie la colecții suficient de mari.
+
+### Găsirea elementelor duplicate — un caz de uz derivat
+
+Deși set-urile elimină duplicatele prin design, găsirea explicită a *căror* elemente sunt duplicate (nu doar eliminarea lor) e un caz de uz separat, care combină un set cu o buclă simplă:
+
+```python
+def gaseste_duplicate(lista):
+    vazute = set()
+    duplicate = set()
+    for element in lista:
+        if element in vazute:
+            duplicate.add(element)
+        else:
+            vazute.add(element)
+    return duplicate
+
+print(gaseste_duplicate([1, 2, 3, 2, 4, 1, 5]))   # {1, 2}
+```
+
+Acest pattern — un set `vazute` care acumulează progresiv elementele întâlnite deja, verificat la fiecare pas — e o tehnică generală extrem de utilă, aplicabilă oricărei probleme care cere "am mai văzut asta înainte?" într-o singură parcurgere a datelor, cu complexitate O(n) totală, față de O(n²) pentru o soluție naivă care ar compara fiecare element cu toate celelalte.
+
+### Set-uri și tipuri numerice — comparație de egalitate, nu de identitate
+
+```python
+a = {1, 2.0, True}   # 1 == 1.0 == True numeric, deci setul reține UN SINGUR element
+print(a)                # {1} sau {True} — reprezentarea variază, dar setul conține un singur element
+print(len(a))              # 1
+```
+
+Set-urile determină unicitatea prin egalitate de valoare (`==`), combinată cu hash-ul obiectului — nu prin identitate (`is`). Pentru că `1`, `1.0`, și `True` sunt egale numeric între ele (revezi L4, unde `bool` e subclasă de `int`) și au același hash, un set le tratează ca "aceeași" valoare, păstrând doar prima întâlnită — un detaliu de comportament surprinzător prima dată când apare accidental într-un cod care amestecă tipuri numerice diferite, presupunând implicit că sunt distincte.
+
+Această regulă generală — orice două obiecte egale (`==`) TREBUIE să aibă același hash, o cerință impusă de proiectarea corectă a oricărei clase custom care implementează atât `__eq__` cât și `__hash__` — nu e specifică set-urilor, ci se aplică identic dicționarelor: dacă ai scrie vreodată o clasă proprie destinată să fie folosită ca element de set sau cheie de dicționar, respectarea acestei corespondențe e obligatorie pentru un comportament corect, altfel riști exact bug-uri similare celui ilustrat aici cu tipurile numerice amestecate.
+
+### Set-uri ca filtru rapid pentru liste mari
+
+```python
+id_uri_permise = {101, 205, 340, 512, 890}   # set, pentru verificare rapidă de apartenență
+
+toate_comenzile = obtine_toate_comenzile()   # listă potențial mare, mii de înregistrări
+comenzi_relevante = [c for c in toate_comenzile if c.id_utilizator in id_uri_permise]
+```
+
+Combinația set + list comprehension e pattern-ul standard pentru filtrarea eficientă a unei colecții mari după apartenența la o listă de valori permise — verificarea `in` pe setul `id_uri_permise` rămâne O(1) la fiecare element din `toate_comenzile`, indiferent cât de mare devine acea listă de valori permise, spre deosebire de o listă folosită direct ca filtru, unde fiecare verificare `in` ar costa O(m), cu m dimensiunea listei de valori permise.
+
+Diferența de performanță crește direct proporțional cu dimensiunea ambelor colecții implicate: pentru o listă de 10.000 de comenzi filtrate față de 5.000 de ID-uri permise, varianta cu listă ca filtru ar face potențial 50 de milioane de comparații (10.000 × 5.000), în timp ce varianta cu set rămâne la aproximativ 10.000 de verificări O(1) — o diferență de câteva ordine de mărime, vizibilă direct în timpul real de execuție.
+
+---
+
+### Set-uri disjuncte — verificarea rapidă a absenței oricărei suprapuneri
+
+```python
+grupa_a = {"Ana", "Ion"}
+grupa_b = {"Maria", "Radu"}
+
+print(grupa_a.isdisjoint(grupa_b))   # True — nicio suprapunere
+print(grupa_a.isdisjoint({"Ion", "Elena"}))   # False — 'Ion' apare în ambele
+```
+
+`.isdisjoint()` verifică rapid, O(min(len(a), len(b))), dacă două set-uri nu au niciun element în comun — mai eficient decât a calcula intersecția completă (`grupa_a & grupa_b`) doar pentru a verifica dacă rezultatul e gol, pentru că `.isdisjoint()` se oprește la prima potrivire găsită, fără să construiască întregul set de rezultate al intersecției.
+
+De ce contează diferența dintre `.isdisjoint()` și calcularea intersecției complete, dacă amândouă îți spun "există suprapunere sau nu"? Pentru colecții mici, diferența e neglijabilă — dar la seturi cu mii sau milioane de elemente, `.isdisjoint()` poate opri verificarea la prima potrivire găsită, în timp ce intersecția completă construiește tot rezultatul înainte să-l poți verifica, chiar dacă tu ai nevoie doar de răspunsul boolean "da sau nu". Alege întotdeauna operația care corespunde EXACT informației de care ai nevoie, nu una mai generală din care extragi apoi doar o parte.
+
 ---
 
 ## REVEAL
