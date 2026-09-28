@@ -108,6 +108,65 @@ pip install --global torch    # EVITĂ — poluează Python-ul de sistem, greu d
 
 Instalarea globală de pachete (fără virtual environment) e considerată practică proastă, indiferent de convenabilitatea aparentă — riscul de coliziuni de versiuni între proiecte diferite (exact scenariul din HOOK) crește direct proporțional cu numărul de proiecte pe același calculator. Pe multe sisteme moderne (Linux recent, macOS cu Python gestionat de Homebrew), instalarea globală e chiar **blocată** implicit de sistemul de operare, cerând explicit un environment izolat — o măsură de protecție introdusă direct ca urmare a acestei clase frecvente de probleme.
 
+### `uv run` — execuție fără activare manuală
+
+```bash
+uv run python script.py     # rulează DIRECT în environment-ul proiectului, fără 'source .venv/bin/activate'
+uv run pytest                  # la fel, pentru orice comandă
+```
+
+`uv run` elimină pasul explicit de activare — detectează automat `.venv/` din directorul curent (sau îl creează, dacă lipsește și există un `pyproject.toml`) și rulează comanda dată direct în acel environment izolat, fără să modifici manual variabilele de mediu ale terminalului. Acest pattern devine deosebit de util în scripturi de automatizare (CI/CD, task-uri repetitive) unde activarea manuală, interactivă, nu se pretează unui flux complet automatizat.
+
+### Locking de dependențe — reproductibilitate exactă
+
+```bash
+uv lock          # generează uv.lock — versiunile EXACTE, inclusiv dependențele tranzitive
+uv sync --locked   # instalează STRICT ce e în lock file, fără nicio rezolvare nouă de versiuni
+```
+
+`pyproject.toml` declară de obicei intervale de versiuni acceptabile (`requests>=2.31`), nu una singură, exactă — util pentru flexibilitate, dar insuficient pentru reproductibilitate perfectă: două instalări separate, la momente diferite, ar putea rezolva versiuni ușor diferite din același interval. `uv.lock` fixează exact versiunea fiecărei dependențe (directe și tranzitive, adică dependențele dependențelor), garantând că `uv sync --locked` produce byte cu byte același mediu, oriunde e rulat — server de producție, laptopul unui coleg nou, sau un runner de CI/CD.
+
+### Actualizarea dependențelor — controlat, nu accidental
+
+```bash
+uv lock --upgrade-package requests   # actualizează DOAR 'requests', păstrează restul fixat
+uv lock --upgrade                       # actualizează TOATE dependențele la cele mai recente versiuni compatibile
+```
+
+Actualizarea selectivă (`--upgrade-package`) permite testarea izolată a impactului unei singure biblioteci noi, fără riscul de a introduce simultan modificări de comportament din zeci de alte pachete actualizate deodată — practică recomandată pentru proiecte de producție, unde o actualizare masivă, netestată incremental, poate introduce regresii greu de izolat înapoi la cauza exactă.
+
+### Grupuri de dependențe — separarea nevoilor de producție de cele de dezvoltare
+
+```toml
+[project]
+dependencies = ["requests>=2.31", "pydantic>=2.0"]
+
+[dependency-groups]
+dev = ["pytest>=8.0", "ruff>=0.5", "black>=24.0"]
+```
+
+Nu toate dependențele unui proiect sunt necesare în producție — unelte de testare (`pytest`), de linting (`ruff`), de formatare (`black`) sunt necesare doar în timpul dezvoltării, nu la rularea efectivă a aplicației. Separarea explicită în grupuri (`dependency-groups`) permite instalarea selectivă — `uv sync` implicit instalează totul, dar un mediu de producție poate instala doar dependențele stricte de bază, cu `uv sync --no-dev`, evitând bloatul inutil de pachete de dezvoltare pe un server care nu are niciodată nevoie de ele.
+
+### Python multiple versiuni — `uv` gestionează și interpretorul
+
+```bash
+uv python install 3.12       # instalează o versiune SPECIFICĂ de Python, gestionată de uv
+uv venv --python 3.12          # creează environment-ul cu EXACT acea versiune
+```
+
+Spre deosebire de `venv` clasic (care folosește obligatoriu interpretorul Python deja instalat pe sistem), `uv` poate descărca și gestiona el însuși multiple versiuni de Python, independent de ce e instalat global pe mașină — util pentru proiecte care cer o versiune specifică (un model AI care necesită o versiune minimă pentru compatibilitate cu o bibliotecă anume) fără să depindă de ce se întâmplă să fie preinstalat pe fiecare calculator diferit unde codul va rula.
+
+### Instalarea unei unelte globale, fără poluarea unui environment de proiect
+
+```bash
+uv tool install ruff        # instalează 'ruff' GLOBAL, izolat, disponibil din orice director
+ruff check .                  # apelabil direct, fără activare de environment
+```
+
+Pentru unelte de linie de comandă folosite frecvent, indiferent de proiect (linteri, formatatoare, unelte generale de dezvoltare), `uv tool install` le instalează izolat, fiecare în propriul mini-environment intern, dar expuse global ca și comenzi obișnuite — un compromis util între complet izolat (per proiect) și complet global (pe Python-ul de sistem, evitat activ prin restul acestei lecții): unealta rămâne izolată de dependențele altor proiecte, dar accesibilă comod, din orice director, fără activare explicită.
+
+Regula de decizie simplă: dependențele care fac parte din codul propriu-zis al unui proiect (`requests`, `pydantic`, folosite direct de codul care rulează) aparțin virtual environment-ului izolat al proiectului; uneltele generice, folosite pe linia de comandă indiferent de proiect (`ruff`, `black`, `httpie`), aparțin instalării globale prin `uv tool install` — o distincție care ține fiecare tip de dependență exact acolo unde aparține logic.
+
 ---
 
 ## REVEAL
