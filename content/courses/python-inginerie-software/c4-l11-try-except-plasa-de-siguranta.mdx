@@ -131,6 +131,88 @@ finally:
 
 Acest pattern — `finally` pentru cleanup garantat — e atât de comun (fișiere, conexiuni de rețea, lock-uri) încât Python oferă o sintaxă dedicată, mai concisă și mai sigură: `with` (context manager), pe care o vei întâlni în detaliu în L22, dedicată exact gestionării fișierelor — dar reține deja aici legătura directă: `with` e, sub capotă, exact acest pattern `try`/`finally`, automatizat.
 
+### Propagarea excepțiilor — ce se întâmplă când nu prinzi nimic
+
+O excepție care nu e prinsă de niciun `except` din funcția curentă nu dispare — **se propagă** automat către funcția care a apelat-o, apoi către cea care a apelat-o pe aceea, și tot așa, până găsește un `try`/`except` care o gestionează sau ajunge la nivelul cel mai de sus al programului, unde interpretorul o afișează complet (traceback) și oprește execuția:
+
+```python
+def nivel_3():
+    raise ValueError("Eroare produsă adânc în stivă")
+
+def nivel_2():
+    nivel_3()   # nu gestionează nimic — excepția trece prin, nemodificată
+
+def nivel_1():
+    try:
+        nivel_2()
+    except ValueError as eroare:
+        print(f"Prinsă la nivelul 1: {eroare}")
+
+nivel_1()   # "Prinsă la nivelul 1: Eroare produsă adânc în stivă"
+```
+
+Acest mecanism de propagare automată e ce face `try`/`except` puternic la scară: nu trebuie să gestionezi o eroare exact acolo unde apare — poți lăsa excepția să "urce" prin lanțul de apeluri până la nivelul unde ai suficient context să decizi corect ce să faci (afișezi un mesaj utilizatorului, reîncerci, sau oprești complet operațiunea).
+
+### Re-ridicarea unei excepții — `raise` fără argument, în interiorul unui `except`
+
+```python
+def proceseaza_date(date):
+    try:
+        return transforma(date)
+    except ValueError as eroare:
+        logheaza_eroare(f"Eroare la procesare: {eroare}")
+        raise   # re-ridică EXACT excepția originală, cu tot traceback-ul intact
+```
+
+`raise` fără niciun argument, folosit în interiorul unui bloc `except`, re-ridică exact excepția curentă, păstrând complet informația originală (tipul, mesajul, traceback-ul complet) — util pentru pattern-ul "loghează eroarea local, dar lasă-o să se propage mai departe," fără să pierzi contextul complet al eșecului original pentru nivelul superior care va gestiona-o definitiv.
+
+### Excepții înlănțuite — `raise ... from ...`
+
+```python
+def incarca_configurare(cale):
+    try:
+        with open(cale) as f:
+            return json.load(f)
+    except FileNotFoundError as eroare_originala:
+        raise RuntimeError(f"Configurarea lipsește: {cale}") from eroare_originala
+```
+
+`raise NouaEroare(...) from eroare_originala` construiește o excepție nouă, cu un mesaj mai relevant pentru contextul curent, dar păstrează explicit legătura cu excepția care a cauzat-o inițial — traceback-ul afișat include ambele: "During handling of the above exception, another exception occurred." Util pentru a traduce erori de nivel jos (o eroare de fișier lipsă) în erori de nivel înalt, mai semnificative pentru apelant (configurarea aplicației e incompletă), fără să pierzi informația de debugging originală.
+
+### Citirea unui traceback — de sus în jos sau de jos în sus?
+
+Un traceback Python afișează lanțul complet de apeluri care a dus la eroare, dar ordinea vizuală derutează des la început: liniile sunt afișate de la primul apel (cel mai de sus, unde a început execuția) la ultimul (cel mai de jos, unde eroarea a fost efectiv ridicată) — mesajul de eroare propriu-zis e mereu pe **ultima** linie, iar linia imediat de deasupra lui arată exact unde, în cod, a fost apelată operațiunea care a eșuat.
+
+```
+Traceback (most recent call last):
+  File "script.py", line 12, in <module>
+    nivel_1()
+  File "script.py", line 8, in nivel_1
+    nivel_2()
+  File "script.py", line 5, in nivel_2
+    nivel_3()
+  File "script.py", line 2, in nivel_3
+    raise ValueError("Eroare produsă adânc în stivă")
+ValueError: Eroare produsă adânc în stivă
+```
+
+Regula practică de citire: începe de la ultima linie (mesajul de eroare exact) și urcă — fiecare "File... line... in..." de deasupra arată un nivel suplimentar în lanțul de apeluri care a dus până acolo, exact în ordinea inversă a execuției reale (cea mai recentă chemare, ultima din traceback, e sursa directă a erorii).
+
+### Multiple tipuri de excepție într-un singur `except`
+
+```python
+try:
+    rezultat = 10 / int(input("Numărul: "))
+except (ValueError, ZeroDivisionError) as eroare:
+    print(f"Input invalid sau împărțire la zero: {eroare}")
+```
+
+Un singur bloc `except` poate gestiona identic mai multe tipuri de excepție, grupate ca tuple — util când reacția corectă e aceeași, indiferent de tipul exact al eșecului, evitând duplicarea codului de gestionare pentru fiecare tip separat, când toate merită exact același tratament.
+
+Regula de decizie rămâne aceeași de fiecare dată: grupează tipurile de excepție doar dacă reacția lor corectă e identică; dacă tratamentul diferă (o eroare de rețea merită retry, o eroare de validare merită abandon imediat), păstrează blocuri `except` separate, chiar dacă asta înseamnă mai multe linii de cod — claritatea intenției câștigă întotdeauna în fața concisiei artificiale.
+
+Un anti-pattern periculos, întâlnit des la cod scris rapid: `except Exception: pass` — prinde absolut orice eroare și o ignoră complet, silențios, fără niciun log, fără niciun semn că ceva a eșuat. Codul "pare" să funcționeze, dar mascarea completă a erorilor face debugging-ul aproape imposibil mai târziu, când comportamentul greșit apare mult mai departe de cauza reală. Minimul acceptabil, chiar și pentru o eroare pe care alegi deliberat s-o ignori: un log explicit al ce s-a întâmplat și de ce a fost ignorată, niciodată tăcere completă.
+
 ---
 
 ## REVEAL
