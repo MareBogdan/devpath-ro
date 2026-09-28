@@ -1,0 +1,154 @@
+---
+title: "Async/Await: Pentru apeluri LLM și streaming"
+order: 21
+type: lesson
+module_index: 4
+duration: 14
+difficulty: 3
+---
+
+# Async/Await: Pentru apeluri LLM și streaming
+
+## HOOK
+
+O aplicație trebuie să apeleze trei modele AI diferite pentru a compara răspunsurile — fiecare apel durează în medie 2 secunde (rețea + inferență, revezi C3 L20-L22). Executate secvențial, ca în tot codul scris până acum, cele trei apeluri durează **6 secunde** combinate — fiecare așteptat complet înainte de a începe următorul, deși niciun apel nu depinde de rezultatul celuilalt.
+
+Dar cele 2 secunde per apel nu sunt "calcul" — sunt **așteptare**: procesul stă degeaba, cu CPU-ul liber, în timp ce rețeaua transportă cererea și modelul rulează inferența la distanță. `async`/`await` permite programului să lanseze toate cele trei apeluri simultan și să aștepte pe toate deodată — durata totală scade la aproximativ **2 secunde**, cea a celui mai lent apel, nu suma lor.
+
+---
+
+## CONTEXT
+
+Concurența — executarea "simultană" a mai multor operațiuni — se poate obține prin mai multe modele diferite: **thread-uri** (mai multe fire de execuție reale, gestionate de sistemul de operare, discutate în cursul de Sisteme de Operare), **procese** separate, sau **event loop asincron** — un singur thread care comută rapid între mai multe operațiuni "în așteptare", fără costul de context-switching al thread-urilor reale.
+
+Python a adoptat modelul asincron cu sintaxă dedicată prin **PEP 492** (2015, Python 3.5) — `async`/`await`, inspirate de modele similare din C# și JavaScript. Motivația centrală: pentru operațiuni **I/O-bound** (așteptare de rețea, disc, nu calcul CPU intensiv), un event loop asincron gestionează mii de operațiuni concurente cu overhead minim, mult mai eficient decât ar permite mii de thread-uri reale, fiecare cu propriul stack de memorie și cost de comutare al sistemului de operare.
+
+---
+
+## MIEZUL
+
+### Sincron vs. asincron — diferența conceptuală
+
+```python
+import time
+
+def apeleaza_model_sincron(prompt):
+    time.sleep(2)   # simulează latența de rețea + inferență
+    return f"Răspuns pentru: {prompt}"
+
+start = time.time()
+r1 = apeleaza_model_sincron("întrebare 1")
+r2 = apeleaza_model_sincron("întrebare 2")
+r3 = apeleaza_model_sincron("întrebare 3")
+print(time.time() - start)   # ~6 secunde — SECVENȚIAL, fiecare așteaptă complet pe cel precedent
+```
+
+Versiunea asincronă, care lansează toate cele trei apeluri concurent:
+
+```python
+import asyncio
+
+async def apeleaza_model_async(prompt):
+    await asyncio.sleep(2)   # await SEMNALEAZĂ: "aștept, event loop-ul poate face altceva acum"
+    return f"Răspuns pentru: {prompt}"
+
+async def main():
+    rezultate = await asyncio.gather(
+        apeleaza_model_async("întrebare 1"),
+        apeleaza_model_async("întrebare 2"),
+        apeleaza_model_async("întrebare 3"),
+    )
+    print(rezultate)
+
+asyncio.run(main())   # ~2 secunde TOTAL — toate trei rulează CONCURENT
+```
+
+`async def` marchează o funcție ca **coroutine** — nu execută nimic la simpla apelare, exact ca un generator (L19) — trebuie fie `await`-ată, fie programată explicit pe un event loop. `await` cedează controlul event loop-ului exact în punctul unde o operațiune "așteaptă" (rețea, disc) — în acel interval, event loop-ul poate începe/continua altă coroutine, în loc să stea blocat degeaba.
+
+<CosmoHint emotion="thinking">
+De ce `time.sleep(2)` (sincron) blochează TOT programul, dar `asyncio.sleep(2)` (asincron) nu? `time.sleep()` blochează literalmente thread-ul curent — sistemul de operare pune procesul în stare de așteptare, fără nicio posibilitate de a face altceva pe acel thread, exact acele 2 secunde. `asyncio.sleep()`, într-o coroutine, cedează controlul explicit event loop-ului Python (nu sistemului de operare) — event loop-ul, rulând tot pe un singur thread, comută imediat la altă coroutine gata de execuție, revenind la aceasta doar când cele 2 secunde s-au scurs efectiv. Diferența e cine deține controlul în timpul așteptării: sistemul de operare (blocare completă) vs. propriul tău event loop Python (comutare cooperativă).
+</CosmoHint>
+
+### `asyncio.gather()` — rularea concurentă a mai multor coroutine
+
+```python
+async def obtine_date_utilizator(id_utilizator):
+    async with httpx.AsyncClient() as client:
+        raspuns = await client.get(f"https://api.exemplu.ro/utilizatori/{id_utilizator}")
+        return raspuns.json()
+
+async def obtine_toti(id_uri):
+    task_uri = [obtine_date_utilizator(id) for id in id_uri]
+    return await asyncio.gather(*task_uri)      # revezi '*' pentru despachetare din L9
+
+rezultate = asyncio.run(obtine_toti([1, 2, 3, 4, 5]))
+```
+
+`asyncio.gather()` lansează toate coroutine-le transmise **simultan** (conceptual — pe rând, dar comutând între ele la fiecare `await`), și returnează rezultatele, în ordine, doar când **toate** s-au terminat. Pentru cinci cereri HTTP independente, latența totală tinde către latența celei mai lente cereri individuale, nu suma tuturor cinci — exact câștigul demonstrat în HOOK, extins la un caz real de integrare API.
+
+{/* TABLE */}
+
+| Aspect | Cod sincron | Cod asincron |
+|---|---|---|
+| Definire | `def functie():` | `async def functie():` |
+| Apel simplu | `functie()` execută direct | `functie()` returnează un obiect coroutine, neexecutat |
+| Așteptare rezultat | Implicit, blocant | `await functie()` |
+| Rulare din cod obișnuit | Direct | `asyncio.run(functie())` (punct de intrare) |
+| Rulare concurentă a mai multor operațiuni | Secvențial, doar cu thread-uri separate | `asyncio.gather(...)`, nativ |
+| Potrivit pentru | Calcul CPU-intensiv | Operațiuni I/O — rețea, fișiere, apeluri API |
+
+### `httpx.AsyncClient` vs. `requests` — de ce nu poți amesteca sincron cu async
+
+`requests` (folosit în L1, L23) e o bibliotecă **sincronă** — nu poate fi `await`-ată. Integrarea cu `async`/`await` cere o bibliotecă compatibilă, construită special pentru asta: `httpx` (suportă ambele moduri), `aiohttp`. SDK-urile moderne de AI (OpenAI, Anthropic) oferă de obicei ambele variante — un client sincron obișnuit și un client asincron (de exemplu, `AsyncOpenAI` alături de `OpenAI`) — alegerea între ele depinde de arhitectura aplicației, nu de preferință stilistică.
+
+**Regula strictă**: nu poți apela direct o funcție `async def` dintr-un context complet sincron fără `asyncio.run()` sau un event loop deja activ — apelul simplu `functie_async()` (fără `await`) doar creează obiectul coroutine, fără să-l execute, un bug frecvent și confuz pentru cineva nou la async.
+
+### `async for` și streaming — legătura directă cu SSE (C3 L23)
+
+```python
+async def afiseaza_stream(prompt):
+    async for bucata in client.stream_completion(prompt):   # iterare ASINCRONĂ
+        print(bucata, end="", flush=True)
+```
+
+Streaming-ul de răspuns de la un model AI (revezi Server-Sent Events, C3 L23) se modelează natural ca un **generator asincron** — fiecare bucată de text primită de la server e produsă printr-un `async for`, exact ca un generator obișnuit (L19), dar cu cedare de control la event loop între fiecare bucată primită, permițând programului să facă altceva util (actualizarea UI, gestionarea altor cereri concurente) în timp ce așteaptă următoarea bucată de text de la rețea.
+
+<CosmoHint emotion="encouraging">
+FastAPI (menționat deja la decoratori, L20) suportă nativ `async def` pentru orice endpoint — `@app.get("/date") async def obtine_date(): ...` — permițând unui singur server să gestioneze mii de cereri concurente, fiecare așteptând independent răspunsuri de la baza de date sau de la alte servicii, fără să blocheze celelalte cereri în timpul așteptării. E motivul principal pentru care majoritatea framework-urilor Python moderne, orientate spre API-uri de mare trafic, adoptă async ca model implicit, nu excepție.
+</CosmoHint>
+
+### Când NU ai nevoie de async
+
+Pentru operațiuni **CPU-bound** — calcul numeric intensiv, procesare de imagini, antrenare de model — `async`/`await` nu ajută deloc, pentru că nu există nicio "așteptare" de cedat altcuiva; procesorul e ocupat continuu cu calcul real. Pentru acele cazuri, paralelismul real vine din multiprocessing (procese separate, fiecare cu propriul interpretor Python, care evită complet GIL-ul, discutat în cursul de Sisteme de Operare) sau din delegarea calculului la biblioteci native optimizate (NumPy, PyTorch — care rulează pe multiple thread-uri C/CUDA, independent de modelul async al Python-ului care le orchestrează).
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Situație | Alegere |
+|---|---|
+| Mai multe apeluri API independente | `asyncio.gather()` cu coroutine `async def` |
+| Streaming de răspuns de la un LLM | `async for` peste un generator asincron |
+| Calcul numeric intensiv (antrenare model) | NU async — paralelism prin multiprocessing/biblioteci native |
+| Un singur apel de rețea, simplu | Sincron e suficient — async adaugă complexitate fără beneficiu la un singur apel izolat |
+| Server care gestionează mii de cereri concurente | Framework async (FastAPI), nativ |
+
+<FactBox>
+**Async/await în cifre:**
+- Sintaxa `async`/`await`: introdusă prin **PEP 492**, Python 3.5 (2015)
+- Trei apeluri API de 2 secunde fiecare: secvențial ~6s, concurent (async) ~2s
+- `asyncio.gather()`: rulează coroutine concurent, returnează rezultatele doar când TOATE se termină
+- Potrivit strict pentru operațiuni I/O-bound (rețea, disc) — inutil pentru CPU-bound (calcul intensiv)
+- `httpx`/`aiohttp`: biblioteci HTTP compatibile async, spre deosebire de `requests` (strict sincron)
+- FastAPI: suportă nativ endpoint-uri `async def`, gestionând mii de cereri concurente pe un singur thread
+</FactBox>
+
+---
+
+## ÎNCHEIERE
+
+`async`/`await` rezolvă exact problema apelurilor de rețea multiple, independente — transformă timpul de așteptare risipit în timp folosit pentru a avansa alte operațiuni concurente, fără costul thread-urilor reale. Cheia mentală de reținut: async ajută la *așteptare* (I/O), nu la *calcul* (CPU) — o distincție care decide direct dacă merită complexitatea suplimentară pentru o situație dată.
+
+Ai văzut deja `open()` menționat în treacăt la `try`/`finally` din L11. Lecția următoare tratează complet gestionarea fișierelor — citire, scriere, și pattern-ul `with` care garantează închiderea corectă a resurselor, indiferent ce se întâmplă în interior.
