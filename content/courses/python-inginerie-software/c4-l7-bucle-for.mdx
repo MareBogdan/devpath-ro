@@ -1,0 +1,193 @@
+---
+title: "Bucle FOR: Repetiție peste orice colecție"
+order: 7
+type: lesson
+module_index: 4
+duration: 12
+difficulty: 1
+---
+
+# Bucle FOR: Repetiție peste orice colecție
+
+## HOOK
+
+Un pipeline de antrenare AI procesează 50.000 de imagini, una câte una, aplicând aceeași transformare fiecăreia — redimensionare, normalizare, augmentare. Nimeni nu scrie 50.000 de linii identice de cod. Scrie **o singură linie de logică**, împachetată într-o buclă, și lasă interpretorul să o repete de 50.000 de ori.
+
+Bucla `for` e mecanismul prin care programele evită repetarea manuală a codului — dar în Python, e mai mult decât "repetă de N ori": e o construcție proiectată să itereze *peste orice colecție de date*, indiferent de forma ei — o listă, un string, un fișier, sau un generator care produce valori pe măsură ce sunt cerute, fără să le țină pe toate în memorie simultan.
+
+---
+
+## CONTEXT
+
+Bucla `for` din C, Java, JavaScript are formă clasică: `for (int i = 0; i < 10; i++)` — trei clauze separate (inițializare, condiție, pas), controlate manual de programator. Python a abandonat complet acest model — `for` în Python e, tehnic, un **for-each**: iterează direct peste elementele unei colecții, fără a gestiona manual un index numeric.
+
+Această decizie de design elimină o clasă întreagă de bug-uri clasice — erorile "off-by-one" (index care începe sau se termină greșit cu 1), extrem de comune în buclele C-style, unde programatorul e responsabil manual de fiecare pas al indexului.
+
+---
+
+## MIEZUL
+
+### Iterarea peste colecții — forma de bază
+
+```python
+fructe = ["măr", "pară", "kiwi"]
+
+for fruct in fructe:
+    print(fruct)
+# măr
+# pară
+# kiwi
+```
+
+Nu există niciun index vizibil, nicio condiție de oprire scrisă manual — bucla se termină automat când colecția se epuizează. Aceeași sintaxă identică funcționează peste orice **iterabil**: o listă, un string (iterezi caracter cu caracter), un dicționar (iterezi implicit peste chei), un fișier deschis (iterezi linie cu linie):
+
+```python
+for litera in "Python":
+    print(litera)     # P, y, t, h, o, n — fiecare pe rândul lui
+
+for cheie in {"nume": "Ana", "varsta": 25}:
+    print(cheie)       # nume, varsta — implicit iterezi peste chei, nu valori
+```
+
+### `range()` — când ai nevoie efectiv de un index numeric
+
+Pentru cazul clasic "repetă de N ori" sau "de la X la Y", Python oferă `range()`, care generează o secvență de numere **la cerere** (lazy — nu creează o listă completă în memorie, discuție extinsă în L19 despre generatoare):
+
+```python
+for i in range(5):        # 0, 1, 2, 3, 4 — se termină ÎNAINTE de 5
+    print(i)
+
+for i in range(2, 10, 2):  # start=2, stop=10 (exclusiv), pas=2 → 2, 4, 6, 8
+    print(i)
+```
+
+<CosmoHint emotion="thinking">
+De ce `range(5)` se termină la `4`, nu la `5`? E aceeași convenție de indexare de la 0 pe care o vei întâlni peste tot în Python — liste, string-uri, `range()` — toate consideră primul element poziția `0`. `range(n)` generează exact `n` valori, de la `0` la `n-1`, aliniat perfect cu indicii valizi ai unei liste de lungime `n`. Convenția pare arbitrară la început, dar ține consistent aceeași logică în tot limbajul — o listă cu 5 elemente are indicii valizi `0` până la `4`, exact ce produce `range(5)`.
+</CosmoHint>
+
+### `enumerate()` — index și valoare, simultan
+
+Nevoia de "index ȘI valoare" apare des — Python o rezolvă elegant cu `enumerate()`, în loc să reintroducă manual un index cu `range(len(...))`:
+
+```python
+fructe = ["măr", "pară", "kiwi"]
+
+# Varianta greșită/verboasă (evitat în Python idiomatic):
+for i in range(len(fructe)):
+    print(i, fructe[i])
+
+# Varianta idiomatică:
+for indice, fruct in enumerate(fructe):
+    print(indice, fruct)
+# 0 măr
+# 1 pară
+# 2 kiwi
+
+for indice, fruct in enumerate(fructe, start=1):   # numerotare de la 1, nu de la 0
+    print(f"{indice}. {fruct}")
+```
+
+`enumerate()` produce tuple-uri `(index, valoare)`, despachetate direct în două variabile prin sintaxa de tuple unpacking văzută în L3.
+
+### `zip()` — iterare paralelă peste colecții multiple
+
+```python
+nume = ["Ana", "Ion", "Maria"]
+varste = [25, 30, 28]
+
+for n, v in zip(nume, varste):
+    print(f"{n} are {v} ani")
+# Ana are 25 ani
+# Ion are 30 ani
+# Maria are 28 ani
+```
+
+`zip()` combină colecții **paralele**, câte un element din fiecare, la fiecare pas — util constant în AI/ML pentru a itera simultan peste input-uri și etichete corespunzătoare (`for imagine, eticheta in zip(imagini, etichete):`). Dacă colecțiile au lungimi diferite, `zip()` se oprește la cea mai scurtă, tăcut, fără eroare — un detaliu de reținut pentru debugging, dacă output-ul pare "prea scurt" neașteptat.
+
+{/* TABLE */}
+
+| Nevoie | Unealtă |
+|---|---|
+| Iterare simplă peste elemente | `for x in colectie:` |
+| Repetiție de N ori, cu index numeric | `for i in range(n):` |
+| Index ȘI valoare simultan | `for i, x in enumerate(colectie):` |
+| Iterare paralelă peste 2+ colecții | `for a, b in zip(colectie1, colectie2):` |
+| Iterare peste chei ȘI valori dintr-un dicționar | `for k, v in dictionar.items():` |
+
+### `break`, `continue`, și clauza `else` a buclei
+
+```python
+for numar in range(100):
+    if numar == 42:
+        print("Găsit!")
+        break            # oprește bucla imediat, complet
+
+for numar in range(10):
+    if numar % 2 == 0:
+        continue           # sări la următoarea iterație, fără să execuți restul blocului
+    print(numar)             # afișează doar numerele impare
+```
+
+O particularitate rar întâlnită în alte limbaje: bucla `for` din Python poate avea o clauză `else`, care se execută **doar dacă bucla s-a terminat normal, fără `break`**:
+
+```python
+for numar in [1, 3, 5, 7]:
+    if numar % 2 == 0:
+        print("Am găsit un număr par!")
+        break
+else:
+    print("Toate numerele sunt impare")   # se execută — bucla nu a fost întreruptă
+```
+
+Util pentru pattern-ul clasic "caută X în colecție; dacă nu-l găsești, fă altceva" — fără nevoia unui flag boolean separat (`gasit = False`, setat în `break`, verificat după buclă).
+
+<CosmoHint emotion="encouraging">
+Buclele `for` sunt exact ce rulează în spatele oricărui `DataLoader` de antrenare AI la cel mai simplu nivel conceptual — `for batch in dataloader:` iterează peste loturi de date de antrenare, unul câte unul, exact aceeași structură pe care ai văzut-o aici peste liste simple. Vei vedea în L19 că `DataLoader`-ul e, de fapt, un generator — o formă mai eficientă de iterabil, dar mecanismul de bază al buclei `for` care-l consumă rămâne identic.
+</CosmoHint>
+
+### List comprehension — o previzualizare
+
+Un pattern extrem de comun — construirea unei liste noi prin transformarea fiecărui element al alteia — are o formă condensată în Python, tratată pe larg în L18:
+
+```python
+# Buclă clasică:
+patrate = []
+for x in range(10):
+    patrate.append(x ** 2)
+
+# List comprehension (echivalent, mai concis):
+patrate = [x ** 2 for x in range(10)]
+```
+
+Reține pentru acum doar existența pattern-ului — L18 explică exact sintaxa și când e recomandată.
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Cod | Rezultat |
+|---|---|
+| `list(range(5))` | `[0, 1, 2, 3, 4]` |
+| `list(enumerate(["a", "b"]))` | `[(0, "a"), (1, "b")]` |
+| `list(zip([1, 2], ["x", "y"]))` | `[(1, "x"), (2, "y")]` |
+| `for i in range(3): pass` (fără `break`) | Clauza `else` a buclei, dacă există, SE execută |
+
+<FactBox>
+**Bucle FOR în cifre:**
+- Python `for`: for-each nativ, fără gestionare manuală de index — spre deosebire de C/Java clasic
+- `range(n)`: generează `n` valori, de la `0` la `n-1` (lazy, fără a materializa lista completă în memorie)
+- `zip()`: se oprește la cea mai scurtă colecție dintre argumente, fără eroare
+- Clauza `else` la bucla `for`: rar folosită, dar unică — puține limbaje mainstream o au
+- `enumerate(colectie, start=1)`: parametru opțional pentru numerotare de la altă valoare decât 0
+- List comprehension: sintaxă introdusă încă din primele versiuni Python, extrem de idiomatică
+</FactBox>
+
+---
+
+## ÎNCHEIERE
+
+Bucla `for` din Python trece dincolo de "repetă de N ori" — e o unealtă generică de iterare peste orice colecție, de la liste simple la fișiere întregi sau la loturi de date de antrenare AI. `enumerate()` și `zip()` extind acest model pentru cazurile practice cele mai comune: index și valoare simultan, sau iterare paralelă peste colecții corespondente.
+
+Dar `for` are o limitare structurală: numărul de iterații e determinat de dimensiunea colecției peste care iterezi, cunoscut dinainte de a începe bucla. Ce faci când vrei să repeți o acțiune "până se întâmplă ceva," fără să știi dinainte de câte iterații ai nevoie? Lecția următoare introduce bucla `while` — și pericolul ei cel mai cunoscut, bucla infinită.
