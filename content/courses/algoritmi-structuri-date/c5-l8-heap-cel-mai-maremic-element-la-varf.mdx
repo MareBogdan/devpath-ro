@@ -1,0 +1,176 @@
+---
+title: "Heap — cel mai mare/mic element la vârf"
+order: 8
+type: lesson
+module_index: 5
+duration: 14
+difficulty: 3
+---
+
+# Heap — cel mai mare/mic element la vârf
+
+## HOOK
+
+Un sistem de suport tehnic primește sute de cerere pe zi, fiecare cu un nivel de urgență diferit. La orice moment, sistemul trebuie să răspundă instant la o singură întrebare: "care e cererea cea mai urgentă chiar acum?" — nu vrea să sorteze toate cererile (costisitor, și inutil — majoritatea nu vor fi procesate curând), vrea doar acces instant la extrema curentă, indiferent câte cereri noi sosesc sau se rezolvă între timp.
+
+BST-ul din L7 ar rezolva asta, dar exagerat: menține ordine completă între *toate* elementele, când tot ce ai nevoie e accesul rapid la un singur capăt al ordinii. **Heap**-ul rezolvă exact acest caz specific, mai restrâns, cu o structură mai simplă și mai rapidă: garantează acces O(1) la extrema curentă (minim sau maxim), și inserare/eliminare O(log n) — fără să mențină nicio ordine între restul elementelor, economisind exact munca pe care BST-ul o face în plus, inutil pentru acest caz de uz specific.
+
+---
+
+## CONTEXT
+
+Heap-ul a fost introdus în 1964 de J.W.J. Williams, ca structura de bază a algoritmului **Heapsort** — o alternativă de sortare cu garanții similare Merge Sort-ului (O(n log n) în cel mai rău caz), dar cu memorie suplimentară O(1), spre deosebire de O(n) la Merge Sort. De atunci, heap-ul a devenit util dincolo de sortare — orice problemă care cere acces repetat la extrema curentă dintr-o colecție care se schimbă dinamic (cererile de suport din HOOK, cozile de priorități în sisteme de operare, algoritmul lui Dijkstra din L11) folosește exact această structură.
+
+Numele "heap" (grămadă) reflectă structura relaxată — spre deosebire de un BST, unde ordinea e strictă la fiecare nod (stânga mai mic, dreapta mai mare), un heap impune o regulă mult mai slabă: doar relația dintre un nod și copiii lui direcți contează, nu ordinea globală între toate elementele. Această relaxare deliberată e exact ce face heap-ul mai simplu și, pentru cazul lui specific de uz, mai eficient decât un BST complet ordonat.
+
+---
+
+## MIEZUL
+
+### Proprietatea de heap — regula mult mai slabă decât la BST
+
+Un **min-heap** respectă o singură regulă: valoarea fiecărui nod e mai mică sau egală cu valorile ambilor lui copii direcți. (Un **max-heap** inversează regula — fiecare nod e mai mare sau egal cu copiii lui.) Observă ce **nu** garantează această regulă: nu spune nimic despre relația dintre cei doi copii ai aceluiași nod, sau despre relația dintre noduri din ramuri diferite ale arborelui — doar relația verticală, părinte-copil, direct.
+
+```
+        1
+       / \
+      3   2
+     / \   \
+    5   4   8
+```
+
+Acest arbore respectă proprietatea de min-heap: `1 ≤ 3`, `1 ≤ 2`, `3 ≤ 5`, `3 ≤ 4`, `2 ≤ 8` — dar `4` și `5` nu sunt în nicio ordine impusă între ele, deși sunt "vecini" vizual în arbore. Această flexibilitate — comparativ cu regula strictă a unui BST — e exact ce permite operațiilor de inserare/eliminare să fie mai simple și, adesea, mai rapide în practică.
+
+<CosmoHint emotion="thinking">
+De ce un heap garantează doar accesul la extremă, dar NU permite căutarea rapidă a unei valori oarecare din mijlocul structurii? Pentru că proprietatea de heap nu spune nimic despre ordinea orizontală — un element cu valoarea `50` ar putea fi oriunde în arbore, în orice ramură, atâta timp cât respectă doar relația cu părintele lui direct. Căutarea unei valori specifice într-un heap costă O(n), identic cu o listă nesortată — heap-ul nu e un înlocuitor pentru BST, e o structură specializată pentru un caz de uz mult mai restrâns: doar extrema curentă contează, nimic altceva.
+</CosmoHint>
+
+### Reprezentarea ca array — fără noduri și pointeri explicite
+
+Spre deosebire de BST (noduri conectate prin referințe), un heap se reprezintă de obicei direct ca un **array simplu**, folosind aritmetică de index pentru a naviga relațiile părinte-copil:
+
+```python
+# Pentru un element la indexul i:
+# copil_stang  = 2*i + 1
+# copil_drept  = 2*i + 2
+# parinte      = (i - 1) // 2
+```
+
+Această reprezentare compactă elimină complet overhead-ul de memorie al referințelor explicite (fiecare nod BST ține două pointeri suplimentari) — heap-ul folosește doar un array contiguu, cu relațiile de structură calculate matematic din poziție, nu stocate explicit. Rezultatul practic: heap-urile sunt semnificativ mai eficiente ca memorie decât BST-urile echivalente, un alt exemplu concret al space-time tradeoff din L4, de data asta câștigat aproape "gratuit" prin alegerea reprezentării potrivite.
+
+### Inserarea — "bubble up" (urcarea elementului nou)
+
+```python
+import heapq
+
+min_heap = []
+heapq.heappush(min_heap, 5)
+heapq.heappush(min_heap, 2)
+heapq.heappush(min_heap, 8)
+heapq.heappush(min_heap, 1)
+print(min_heap[0])   # 1 — mereu accesibil instant, la indexul 0
+```
+
+Elementul nou se adaugă întâi la finalul array-ului (o poziție liberă, garantat validă structural), apoi "urcă" repetat, schimbat cu părintele lui, cât timp încalcă proprietatea de heap — proces numit **sift-up** sau **bubble-up**. Fiecare schimbare urcă elementul cu un nivel — iar adâncimea maximă a unui heap cu `n` elemente e `log₂(n)` (arborele e mereu **complet**, umplut nivel după nivel, spre deosebire de un BST care poate degenera), deci inserarea costă garantat O(log n), fără riscul de dezechilibru discutat la BST în L7.
+
+### Extragerea extremei — "sift down"
+
+```python
+minim = heapq.heappop(min_heap)   # elimină ȘI returnează cel mai mic element
+```
+
+Extragerea elimină rădăcina (extrema curentă), mută ultimul element din array la poziția rădăcinii (păstrând forma completă a arborelui), apoi îl "coboară" repetat, schimbat cu cel mai mic dintre copiii lui, cât timp încalcă proprietatea de heap — procesul invers, numit **sift-down**. Costă tot O(log n), aceeași adâncime maximă garantată de forma completă a arborelui.
+
+{/* TABLE */}
+
+| Operație | Complexitate | Comparație cu BST |
+|---|---|---|
+| Acces la extremă (min/max) | O(1) | BST: O(log n) — trebuie coborât complet stânga/dreapta |
+| Inserare | O(log n) | Similar BST balansat |
+| Extragerea extremei | O(log n) | BST: O(log n), dar necesită logică suplimentară de ștergere |
+| Căutarea unei valori oarecare | O(n) | BST: O(log n) — heap-ul NU e potrivit pentru asta |
+| Memorie per element | Minimă (array simplu) | Suplimentară (referințe la copii) |
+
+### Cazul de uz canonic — coada de priorități
+
+```python
+import heapq
+
+cereri = []
+heapq.heappush(cereri, (1, "Server complet căzut"))       # prioritate 1 = cea mai urgentă
+heapq.heappush(cereri, (5, "Buton de UI colorat greșit"))
+heapq.heappush(cereri, (2, "Plăți eșuate pentru unii utilizatori"))
+
+while cereri:
+    prioritate, descriere = heapq.heappop(cereri)
+    print(f"[{prioritate}] {descriere}")
+# Procesate EXACT în ordinea urgenței, fără nicio sortare explicită a listei complete
+```
+
+Acesta e exact scenariul din HOOK, rezolvat direct: o **coadă de priorități** (priority queue) implementată nativ printr-un heap — fiecare `heappush`/`heappop` menține automat accesul instant la cererea cea mai urgentă, fără să sortezi vreodată explicit toate cererile acumulate. Modulul `heapq` din Python implementează un min-heap direct peste o listă obișnuită, gata de folosit, fără nicio implementare manuală necesară.
+
+### Max-heap în Python — un mic truc practic
+
+Modulul `heapq` implementează nativ doar **min-heap** — accesul rapid e mereu la cel mai mic element. Pentru un max-heap (acces rapid la cel mai mare), practica standard e un truc simplu: inversezi semnul valorilor la inserare, apoi le reinversezi la citire:
+
+```python
+max_heap = []
+heapq.heappush(max_heap, -5)     # stochezi NEGATIVUL valorii reale
+heapq.heappush(max_heap, -2)
+heapq.heappush(max_heap, -8)
+
+cel_mai_mare = -heapq.heappop(max_heap)   # -(-8) = 8, cel mai mare element real
+```
+
+Acest truc funcționează pentru că ordinea relativă se inversează perfect prin negare — cel mai mic număr negativ corespunde exact celui mai mare număr pozitiv original. Pentru tupluri complexe (ca `(prioritate, descriere)` din exemplul anterior), doar primul element al tuplului (criteriul de comparație) trebuie negat, restul rămâne neschimbat.
+
+### Heapify — construirea unui heap din date existente, mai rapid decât inserări repetate
+
+```python
+date = [5, 2, 8, 1, 9, 3]
+heapq.heapify(date)      # transformă lista EXISTENTĂ într-un heap valid, IN-PLACE
+print(date[0])              # cel mai mic element, garantat la index 0
+```
+
+Dacă ai deja o listă completă de date și vrei să construiești un heap din ea, inserarea element cu element (`n` apeluri de `heappush`, fiecare O(log n)) ar costa total O(n log n). `heapify()` face aceeași transformare mai eficient — O(n), nu O(n log n) — aplicând sift-down doar la nodurile care au copii, începând de la jumătatea array-ului în sus, evitând munca redundantă a inserărilor individuale repetate. Diferența pare mică în notație, dar la colecții mari, folosirea `heapify()` în loc de inserări repetate e practica corectă, standard, ori de câte ori pornești de la date deja existente, nu construiești heap-ul incremental.
+
+### Heap-uri și top-K — o problemă practică frecventă
+
+O aplicație extrem de comună a heap-urilor: găsirea celor mai mari (sau mai mici) `K` elemente dintr-o colecție mare, fără să sortezi complet toată colecția — inutil de costisitor dacă ai nevoie doar de câteva elemente extreme, nu de ordinea completă. Menținând un heap de dimensiune fixă `K`, actualizat pe măsură ce parcurgi datele, obții complexitate O(n log k) — semnificativ mai bun decât O(n log n) pentru o sortare completă, atunci când `k` e mult mai mic decât `n`, exact cazul tipic al unui "top 10" dintr-un milion de înregistrări.
+
+Modulul `heapq` oferă chiar funcții dedicate pentru acest caz — `heapq.nlargest(k, lista)` și `heapq.nsmallest(k, lista)` — care implementează intern exact această strategie, fără să scrii manual logica de heap pentru un caz atât de comun, direct utilizabile oriunde ai nevoie doar de un top fix de rezultate, nu de o sortare completă a întregii colecții.
+
+<CosmoHint emotion="excited">
+Algoritmul lui Dijkstra, subiectul exact al L11, folosește un heap ca structură centrală — la fiecare pas, extrage nodul cel mai apropiat rămas neexplorat, exact operația O(log n) descrisă aici. Fără heap, acea extragere ar costa O(n) pe fiecare pas, transformând întregul algoritm dintr-unul eficient într-unul mult mai lent la grafuri mari. Data viitoare când un GPS calculează instant cea mai scurtă rută, undeva dedesubt, o coadă de priorități bazată pe heap decide, la fiecare pas, ce drum explorează următor.
+</CosmoHint>
+
+<FactBox>
+**Heap în cifre:**
+- Introdus de J.W.J. Williams în **1964**, ca bază a algoritmului Heapsort
+- Acces la extremă: **O(1)**, garantat — rădăcina arborelui, mereu la index 0
+- Inserare/extragere: **O(log n)** — adâncimea unui arbore complet cu n elemente
+- Căutarea unei valori oarecare: O(n) — heap-ul NU e o structură de căutare generală
+- Modulul Python `heapq`: implementează min-heap direct peste o listă simplă
+- Folosit direct de algoritmul lui Dijkstra (L11) pentru extragerea eficientă a nodului mai apropiat
+</FactBox>
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Nevoie | Structură potrivită |
+|---|---|
+| Acces rapid la orice valoare, ordine completă | BST (L7) |
+| Acces rapid DOAR la extremă (min/max), restul nu contează | Heap |
+| Procesare în ordinea priorității, care se schimbă dinamic | Coadă de priorități (heap) |
+| Sortare completă, o singură dată | Merge Sort (L6) sau Heapsort |
+
+---
+
+## ÎNCHEIERE
+
+Heap-ul demonstrează un principiu important, care revine constant în proiectarea de structuri de date: o regulă mai slabă, impusă doar acolo unde e cu adevărat necesară, permite adesea o structură mai simplă și mai rapidă decât una care garantează mult mai mult decât ai nevoie. BST-ul garantează ordine completă; heap-ul garantează doar accesul la extremă — exact suficient pentru cazul lui de uz, nimic în plus.
+
+Până acum, toate structurile discutate (liste, BST-uri, heap-uri) organizează date cu o formă relativ simplă, ierarhică sau liniară. Lecția următoare schimbă complet perspectiva: grafurile — structuri unde relațiile dintre elemente nu sunt limitate la "un părinte, câțiva copii", ci pot conecta orice element cu oricare altul, în orice configurație, modelând probleme mult mai apropiate de rețele reale — sociale, de transport, sau de dependențe.
