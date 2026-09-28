@@ -128,6 +128,26 @@ Dacă e atât de simplu, de ce marea majoritate a API-urilor web publice sunt RE
 
 JSON-RPC câștigă exact în contextele unde aceste beneficii HTTP nu contează: comunicare proces-la-proces locală (LSP, stdio), sau protocoale unde modelul de "apel de funcție" e literal ce se întâmplă — nu o resursă de manipulat, ci o acțiune de executat.
 
+### Comparație directă cu gRPC — un alt model RPC, cu alte compromisuri
+
+JSON-RPC nu e singura alternativă modernă la REST pentru comunicarea de tip apel-de-funcție. **gRPC** (Google, 2015) rezolvă o problemă similară, dar cu decizii de design opuse: în loc de JSON text-lizibil, foloseşte **Protocol Buffers** — un format binar, definit printr-o schemă strictă (`.proto`), serializat mult mai compact și mai rapid de parsat decât textul JSON. gRPC rulează exclusiv peste HTTP/2 (C3 L20), exploatând direct multiplexarea nativă pentru streaming bidirecțional eficient — o capacitate pe care JSON-RPC, agnostic de transport, nu o oferă implicit.
+
+Compromisul: gRPC cere o schemă compilată explicit (generarea de cod client/server din fișierul `.proto`, într-un pas separat de build), în timp ce JSON-RPC rămâne complet dinamic — orice client care poate construi JSON valid poate apela orice metodă, fără niciun pas de generare de cod. Pentru comunicare internă, de mare volum, între microservicii scrise în limbaje diferite (unde performanța de serializare contează la scară), gRPC câștigă adesea; pentru integrări rapide, prototipare, sau protocoale unde lizibilitatea directă a mesajului contează (debugging simplu, citirea unui payload direct din log-uri), JSON-RPC rămâne alegerea mai pragmatică.
+
+Diferența de performanță pură nu e neglijabilă la scară mare: Protocol Buffers serializează și deserializează tipic de câteva ori mai rapid decât JSON, cu payload-uri semnificativ mai mici pentru aceleași date structurate — motiv pentru care sisteme cu miliarde de apeluri interne pe zi (exact cazul de uz pentru care Google a construit gRPC) simt diferența direct în costul de infrastructură. Pentru volumul tipic al unui server MCP local, care servește un singur agent AI, această diferență e practic irelevantă — motivul real pentru care JSON-RPC rămâne alegerea corectă acolo e simplitatea de integrare, nu performanța brută.
+
+{/* TABLE */}
+
+| Aspect | JSON-RPC | gRPC |
+|---|---|---|
+| Format mesaj | JSON, text-lizibil | Protocol Buffers, binar |
+| Transport | Agnostic — HTTP, stdio, WebSocket | Doar HTTP/2 |
+| Schemă | Opțională, informală | Obligatorie, compilată (`.proto`) |
+| Streaming bidirecțional nativ | Nu, necesită transport separat | Da, nativ prin HTTP/2 |
+| Curbă de adopție | Minimă — orice client JSON | Necesită toolchain de compilare |
+
+Alegerea între JSON-RPC și gRPC pentru un proiect nou depinde rar de "care e mai bun" în abstract — depinde de ce ecosistem se integrează. Un server MCP care trebuie să comunice cu orice client AI, scris în orice limbaj, fără toolchain de compilare partajat, alege natural JSON-RPC — text simplu, lizibil, fără nicio dependență de build. Un sistem intern, la scară mare, cu control complet asupra ambelor părți ale comunicării, poate exploata avantajele de performanță ale gRPC fără costul de flexibilitate să conteze.
+
 ---
 
 ## REVEAL
