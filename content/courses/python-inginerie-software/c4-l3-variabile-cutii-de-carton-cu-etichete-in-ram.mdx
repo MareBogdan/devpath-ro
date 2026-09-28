@@ -126,6 +126,75 @@ Acest comportament — scope local vs. global — e suficient de important înc�
 
 Python nu impune la nivel de limbaj nicio distincție reală între "constante" și variabile normale — orice nume poate fi reatribuit oricând. Convenția `CONSTANTA_MAXIMA = 100` (majuscule) e un semnal *pentru programatorii umani* — "nu modifica asta" — pe care interpretorul îl ignoră complet. Similar, `_privat` (underscore la început) semnalează "uz intern, nu accesa din afara modulului" — din nou, doar convenție, nu impusă tehnic. Aceste convenții devin esențiale mai târziu, la clase (L17), unde marchează intenția de încapsulare fără să existe cuvinte-cheie dedicate `private`/`public` ca în Java.
 
+### Numele ca variabile globale de configurare — `os.environ`
+
+O clasă foarte comună de "variabile" pe care le vei întâlni constant în cod de producție, mai ales în integrări cu API-uri de model AI, nu sunt variabile Python obișnuite, ci **variabile de mediu** — valori setate la nivelul sistemului de operare, citite prin `os.environ`:
+
+```python
+import os
+
+cheie_api = os.environ["OPENAI_API_KEY"]        # aruncă KeyError dacă variabila nu e setată
+cheie_api_sigura = os.environ.get("OPENAI_API_KEY", "")   # returnează "" implicit, fără eroare
+```
+
+Acest pattern e universal recomandat pentru secrete (chei API, parole de bază de date) — spre deosebire de o variabilă Python obișnuită, definită direct în cod, o variabilă de mediu nu ajunge niciodată comisă accidental în git (vezi lecția finală despre Git din acest curs), pentru că valoarea ei trăiește în afara fișierelor sursă, în shell-ul sau fișierul `.env` al mediului de execuție, nu în textul programului.
+
+Biblioteca `python-dotenv`, extrem de comună în proiecte reale, încarcă automat un fișier `.env` local (nedistribuit prin git, listat explicit în `.gitignore`) direct în `os.environ`, la pornirea scriptului — cea mai simplă cale de a păstra secretele departe de codul sursă, dar disponibile local pentru dezvoltare, fără să le transmiți manual de fiecare dată prin linia de comandă.
+
+### Interning-ul string-urilor — o optimizare invizibilă legată de `is`
+
+Revenind la distincția `is`/`==` din HOOK, un detaliu de implementare CPython merită menționat, pentru că surprinde des la testare manuală:
+
+```python
+a = "python"
+b = "python"
+print(a is b)   # True — de obicei, pentru string-uri SCURTE, alfanumerice
+
+c = "propoziție cu spații!"
+d = "propoziție cu spații!"
+print(c is d)     # De obicei False — string-uri mai complexe NU sunt garantat interned
+```
+
+CPython **internează** automat string-uri "simple" (identificatori valizi, fără spații sau caractere speciale) — reține o singură copie în memorie și reatribuie toate variabilele cu acea valoare literală exact către acel obiect partajat, ca optimizare de memorie și viteză de comparare. Comportamentul e specific implementării CPython, nu garantat de specificația limbajului — motiv pentru care `is` nu ar trebui **niciodată** folosit pentru a compara valori de string sau numere în cod real (foloseşte `==`); `is` rămâne rezervat exclusiv pentru verificări de identitate intenționate, cel mai comun caz fiind `x is None`.
+
+`x is None` (nu `x == None`) e convenția idiomatică standard pentru verificarea absenței unei valori în Python — `None` e un singleton (o singură instanță garantată în tot programul), deci `is` funcționează corect și e considerat mai explicit despre intenție decât `==`, care ar putea, teoretic, fi supraîncărcat de o clasă custom să se comporte neașteptat pentru comparația cu `None`.
+
+### Ștergerea explicită a unei referințe — `del`
+
+```python
+x = [1, 2, 3]
+y = x
+del x            # elimină NUMELE 'x' — obiectul lista rămâne, referențiat încă de 'y'
+print(y)           # [1, 2, 3] — neafectat
+
+del y[0]           # aici 'del' operează pe un ELEMENT al listei, nu pe numele 'y' însuși
+print(y)             # [2, 3]
+```
+
+`del` are două comportamente distincte, în funcție de ce urmează: `del nume_variabila` elimină legătura nume-obiect din scope-ul curent — dacă niciun alt nume nu mai referențiază acel obiect, el devine eligibil pentru colectarea de gunoi (garbage collection), discutată în detaliu în cursul de Sisteme de Operare. `del colectie[index]` sau `del dictionar[cheie]` operează în schimb pe conținutul unei colecții mutabile, eliminând un element specific — o operațiune complet diferită, care nu are nicio legătură cu ștergerea unei variabile în sine.
+
+### Referință circulară și de ce Python nu se blochează din cauza ei
+
+O consecință subtilă a modelului de referințe: două obiecte se pot referi reciproc, direct sau indirect, formând un ciclu care, la prima vedere, ar părea să nu poată fi eliberat niciodată din memorie prin simpla numărare a referințelor:
+
+```python
+class Nod:
+    def __init__(self):
+        self.urmator = None
+
+a = Nod()
+b = Nod()
+a.urmator = b
+b.urmator = a       # 'a' și 'b' se referă reciproc — un CICLU
+
+del a
+del b                 # niciun nume extern nu mai referențiază 'a' sau 'b'... dar se referă între ele!
+```
+
+CPython folosește contorizarea referințelor (reference counting) ca mecanism principal de eliberare a memoriei — fiecare obiect ține evidența câte referințe active are, iar la zero, memoria e eliberată instant. Dar exemplul de mai sus arată limita acestui mecanism: după `del a` și `del b`, niciun nume din program nu mai referențiază direct cele două obiecte, dar ele încă se referă reciproc, deci contorul de referințe al fiecăruia nu ajunge niciodată la zero prin simpla numărare.
+
+Un colector de gunoi generațional separat, care rulează periodic pe lângă contorizarea de referințe, detectează exact aceste cicluri izolate (grupuri de obiecte care se referă doar între ele, fără nicio legătură externă activă) și le eliberează explicit — motivul pentru care Python nu acumulează memorie nelimitat în prezența unor astfel de structuri circulare, frecvente în structuri de date reale precum liste dublu-înlănțuite sau grafuri.
+
 ---
 
 ## REVEAL
