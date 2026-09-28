@@ -1,0 +1,186 @@
+---
+title: "Trie — autocomplete și dicționare"
+order: 12
+type: lesson
+module_index: 5
+duration: 14
+difficulty: 3
+---
+
+# Trie — autocomplete și dicționare
+
+## HOOK
+
+Tastezi "prog" într-o bară de căutare și, instant, apar sugestii: "programare", "programator", "program". Sistemul nu parcurge un dicționar întreg de zeci de mii de cuvinte, comparând fiecare cu prefixul tău — la acea viteză, cu un `set` din C4 L15 (căutare O(1), dar doar pentru potriviri exacte, nu pentru "toate cuvintele care încep cu"), ai avea nevoie totuși să verifici fiecare cuvânt din dicționar, unul câte unul, O(n), pentru a găsi toate cele care se potrivesc prefixului.
+
+**Trie** (pronunțat adesea "trai", de la "reTRIEval") rezolvă exact această problemă specifică — găsirea rapidă a tuturor cuvintelor care încep cu un prefix dat — cu o structură arborescentă unde fiecare nivel reprezintă un singur caracter, nu o valoare comparabilă generică. E ultima structură de date nouă din acest curs, specializată pentru un tip de date pe care celelalte structuri (BST, heap) nu-l gestionează eficient: șirurile de caractere, cu potriviri de prefix, nu doar egalitate exactă.
+
+---
+
+## CONTEXT
+
+Trie-ul a fost introdus independent de mai mulți cercetători la sfârșitul anilor '50 — René de la Briandais (1959) și Edward Fredkin (1960, care i-a dat și numele actual) sunt cei mai des citați. Motivația era directă: structurile de căutare generale (liste, arbori de comparație) tratau un cuvânt ca o unitate atomică, comparată integral cu alta — ineficient pentru operațiuni specifice textului, ca găsirea tuturor cuvintelor cu un anumit prefix, unde compararea cuvânt-cu-cuvânt risipește constant muncă pe caractere deja verificate identice.
+
+Ideea centrală a trie-ului: în loc să compari cuvinte întregi, organizezi structura astfel încât **caracterul comun** dintre mai multe cuvinte e stocat o singură dată, partajat — "programare" și "programator" partajează exact același drum prin arbore până la litera "m", divergând abia acolo. Această partajare de prefix comun e sursa eficienței trie-ului, complet diferită de logica de ordonare a unui BST.
+
+---
+
+## MIEZUL
+
+### Structura — un nivel per caracter, nu per cuvânt
+
+```python
+class NodTrie:
+    def __init__(self):
+        self.copii = {}           # dicționar: caracter -> NodTrie
+        self.sfarsit_cuvant = False   # marchează dacă un cuvânt VALID se termină exact aici
+```
+
+Fiecare nod dintr-un trie reprezintă un singur caracter, iar copiii lui sunt caracterele posibile care pot urma — nu doi copii, ca la un BST, ci oricâți sunt necesari (26 pentru litere latine, mai mulți dacă incluzi diacritice sau alte simboluri). Flagul `sfarsit_cuvant` distinge un prefix valid (parte dintr-un cuvânt mai lung) de un cuvânt complet — esențial, pentru că "prog" poate fi un prefix valid al lui "program", fără să fie el însuși un cuvânt din dicționar.
+
+### Inserarea — construind drumul, literă cu literă
+
+```python
+class Trie:
+    def __init__(self):
+        self.radacina = NodTrie()
+
+    def insereaza(self, cuvant):
+        nod = self.radacina
+        for caracter in cuvant:
+            if caracter not in nod.copii:
+                nod.copii[caracter] = NodTrie()    # creează nodul dacă nu există deja
+            nod = nod.copii[caracter]
+        nod.sfarsit_cuvant = True                     # marchează finalul cuvântului COMPLET
+```
+
+Inserarea parcurge cuvântul caracter cu caracter, coborând prin arbore — dacă drumul pentru un caracter nu există deja (nu s-a mai inserat vreun cuvânt cu acel prefix exact), îl creează. Costul: O(lungimea cuvântului), complet independent de câte alte cuvinte conține deja trie-ul — o proprietate importantă, diferită de BST, unde inserarea depinde de adâncimea arborelui, care crește (logaritmic, pe un arbore balansat) cu numărul total de elemente stocate.
+
+### Căutarea — verificarea existenței unui cuvânt complet
+
+```python
+def cauta(self, cuvant):
+    nod = self.radacina
+    for caracter in cuvant:
+        if caracter not in nod.copii:
+            return False              # drumul nu există deloc — cuvântul nu poate exista
+        nod = nod.copii[caracter]
+    return nod.sfarsit_cuvant           # există drumul, dar e un cuvânt COMPLET, nu doar un prefix?
+```
+
+Exact ca inserarea, căutarea costă O(lungimea cuvântului), indiferent de câte alte cuvinte conține trie-ul — o garanție pe care nicio structură bazată pe comparații (BST, listă sortată) n-o poate oferi, pentru că acelea depind mereu, într-o formă sau alta, de dimensiunea totală a colecției.
+
+<CosmoHint emotion="thinking">
+De ce e important să distingi între "drumul există" și "cuvântul e complet"? Dacă ai inserat doar "programare", drumul pentru "prog" există în arbore (fiecare literă intermediară a fost creată la inserare) — dar `nod.sfarsit_cuvant` la finalul lui "prog" rămâne `False`, pentru că "prog" în sine n-a fost niciodată inserat ca un cuvânt de sine stătător. Fără această distincție explicită, căutarea "prog" ar returna incorect `True`, deși dicționarul conține doar "programare", nu și "prog" ca și cuvânt valid independent.
+</CosmoHint>
+
+### Autocomplete — funcția care justifică întreaga structură
+
+```python
+def gaseste_cu_prefix(self, prefix):
+    nod = self.radacina
+    for caracter in prefix:
+        if caracter not in nod.copii:
+            return []                    # niciun cuvânt cu acest prefix
+        nod = nod.copii[caracter]
+
+    rezultate = []
+    def colecteaza(nod_curent, cuvant_curent):
+        if nod_curent.sfarsit_cuvant:
+            rezultate.append(cuvant_curent)
+        for caracter, copil in nod_curent.copii.items():
+            colecteaza(copil, cuvant_curent + caracter)
+
+    colecteaza(nod, prefix)
+    return rezultate
+```
+
+Prima parte coboară exact ca la căutare, până la nodul care reprezintă finalul prefixului — O(lungimea prefixului), indiferent de câte cuvinte există în dicționar. A doua parte — o parcurgere recursivă (revezi structura recursivă din L6, Merge Sort, și pregătește-te pentru L13, dedicată complet recursivității) — colectează toate cuvintele complete accesibile din acel punct, explorând toate ramurile posibile de acolo încolo. Costul acestei a doua părți e proporțional cu numărul de cuvinte care încep cu prefixul respectiv — de obicei o fracțiune mică din dicționarul total, nu tot dicționarul.
+
+{/* TABLE */}
+
+| Operație | Trie | Set de string-uri (C4 L15) | Listă simplă |
+|---|---|---|---|
+| Verifică existența unui cuvânt exact | O(lungime cuvânt) | O(1) mediu | O(n) |
+| Găsește toate cuvintele cu un prefix dat | O(lungime prefix + rezultate) | O(n) — trebuie parcurs tot | O(n) |
+| Memorie | Mare (un nod per caracter distinct) | Minimă | Minimă |
+
+Observă compromisul explicit: pentru **egalitate exactă**, un `set` rămâne mai rapid (O(1) vs. O(lungime cuvânt)) și mult mai economic ca memorie. Trie-ul câștigă clar doar la operațiuni bazate pe **prefix** — exact cazul de uz pentru care a fost proiectat, nu o îmbunătățire universală față de structurile deja cunoscute.
+
+### Compresia trie-ului — Radix Tree / Patricia Trie
+
+O variantă optimizată, folosită frecvent în practică: dacă un lanț lung de noduri are fiecare exact un singur copil (niciun punct de ramificare), acel lanț poate fi comprimat într-un singur nod care stochează un șir întreg de caractere, nu un caracter per nod — o structură numită **Radix Tree** sau **Patricia Trie**. Această optimizare reduce dramatic memoria consumată pentru dicționare cu multe cuvinte care nu se ramifică des, păstrând aceleași garanții de complexitate pentru căutare și inserare.
+
+### Ștergerea dintr-un trie — un caz mai subtil decât pare
+
+Ștergerea unui cuvânt dintr-un trie nu înseamnă neapărat eliminarea tuturor nodurilor drumului lui — trebuie verificat, la fiecare pas înapoi spre rădăcină, dacă acel nod mai e necesar pentru alte cuvinte:
+
+```python
+def sterge(self, cuvant):
+    def sterge_recursiv(nod, cuvant, adancime):
+        if adancime == len(cuvant):
+            if not nod.sfarsit_cuvant:
+                return False               # cuvântul nu exista, nimic de șters
+            nod.sfarsit_cuvant = False
+            return len(nod.copii) == 0      # True dacă nodul poate fi eliminat complet
+
+        caracter = cuvant[adancime]
+        if caracter not in nod.copii:
+            return False
+
+        poate_sterge_copil = sterge_recursiv(nod.copii[caracter], cuvant, adancime + 1)
+        if poate_sterge_copil:
+            del nod.copii[caracter]
+            return len(nod.copii) == 0 and not nod.sfarsit_cuvant
+
+        return False
+
+    sterge_recursiv(self.radacina, cuvant, 0)
+```
+
+Dacă șirul "prog" și "programare" sunt ambele în trie și ștergi "programare", nodurile care formează "prog" trebuie păstrate (pentru că "prog" rămâne un cuvânt valid independent) — doar restul lanțului, specific lui "programare" și nefolosit de niciun alt cuvânt, poate fi eliminat. Această verificare — "acest nod mai e necesar pentru altceva?" — face ștergerea din trie mai complexă decât din BST, unde regula de reorganizare e mai simplă și mai uniformă.
+
+### De ce alegerea alfabetului contează pentru memoria consumată
+
+Dimensiunea practică a unui trie depinde direct de cât de mare e alfabetul posibil de caractere la fiecare nod — pentru text în limba română, cu diacritice, fiecare nod poate avea până la 31+ copii posibili (26 de litere de bază, plus ă, â, î, ș, ț, și variantele lor majuscule), fiecare stocat implicit ca intrare într-un dicționar Python (`self.copii`), cu overhead-ul de memorie specific structurii de hash map deja discutate în C4 L13. Pentru alfabete foarte mari (caractere Unicode complete, de exemplu), folosirea unui dicționar pentru copii, în loc de un array fix de 26 de poziții (potrivit doar pentru alfabetul englez simplu), devine practic obligatorie — exact decizia de implementare aleasă în codul din această lecție.
+
+### Trie ponderat — clasarea sugestiilor de autocomplete
+
+O implementare realistă de autocomplete nu doar listează cuvintele care încep cu un prefix — le și **ordonează**, tipic după frecvența de utilizare, pentru a afișa mai întâi sugestiile cele mai probabile. Extensia naturală: fiecare nod care marchează finalul unui cuvânt reține și o frecvență, actualizată la fiecare căutare sau selecție reală a utilizatorului. Colectarea rezultatelor din `gaseste_cu_prefix` devine apoi o problemă de "top K" — exact tehnica de heap dedicată acestui caz, introdusă deja în L8 — combinând două structuri de date din acest curs pentru a rezolva un caz practic complet: trie-ul pentru filtrarea rapidă după prefix, heap-ul pentru clasarea rapidă a celor mai relevante rezultate dintre cele găsite.
+
+Această combinație — o structură specializată pentru filtrare, alta pentru clasare — e un tipar general util de reținut: rareori o singură structură de date rezolvă complet o problemă practică reală; de cele mai multe ori, o combinație bine aleasă de structuri, fiecare rezolvând exact partea ei, produce soluția completă și eficientă.
+
+<CosmoHint emotion="excited">
+Trie-urile (sau variantele lor comprimate) apar peste tot unde întâlnești căutare rapidă de prefix — routerele de internet folosesc structuri similare pentru a determina rapid ruta corectă pentru o adresă IP (potrivirea celui mai lung prefix comun între adresa țintă și rutele cunoscute), corectoarele ortografice folosesc trie-uri pentru a găsi rapid cuvinte apropiate de o greșeală de tastare, iar tokenizatoarele folosite de modelele de limbaj moderne (subiectul unui curs viitor din acest program) folosesc structuri înrudite pentru a potrivi eficient sub-cuvinte cu vocabularul lor fix, la fiecare pas de generare de text.
+</CosmoHint>
+
+<FactBox>
+**Trie în cifre:**
+- Introdus independent de René de la Briandais (**1959**) și Edward Fredkin (**1960**, care i-a dat numele)
+- Căutare/inserare: **O(lungimea cuvântului)**, independent de câte cuvinte conține trie-ul
+- Autocomplete (toate cuvintele cu un prefix): O(lungime prefix + numărul de rezultate)
+- Set de string-uri: O(1) pentru egalitate exactă, dar O(n) pentru căutare de prefix
+- Radix Tree/Patricia Trie: variantă comprimată, mult mai economică la memorie
+- Folosit direct în routarea de rețea (longest prefix match) și corectoare ortografice
+</FactBox>
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Nevoie | Structură potrivită |
+|---|---|
+| Verificare rapidă de egalitate exactă a unui cuvânt | Set (C4 L15) |
+| Toate cuvintele care încep cu un prefix dat | Trie |
+| Ordine alfabetică completă, acces rapid la extreme | BST (L7) |
+| Memorie minimă, dicționar mare, rar interogat pe prefix | Set sau listă sortată |
+
+---
+
+## ÎNCHEIERE
+
+Trie-ul încheie seria de structuri de date specializate din acest curs — fiecare rezolvând exact o tensiune specifică: BST pentru ordine completă, heap pentru extreme rapide, trie pentru prefixe de text. Niciuna nu e universal superioară — fiecare câștigă exact acolo unde regula ei de organizare se potrivește tiparului real de acces la date.
+
+Ai văzut deja recursivitatea aplicată implicit, de mai multe ori — Merge Sort (L6), BST (L7), și autocomplete-ul din această lecție. Lecția următoare o tratează direct, ca subiect central: recursivitatea, mecanismul prin care o funcție se rezolvă apelându-se pe sine, pe versiuni tot mai mici ale aceleiași probleme — și legătura ei surprinzător de directă cu mecanismul prin care o rețea neuronală învață, prin backpropagation.
