@@ -90,6 +90,18 @@ O API care returnează "toate comenzile" pentru un cont cu un milion de înregis
 
 Într-un sistem cu zeci de microservicii interne, un **API Gateway** (Kong, AWS API Gateway, sau soluții proprii) stă în față ca punct unic public: rutează cererile către serviciul intern corect, aplică rate limiting centralizat, verifică autentificarea o singură dată (nu în fiecare microserviciu), agregă log-uri și metrici. Clientul extern nu știe și nu trebuie să știe câte servicii separate răspund efectiv în spate.
 
+### Versionarea unei API — cum eviți să rupi clienții existenți
+
+O API publică, folosită de zeci sau mii de integrări externe, nu poate schimba pur și simplu forma unui endpoint existent — orice modificare incompatibilă rupe instant orice client care nu s-a actualizat sincron. Versionarea rezolvă asta explicit, prin câteva convenții concurente: **versionare în URL** (`/v1/utilizatori`, `/v2/utilizatori`, cea mai vizibilă și mai des întâlnită), **versionare prin header** (`Accept: application/vnd.exemplu.v2+json`, mai puțin intrusivă vizual dar mai greu de testat manual în browser), și **versionare prin dată** (stilul folosit de Stripe: fiecare cont fixează o versiune printr-un header `Stripe-Version: 2024-06-20`, aplicată automat oricărei cereri fără parametru explicit).
+
+Indiferent de convenție, principiul de bază rămâne identic: versiunea veche continuă să funcționeze, nemodificată, o perioadă anunțată dinainte (deprecation window — tipic luni, uneori ani, pentru API-uri mari), dând timp fiecărui client să migreze în ritmul lui, înainte ca versiunea veche să fie efectiv retrasă din producție.
+
+### Webhooks vs. polling ca strategie de notificare a schimbărilor de API
+
+O decizie de design recurentă pentru orice API care expune resurse ce se schimbă în timp: cum află clientul că ceva s-a modificat? Opțiunea simplă — clientul reinterogoghează periodic aceleași endpoint-uri (polling), verificat deja ca risipitor la scară în C3 L24 — funcționează, dar generează trafic constant, majoritar inutil, proporțional cu frecvența de verificare aleasă, nu cu frecvența reală a schimbărilor.
+
+Multe API-uri moderne oferă ambele opțiuni simultan, lăsând alegerea consumatorului: `GET /comenzi?actualizate_dupa=<timestamp>` pentru cei care preferă polling simplu, controlat, plus înregistrarea unui webhook (C3 L24) pentru cei care vor notificare imediată, fără risipă. Alegerea corectă depinde direct de cât de critică e latența notificării și cât de des se schimbă efectiv resursa monitorizată.
+
 ---
 
 ## REVEAL
