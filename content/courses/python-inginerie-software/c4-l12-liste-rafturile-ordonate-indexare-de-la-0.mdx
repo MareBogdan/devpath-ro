@@ -116,6 +116,100 @@ print(matrice[1][2])   # 6 — rândul 1, coloana 2
 
 O listă poate conține alte liste ca elemente — reprezentarea Python cea mai simplă (dar și cea mai lentă la scară) a unei matrici. NumPy (folosit masiv în AI/ML) oferă o structură dedicată, mult mai eficientă, pentru exact acest caz de uz — dar înțelegerea acestei forme simple, cu liste imbricate, e fundamentul conceptual peste care se construiește orice discuție ulterioară despre array-uri N-dimensionale.
 
+### `sorted()` cu `key=` — sortare după criterii custom
+
+```python
+utilizatori = [
+    {"nume": "Ana", "varsta": 25},
+    {"nume": "Ion", "varsta": 19},
+    {"nume": "Maria", "varsta": 32},
+]
+
+dupa_varsta = sorted(utilizatori, key=lambda u: u["varsta"])
+print(dupa_varsta[0]["nume"])   # "Ion" — cel mai tânăr
+
+dupa_nume_descrescator = sorted(utilizatori, key=lambda u: u["nume"], reverse=True)
+```
+
+Parametrul `key=` primește o funcție (adesea o `lambda`, revizitată complet în L9) care extrage, din fiecare element, valoarea după care se face sortarea — `sorted()` compară acele valori extrase, nu elementele originale direct. Acest pattern e universal pentru sortarea de structuri complexe (dicționare, obiecte) după orice criteriu ales, fără să rescrii logica de comparare pentru fiecare caz nou.
+
+### `.count()`, `.index()`, și verificări utile
+
+```python
+numere = [3, 1, 4, 1, 5, 9, 2, 6, 1]
+
+print(numere.count(1))     # 3 — de câte ori apare valoarea 1
+print(numere.index(4))       # 2 — indexul PRIMEI apariții a valorii 4
+print(4 in numere)             # True — apartenență, O(n) pentru liste
+
+try:
+    numere.index(100)
+except ValueError:
+    print("100 nu există în listă")   # .index() aruncă ValueError dacă valoarea lipsește
+```
+
+`.count()` și `.index()` sunt utile pentru verificări rapide, dar ambele parcurg lista secvențial (O(n)) — pentru verificări repetate de apartenență pe colecții mari, un `set` (L15) rămâne mult mai eficient, exact distincția de performanță discutată deja în lecțiile anterioare despre structuri de date.
+
+### Liste ca stive și cozi — `.append()`/`.pop()` vs. `collections.deque`
+
+O listă Python poate simula o **stivă** (LIFO — Last In, First Out) natural, folosind `.append()` și `.pop()` fără argument (elimină de la final):
+
+```python
+stiva = []
+stiva.append(1)
+stiva.append(2)
+stiva.append(3)
+print(stiva.pop())   # 3 — ultimul adăugat, primul scos
+```
+
+Pentru o **coadă** (FIFO — First In, First Out), unde ai nevoie să elimini de la *început*, o listă e ineficientă — `.pop(0)` costă O(n), pentru că toate elementele rămase trebuie deplasate cu o poziție. Modulul standard `collections.deque` (double-ended queue) oferă operații O(1) la ambele capete:
+
+```python
+from collections import deque
+
+coada = deque()
+coada.append(1)          # adaugă la final
+coada.append(2)
+coada.appendleft(0)         # adaugă la ÎNCEPUT, O(1) — imposibil eficient cu o listă obișnuită
+print(coada.popleft())        # 0 — elimină de la început, O(1)
+```
+
+Alegerea corectă depinde direct de tiparul de acces: liste pentru acces prin index și modificări predominant la final, `deque` pentru cozi reale sau orice caz care cere eliminare/adăugare frecventă la ambele capete — o diferență de performanță semnificativă la colecții mari, procesate iterativ.
+
+### Concatenare și repetare — operatorii `+` și `*` pe liste
+
+```python
+a = [1, 2, 3]
+b = [4, 5, 6]
+
+combinata = a + b       # [1, 2, 3, 4, 5, 6] — CREEAZĂ o listă NOUĂ, nu modifică a sau b
+repetata = [0] * 5         # [0, 0, 0, 0, 0] — pattern comun pentru inițializarea unei liste de dimensiune fixă
+```
+
+`+` pe liste concatenează, creând întotdeauna un obiect nou (spre deosebire de `.extend()`, care modifică lista existentă în loc) — distincția contează exact la fel ca la `sort()` vs `sorted()`, discutată deja: alege forma potrivită în funcție de dacă vrei să păstrezi listele originale neschimbate sau să extinzi una existentă direct. `*` pe o listă cu un `int` repetă conținutul de N ori — util pentru inițializare rapidă, dar riscant cu elemente mutabile imbricate: `[[]] * 3` creează trei referințe către **aceeași** listă interioară, nu trei liste independente, exact capcana de mutabilitate partajată discutată în L16.
+
+Alternativa sigură pentru inițializarea unei liste de liste independente: `[[] for _ in range(3)]`, care creează efectiv trei obiecte separate, câte unul per iterație a comprehension-ului — diferența dintre `*` (repetă aceeași referință) și comprehension (creează obiecte noi la fiecare pas) devine critică exact în acest tip de inițializare de structuri imbricate.
+
+### Liste vide ca valori falsy — verificarea idiomatică
+
+```python
+rezultate = obtine_rezultate()
+
+# Stil idiomatic recomandat:
+if rezultate:
+    proceseaza(rezultate)
+
+# Echivalent, dar mai verbos, mai puțin idiomatic:
+if len(rezultate) > 0:
+    proceseaza(rezultate)
+```
+
+Revenind la truthiness din L4: o listă goală e falsy, orice listă cu cel puțin un element e truthy — `if rezultate:` e forma preferată în cod Python idiomatic pentru a verifica dacă o listă are conținut, mai scurtă și considerată mai clară decât verificarea explicită a lungimii. Ambele funcționează identic — alegerea e de stil, dar convenția comunității înclină clar spre forma scurtă.
+
+### Performanța `.append()` la scară — de ce e O(1) amortizat
+
+Revenind pe scurt la detaliul de implementare menționat în REVEAL-ul acestei lecții: CPython alocă intern un buffer mai mare decât conținutul curent al listei, astfel încât majoritatea apelurilor `.append()` scriu direct în spațiu deja rezervat, fără nicio realocare — costul acelui apel e constant, O(1). Ocazional, când buffer-ul se umple complet, CPython realocă un buffer nou, mai mare (tipic de aproximativ 1.125x dimensiunea curentă), copiază toate elementele existente, apoi continuă — acest pas costă O(n), dar se întâmplă suficient de rar încât, mediată pe un număr mare de apeluri succesive, complexitatea efectivă rămâne O(1) "amortizat". Această strategie de creștere e motivul pentru care construirea unei liste prin `.append()` repetat într-o buclă rămâne eficientă chiar și pentru milioane de elemente, fără nicio optimizare manuală suplimentară necesară din partea programatorului.
+
 ---
 
 ## REVEAL
