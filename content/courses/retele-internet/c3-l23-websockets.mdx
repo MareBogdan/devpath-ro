@@ -1,0 +1,128 @@
+---
+title: "WebSockets: Când serverul vorbește primul"
+order: 23
+type: lesson
+module_index: 3
+duration: 14
+difficulty: 3
+---
+
+# WebSockets: Când serverul vorbește primul
+
+## HOOK
+
+Deschizi un chat AI și urmărești răspunsul apărând cuvânt cu cuvânt, în timp real — nu blocul întreg dintr-o dată, după o pauză. Undeva, în implementarea reală, serverul primește tokenii de la model unul câte unul și *trebuie* să ți-i trimită imediat, fără să aștepte ca tu să ceri din nou.
+
+Problema: tot ce ai văzut până acum despre HTTP (L20) e strict cerere-răspuns. Clientul cere, serverul răspunde o singură dată, conexiunea (logică, la nivel de cerere) se închide. Nu există niciun mecanism nativ prin care serverul să trimită date *neinvitat*. Prima generație de aplicații "în timp real" — chat-uri web, notificări live, prețuri bursiere — a trebuit să simuleze această capacitate lipsă, până când un protocol nou a rezolvat problema la rădăcină: WebSockets.
+
+---
+
+## CONTEXT
+
+Înainte de WebSockets, dezvoltatorii foloseau **polling**: browserul întreabă serverul la fiecare câteva secunde "ai ceva nou pentru mine?", indiferent dacă răspunsul e da sau nu. Simplu, dar risipitor — mii de cereri HTTP goale doar pentru a verifica, majoritatea fără conținut util, fiecare cu overhead-ul complet al unui handshake TCP/TLS reutilizat, dar tot cu header-ele HTTP repetate.
+
+**Long polling** a fost următoarea îmbunătățire: clientul face o cerere, iar serverul *nu* răspunde imediat — o ține deschisă (agățată) până are date noi de trimis, sau până expiră un timeout, moment în care clientul reface imediat cererea. Reduce risipa de cereri goale, dar tot re-deschide o cerere HTTP nouă la fiecare mesaj, cu tot overhead-ul de header-e.
+
+**WebSocket** (RFC 6455, 2011) rezolvă problema definitiv: un singur handshake inițial (peste HTTP), apoi conexiunea TCP rămâne deschisă indefinit, ca un canal **full-duplex** — ambele părți pot trimite mesaje oricând, fără să aștepte o cerere corespunzătoare.
+
+---
+
+## MIEZUL
+
+### Handshake-ul — un upgrade de protocol, nu un protocol nou
+
+WebSocket nu înlocuiește HTTP la conectare — *pornește* de la o cerere HTTP normală, cu un header special care cere serverului să "schimbe macazul":
+
+```
+GET /chat HTTP/1.1
+Host: exemplu.ro
+Upgrade: websocket
+Connection: Upgrade
+Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==
+Sec-WebSocket-Version: 13
+```
+
+Dacă serverul suportă WebSocket pe acel endpoint, răspunde cu statusul `101 Switching Protocols` (din familia `1xx`, L20) — semnalul explicit că, de acum, conexiunea TCP existentă nu mai vorbește HTTP, ci protocolul WebSocket direct peste ea:
+
+```
+HTTP/1.1 101 Switching Protocols
+Upgrade: websocket
+Connection: Upgrade
+Sec-WebSocket-Accept: s3pPLMBiTxaQ9kYGzzhZRbK+xOo=
+```
+
+`Sec-WebSocket-Accept` e calculat de server prin concatenarea `Sec-WebSocket-Key`-ului primit cu un GUID magic fix (`258EAFA5-E914-47DA-95CA-C5AB0DC85B11`), hash-uit SHA-1, apoi encodat base64. Scopul nu e criptografic — e o dovadă că serverul chiar înțelege protocolul WebSocket și nu e, de exemplu, un proxy cache vechi care reflectă orbește header-ele înapoi.
+
+Din acest moment, aceeași conexiune TCP (și, dacă handshake-ul inițial a fost pe `wss://`, aceeași sesiune TLS din L17) transportă mesaje WebSocket în ambele direcții, fără să mai fie nevoie de cereri HTTP separate.
+
+<CosmoHint emotion="thinking">
+De ce WebSocket "împrumută" handshake-ul HTTP în loc să folosească un protocol complet separat de la început? Pentru compatibilitate cu infrastructura existentă — proxy-uri corporate, load balancere, firewall-uri (L18), toate configurate deja să lase trecut trafic HTTP pe portul 443. Un protocol binar complet nou, pe alt port, ar fi fost blocat de jumătate din firewall-urile corporate din lume. Upgrade-ul peste HTTP e un truc de compatibilitate, nu o necesitate tehnică.
+</CosmoHint>
+
+### Framing — cum arată de fapt un mesaj WebSocket
+
+Spre deosebire de HTTP (text lizibil de om), WebSocket folosește un format binar compact de **frame-uri**. Fiecare frame are un header minimal (2 bytes de bază, plus câmpuri opționale de lungime extinsă) care indică: dacă e ultimul frame al mesajului (`FIN`), tipul de conținut (`opcode`: text, binar, close, ping, pong), și dacă payload-ul e mascat.
+
+**Masking** e obligatoriu pentru orice mesaj trimis de client către server (nu și invers): fiecare byte al payload-ului e XOR-at cu o cheie aleatoare de 4 bytes, trimisă în header. Motivul nu e confidențialitate — e protecție contra **cache poisoning attacks** pe proxy-uri intermediare care ar putea interpreta greșit conținutul brut ca fiind alt tip de trafic dacă payload-ul necriptat ar conține, din întâmplare, secvențe care arată ca alte protocoale.
+
+**Ping/Pong** — frame-uri de control folosite pentru a verifica dacă conexiunea e încă vie: serverul (sau clientul) trimite periodic un `ping`, celălalt capăt răspunde automat cu `pong`. Dacă nu vine niciun `pong` într-un interval configurat, conexiunea e considerată moartă și închisă — esențial, pentru că o conexiune TCP poate rămâne aparent "deschisă" la nivel de socket local mult timp după ce rețeaua reală s-a rupt (conexiune wifi pierdută, NAT timeout).
+
+{/* TABLE */}
+
+| Aspect | HTTP (polling clasic) | WebSocket |
+|---|---|---|
+| Direcție | Doar cerere → răspuns | Full-duplex, ambele direcții oricând |
+| Overhead per mesaj | Header-e complete HTTP la fiecare cerere | ~2-14 bytes header per frame |
+| Conexiuni necesare | Una nouă per cerere (sau keep-alive reutilizat) | Una singură, permanentă |
+| Latență la mesaj nou de la server | Depinde de intervalul de polling | Imediată |
+| Cache HTTP / CDN | Funcționează nativ | Nu se aplică (conexiune persistentă) |
+
+### Server-Sent Events (SSE) — alternativa simplă, unidirecțională
+
+Nu orice caz de uz "timp real" are nevoie de full-duplex. Streaming-ul de tokeni de la un model AI, de exemplu — clientul face o singură cerere inițială, serverul trimite continuu bucăți de răspuns, dar clientul nu are nevoie să trimită date înapoi pe același canal.
+
+**SSE** rezolvă exact acest caz, rămânând pe HTTP obișnuit: clientul face un `GET` normal, serverul răspunde cu `Content-Type: text/event-stream` și nu închide niciodată conexiunea — trimite continuu blocuri text de forma `data: ...\n\n`, pe care browserul le parsează automat prin API-ul `EventSource`. Mai simplu de implementat decât WebSocket (rulează peste HTTP/1.1 sau HTTP/2 obișnuit, fără handshake de upgrade, reconectare automată încorporată în browser), dar strict unidirecțional — server către client.
+
+**API-urile de chat AI streaming** (OpenAI, Anthropic) folosesc de fapt SSE, nu WebSocket, pentru exact acest motiv: clientul trimite un singur prompt, serverul streamează răspunsul token cu token — nu există nevoie de conversație bidirecțională pe același canal.
+
+<CosmoHint emotion="encouraging">
+DevTools → tab-ul Network → filtrează după "WS" îți arată live toate frame-urile WebSocket trimise și primite pe o pagină, cu timestamp exact per mesaj — cel mai direct mod de a "vedea" traficul full-duplex despre care tocmai ai citit, pe orice site care folosește chat live sau actualizări în timp real (Slack, Discord web, multe dashboard-uri de trading).
+</CosmoHint>
+
+### Reconectare și scalare
+
+O conexiune WebSocket, spre deosebire de o cerere HTTP obișnuită, are stare — durează minute sau ore. Asta schimbă complet arhitectura de scalare pe server: un load balancer (concept întâlnit deja în L14) nu mai poate distribui liber fiecare cerere către orice instanță de server disponibilă — odată ce clientul s-a conectat la instanța A, toate mesajele lui trebuie livrate tot prin instanța A, care ține conexiunea TCP deschisă. Dacă instanța A cade, clientul trebuie să detecteze deconectarea (prin eșecul ping/pong) și să reconecteze, posibil pe altă instanță — cu toată starea (ce cameră de chat, ce subscripții) recreată de la zero.
+
+Sisteme la scară mare (Slack, Discord) folosesc un strat separat de "presence/gateway" dedicat exact gestionării a milioane de conexiuni WebSocket persistente, complet separat de serverele API stateless obișnuite care gestionează restul logicii de business.
+
+---
+
+## REVEAL
+
+{/* TABLE */}
+
+| Nevoie | Soluție potrivită |
+|---|---|
+| Client cere date ocazional | HTTP obișnuit (`GET`) |
+| Server streamează continuu, doar într-o direcție | Server-Sent Events |
+| Ambele părți trimit mesaje oricând, frecvent | WebSocket |
+| Chat live, jocuri multiplayer, colaborare în timp real (cursor-uri partajate) | WebSocket |
+| Streaming de tokeni AI, notificări live simple | Server-Sent Events |
+
+<FactBox>
+**WebSockets în cifre:**
+- Standardizat prin **RFC 6455**, 2011
+- Header frame minim: **2 bytes** (față de sute de bytes de header-e HTTP repetate la polling)
+- Masking payload client→server: cheie XOR de **4 bytes**, obligatorie prin spec
+- Status code de upgrade: **101 Switching Protocols**
+- GUID magic pentru `Sec-WebSocket-Accept`: fix, definit în spec — `258EAFA5-E914-47DA-95CA-C5AB0DC85B11`
+- SSE: reconectare automată încorporată în `EventSource`, fără cod suplimentar de client
+</FactBox>
+
+---
+
+## ÎNCHEIERE
+
+WebSocket rezolvă limitarea structurală a HTTP — un canal permanent, full-duplex, unde oricare parte vorbește când are ceva de spus, nu doar când e întrebată. SSE rezolvă un subset mai simplu, unidirecțional, direct peste HTTP obișnuit, fără handshake special.
+
+Dar comunicarea în timp real presupune că cineva ține o conexiune deschisă și ascultă activ. Ce faci când vrei să fii notificat despre un eveniment — o plată reușită, un fișier procesat — fără să ții nimic deschis, fără polling, fără WebSocket? Lecția următoare descrie modelul invers: webhook-urile, unde serverul altcuiva te sună pe tine.
