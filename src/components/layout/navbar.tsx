@@ -58,14 +58,14 @@ export function Navbar({ user }: NavbarProps) {
         {backHref && (
           <Link
             href={backHref}
-            className="shrink-0 p-1.5 -ml-1.5 rounded-lg text-aurora-text-tertiary hover:text-aurora-text-primary hover:bg-aurora-bg-interactive transition-colors"
+            className="shrink-0 p-1.5 -ml-1.5 max-sm:p-3 max-sm:-ml-3 rounded-lg text-aurora-text-tertiary hover:text-aurora-text-primary hover:bg-aurora-bg-interactive transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
           </Link>
         )}
 
         {/* Logo */}
-        <Link href="/dashboard" className="shrink-0">
+        <Link href="/dashboard" className="shrink-0 max-sm:py-2.5">
           <span className="text-xl font-medium tracking-tight">
             <span className="text-aurora-primary-300">DevPath</span>
             <span className="text-aurora-accent-500">.ro</span>

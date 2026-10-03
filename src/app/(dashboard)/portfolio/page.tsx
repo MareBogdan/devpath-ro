@@ -180,7 +180,7 @@ export default async function PortfolioPage() {
               <p className="text-sm text-muted-foreground">Niciun curs terminat încă.</p>
               <Link
                 href="/courses"
-                className="mt-3 text-sm font-medium text-primary hover:underline inline-block"
+                className="mt-3 text-sm font-medium text-primary hover:underline inline-block max-sm:py-2.5"
               >
                 Explorează cursurile
               </Link>

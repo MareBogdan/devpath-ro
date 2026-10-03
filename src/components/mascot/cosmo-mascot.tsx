@@ -136,7 +136,6 @@ interface EmotionTargets {
   tailRestPitch: number;
   tailWagSpeed: number;
   tailWagAmp: number;
-  pawWaveAmp: number;
   antennaColor: string;
   antennaPulseSpeed: number;
   badgePulseSpeed: number;
@@ -154,7 +153,6 @@ const EMOTIONS: Record<CosmoEmotion, EmotionTargets> = {
     mouthOpenOpacity: 0,
     bodyBounceAmp: 0, bodyBounceFreq: 0,
     tailRestPitch: 35, tailWagSpeed: 1.4, tailWagAmp: 18,
-    pawWaveAmp: 0,
     antennaColor: COLORS.antennaTeal,
     antennaPulseSpeed: 0.6, badgePulseSpeed: 0.5,
     rainbowAntenna: false,
@@ -169,7 +167,6 @@ const EMOTIONS: Record<CosmoEmotion, EmotionTargets> = {
     mouthOpenOpacity: 1,
     bodyBounceAmp: 2.5, bodyBounceFreq: 4,
     tailRestPitch: 50, tailWagSpeed: 5, tailWagAmp: 34,
-    pawWaveAmp: 0,
     antennaColor: COLORS.antennaTeal,
     antennaPulseSpeed: 2.2, badgePulseSpeed: 1.6,
     rainbowAntenna: false,
@@ -184,7 +181,6 @@ const EMOTIONS: Record<CosmoEmotion, EmotionTargets> = {
     mouthOpenOpacity: 0,
     bodyBounceAmp: 0, bodyBounceFreq: 0,
     tailRestPitch: 25, tailWagSpeed: 0, tailWagAmp: 0,
-    pawWaveAmp: 0,
     antennaColor: COLORS.antennaThinking,
     antennaPulseSpeed: 3.2, badgePulseSpeed: 0.4,
     rainbowAntenna: false,
@@ -199,7 +195,6 @@ const EMOTIONS: Record<CosmoEmotion, EmotionTargets> = {
     mouthOpenOpacity: 0,
     bodyBounceAmp: 0, bodyBounceFreq: 0,
     tailRestPitch: 40, tailWagSpeed: 2.5, tailWagAmp: 24,
-    pawWaveAmp: 0,
     antennaColor: COLORS.antennaTeal,
     antennaPulseSpeed: 1, badgePulseSpeed: 2,
     rainbowAntenna: false,
@@ -214,7 +209,6 @@ const EMOTIONS: Record<CosmoEmotion, EmotionTargets> = {
     mouthOpenOpacity: 1,
     bodyBounceAmp: 5, bodyBounceFreq: 5.5,
     tailRestPitch: 55, tailWagSpeed: 8, tailWagAmp: 42,
-    pawWaveAmp: 0,
     antennaColor: COLORS.antennaCelebrating,
     antennaPulseSpeed: 4, badgePulseSpeed: 3,
     rainbowAntenna: true,
@@ -229,7 +223,6 @@ const EMOTIONS: Record<CosmoEmotion, EmotionTargets> = {
     mouthOpenOpacity: 0,
     bodyBounceAmp: 0.8, bodyBounceFreq: 0.5,
     tailRestPitch: -8, tailWagSpeed: 0, tailWagAmp: 0,
-    pawWaveAmp: 0,
     antennaColor: COLORS.antennaTeal,
     antennaPulseSpeed: 0.25, badgePulseSpeed: 0.3,
     rainbowAntenna: false,
@@ -244,7 +237,6 @@ const EMOTIONS: Record<CosmoEmotion, EmotionTargets> = {
     mouthOpenOpacity: 0,
     bodyBounceAmp: 0, bodyBounceFreq: 0,
     tailRestPitch: 42, tailWagSpeed: 3.2, tailWagAmp: 26,
-    pawWaveAmp: 1,
     antennaColor: COLORS.antennaTeal,
     antennaPulseSpeed: 1.3, badgePulseSpeed: 0.6,
     rainbowAntenna: false,
@@ -259,7 +251,6 @@ const EMOTIONS: Record<CosmoEmotion, EmotionTargets> = {
     mouthOpenOpacity: 0,
     bodyBounceAmp: 0, bodyBounceFreq: 0,
     tailRestPitch: -25, tailWagSpeed: 0, tailWagAmp: 0,
-    pawWaveAmp: 0,
     antennaColor: COLORS.antennaTeal,
     antennaPulseSpeed: 0.2, badgePulseSpeed: 0.2,
     rainbowAntenna: false,
@@ -531,7 +522,6 @@ export function CosmoMascot({
   const tailWagRef = useRef<SVGGElement>(null);
   const bodyBounceRef = useRef<SVGGElement>(null);
   const bodyBreathRef = useRef<SVGGElement>(null);
-  const pawWaveRef = useRef<SVGGElement>(null);
   const cheekLeftRef = useRef<SVGEllipseElement>(null);
   const cheekRightRef = useRef<SVGEllipseElement>(null);
   const antennaLEDRef = useRef<SVGCircleElement>(null);
@@ -680,7 +670,6 @@ export function CosmoMascot({
       cur.tailRestPitch = lerp(cur.tailRestPitch, target.tailRestPitch, easeFactor);
       cur.tailWagSpeed = lerp(cur.tailWagSpeed, target.tailWagSpeed, easeFactor);
       cur.tailWagAmp = lerp(cur.tailWagAmp, target.tailWagAmp, easeFactor);
-      cur.pawWaveAmp = lerp(cur.pawWaveAmp, target.pawWaveAmp, easeFactor);
       cur.antennaPulseSpeed = lerp(cur.antennaPulseSpeed, target.antennaPulseSpeed, easeFactor);
       cur.badgePulseSpeed = lerp(cur.badgePulseSpeed, target.badgePulseSpeed, easeFactor);
       cur.cheekBlushOpacity = lerp(cur.cheekBlushOpacity, target.cheekBlushOpacity, easeFactor);
@@ -840,20 +829,6 @@ export function CosmoMascot({
           : 0;
       if (tailWagRef.current) {
         tailWagRef.current.setAttribute("transform", `rotate(${wagAngle.toFixed(2)})`);
-      }
-
-      // FRONT-RIGHT PAW (wave) — pivot at shoulder top of leg
-      if (pawWaveRef.current) {
-        if (cur.pawWaveAmp > 0.05) {
-          const lift = -65 * cur.pawWaveAmp;
-          const oscill = Math.sin(t * 6) * 14 * cur.pawWaveAmp;
-          pawWaveRef.current.setAttribute(
-            "transform",
-            `rotate(${(lift + oscill).toFixed(2)} 118 188)`
-          );
-        } else {
-          pawWaveRef.current.setAttribute("transform", "rotate(0 118 188)");
-        }
       }
 
       // ANTENNA LED — color (rainbow override) + pulse
@@ -1083,8 +1058,8 @@ export function CosmoMascot({
             <circle cx="82" cy="228" r="4" fill={COLORS.pawToe} />
             <circle cx="88" cy="226" r="4" fill={COLORS.pawToe} />
           </g>
-          {/* Right front leg / paw — pivots from shoulder for waving (118, 188) */}
-          <g ref={pawWaveRef} style={{ transformOrigin: "118px 188px" }}>
+          {/* Right front leg — planted next to the left one (no waving limb: a raised/low arm reads as a third leg) */}
+          <g>
             <path
               d="M 112 188 L 124 188 C 128 191 128 198 127 204 L 127 215 C 129 220 129 226 122 226 C 116 228 116 228 114 226 C 107 226 107 220 109 215 L 109 204 C 108 198 108 191 112 188 Z"
               fill={`url(#${ID.fur})`}

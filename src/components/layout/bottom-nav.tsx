@@ -106,9 +106,13 @@ export function BottomNav() {
   if (shouldHideBottomNav(pathname)) return null;
 
   return (
+    <>
+    {/* Phones only: reserve the space the floating nav covers, so the last content of a
+        page can always be scrolled above it (the nav is hidden on lesson pages → no spacer). */}
+    <div aria-hidden="true" className="h-20 sm:hidden" />
     <nav
       aria-label="Navigare principală"
-      className="fixed z-50 h-[48px] rounded-full border border-aurora-border-medium bg-aurora-bg-deepest/90 backdrop-blur-xl shadow-[0_0_30px_rgba(108,92,231,0.15)]"
+      className="fixed z-50 h-[48px] max-sm:!w-[calc(100vw-24px)] max-sm:!bottom-[calc(1rem+env(safe-area-inset-bottom))] rounded-full border border-aurora-border-medium bg-aurora-bg-deepest/90 backdrop-blur-xl shadow-[0_0_30px_rgba(108,92,231,0.15)]"
       style={{ bottom: "1rem", left: "50%", transform: "translateX(-50%)", width: "min(480px, 75vw)" }}
     >
       <div className="flex h-full items-center justify-around px-4">
@@ -136,5 +140,6 @@ export function BottomNav() {
         })}
       </div>
     </nav>
+    </>
   );
 }

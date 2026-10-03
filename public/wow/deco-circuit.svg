@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 300" fill="none">
+  <g stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <!-- vertical trace A -->
+    <path d="M45 0 V300" stroke="#8b7ff5" opacity="0.9"/>
+    <!-- vertical trace B -->
+    <path d="M110 0 V300" stroke="#2fded7" opacity="0.85"/>
+    <!-- L branch from A -->
+    <path d="M45 60 H85 V110" stroke="#8b7ff5" opacity="0.8"/>
+    <!-- connector A->B -->
+    <path d="M45 200 H110" stroke="#2fded7" opacity="0.75"/>
+    <!-- pad stub left -->
+    <path d="M45 255 H22" stroke="#8b7ff5" opacity="0.8"/>
+    <!-- pad stub right -->
+    <path d="M110 150 H128" stroke="#2fded7" opacity="0.75"/>
+  </g>
+  <!-- vias / pads -->
+  <g>
+    <circle cx="45" cy="60" r="5" fill="#0d0d18" stroke="#8b7ff5" stroke-width="2.5"/>
+    <circle cx="85" cy="110" r="5" fill="#0d0d18" stroke="#8b7ff5" stroke-width="2.5"/>
+    <circle cx="110" cy="200" r="5" fill="#0d0d18" stroke="#2fded7" stroke-width="2.5"/>
+    <circle cx="45" cy="200" r="4" fill="#8b7ff5"/>
+    <rect x="13" y="249" width="12" height="12" rx="2" fill="#0d0d18" stroke="#8b7ff5" stroke-width="2.5"/>
+    <rect x="125" y="144" width="12" height="12" rx="2" fill="#0d0d18" stroke="#2fded7" stroke-width="2.5"/>
+    <circle cx="110" cy="110" r="4" fill="#2fded7"/>
+  </g>
+</svg>

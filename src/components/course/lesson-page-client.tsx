@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { LessonContent } from "@/components/course/lesson-content";
+import { LessonErrorBoundary } from "@/components/course/lesson-error-boundary";
 import type { MDXRemoteSerializeResult } from "next-mdx-remote";
 import type { LessonInteractiveState, LessonWowNotes } from "@/types";
 import { CompleteButton } from "@/components/course/complete-button";
+import { AdaptiveQuizSection } from "@/components/course/adaptive-quiz-section";
 import { LessonFeedback } from "@/components/course/lesson-feedback";
 import {
   ReadingProgressBar,
@@ -16,6 +18,7 @@ import {
 import { LessonPresence } from "@/components/course/lesson-presence";
 import { MascotCelebrationOverlay } from "@/components/mascot/mascot-celebration-overlay";
 import { XPToast } from "@/components/gamification/xp-toast";
+import { GamificationBoundary } from "@/components/gamification/gamification-boundary";
 import { StreakToast } from "@/components/gamification/streak-toast";
 import { BadgeToast } from "@/components/gamification/badge-toast";
 import { MinigameModal } from "@/components/minigame/minigame-modal";
@@ -31,6 +34,7 @@ interface CelebrationState {
   newLevelName: string;
   badges: AwardedBadge[];
   nextLessonId: string | null;
+  nextCourseSlug: string | null;
 }
 
 interface LessonPageClientProps {
@@ -38,10 +42,11 @@ interface LessonPageClientProps {
   courseSlug: string;
   isCompleted: boolean;
   nextLessonId: string | null;
+  /** Course the next lesson lives in; differs from courseSlug across a course boundary. */
+  nextCourseSlug?: string | null;
   nextLessonTitle: string | null;
   mdxSource: MDXRemoteSerializeResult;
   lessonType: string;
-  lessonOrder?: number;
   // Presence
   userId: string;
   displayName: string;
@@ -71,6 +76,11 @@ interface LessonPageClientProps {
    * reading column so it stays aligned with the text (the gutter sits to its right).
    */
   hasWowNotes?: boolean;
+  /**
+   * Show the opt-in AI practice quiz (F2) between the content and the completion
+   * row. Only for published lessons; the quiz is generated on click, never on load.
+   */
+  showAiQuiz?: boolean;
 }
 
 export function LessonPageClient({
@@ -78,10 +88,10 @@ export function LessonPageClient({
   courseSlug,
   isCompleted,
   nextLessonId,
+  nextCourseSlug,
   nextLessonTitle,
   mdxSource,
   lessonType,
-  lessonOrder,
   userId,
   displayName,
   avatarUrl,
@@ -91,6 +101,7 @@ export function LessonPageClient({
   interactiveState,
   wowNotes,
   hasWowNotes = false,
+  showAiQuiz = false,
 }: LessonPageClientProps) {
   const router = useRouter();
   const { hasReachedEnd } = useReadingProgress();
@@ -128,9 +139,11 @@ export function LessonPageClient({
 
   function handleLessonComplete(result: MarkCompleteResult) {
     setLessonCompleted(true);
-    // XP toast (2s auto-dismiss)
-    setXpToast({ amount: result.xpEarned, visible: true });
-    setTimeout(() => setXpToast((p) => ({ ...p, visible: false })), 2000);
+    // XP toast (2s auto-dismiss) — skipped when no XP was awarded (re-completion)
+    if (result.xpEarned > 0) {
+      setXpToast({ amount: result.xpEarned, visible: true });
+      setTimeout(() => setXpToast((p) => ({ ...p, visible: false })), 2000);
+    }
     // Streak milestone
     if (result.streakMilestone) setStreakMilestone(result.streakMilestone);
     // Full celebration overlay
@@ -142,6 +155,7 @@ export function LessonPageClient({
       newLevelName: result.newLevelName,
       badges: result.newBadges,
       nextLessonId: result.nextLessonId,
+      nextCourseSlug: result.nextCourseSlug,
     });
     // TODO: re-enable after new minigame system is built
     // Minigame trigger (shown after celebration is dismissed).
@@ -159,15 +173,26 @@ export function LessonPageClient({
     <>
       <ReadingProgressBar />
 
-      <LessonContent
-        mdxSource={mdxSource}
-        lessonType={lessonType}
-        lessonOrder={lessonOrder}
-        interactiveState={interactiveState}
-        wowNotes={wowNotes}
-        hasWowNotes={hasWowNotes}
-        onGatingChange={setInlineComplete}
-      />
+      {/* A render failure inside the MDX (custom component / malformed lesson) is
+          contained here; header, completion controls and navigation stay usable. */}
+      <LessonErrorBoundary resetKey={lessonId}>
+        <LessonContent
+          mdxSource={mdxSource}
+          lessonType={lessonType}
+          interactiveState={interactiveState}
+          wowNotes={wowNotes}
+          hasWowNotes={hasWowNotes}
+          onGatingChange={setInlineComplete}
+        />
+      </LessonErrorBoundary>
+
+      {/* Opt-in AI practice quiz — before the completion row, because completing
+          the lesson navigates to the next one. A failure here is dropped silently. */}
+      {showAiQuiz && (
+        <GamificationBoundary>
+          <AdaptiveQuizSection key={lessonId} lessonId={lessonId} />
+        </GamificationBoundary>
+      )}
 
       {/* Reading chrome below the prose. On desktop-with-notes it is held to the
           680px reading column (xl:pr-[332px] reserves the gutter) so the complete
@@ -188,6 +213,7 @@ export function LessonPageClient({
           courseSlug={courseSlug}
           isCompleted={lessonCompleted}
           nextLessonId={nextLessonId}
+          nextCourseSlug={nextCourseSlug}
           isReadingComplete={effectiveReadingComplete}
           isInlineComplete={effectiveInlineComplete}
           onCompleted={handleLessonComplete}
@@ -203,7 +229,7 @@ export function LessonPageClient({
       {/* Next-lesson CTA card — replaces the footer "next" link */}
       {nextLessonId && (
         <Link
-          href={`/courses/${courseSlug}/${nextLessonId}`}
+          href={`/courses/${nextCourseSlug ?? courseSlug}/${nextLessonId}`}
           className="group mt-8 flex items-center gap-4 rounded-xl border border-[#6C5CE7]/30 bg-[#6C5CE7]/[0.06] p-5 transition-all duration-200 hover:border-[#6C5CE7] hover:bg-[#6C5CE7]/[0.1] hover:shadow-[0_0_16px_2px_rgba(108,92,231,0.35)]"
         >
           <div className="min-w-0 flex-1">
@@ -220,22 +246,27 @@ export function LessonPageClient({
       </div>
 
       {/* ─── Celebration layer ──────────────────────────────────────────── */}
-      <MascotCelebrationOverlay
-        show={celebrationState?.show ?? false}
-        xp={celebrationState?.xp ?? 0}
-        leveledUp={celebrationState?.leveledUp ?? false}
-        newLevel={celebrationState?.newLevel ?? 1}
-        newLevelName={celebrationState?.newLevelName ?? ""}
-        badges={celebrationState?.badges ?? []}
-        onDismiss={() => {
-          const nextId = celebrationState?.nextLessonId;
-          const hasPendingMinigame = !!minigame;
-          setBadgeQueue(celebrationState?.badges ?? []);
-          setCelebrationState(null);
-          // Navigate immediately only when no minigame is pending
-          if (!hasPendingMinigame && nextId) router.push(`/courses/${courseSlug}/${nextId}`);
-        }}
-      />
+      {/* Decorative only: a failure here is dropped silently (GamificationBoundary)
+          and never takes the lesson page down. */}
+      <GamificationBoundary>
+        <MascotCelebrationOverlay
+          show={celebrationState?.show ?? false}
+          xp={celebrationState?.xp ?? 0}
+          leveledUp={celebrationState?.leveledUp ?? false}
+          newLevel={celebrationState?.newLevel ?? 1}
+          newLevelName={celebrationState?.newLevelName ?? ""}
+          badges={celebrationState?.badges ?? []}
+          onDismiss={() => {
+            const nextId = celebrationState?.nextLessonId;
+            const nextSlug = celebrationState?.nextCourseSlug ?? courseSlug;
+            const hasPendingMinigame = !!minigame;
+            setBadgeQueue(celebrationState?.badges ?? []);
+            setCelebrationState(null);
+            // Navigate immediately only when no minigame is pending
+            if (!hasPendingMinigame && nextId) router.push(`/courses/${nextSlug}/${nextId}`);
+          }}
+        />
+      </GamificationBoundary>
 
       {/* Mini-game modal — shown after celebration overlay dismisses, before navigation */}
       {minigame && !celebrationState?.show && (
@@ -250,18 +281,20 @@ export function LessonPageClient({
         />
       )}
 
-      <XPToast xp={xpToast.amount} show={xpToast.visible} />
+      <GamificationBoundary>
+        <XPToast xp={xpToast.amount} show={xpToast.visible} />
 
-      <StreakToast
-        show={streakMilestone !== null}
-        streakCount={streakMilestone ?? 0}
-        onDismiss={() => setStreakMilestone(null)}
-      />
+        <StreakToast
+          show={streakMilestone !== null}
+          streakCount={streakMilestone ?? 0}
+          onDismiss={() => setStreakMilestone(null)}
+        />
 
-      <BadgeToast
-        badge={badgeQueue[0] ?? null}
-        onDismiss={() => setBadgeQueue((prev) => prev.slice(1))}
-      />
+        <BadgeToast
+          badge={badgeQueue[0] ?? null}
+          onDismiss={() => setBadgeQueue((prev) => prev.slice(1))}
+        />
+      </GamificationBoundary>
     </>
   );
 }

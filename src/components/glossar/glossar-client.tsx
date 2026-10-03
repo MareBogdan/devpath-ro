@@ -166,7 +166,7 @@ export function GlossarClient({ terms }: GlossarClientProps) {
             placeholder="Caută un termen sau o definiție..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="w-full pl-10 pr-10 py-3 rounded-xl border border-border bg-card text-sm focus:outline-none focus:ring-2 focus:ring-aurora-primary-500/30 focus:border-aurora-primary-500 transition-colors"
+            className="w-full pl-10 pr-10 py-3 rounded-xl border border-border bg-card text-sm max-sm:text-base focus:outline-none focus:ring-2 focus:ring-aurora-primary-500/30 focus:border-aurora-primary-500 transition-colors"
           />
           {query && (
             <button

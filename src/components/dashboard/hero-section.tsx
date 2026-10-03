@@ -59,7 +59,7 @@ export function HeroSection(props: HeroSectionProps) {
   const streakSubtext = getStreakSubtext(streakCount);
   const levelName = LEVEL_NAMES[level] ?? "Curios";
   const currentThreshold = LEVEL_THRESHOLDS[level] ?? 0;
-  const nextThreshold = LEVEL_THRESHOLDS[level + 1] ?? LEVEL_THRESHOLDS[10] ?? 7500;
+  const nextThreshold = LEVEL_THRESHOLDS[level + 1] ?? LEVEL_THRESHOLDS[10];
   const xpInLevel = xpPoints - currentThreshold;
   const xpNeeded = nextThreshold - currentThreshold;
   const progressPercent = xpNeeded > 0 ? Math.min(100, Math.round((xpInLevel / xpNeeded) * 100)) : 100;
@@ -127,7 +127,7 @@ export function HeroSection(props: HeroSectionProps) {
         ))}
       </div>
 
-      <div className="w-full mx-auto relative z-10" style={{ maxWidth: "min(75%, 1000px)" }}>
+      <div className="w-full mx-auto relative z-10 max-sm:!max-w-full" style={{ maxWidth: "min(75%, 1000px)" }}>
         {/* Absence mascot */}
         <AbsenceMascot
           daysAbsent={daysAbsent}
@@ -161,7 +161,7 @@ export function HeroSection(props: HeroSectionProps) {
           <div className="mt-3">
             <a
               href={lastLessonHref}
-              className="inline-flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded-full bg-aurora-primary-500/10 border border-aurora-primary-500/20 text-aurora-primary-300 hover:bg-aurora-primary-500/20 transition-colors"
+              className="inline-flex items-center gap-2 text-xs font-medium px-3 py-1.5 max-sm:py-2.5 rounded-full bg-aurora-primary-500/10 border border-aurora-primary-500/20 text-aurora-primary-300 hover:bg-aurora-primary-500/20 transition-colors"
             >
               ▶ Continuă:{" "}
               <span className="max-w-[180px] truncate">
@@ -198,7 +198,7 @@ export function HeroSection(props: HeroSectionProps) {
                     {stat.label}
                   </span>
                 </div>
-                <p className={`text-2xl font-bold ${stat.color}`}>
+                <p className={`text-2xl max-sm:text-xl font-bold ${stat.color}`}>
                   {stat.useTicker ? (
                     <NumberTicker value={stat.value} className={stat.color} />
                   ) : (

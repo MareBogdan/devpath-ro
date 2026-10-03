@@ -65,7 +65,7 @@ export function AchievementsSection({
         />
       </div>
 
-      <div className="w-full mx-auto relative z-10" style={{ maxWidth: "min(75%, 1000px)" }}>
+      <div className="w-full mx-auto relative z-10 max-sm:!max-w-full" style={{ maxWidth: "min(75%, 1000px)" }}>
         <h2 className="text-2xl font-bold mb-8">
           <AnimatedGradientText speed={1} colorFrom="#FDCB6E" colorTo="#6C5CE7" className="text-2xl font-bold">
             Realizările tale

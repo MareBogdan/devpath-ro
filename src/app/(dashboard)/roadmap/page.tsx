@@ -29,6 +29,7 @@ export default async function RoadmapPage() {
       supabase
         .from("lessons")
         .select("id, course_id, order_index")
+        .eq("is_published", true) // skeleton (unpublished) lessons don't count
         .order("order_index"),
       supabase
         .from("user_progress")

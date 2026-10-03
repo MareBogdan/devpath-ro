@@ -60,7 +60,7 @@ export function CommunitySection({
         />
       </div>
 
-      <div className="w-full mx-auto relative z-10" style={{ maxWidth: "min(75%, 1000px)" }}>
+      <div className="w-full mx-auto relative z-10 max-sm:!max-w-full" style={{ maxWidth: "min(75%, 1000px)" }}>
         <h2 className="text-2xl font-bold mb-8">
           <AnimatedGradientText speed={1} colorFrom="#00CEC9" colorTo="#6C5CE7" className="text-2xl font-bold">
             Comunitatea DevPath

@@ -20,8 +20,6 @@ export default async function DashboardPage() {
 
   if (!user) redirect("/login");
 
-  const todayIso = new Date().toISOString().split("T")[0];
-
   // ─── All 13 queries in parallel ──────────────────────────────────────────
   const [
     profileResult,
@@ -33,8 +31,7 @@ export default async function DashboardPage() {
     allBadgesResult,
     earnedBadgesRawResult,
     recentCompletionsRawResult,
-    totalUsersResult,
-    activeTodayResult,
+    communityStatsResult,
     communityFeedRawResult,
     flashcardCountResult,
   ] = await Promise.all([
@@ -57,6 +54,7 @@ export default async function DashboardPage() {
     supabase
       .from("lessons")
       .select("id, title, type, course_id, order_index")
+      .eq("is_published", true) // skeleton (unpublished) lessons never count or get suggested
       .order("order_index"),
 
     // All courses
@@ -65,17 +63,15 @@ export default async function DashboardPage() {
       .select("id, slug, title, description, difficulty, order_index")
       .order("order_index"),
 
-    // Top 5 users by XP (leaderboard)
-    supabase
-      .from("users")
-      .select("id, name, xp_points, level, avatar_url")
-      .order("xp_points", { ascending: false })
-      .limit(5),
+    // Top 5 users by XP (leaderboard). Other users' rows are not readable directly
+    // (users SELECT is own-row only) — this SECURITY DEFINER RPC returns only
+    // public fields: id, name, avatar_url, xp_points, level.
+    supabase.rpc("get_top_users", { p_limit: 5 }),
 
     // Current user badge count
     supabase
       .from("user_badges")
-      .select("id")
+      .select("badge_id")
       .eq("user_id", user.id),
 
     // Total badges available
@@ -100,24 +96,13 @@ export default async function DashboardPage() {
       .order("completed_at", { ascending: false })
       .limit(5),
 
-    // Total registered users (community section)
-    supabase
-      .from("users")
-      .select("id", { count: "exact", head: true }),
+    // Community counts: total users + active today (community section).
+    // RPC — a direct count on `users` would only see the caller's own row.
+    supabase.rpc("get_community_stats"),
 
-    // Users active today (community section)
-    supabase
-      .from("users")
-      .select("id", { count: "exact", head: true })
-      .gte("last_active", todayIso),
-
-    // Community feed — recent completions across all users
-    supabase
-      .from("user_progress")
-      .select("completed_at, users(name), lessons(title)")
-      .eq("completed", true)
-      .order("completed_at", { ascending: false })
-      .limit(8),
+    // Community feed — recent completions across all users (names + lesson titles
+    // only; other users' progress rows are not readable directly).
+    supabase.rpc("get_recent_completions", { p_limit: 8 }),
 
     // Total flashcards available (for InterviewSection stats)
     supabase
@@ -130,14 +115,29 @@ export default async function DashboardPage() {
   const { data: completedProgress } = completedProgressResult;
   const { data: allLessons } = allLessonsResult;
   const { data: allCourses } = allCoursesResult;
-  const { data: topUsers } = topUsersResult;
+  const topUsers = topUsersResult.data as
+    | {
+        id: string;
+        name: string | null;
+        xp_points: number | null;
+        level: number | null;
+        avatar_url: string | null;
+      }[]
+    | null;
   const { data: userBadges } = userBadgesResult;
   const { data: allBadges } = allBadgesResult;
   const { data: earnedBadgesRaw } = earnedBadgesRawResult;
   const { data: recentCompletionsRaw } = recentCompletionsRawResult;
-  const totalUsersCount = totalUsersResult.count;
-  const activeTodayCount = activeTodayResult.count;
-  const { data: communityFeedRaw } = communityFeedRawResult;
+  const communityStats = communityStatsResult.data as
+    | { total_users: number; active_today: number }
+    | null;
+  const totalUsersCount = communityStats?.total_users ?? 0;
+  const activeTodayCount = communityStats?.active_today ?? 0;
+  const communityFeedRaw = (communityFeedRawResult.data ?? []) as {
+    completed_at: string | null;
+    user_name: string | null;
+    lesson_title: string | null;
+  }[];
   const flashcardCount = flashcardCountResult.count ?? 0;
 
   // ─── Compute derived data ─────────────────────────────────────────────────
@@ -267,16 +267,12 @@ export default async function DashboardPage() {
   });
 
   // Community feed
-  const communityFeed = (communityFeedRaw ?? []).flatMap((row) => {
+  const communityFeed = communityFeedRaw.flatMap((row) => {
     if (!row.completed_at) return [];
-    const uRaw = row.users as unknown;
-    const u = (Array.isArray(uRaw) ? uRaw[0] : uRaw) as { name: string | null } | null | undefined;
-    const lRaw = row.lessons as unknown;
-    const l = (Array.isArray(lRaw) ? lRaw[0] : lRaw) as { title: string } | null | undefined;
     return [{
-      userName: u?.name ?? null,
-      lessonTitle: l?.title ?? null,
-      completedAt: row.completed_at as string,
+      userName: row.user_name ?? null,
+      lessonTitle: row.lesson_title ?? null,
+      completedAt: row.completed_at,
     }];
   });
 

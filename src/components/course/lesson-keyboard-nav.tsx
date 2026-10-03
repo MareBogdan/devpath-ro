@@ -7,6 +7,8 @@ interface LessonKeyboardNavProps {
   courseSlug: string;
   prevLessonId: string | null;
   nextLessonId: string | null;
+  /** Course the next lesson lives in (differs from courseSlug across a course boundary). */
+  nextCourseSlug?: string | null;
 }
 
 /**
@@ -17,6 +19,7 @@ export function LessonKeyboardNav({
   courseSlug,
   prevLessonId,
   nextLessonId,
+  nextCourseSlug,
 }: LessonKeyboardNavProps) {
   const router = useRouter();
 
@@ -26,7 +29,7 @@ export function LessonKeyboardNav({
 
       if (e.key === "ArrowRight" && nextLessonId) {
         e.preventDefault();
-        router.push(`/courses/${courseSlug}/${nextLessonId}`);
+        router.push(`/courses/${nextCourseSlug ?? courseSlug}/${nextLessonId}`);
       }
 
       if (e.key === "ArrowLeft") {
@@ -43,7 +46,7 @@ export function LessonKeyboardNav({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [courseSlug, prevLessonId, nextLessonId, router]);
+  }, [courseSlug, prevLessonId, nextLessonId, nextCourseSlug, router]);
 
   return null;
 }

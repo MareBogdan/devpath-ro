@@ -31,7 +31,7 @@ export function CopyButton({ value, label = "Copiază", showValue = true }: Copy
       )}
       <button
         onClick={handleCopy}
-        className="shrink-0 inline-flex items-center gap-1.5 rounded-md bg-primary/10 hover:bg-primary/20 text-primary px-2.5 py-1 text-xs font-medium transition-colors"
+        className="shrink-0 inline-flex items-center gap-1.5 rounded-md bg-primary/10 hover:bg-primary/20 text-primary px-2.5 py-1 max-sm:py-2.5 text-xs font-medium transition-colors"
       >
         {copied ? (
           <>

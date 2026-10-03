@@ -67,7 +67,7 @@ export function RoadmapSection({ courses }: RoadmapSectionProps) {
         />
       </div>
 
-      <div className="w-full mx-auto relative z-10" style={{ maxWidth: "min(75%, 1000px)" }}>
+      <div className="w-full mx-auto relative z-10 max-sm:!max-w-full" style={{ maxWidth: "min(75%, 1000px)" }}>
         <h2 className="text-2xl font-bold mb-4">
           <AnimatedGradientText speed={1} colorFrom="#6C5CE7" colorTo="#00CEC9" className="text-2xl font-bold">
             Roadmap
@@ -263,7 +263,7 @@ export function RoadmapSection({ courses }: RoadmapSectionProps) {
         <div className="mt-6 text-center">
           <Link
             href="/roadmap"
-            className="inline-flex items-center gap-2 text-sm font-medium text-aurora-text-secondary hover:text-aurora-primary-300 transition-colors"
+            className="inline-flex items-center gap-2 text-sm font-medium text-aurora-text-secondary hover:text-aurora-primary-300 transition-colors max-sm:py-3"
           >
             <Zap className="h-4 w-4" />
             Vezi roadmap complet

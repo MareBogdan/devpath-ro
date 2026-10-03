@@ -21,7 +21,6 @@ import {
   XCircle,
   Loader2,
   Sparkles,
-  AlertTriangle,
   Clock,
 } from "lucide-react";
 import { CosmoMascot } from "@/components/mascot/cosmo-mascot";
@@ -47,17 +46,24 @@ function resolveOrder(n: number | string): number | null {
   return match ? parseInt(match[0], 10) : null;
 }
 
+// Dev-only authoring hint, emitted once per key (this component re-renders often).
+const warned = new Set<string>();
+function warnOnce(key: string, message: string) {
+  if (process.env.NODE_ENV !== "development" || warned.has(key)) return;
+  warned.add(key);
+  console.warn(message);
+}
+
 export function InlineQuestion({ n }: { n: number | string }) {
   const ctx = useInteractiveLesson();
   const order = resolveOrder(n);
   const q = order !== null ? ctx.getByOrder(order) : undefined;
 
   if (!q) {
-    return (
-      <AuthoringErrorBox
-        message={`Nu există nicio întrebare cu order_index=${String(n)} în această lecție. Folosește forma cu ghilimele: <InlineQuestion n="1" />.`}
-      />
-    );
+    // No matching row (e.g. the interactive layer isn't seeded for this lesson
+    // yet): render nothing rather than an error box in front of learners.
+    warnOnce(`inline-${String(n)}`, `[InlineQuestion] no question with order_index=${String(n)} in this lesson — rendering nothing. Use the quoted form: <InlineQuestion n="1" />.`);
+    return null;
   }
   if (q.type === "essay_ai") {
     return <ComingSoonBox />;
@@ -197,15 +203,6 @@ function InlineQuestionInner({ q }: { q: AnswerableQuestion }) {
         )}
       </AnimatePresence>
     </motion.div>
-  );
-}
-
-function AuthoringErrorBox({ message }: { message: string }) {
-  return (
-    <div className="my-6 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-600 dark:border-red-800 dark:bg-red-950/20 dark:text-red-400">
-      <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
-      <span>⚠️ {message}</span>
-    </div>
   );
 }
 

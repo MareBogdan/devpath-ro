@@ -36,12 +36,19 @@ export const BorderBeam = ({
       className="pointer-events-none absolute inset-0 rounded-[inherit]"
       style={{
         border: `${borderWidth}px solid transparent`,
-        WebkitMask:
-          "linear-gradient(transparent, transparent), linear-gradient(#000, #000)",
-        WebkitMaskComposite: "xor",
-        maskComposite: "exclude",
+        // Show only the border ring: an opaque layer clipped to the padding box
+        // XOR-ed with an opaque layer over the whole border box leaves just the
+        // border. Both layers MUST be opaque — with a `transparent` first layer
+        // (alpha 0) the exclusion removes nothing and, in current Chrome, the
+        // beam paints over the entire element, label included.
+        WebkitMaskImage: "linear-gradient(#000 0 0), linear-gradient(#000 0 0)",
+        maskImage: "linear-gradient(#000 0 0), linear-gradient(#000 0 0)",
         WebkitMaskClip: "padding-box, border-box",
         maskClip: "padding-box, border-box",
+        WebkitMaskOrigin: "padding-box, border-box",
+        maskOrigin: "padding-box, border-box",
+        WebkitMaskComposite: "xor",
+        maskComposite: "exclude",
       }}
     >
       <motion.div

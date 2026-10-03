@@ -42,15 +42,16 @@ export default async function PricingPage() {
       {/* Simple top nav */}
       <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition text-sm">
+          <Link href="/" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition text-sm max-sm:py-3">
             <ArrowLeft className="h-4 w-4" />
-            Înapoi la pagina principală
+            <span className="max-sm:hidden">Înapoi la pagina principală</span>
+            <span className="sm:hidden">Înapoi</span>
           </Link>
-          <span className="text-lg font-bold text-foreground">
+          <span className="text-lg font-bold text-foreground whitespace-nowrap">
             Dev<span className="text-primary">Path</span>{" "}
             <span className="text-muted-foreground font-normal text-sm">RO</span>
           </span>
-          <div className="w-40" /> {/* spacer */}
+          <div className="w-40 max-sm:hidden" /> {/* spacer (keeps the logo centred on ≥sm) */}
         </div>
       </header>
 
@@ -79,13 +80,13 @@ export default async function PricingPage() {
             &copy; {new Date().getFullYear()} DevPath RO. Toate drepturile rezervate.
           </p>
           <nav className="flex items-center gap-6">
-            <Link href="/" className="text-sm text-muted-foreground hover:text-foreground transition">
+            <Link href="/" className="text-sm text-muted-foreground hover:text-foreground transition max-sm:py-2.5">
               Acasă
             </Link>
-            <Link href="/courses" className="text-sm text-muted-foreground hover:text-foreground transition">
+            <Link href="/courses" className="text-sm text-muted-foreground hover:text-foreground transition max-sm:py-2.5">
               Cursuri
             </Link>
-            <Link href="mailto:contact@devpath.ro" className="text-sm text-muted-foreground hover:text-foreground transition">
+            <Link href="mailto:contact@devpath.ro" className="text-sm text-muted-foreground hover:text-foreground transition max-sm:py-2.5">
               Contact
             </Link>
           </nav>

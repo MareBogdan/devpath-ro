@@ -34,7 +34,7 @@ export function PortfolioLinkCard({ username, portfolioLink }: PortfolioLinkCard
         <CopyButton value={portfolioLink} />
         <Link
           href={`/u/${username}`}
-          className="inline-flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+          className="inline-flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors max-sm:py-3"
         >
           <ExternalLink className="h-3 w-3" />
           Deschide în tab nou

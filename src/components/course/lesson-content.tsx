@@ -37,8 +37,6 @@ interface LessonContentProps {
   /** MDX compiled on the server via next-mdx-remote/serialize in the lesson page. */
   mdxSource: MDXRemoteSerializeResult;
   lessonType?: string;
-  /** Lesson order number — used to determine Piston routing (lesson 13). */
-  lessonOrder?: number;
   /** Per-user inline-question state (theory path); empty/omitted otherwise. */
   interactiveState?: LessonInteractiveState | null;
   /** Contextual Wow Notes (theory path); empty/omitted otherwise. */
@@ -52,20 +50,15 @@ interface LessonContentProps {
 export function LessonContent({
   mdxSource,
   lessonType = "theory",
-  lessonOrder,
   interactiveState,
   wowNotes,
-  hasWowNotes = false,
   onGatingChange,
 }: LessonContentProps) {
   const isExercise = lessonType === "exercise" || lessonType === "project";
-  // Lesson 13 uses PyTorch/sklearn — must route through Piston server proxy.
-  const executionMode: "pyodide" | "piston" =
-    lessonOrder === 13 ? "piston" : "pyodide";
 
   const components = useMemo(
-    () => getMdxComponents({ isExercise, executionMode }),
-    [isExercise, executionMode]
+    () => getMdxComponents({ isExercise }),
+    [isExercise]
   );
 
   // Stable empty state for lessons without inline questions (never blocks).

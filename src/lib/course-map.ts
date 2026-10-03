@@ -54,15 +54,15 @@ export const COURSE_PALETTE = [
   "#6C5CE7", // C1  Hardware & Fizică       — violet
   "#5C6FEC", // C2  Sisteme de Operare      — indigo
   "#4A8FE8", // C3  Rețele & Internet       — blue
-  "#2BA8E0", // C4  Python                  — sky
-  "#1FBFC9", // C5  Algoritmi               — cyan
+  "#2BA8E0", // C4  Python & Inginerie Soft — sky
+  "#1FBFC9", // C5  Algoritmi & Str. Date   — cyan
   "#1ECCA0", // C6  Matematică pentru AI    — teal
-  "#2BCE78", // C7  Date & Embeddings       — green
-  "#4FCB54", // C8  Machine Learning        — spring green
-  "#84C93C", // C9  Deep Learning           — lime
-  "#AFC52E", // C10 AI Generativ & LLMs     — yellow-lime
-  "#DCBB2A", // C11 Agentic AI & MCP        — amber
-  "#FDCB6E", // C12 AI în Producție         — gold
+  "#2BCE78", // C7  Computer Vision & CNN   — green
+  "#4FCB54", // C8  Sequence Models & RNN   — spring green
+  "#84C93C", // C9  Transformer             — lime
+  "#AFC52E", // C10 Modele Generative       — yellow-lime
+  "#DCBB2A", // C11 Reinforcement Learning  — amber
+  "#FDCB6E", // C12 PyTorch în Producție    — gold
 ] as const;
 
 /** Course color by 0-based course position, wrapping past 12. */
@@ -79,15 +79,17 @@ export const COURSE_BANNERS: Record<string, string[]> = {
   "hardware-fizica": ["Electroni", "tranzistori", "CPU", "Assembly"],
   "sisteme-de-operare": ["Boot", "procese", "memorie", "containere"],
   "retele-internet": ["TCP/IP", "DNS", "HTTP", "securitate"],
+  // C4-C6 keep their v5 slugs + content (owner decision D1, 2026-09-30). The
+  // ML/PyTorch slugs planned for these three courses are NOT in the live DB.
   "python-inginerie-software": ["Sintaxă", "clase", "async", "Pydantic"],
   "algoritmi-structuri-date": ["Big O", "sortare", "grafuri", "DP"],
-  "baze-date-ingineria-datelor": ["SQL", "Pandas", "embeddings", "pgvector"],
   "matematica-ai": ["Algebră liniară", "calcul", "statistică"],
-  "machine-learning": ["Regresie", "clasificare", "RL", "GPU"],
-  "deep-learning-computer-vision": ["CNN", "Transformers", "ViT", "HuggingFace"],
-  "ai-generativ-llms": ["RAG", "fine-tuning", "Ollama", "Gradio"],
-  "agentic-ai-mcp": ["Tool calling", "LangGraph", "MCP", "A2A"],
-  "ai-in-productie": ["MLOps", "vLLM", "evals", "securitate AI"],
+  "computer-vision-cnn": ["CNN", "convoluție", "Torchvision", "transfer learning"],
+  "sequence-models-rnn": ["RNN", "LSTM", "embeddings", "secvențe"],
+  "transformer-architecture": ["Atenție", "QKV", "multi-head", "Transformer"],
+  "modele-generative": ["Autoencoder", "VAE", "GAN", "diffusion"],
+  "reinforcement-learning": ["RL", "Q-Learning", "DQN", "Gym"],
+  "pytorch-productie": ["ONNX", "TorchServe", "Docker", "MLOps"],
 };
 
 // ─── Course one-line descriptions ─────────────────────────────────────────────
@@ -98,13 +100,13 @@ const COURSE_DESCRIPTIONS: Record<string, string> = {
   "retele-internet": "Cum ajunge un pachet de la tine la Tokyo",
   "python-inginerie-software": "Minimul de Python cât să citești și scrii cod AI",
   "algoritmi-structuri-date": "Diferența dintre cod care merge și cod care scalează",
-  "baze-date-ingineria-datelor": "De la baze de date la embeddings — meaning is math",
   "matematica-ai": "Ecuațiile care stau în spatele inteligenței",
-  "machine-learning": "Primul model care învață din date",
-  "deep-learning-computer-vision": "De la perceptron la arhitecturile care au schimbat lumea",
-  "ai-generativ-llms": "Cum gândește și creează un model de limbaj",
-  "agentic-ai-mcp": "Modele care planifică și acționează singure",
-  "ai-in-productie": "De la experiment la sistem care rulează 24/7",
+  "computer-vision-cnn": "Cum vede o rețea imaginile",
+  "sequence-models-rnn": "Date în care ordinea contează — RNN și LSTM",
+  "transformer-architecture": "Mecanismul din spatele AI-ului modern, de la zero",
+  "modele-generative": "Rețele care creează, nu doar clasifică",
+  "reinforcement-learning": "Agenți care învață prin recompensă",
+  "pytorch-productie": "De la model antrenat la sistem livrat",
 };
 
 // ─── Module cadence ───────────────────────────────────────────────────────────
@@ -169,6 +171,8 @@ export interface BuildAllResult {
   nodes: LessonNode[];
   /** First non-completed lesson across ALL courses, or null when everything is done. */
   currentLessonId: string | null;
+  /** courseId → first non-completed lesson of that course (null when the course is done). */
+  nextLessonByCourse: Record<string, string | null>;
   /** lessonId → course slug, for building lesson URLs from a node click. */
   nodeCourseSlug: Record<string, string>;
   sections: CourseSection[];
@@ -180,10 +184,12 @@ export interface BuildAllResult {
 
 /**
  * Build one continuous LessonNode[] spanning every course. Courses appear in
- * order_index order; the first non-completed lesson across all courses is the
- * single "current" node — everything before it is "completed", everything
- * after is "locked". Every node carries its course color + course identity so
- * the serpentine can paint per-course nodes, paths and atmospheric zones.
+ * order_index order. There is NO sequential locking (MVP): every published
+ * lesson is openable in any order. A node is "completed" (green check) or
+ * "available"; the first non-completed lesson of EACH course is "current"
+ * (the highlighted "continue here" node). Every node carries its course color
+ * + course identity so the serpentine can paint per-course nodes, paths and
+ * atmospheric zones.
  */
 export function buildAllCoursesNodes({
   courses,
@@ -193,8 +199,8 @@ export function buildAllCoursesNodes({
   const nodes: LessonNode[] = [];
   const nodeCourseSlug: Record<string, string> = {};
   const sections: CourseSection[] = [];
+  const nextLessonByCourse: Record<string, string | null> = {};
   let currentLessonId: string | null = null;
-  let foundCurrent = false;
   let totalCount = 0;
 
   courses.forEach((course, courseIndex) => {
@@ -222,7 +228,7 @@ export function buildAllCoursesNodes({
       nodes.push({
         id: `world-gate-${course.slug}`,
         type: "world-gate",
-        status: foundCurrent ? "locked" : "completed",
+        status: "available",
         label: course.title,
         moduleColor: color,
         courseIndex,
@@ -235,17 +241,21 @@ export function buildAllCoursesNodes({
       });
     }
 
+    let courseCurrentFound = false;
+    nextLessonByCourse[course.id] = null;
+
     lessons.forEach((lesson, i) => {
       const isCompleted = completedLessonIds.has(lesson.id);
       let status: LessonNode["status"];
       if (isCompleted) {
         status = "completed";
-      } else if (!foundCurrent) {
+      } else if (!courseCurrentFound) {
         status = "current";
-        foundCurrent = true;
-        currentLessonId = lesson.id;
+        courseCurrentFound = true;
+        nextLessonByCourse[course.id] = lesson.id;
+        if (currentLessonId === null) currentLessonId = lesson.id;
       } else {
-        status = "locked";
+        status = "available";
       }
 
       // Fixed-cadence modules — last node of each chunk (and the final node of
@@ -288,6 +298,7 @@ export function buildAllCoursesNodes({
   return {
     nodes,
     currentLessonId,
+    nextLessonByCourse,
     nodeCourseSlug,
     sections,
     completedCount: completedLessonIds.size,

@@ -204,13 +204,33 @@ export function LessonComments({ lessonId, userLevel, userId }: LessonCommentsPr
   const fetchComments = useCallback(async () => {
     const { data } = await supabase
       .from("lesson_comments")
-      .select(
-        "id, content, user_id, parent_id, upvote_count, created_at, users(name, avatar_url)"
-      )
+      .select("id, content, user_id, parent_id, upvote_count, created_at")
       .eq("lesson_id", lessonId)
       .order("created_at", { ascending: true });
 
-    const all = (data ?? []) as unknown as CommentRow[];
+    const rows = (data ?? []) as Omit<CommentRow, "users">[];
+
+    // Other users' rows are not directly readable (users SELECT is own-row only), so
+    // resolve author names/avatars through the public-profile RPC (public fields only).
+    const authorIds = Array.from(new Set(rows.map((r) => r.user_id)));
+    const authors = new Map<string, { name: string | null; avatar_url: string | null }>();
+    if (authorIds.length > 0) {
+      const { data: profiles } = await supabase.rpc("get_public_profiles", {
+        p_ids: authorIds,
+      });
+      for (const p of (profiles ?? []) as {
+        id: string;
+        name: string | null;
+        avatar_url: string | null;
+      }[]) {
+        authors.set(p.id, { name: p.name, avatar_url: p.avatar_url });
+      }
+    }
+
+    const all: CommentRow[] = rows.map((r) => ({
+      ...r,
+      users: authors.get(r.user_id) ?? null,
+    }));
     const topLevel = all.filter((c) => c.parent_id === null);
     const threaded: ThreadedComment[] = topLevel.map((c) => ({
       ...c,

@@ -9,12 +9,15 @@ import {
   type MarkCompleteResult,
 } from "@/app/(dashboard)/courses/actions";
 import confetti from "canvas-confetti";
+import { safeConfetti } from "@/components/gamification/gamification-boundary";
 
 interface CompleteButtonProps {
   lessonId: string;
   courseSlug: string;
   isCompleted: boolean;
   nextLessonId: string | null;
+  /** Course the next lesson lives in (differs from courseSlug across a course boundary). */
+  nextCourseSlug?: string | null;
   isReadingComplete?: boolean; // defaults true for quiz/exercise/project
   isInlineComplete?: boolean;  // defaults true when no inline questions (Variant A: all attempted)
   onCompleted?: (result: MarkCompleteResult) => void;
@@ -25,6 +28,7 @@ export function CompleteButton({
   courseSlug,
   isCompleted: initialCompleted,
   nextLessonId: initialNextId,
+  nextCourseSlug: initialNextCourseSlug,
   isReadingComplete = true,
   isInlineComplete = true,
   onCompleted,
@@ -33,6 +37,7 @@ export function CompleteButton({
   const [isPending, startTransition] = useTransition();
   const [isCompleted, setIsCompleted] = useState(initialCompleted);
   const [nextLessonId, setNextLessonId] = useState(initialNextId);
+  const [nextCourseSlug, setNextCourseSlug] = useState(initialNextCourseSlug);
 
   const isUnlocked = isReadingComplete && isInlineComplete;
 
@@ -41,12 +46,14 @@ export function CompleteButton({
   else if (!isInlineComplete) tooltipText = "Răspunde la întrebările din lecție";
 
   function fireConfetti() {
-    confetti({
-      particleCount: 120,
-      spread: 70,
-      origin: { y: 0.7 },
-      colors: ["#6366f1", "#8b5cf6", "#22c55e", "#f59e0b", "#3b82f6"],
-    });
+    safeConfetti(() =>
+      confetti({
+        particleCount: 120,
+        spread: 70,
+        origin: { y: 0.7 },
+        colors: ["#6366f1", "#8b5cf6", "#22c55e", "#f59e0b", "#3b82f6"],
+      })
+    );
   }
 
   function handleComplete() {
@@ -56,6 +63,7 @@ export function CompleteButton({
       if (result.success) {
         setIsCompleted(true);
         setNextLessonId(result.nextLessonId);
+        setNextCourseSlug(result.nextCourseSlug);
         fireConfetti();
         window.dispatchEvent(
           new CustomEvent("lesson-presence:complete", { detail: { lessonId } })
@@ -67,9 +75,11 @@ export function CompleteButton({
 
   function handleNext() {
     if (nextLessonId) {
-      router.push(`/courses/${courseSlug}/${nextLessonId}`);
+      // nextCourseSlug differs from courseSlug when the next lesson is the first
+      // one of the next course.
+      router.push(`/courses/${nextCourseSlug ?? courseSlug}/${nextLessonId}`);
     } else {
-      // Last lesson in the course — go back to the course map with this
+      // End of the available curriculum — go back to the course map with this
       // course pre-selected (avoids the /courses/[slug] → /courses?c=<slug>
       // redirect hop introduced in 1.5b).
       router.push(`/courses?c=${courseSlug}`);

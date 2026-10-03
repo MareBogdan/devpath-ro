@@ -1,5 +1,14 @@
 import { redirect } from "next/navigation";
+import { Trophy } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { LearningDnaRadar } from "@/components/portfolio/learning-dna-radar";
+import {
+  computeCourseProgress,
+  finishedCourses,
+  radarAxes,
+  type CourseLite,
+  type LessonLite,
+} from "@/lib/portfolio-data";
 import { ProfileHero } from "@/components/profile/profile-hero";
 import { ProfileStatsRow } from "@/components/profile/profile-stats-row";
 import { ProfileEditCard } from "@/components/profile/profile-edit-card";
@@ -27,7 +36,8 @@ export default async function ProfilePage() {
     userBadgesResult,
     certificatesResult,
     completedProgressResult,
-    totalLessonsResult,
+    publishedLessonsResult,
+    coursesResult,
   ] = await Promise.all([
     supabase
       .from("users")
@@ -54,12 +64,18 @@ export default async function ProfilePage() {
       .order("issued_at", { ascending: false }),
     supabase
       .from("user_progress")
-      .select("completed_at")
+      .select("lesson_id, completed_at")
       .eq("user_id", user.id)
       .eq("completed", true),
+    // Published lessons (id + course) → totals, per-course progress, radar
     supabase
       .from("lessons")
-      .select("id", { count: "exact", head: true }),
+      .select("id, course_id")
+      .eq("is_published", true),
+    supabase
+      .from("courses")
+      .select("id, slug, title, order_index")
+      .order("order_index"),
   ]);
 
   const profile = profileResult.data;
@@ -68,7 +84,8 @@ export default async function ProfilePage() {
   const userBadgesRaw = userBadgesResult.data ?? [];
   const certificatesRaw = certificatesResult.data ?? [];
   const completedProgress = completedProgressResult.data ?? [];
-  const totalLessons = totalLessonsResult.count ?? 0;
+  const publishedLessons = publishedLessonsResult.data ?? [];
+  const totalLessons = publishedLessons.length;
 
   // ─── Derived data ─────────────────────────────────────────────────────────
   const referralCode = profile?.referral_code ?? "";
@@ -137,6 +154,22 @@ export default async function ProfilePage() {
     .map((p) => p.completed_at as string | null)
     .filter((d): d is string => Boolean(d));
 
+  // Per-course progress → completed courses + Learning DNA radar. Only lessons that
+  // are published count (a completed row for an unpublished lesson is ignored).
+  const publishedIds = new Set(publishedLessons.map((l) => l.id as string));
+  const completedIds = new Set(
+    completedProgress
+      .map((p) => p.lesson_id as string)
+      .filter((id) => publishedIds.has(id))
+  );
+  const courseProgress = computeCourseProgress(
+    (coursesResult.data ?? []) as CourseLite[],
+    publishedLessons as LessonLite[],
+    completedIds
+  );
+  const completedCourses = finishedCourses(courseProgress);
+  const radar = radarAxes(courseProgress);
+
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 space-y-8">
       {/* Hero — avatar + level + XP progress */}
@@ -155,7 +188,7 @@ export default async function ProfilePage() {
         streakCount={streakCount}
         badgesEarned={earnedSlugs.size}
         totalBadges={badges.length}
-        lessonsCompleted={completionDates.length}
+        lessonsCompleted={completedIds.size}
         totalLessons={totalLessons}
       />
 
@@ -168,6 +201,58 @@ export default async function ProfilePage() {
 
       {/* Activity heatmap */}
       <ActivityHeatmapCard completionDates={completionDates} />
+
+      {/* Learning DNA radar + completed courses */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <section
+          aria-labelledby="dna-heading"
+          className="rounded-2xl border border-border bg-card p-5 sm:p-6"
+        >
+          <h2 id="dna-heading" className="text-lg font-bold text-foreground">
+            ADN-ul de învățare
+          </h2>
+          <p className="text-xs text-muted-foreground mt-0.5 mb-4">
+            Procentul de lecții completate în fiecare dintre primele șase cursuri
+          </p>
+          <LearningDnaRadar modules={radar} />
+        </section>
+
+        <section
+          aria-labelledby="finished-heading"
+          className="rounded-2xl border border-border bg-card p-5 sm:p-6"
+        >
+          <h2
+            id="finished-heading"
+            className="text-lg font-bold text-foreground flex items-center gap-2"
+          >
+            <Trophy className="h-4 w-4 text-primary" />
+            Cursuri terminate
+          </h2>
+          <p className="text-xs text-muted-foreground mt-0.5 mb-4">
+            {completedCourses.length} din {courseProgress.filter((c) => c.total > 0).length} disponibile
+          </p>
+          {completedCourses.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4">
+              Niciun curs terminat încă. Completează toate lecțiile unui curs ca să apară aici.
+            </p>
+          ) : (
+            <ul className="space-y-2">
+              {completedCourses.map((c) => (
+                <li
+                  key={c.id}
+                  className="flex items-center gap-3 rounded-xl border border-border bg-background/50 p-3"
+                >
+                  <Trophy className="h-4 w-4 shrink-0 text-green-500" />
+                  <span className="flex-1 text-sm font-medium text-foreground">{c.title}</span>
+                  <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 dark:bg-green-950 dark:text-green-300">
+                    Terminat
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
 
       {/* Two-column layout on desktop: badges (left, wide) + referral + portfolio (right) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

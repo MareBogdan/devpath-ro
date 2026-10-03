@@ -31,7 +31,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // ── Dynamic /u/[username] — public portfolio pages ─────────────────────────
   const { data: users } = await supabase
     .from("users")
-    .select("email, name, updated_at")
+    .select("email, name")
     .not("name", "is", null);
 
   const portfolioRoutes: MetadataRoute.Sitemap = (users ?? []).map((u) => {
@@ -41,7 +41,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       .replace(/[^a-z0-9-]/g, "");
     return {
       url: `${BASE_URL}/u/${username}`,
-      lastModified: new Date(u.updated_at ?? Date.now()),
+      lastModified: new Date(),
       changeFrequency: "monthly" as const,
       priority: 0.6,
     };

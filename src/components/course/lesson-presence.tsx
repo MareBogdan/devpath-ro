@@ -77,72 +77,134 @@ export function LessonPresence({
   const [celebration, setCelebration] = useState<CelebrationEvent | null>(null);
 
   // ── Supabase Realtime: presence tracking ──────────────────────────────────
+  // Presence is a nice-to-have: any failure here (Realtime disabled, WebSocket
+  // blocked, thrown error) ends in `channelStatus = "error"` → the component
+  // renders nothing and the lesson page is unaffected.
   useEffect(() => {
+    let active = true; // false after cleanup → late callbacks are ignored
+    let failed = false;
+    let subscribed = false;
+    let channel: RealtimeChannel | null = null;
+    let timeoutId: number | undefined;
+    let celebrationTimer: number | undefined;
     const supabase = getSupabaseBrowserClient();
 
-    const channel = supabase.channel(`lesson-presence:${lessonId}`, {
-      config: { presence: { key: userId } },
-    });
+    /** Remove the channel (also stops supabase-js's reconnect/rejoin loop). */
+    const teardown = () => {
+      const ch = channel;
+      channel = null;
+      if (!ch) return;
+      if (channelRef.current === ch) channelRef.current = null;
+      try {
+        supabase.removeChannel(ch).catch(() => {});
+      } catch {
+        // already torn down
+      }
+    };
 
-    channelRef.current = channel;
+    /** Give up on presence for this lesson: warn once, show nothing. */
+    const fail = (reason: string) => {
+      if (!active || failed) return;
+      failed = true;
+      console.warn(
+        `[LessonPresence] Presence unavailable (${reason}) — check Supabase → Project Settings → Realtime is enabled.`
+      );
+      setChannelStatus("error");
+      setPresenceList([]);
+      teardown();
+    };
+
     setChannelStatus("connecting");
     setPresenceList([]);
 
-    // Register event listeners now (before subscribe — no WebSocket needed yet).
-    channel
-      .on("presence", { event: "sync" }, () => {
-        const state = channel.presenceState() as Record<string, PresenceUser[]>;
-        const users = Object.values(state).flat() as PresenceUser[];
-        setPresenceList(users);
-      })
-      .on("broadcast", { event: "lesson_complete" }, ({ payload }: { payload: unknown }) => {
-        const ev = payload as CelebrationEvent;
-        if (ev.display_name !== displayName) {
-          setCelebration(ev);
-          setTimeout(() => setCelebration(null), 4500);
-        }
+    try {
+      const ch = supabase.channel(`lesson-presence:${lessonId}`, {
+        config: { presence: { key: userId } },
       });
+      channel = ch;
+      channelRef.current = ch;
 
-    // ── React 18 Strict Mode fix ─────────────────────────────────────────────
-    // Strict Mode's fake unmount fires synchronously (< 1 ms after mount).
-    // By deferring subscribe() by 200 ms we guarantee: if cleanup runs before
-    // the timer fires, clearTimeout() cancels it and the WebSocket is NEVER
-    // opened — no "WebSocket closed before connection established" error.
-    // On a real unmount (navigation) the 200 ms have already elapsed,
-    // `subscribed` is true, and we call removeChannel() for proper teardown.
-    let subscribed = false;
-
-    const timeoutId = window.setTimeout(async () => {
-      subscribed = true;
-      channel.subscribe(async (status: string) => {
-        if (status === "SUBSCRIBED") {
-          setChannelStatus("connected");
-          await channel.track({
-            user_id: userId,
-            display_name: displayName,
-            avatar_url: avatarUrl ?? null,
-            online_at: new Date().toISOString(),
+      // Register event listeners now (before subscribe — no WebSocket needed yet).
+      ch.on("presence", { event: "sync" }, () => {
+        if (!active) return;
+        try {
+          const state = ch.presenceState() as Record<string, PresenceUser[]>;
+          // One entry per user: the same account in two tabs (or a reload whose old
+          // socket hasn't timed out yet) yields several metas with the same user_id.
+          const byUser = new Map<string, PresenceUser>();
+          for (const u of Object.values(state).flat()) {
+            if (u?.user_id && !byUser.has(u.user_id)) byUser.set(u.user_id, u);
+          }
+          setPresenceList(Array.from(byUser.values()));
+        } catch {
+          // ignore a malformed presence state
+        }
+      }).on(
+        "broadcast",
+        { event: "lesson_complete" },
+        ({ payload }: { payload: unknown }) => {
+          if (!active) return;
+          const ev = payload as Partial<CelebrationEvent> | null;
+          if (!ev?.display_name || ev.display_name === displayName) return;
+          setCelebration({
+            display_name: ev.display_name,
+            lesson_title: ev.lesson_title ?? "",
           });
-        } else if (
-          status === "CHANNEL_ERROR" ||
-          status === "TIMED_OUT" ||
-          status === "CLOSED"
-        ) {
-          console.warn(
-            "[LessonPresence] Channel error — check Supabase → Project Settings → Realtime is enabled."
-          );
-          setChannelStatus("error");
+          window.clearTimeout(celebrationTimer);
+          celebrationTimer = window.setTimeout(() => setCelebration(null), 4500);
         }
-      });
-    }, 200);
+      );
+
+      // ── React 18 Strict Mode fix ───────────────────────────────────────────
+      // Strict Mode's fake unmount fires synchronously (< 1 ms after mount).
+      // By deferring subscribe() by 200 ms we guarantee: if cleanup runs before
+      // the timer fires, clearTimeout() cancels it and the WebSocket is NEVER
+      // opened — no "WebSocket closed before connection established" error.
+      timeoutId = window.setTimeout(() => {
+        if (!channel) return;
+        try {
+          subscribed = true;
+          channel.subscribe(async (status: string) => {
+            if (!active || failed) return;
+            if (status === "SUBSCRIBED") {
+              setChannelStatus("connected");
+              try {
+                await channel?.track({
+                  user_id: userId,
+                  display_name: displayName,
+                  avatar_url: avatarUrl ?? null,
+                  online_at: new Date().toISOString(),
+                });
+              } catch {
+                fail("track failed");
+              }
+            } else if (
+              status === "CHANNEL_ERROR" ||
+              status === "TIMED_OUT" ||
+              status === "CLOSED"
+            ) {
+              fail(status);
+            }
+          });
+        } catch {
+          fail("subscribe threw");
+        }
+      }, 200);
+    } catch {
+      fail("setup threw");
+    }
 
     return () => {
-      // If Strict Mode cleanup fires before 200 ms: timer is cancelled,
-      // subscribe() was never called, nothing to tear down.
-      clearTimeout(timeoutId);
-      if (subscribed) {
-        supabase.removeChannel(channel);
-      }
+      // Order matters: flip `active` first so the CLOSED callback fired by
+      // removeChannel() is ignored. If cleanup ran before the 200 ms timer,
+      // subscribe() was never called and there is no socket to close.
+      active = false;
+      window.clearTimeout(timeoutId);
+      window.clearTimeout(celebrationTimer);
+      const ch = channel;
+      if (subscribed) teardown();
+      else channel = null;
+      if (ch && channelRef.current === ch) channelRef.current = null;
     };
   }, [lessonId, userId, displayName, avatarUrl]);
 
@@ -154,14 +216,20 @@ export function LessonPresence({
       ).detail;
       if (evId !== lessonId || !channelRef.current) return;
 
-      channelRef.current.send({
-        type: "broadcast",
-        event: "lesson_complete",
-        payload: {
-          display_name: displayName,
-          lesson_title: lessonTitle,
-        } as CelebrationEvent,
-      });
+      try {
+        channelRef.current
+          .send({
+            type: "broadcast",
+            event: "lesson_complete",
+            payload: {
+              display_name: displayName,
+              lesson_title: lessonTitle,
+            } as CelebrationEvent,
+          })
+          .catch(() => {});
+      } catch {
+        // presence is best-effort — never block lesson completion
+      }
     };
 
     window.addEventListener("lesson-presence:complete", handler);
@@ -183,13 +251,8 @@ export function LessonPresence({
     );
   }
 
-  // ── Error: fail silently (no UI clutter in production) ───────────────────
-  if (channelStatus === "error") {
-    console.warn(
-      "[LessonPresence] Channel error — check Supabase → Project Settings → Realtime is enabled."
-    );
-    return null;
-  }
+  // ── Error: show nothing (the one warning is logged in the effect) ────────
+  if (channelStatus === "error") return null;
 
   // ── Connected ─────────────────────────────────────────────────────────────
   return (

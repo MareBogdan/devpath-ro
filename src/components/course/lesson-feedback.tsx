@@ -50,13 +50,13 @@ export function LessonFeedback({
               </span>
               <button
                 onClick={() => handleFeedback("clear")}
-                className="text-sm px-3 py-1 rounded-lg border border-border hover:bg-muted transition"
+                className="text-sm px-3 py-1 max-sm:py-2.5 rounded-lg border border-border hover:bg-muted transition"
               >
                 👍 Da, a fost clară
               </button>
               <button
                 onClick={() => handleFeedback("hard")}
-                className="text-sm px-3 py-1 rounded-lg border border-border hover:bg-muted transition"
+                className="text-sm px-3 py-1 max-sm:py-2.5 rounded-lg border border-border hover:bg-muted transition"
               >
                 👎 A fost grea
               </button>

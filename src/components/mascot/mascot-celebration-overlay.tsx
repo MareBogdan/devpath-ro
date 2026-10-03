@@ -6,6 +6,7 @@ import confetti from "canvas-confetti";
 import { CosmoMascot } from "./cosmo-mascot";
 import type { AwardedBadge } from "@/lib/gamification-constants";
 import { LEVEL_UNLOCK_TEXT } from "@/lib/gamification-constants";
+import { safeConfetti } from "@/components/gamification/gamification-boundary";
 
 interface MascotCelebrationOverlayProps {
   show: boolean;
@@ -28,7 +29,7 @@ export function MascotCelebrationOverlay({
 }: MascotCelebrationOverlayProps) {
   useEffect(() => {
     if (!show) return;
-    confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
+    safeConfetti(() => confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } }));
     const timer = setTimeout(onDismiss, 4000);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps

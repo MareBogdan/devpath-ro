@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { ArrowRight, PlayCircle, CheckCircle2 } from "lucide-react";
+import { ArrowRight, PlayCircle, CheckCircle2, Clock } from "lucide-react";
 import { MagicCard } from "@/components/ui/magic-card";
 import { BorderBeam } from "@/components/ui/border-beam";
 import { ShineBorder } from "@/components/ui/shine-border";
 import { AnimatedGradientText } from "@/components/ui/animated-gradient-text";
 import { cn } from "@/lib/utils";
+import { MINUTES_PER_LESSON } from "@/lib/lesson-time";
 import {
   getDifficultyColor,
   getDifficultyLabel,
@@ -66,6 +67,24 @@ function DifficultyDots({ difficulty }: { difficulty: number }) {
   );
 }
 
+// Card wrapper: a link for openable courses, an inert block for "În curând" ones
+// (href === null) so a course without lessons can never be opened into an empty page.
+function CardShell({
+  href,
+  children,
+}: {
+  href: string | null;
+  children: React.ReactNode;
+}) {
+  const base = "block relative rounded-[14px] overflow-hidden transition-all duration-200";
+  if (!href) return <div className={cn(base, "opacity-70")}>{children}</div>;
+  return (
+    <Link href={href} className={cn(base, "cursor-pointer hover:scale-[1.005]")}>
+      {children}
+    </Link>
+  );
+}
+
 export function CoursesSection({ courses }: CoursesSectionProps) {
   return (
     <motion.section
@@ -84,12 +103,21 @@ export function CoursesSection({ courses }: CoursesSectionProps) {
         />
       </div>
 
-      <div className="w-full mx-auto relative z-10" style={{ maxWidth: "min(75%, 1000px)" }}>
-        <h2 className="text-2xl font-bold mb-8">
-          <AnimatedGradientText speed={1} colorFrom="#6C5CE7" colorTo="#00CEC9" className="text-2xl font-bold">
-            Cursurile tale
-          </AnimatedGradientText>
-        </h2>
+      <div className="w-full mx-auto relative z-10 max-sm:!max-w-full" style={{ maxWidth: "min(75%, 1000px)" }}>
+        <div className="flex items-center justify-between gap-4 mb-8">
+          <h2 className="text-2xl font-bold">
+            <AnimatedGradientText speed={1} colorFrom="#6C5CE7" colorTo="#00CEC9" className="text-2xl font-bold">
+              Cursurile tale
+            </AnimatedGradientText>
+          </h2>
+          <Link
+            href="/courses"
+            className="inline-flex shrink-0 items-center gap-2 text-sm font-medium text-aurora-text-secondary hover:text-aurora-primary-300 transition-colors max-sm:py-3"
+          >
+            Vezi toate cursurile
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
 
         <div className={cn(
           "grid gap-4",
@@ -103,12 +131,18 @@ export function CoursesSection({ courses }: CoursesSectionProps) {
             const isCompleted = percent === 100 && course.totalLessons > 0;
             const hasNoProgress = course.completedLessons === 0;
             const remaining = course.totalLessons - course.completedLessons;
-            const estMinutes = remaining * 10;
+            const estMinutes = remaining * MINUTES_PER_LESSON;
             const estHours = Math.floor(estMinutes / 60);
             const estTimeLabel =
               estMinutes < 60 ? `~${estMinutes} min rămase` : `~${estHours}h rămase`;
 
             const gradient = cardGradients[i % cardGradients.length];
+
+            // No published lessons yet → locked "În curând" card (not a link).
+            const isComingSoon = course.totalLessons === 0;
+            // Land on the course map (it scrolls to the learner's next lesson);
+            // the lesson is opened from there.
+            const cardHref = isComingSoon ? null : `/courses/${course.slug}`;
 
             return (
               <motion.div
@@ -118,10 +152,7 @@ export function CoursesSection({ courses }: CoursesSectionProps) {
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.08, duration: 0.4 }}
               >
-                <Link
-                  href={`/courses/${course.slug}`}
-                  className="block relative rounded-[14px] overflow-hidden cursor-pointer transition-all duration-200 hover:scale-[1.005]"
-                >
+                <CardShell href={cardHref}>
                   <MagicCard
                     gradientSize={250}
                     gradientColor={gradient.gradientColor}
@@ -171,12 +202,14 @@ export function CoursesSection({ courses }: CoursesSectionProps) {
                         </div>
 
                         {/* Progress % — large */}
-                        <div className="shrink-0 text-right">
-                          <p className="text-2xl font-bold text-aurora-primary-300 leading-none">
-                            {percent}%
-                          </p>
-                          <p className="text-[10px] text-aurora-text-tertiary mt-0.5">completat</p>
-                        </div>
+                        {!isComingSoon && (
+                          <div className="shrink-0 text-right">
+                            <p className="text-2xl font-bold text-aurora-primary-300 leading-none">
+                              {percent}%
+                            </p>
+                            <p className="text-[10px] text-aurora-text-tertiary mt-0.5">completat</p>
+                          </div>
+                        )}
                       </div>
 
                       {/* Description */}
@@ -187,34 +220,43 @@ export function CoursesSection({ courses }: CoursesSectionProps) {
                       {/* Metadata row */}
                       <div className="flex items-center gap-3 text-[11px] text-aurora-text-tertiary mb-4">
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-aurora-border-subtle/50">
-                          {course.completedLessons}/{course.totalLessons} lecții
+                          {isComingSoon
+                            ? "Lecții în pregătire"
+                            : `${course.completedLessons}/${course.totalLessons} lecții`}
                         </span>
-                        {!isCompleted && !hasNoProgress && (
+                        {!isCompleted && !hasNoProgress && !isComingSoon && (
                           <span>{estTimeLabel}</span>
                         )}
-                        {hasNoProgress && (
+                        {hasNoProgress && !isComingSoon && (
                           <span>
-                            ~{Math.round(course.totalLessons * 10 / 60 * 10) / 10}h total · {getDifficultyLabel(course.difficulty)}
+                            ~{Math.round(course.totalLessons * MINUTES_PER_LESSON / 60 * 10) / 10}h total · {getDifficultyLabel(course.difficulty)}
                           </span>
                         )}
                       </div>
 
                       {/* Progress bar */}
-                      <div className="h-1.5 w-full rounded-full bg-aurora-border-subtle overflow-hidden mb-4">
-                        <motion.div
-                          className="h-full rounded-full"
-                          style={{
-                            background: `linear-gradient(to right, ${gradient.from}, ${gradient.to})`,
-                          }}
-                          initial={{ width: 0 }}
-                          whileInView={{ width: `${percent}%` }}
-                          viewport={{ once: true }}
-                          transition={{ duration: 0.8, ease: "easeOut", delay: 0.3 }}
-                        />
-                      </div>
+                      {!isComingSoon && (
+                        <div className="h-1.5 w-full rounded-full bg-aurora-border-subtle overflow-hidden mb-4">
+                          <motion.div
+                            className="h-full rounded-full"
+                            style={{
+                              background: `linear-gradient(to right, ${gradient.from}, ${gradient.to})`,
+                            }}
+                            initial={{ width: 0 }}
+                            whileInView={{ width: `${percent}%` }}
+                            viewport={{ once: true }}
+                            transition={{ duration: 0.8, ease: "easeOut", delay: 0.3 }}
+                          />
+                        </div>
+                      )}
 
                       {/* CTA */}
-                      {isCompleted ? (
+                      {isComingSoon ? (
+                        <span className="inline-flex items-center gap-2 rounded-[10px] bg-amber-500/15 px-4 py-2 text-sm font-semibold text-amber-400">
+                          <Clock className="h-4 w-4" />
+                          În curând
+                        </span>
+                      ) : isCompleted ? (
                         <span className="inline-flex items-center gap-2 bg-aurora-gold-500/15 text-aurora-gold-500 font-semibold px-4 py-2 rounded-[10px] text-sm">
                           <CheckCircle2 className="h-4 w-4" />
                           Curs finalizat
@@ -223,7 +265,7 @@ export function CoursesSection({ courses }: CoursesSectionProps) {
                         <span className="inline-flex items-center gap-2 bg-aurora-primary-500 text-white font-semibold px-4 py-2 rounded-[10px] text-sm max-w-full">
                           <PlayCircle className="h-4 w-4 shrink-0" />
                           <span className="truncate">
-                            Continuă:{" "}
+                            {hasNoProgress ? "Începe" : "Continuă"}:{" "}
                             {course.nextLessonTitle
                               ? course.nextLessonTitle.length > 28
                                 ? course.nextLessonTitle.slice(0, 28) + "…"
@@ -239,7 +281,7 @@ export function CoursesSection({ courses }: CoursesSectionProps) {
                       )}
                     </div>
                   </MagicCard>
-                </Link>
+                </CardShell>
               </motion.div>
             );
           })}
@@ -249,7 +291,7 @@ export function CoursesSection({ courses }: CoursesSectionProps) {
         <div className="mt-8 text-center">
           <Link
             href="/courses"
-            className="inline-flex items-center gap-2 text-sm font-medium text-aurora-text-secondary hover:text-aurora-primary-300 transition-colors"
+            className="inline-flex items-center gap-2 text-sm font-medium text-aurora-text-secondary hover:text-aurora-primary-300 transition-colors max-sm:py-3"
           >
             Vezi toate cursurile
             <ArrowRight className="h-4 w-4" />

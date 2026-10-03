@@ -26,5 +26,20 @@ export default async function HomePage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  return <LandingPage isAuthenticated={!!user} />;
+  // Real catalogue size for the stats strip. Explicit is_published filter: the
+  // lessons policy also exposes unpublished rows to admins.
+  const { data: publishedLessons } = await supabase
+    .from("lessons")
+    .select("course_id")
+    .eq("is_published", true);
+  const lessonCount = publishedLessons?.length ?? 0;
+  const courseCount = new Set((publishedLessons ?? []).map((l) => l.course_id)).size;
+
+  return (
+    <LandingPage
+      isAuthenticated={!!user}
+      lessonCount={lessonCount}
+      courseCount={courseCount}
+    />
+  );
 }

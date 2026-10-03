@@ -6,6 +6,15 @@ import { Trophy, Star, ExternalLink } from "lucide-react";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { LEVEL_NAMES } from "@/lib/gamification-constants";
+import {
+  computeCourseProgress,
+  escapeLikePattern,
+  finishedCourses,
+  isValidProfileHandle,
+  radarAxes,
+  type CourseLite,
+  type LessonLite,
+} from "@/lib/portfolio-data";
 import { PortfolioHeader } from "@/components/portfolio/portfolio-header";
 import { PortfolioStats } from "@/components/portfolio/portfolio-stats";
 import { ActivityHeatmap } from "@/components/portfolio/activity-heatmap";
@@ -30,26 +39,28 @@ type UserRow = {
   plan: string | null;
 };
 
-// ─── Module metadata ──────────────────────────────────────────────────────────
-
-const MODULE_NAMES: Record<number, string> = {
-  1: "Bazele AI",
-  2: "Machine Learning",
-  3: "Rețele Neuronale",
-  4: "NLP și LLM",
-  5: "Prompt Engineering",
-  6: "Aplicații AI",
-};
-
 // ─── Cached data fetching (deduplicates between generateMetadata + page) ──────
 
-const resolveUser = cache(async (username: string): Promise<UserRow | null> => {
+const resolveUser = cache(async (rawUsername: string): Promise<UserRow | null> => {
+  // Next.js hands dynamic params over percent-encoded ("+" arrives as "%2B"), so
+  // decode once. A malformed escape simply makes the handle invalid.
+  let username = rawUsername;
+  try {
+    username = decodeURIComponent(rawUsername);
+  } catch {
+    return null;
+  }
+
+  // A handle is a referral code or an email local-part — never contains % or other
+  // LIKE metacharacters. Reject anything else before it reaches a query.
+  if (!isValidProfileHandle(username)) return null;
+
   const supabase = createSupabaseAdminClient();
 
   const SELECT =
     "id, email, name, avatar_url, xp_points, level, streak_count, created_at, plan";
 
-  // 1. Try referral_code
+  // 1. Try referral_code (exact match)
   const { data: byReferral } = await supabase
     .from("users")
     .select(SELECT)
@@ -57,13 +68,16 @@ const resolveUser = cache(async (username: string): Promise<UserRow | null> => {
     .maybeSingle();
   if (byReferral) return byReferral as UserRow;
 
-  // 2. Fall back to email prefix match
+  // 2. Fall back to email local-part. `%` and `_` are escaped so the handle is
+  //    matched literally (an unescaped "%" would match the first user's email).
+  //    If two accounts share the local-part the handle is ambiguous → not found.
   const { data: byEmail } = await supabase
     .from("users")
     .select(SELECT)
-    .ilike("email", `${username}@%`)
-    .limit(1);
-  return ((byEmail as UserRow[] | null)?.[0]) ?? null;
+    .ilike("email", `${escapeLikePattern(username)}@%`)
+    .limit(2);
+  const matches = (byEmail as UserRow[] | null) ?? [];
+  return matches.length === 1 ? matches[0] : null;
 });
 
 // ─── Metadata ─────────────────────────────────────────────────────────────────
@@ -115,29 +129,34 @@ export default async function PublicPortfolioPage({ params }: PageProps) {
   const profile = await resolveUser(username);
   if (!profile) notFound();
 
-  // Completed lessons with timestamps + scores
+  // Completed lessons with timestamps (heatmap + completion)
   const { data: progressData } = await supabase
     .from("user_progress")
-    .select("lesson_id, completed_at, score")
+    .select("lesson_id, completed_at")
     .eq("user_id", profile.id)
     .eq("completed", true);
 
-  // All lessons (module calc + course resolution)
+  // Published lessons only (course completion / radar must ignore unpublished skeletons)
   const { data: allLessons } = await supabase
     .from("lessons")
-    .select("id, course_id, module_index, type");
+    .select("id, course_id")
+    .eq("is_published", true);
 
-  // All courses
+  // All courses, in curriculum order
   const { data: allCourses } = await supabase
     .from("courses")
-    .select("id, slug, title");
+    .select("id, slug, title, order_index")
+    .order("order_index");
 
-  // Earned badges
+  // Earned badges + total badge count (for "earned / total")
   const { data: userBadgesRaw } = await supabase
     .from("user_badges")
     .select("earned_at, badges(slug, name, description, icon)")
     .eq("user_id", profile.id)
     .order("earned_at", { ascending: false });
+  const { count: totalBadgeCount } = await supabase
+    .from("badges")
+    .select("id", { count: "exact", head: true });
 
   // Projects
   const { data: projects } = await supabase
@@ -150,47 +169,14 @@ export default async function PublicPortfolioPage({ params }: PageProps) {
 
   const completedIds = new Set((progressData ?? []).map((p) => p.lesson_id));
 
-  const completedCourses = (allCourses ?? []).filter((course) => {
-    const courseLessons = (allLessons ?? []).filter(
-      (l) => l.course_id === course.id
-    );
-    return (
-      courseLessons.length > 0 && courseLessons.every((l) => completedIds.has(l.id))
-    );
-  });
-
-  // Build progress map for score lookups
-  const progressMap = new Map(
-    (progressData ?? []).map((p) => [p.lesson_id, p])
+  // Per-course completion → finished courses + the 6-axis Learning DNA radar
+  const courseProgress = computeCourseProgress(
+    (allCourses ?? []) as CourseLite[],
+    (allLessons ?? []) as LessonLite[],
+    completedIds
   );
-
-  // Per-module radar values
-  const radarModules = [1, 2, 3, 4, 5, 6].map((moduleIdx) => {
-    const moduleLessons = (allLessons ?? []).filter(
-      (l) => l.module_index === moduleIdx
-    );
-    const completedInModule = moduleLessons.filter((l) =>
-      completedIds.has(l.id)
-    );
-    const completionRate =
-      moduleLessons.length > 0
-        ? completedInModule.length / moduleLessons.length
-        : 0;
-
-    const quizLessons = completedInModule.filter((l) => l.type === "quiz");
-    const quizScores = quizLessons
-      .map((l) => progressMap.get(l.id)?.score ?? 0)
-      .filter((s) => s > 0);
-    const avgScoreNorm =
-      quizScores.length > 0
-        ? quizScores.reduce((a, b) => a + b, 0) / quizScores.length / 100
-        : 1;
-
-    return {
-      name: MODULE_NAMES[moduleIdx] ?? `Modul ${moduleIdx}`,
-      value: Math.min(1, completionRate * avgScoreNorm),
-    };
-  });
+  const completedCourses = finishedCourses(courseProgress);
+  const radarModules = radarAxes(courseProgress);
 
   // Heatmap: completion dates for last 52 weeks
   const completionDates = (progressData ?? [])
@@ -227,13 +213,13 @@ export default async function PublicPortfolioPage({ params }: PageProps) {
       {/* Minimal public header */}
       <header className="sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur">
         <div className="max-w-4xl mx-auto px-6 h-14 flex items-center justify-between">
-          <Link href="/" className="text-lg font-bold text-foreground">
+          <Link href="/" className="text-lg font-bold text-foreground whitespace-nowrap max-sm:py-2.5">
             Dev<span className="text-primary">Path</span>{" "}
             <span className="text-muted-foreground font-normal text-sm">RO</span>
           </Link>
           <Link
             href="/login"
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+            className="text-sm text-muted-foreground hover:text-foreground transition-colors max-sm:py-3"
           >
             Intră în cont
           </Link>
@@ -274,7 +260,7 @@ export default async function PublicPortfolioPage({ params }: PageProps) {
             ADN-ul de învățare
           </h2>
           <p className="text-xs text-muted-foreground mb-6">
-            Procentul de completare per modul × scorul mediu la quiz-uri
+            Procentul de lecții completate în fiecare dintre primele șase cursuri
           </p>
           <LearningDnaRadar modules={radarModules} />
         </div>
@@ -311,12 +297,16 @@ export default async function PublicPortfolioPage({ params }: PageProps) {
           )}
         </div>
 
-        {/* Badges */}
-        {badges.length > 0 && (
-          <div className="space-y-3">
-            <h2 className="text-sm font-semibold text-foreground">
-              Badge-uri câștigate
-            </h2>
+        {/* Badges — earned / total */}
+        <div className="space-y-3">
+          <h2 className="text-sm font-semibold text-foreground">
+            Badge-uri câștigate ({badges.length}/{totalBadgeCount ?? 0})
+          </h2>
+          {badges.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4 px-1">
+              Niciun badge câștigat încă.
+            </p>
+          ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
               {badges.map((badge) => (
                 <div
@@ -331,8 +321,8 @@ export default async function PublicPortfolioPage({ params }: PageProps) {
                 </div>
               ))}
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Projects */}
         {(projects ?? []).length > 0 && (

@@ -4,11 +4,13 @@ import { type ReactNode } from "react";
 import { motion } from "framer-motion";
 import { ArrowRight, BookOpen, Check } from "lucide-react";
 import { COURSE_PALETTE } from "@/lib/course-map";
+import { estimateContentHours } from "@/lib/lesson-time";
 
 // Curriculum constants — the full DevPath RO roadmap (see CURRICULUM-STRUCTURE.md).
-// TOTAL_COURSES is fixed at 12 (the roadmap is 12 courses). The lesson total is
-// NOT hardcoded — it's derived from the seeded curriculum and passed in as the
-// `totalLessons` prop, so it can never go stale when the curriculum is restructured.
+// TOTAL_COURSES (12) only sizes the roadmap badge row; courses without content are
+// shown as locked / "În curând". The stat pills never use it: the lesson total and
+// the number of live courses are derived from the DB and passed in as props
+// (`totalLessons`, `publishedCourses`), so they can't go stale or overpromise.
 const TOTAL_COURSES = 12;
 
 type CourseState = "completed" | "started" | "locked";
@@ -18,6 +20,8 @@ interface CoursesHeroProps {
   completedCount: number;
   /** Total lessons across the whole seeded curriculum (derived, never hardcoded). */
   totalLessons: number;
+  /** Courses with at least one published lesson (derived from the DB, never hardcoded). */
+  publishedCourses: number;
   /** Per-course state, in course order. Fewer than 12 → remaining badges locked. */
   courseStates: CourseState[];
   continueLessonHref: string | null;
@@ -55,6 +59,7 @@ function GradientWord({ children }: { children: ReactNode }) {
 export function CoursesHero({
   completedCount,
   totalLessons,
+  publishedCourses,
   courseStates,
   continueLessonHref,
   continueLessonTitle,
@@ -65,10 +70,10 @@ export function CoursesHero({
       : 0;
 
   const statPills: { icon: string; label: string }[] = [
-    { icon: "🎓", label: `${TOTAL_COURSES} cursuri` },
+    { icon: "🎓", label: `${publishedCourses} cursuri` },
     { icon: "📚", label: `${totalLessons} lecții` },
-    { icon: "⚡", label: "~60h de conținut" },
-    { icon: "🏆", label: `${TOTAL_COURSES} Boss Fights` },
+    { icon: "⚡", label: `~${estimateContentHours(totalLessons)}h de conținut` },
+    { icon: "🏆", label: `${publishedCourses} Boss Fights` },
   ];
 
   return (
@@ -152,7 +157,7 @@ export function CoursesHero({
                 </div>
                 <div className="min-w-0 flex-1 text-left">
                   <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                    Continuă de unde ai rămas
+                    {completedCount > 0 ? "Continuă de unde ai rămas" : "Începe prima lecție"}
                   </p>
                   <p className="truncate text-sm font-semibold text-foreground">
                     {continueLessonTitle}

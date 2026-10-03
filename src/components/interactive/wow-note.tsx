@@ -26,17 +26,24 @@ function resolveOrder(n: number | string): number | null {
   return match ? parseInt(match[0], 10) : null;
 }
 
+// Dev-only authoring hint, emitted once per key (this component re-renders often).
+const warned = new Set<string>();
+function warnOnce(key: string, message: string) {
+  if (process.env.NODE_ENV !== "development" || warned.has(key)) return;
+  warned.add(key);
+  console.warn(message);
+}
+
 export function WowNote({ n }: { n: number | string }) {
   const { getByOrder } = useWowNotes();
   const order = resolveOrder(n);
   const note = order !== null ? getByOrder(order) : undefined;
 
   if (!note) {
-    return (
-      <AuthoringErrorBox
-        message={`Nu există niciun Wow Note cu order_index=${String(n)} în această lecție. Folosește forma cu ghilimele: <WowNote n="1" />.`}
-      />
-    );
+    // No matching row (e.g. wow notes not seeded for this lesson yet): render
+    // nothing rather than an error box in front of learners.
+    warnOnce(`wow-${String(n)}`, `[WowNote] no note with order_index=${String(n)} in this lesson — rendering nothing. Use the quoted form: <WowNote n="1" />.`);
+    return null;
   }
 
   return <WowNoteCard note={note} />;

@@ -63,7 +63,7 @@ export function InterviewSection({
         />
       </div>
 
-      <div className="w-full mx-auto relative z-10" style={{ maxWidth: "min(75%, 1000px)" }}>
+      <div className="w-full mx-auto relative z-10 max-sm:!max-w-full" style={{ maxWidth: "min(75%, 1000px)" }}>
         <h2 className="text-2xl font-bold mb-8">
           <AnimatedGradientText speed={1} colorFrom="#6C5CE7" colorTo="#00CEC9" className="text-2xl font-bold">
             Simulare interviu
@@ -79,7 +79,7 @@ export function InterviewSection({
               {stat.value === 0 && (
                 <Link
                   href="/interview"
-                  className="mt-1 inline-block text-[10px] text-aurora-primary-300 hover:text-aurora-primary-400 font-medium"
+                  className="mt-1 inline-block text-[10px] max-sm:text-xs max-sm:py-2.5 max-sm:px-1 text-aurora-primary-300 hover:text-aurora-primary-400 font-medium"
                 >
                   Începe →
                 </Link>
@@ -126,7 +126,7 @@ export function InterviewSection({
             <Link
               key={label}
               href="/interview"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 max-sm:py-2.5 rounded-full border text-xs font-medium transition-colors"
               style={{
                 backgroundColor: `${color}14`,
                 borderColor: `${color}30`,

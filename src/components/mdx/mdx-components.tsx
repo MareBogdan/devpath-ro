@@ -52,8 +52,6 @@ const NeuralNetworkVisualiser = dynamic(
 export interface MdxComponentOptions {
   /** Whether the lesson is exercise-like — drives the embedded CodeEditor mode. */
   isExercise: boolean;
-  /** Python execution backend for embedded editors. */
-  executionMode: "pyodide" | "piston";
 }
 
 type MdxComponents = NonNullable<MDXRemoteProps["components"]>;
@@ -61,12 +59,11 @@ type MdxComponents = NonNullable<MDXRemoteProps["components"]>;
 /**
  * Builds the component map handed to <MDXRemote />. It is a factory rather than
  * a bare object because the code-block interceptors close over per-lesson
- * options (isExercise / executionMode). Custom JSX tags — FactBox, CosmoHint,
+ * options (isExercise). Custom JSX tags — FactBox, CosmoHint,
  * LabBox — and the fenced-code-block interceptors all live here.
  */
 export function getMdxComponents({
   isExercise,
-  executionMode,
 }: MdxComponentOptions): MdxComponents {
   return {
     // ── Custom MDX tags ──────────────────────────────────────────────
@@ -150,7 +147,6 @@ export function getMdxComponents({
             defaultValue={String(children).trimEnd()}
             language="python"
             mode={isExercise ? "exercise" : "display"}
-            executionMode={executionMode}
           />
         );
       }

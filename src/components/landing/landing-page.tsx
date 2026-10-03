@@ -35,6 +35,10 @@ void Users;
 
 interface LandingPageProps {
   isAuthenticated: boolean;
+  /** Published lessons, counted server-side. */
+  lessonCount: number;
+  /** Courses with at least one published lesson, counted server-side. */
+  courseCount: number;
 }
 
 // ── Animation variants ────────────────────────────────────────────────────────
@@ -142,12 +146,6 @@ const FEATURES = [
   },
 ];
 
-const STATS = [
-  { icon: BookOpen, value: "30+", label: "lecții interactive" },
-  { icon: Code2, value: "2", label: "cursuri complete" },
-  { icon: MessageSquare, value: "24/7", label: "AI Coach în română" },
-];
-
 const PLANS = [
   {
     name: "Gratuit",
@@ -174,20 +172,26 @@ const PLANS = [
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function LandingPage({ isAuthenticated }: LandingPageProps) {
+export function LandingPage({ isAuthenticated, lessonCount, courseCount }: LandingPageProps) {
+  const stats = [
+    { icon: BookOpen, value: String(lessonCount), label: "lecții" },
+    { icon: Code2, value: String(courseCount), label: "cursuri" },
+    { icon: MessageSquare, value: "24/7", label: "AI Coach în română" },
+  ];
+
   return (
     <div className="min-h-screen bg-aurora-bg-deepest">
 
       {/* ── Navbar ── */}
       <header className="sticky top-0 z-50 bg-aurora-bg-deepest/80 backdrop-blur-md border-b border-aurora-border-subtle">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <span className="text-xl font-bold text-aurora-text-primary">
+          <span className="text-xl font-bold text-aurora-text-primary whitespace-nowrap">
             Dev<span className="text-aurora-primary-300">Path</span>{" "}
             <span className="text-aurora-text-tertiary font-normal text-base">RO</span>
           </span>
           <div className="flex items-center gap-2">
             <ThemeToggle />
-            <div className="w-px h-5 bg-aurora-border-medium mx-1" />
+            <div className="w-px h-5 bg-aurora-border-medium mx-1 max-sm:hidden" />
             {isAuthenticated ? (
               <Link
                 href="/dashboard"
@@ -200,13 +204,13 @@ export function LandingPage({ isAuthenticated }: LandingPageProps) {
               <>
                 <Link
                   href="/login"
-                  className="text-sm font-medium text-aurora-text-secondary hover:text-aurora-text-primary transition px-3 py-2 rounded-md hover:bg-aurora-bg-interactive"
+                  className="text-sm font-medium text-aurora-text-secondary hover:text-aurora-text-primary transition px-3 py-2 rounded-md hover:bg-aurora-bg-interactive max-sm:hidden"
                 >
                   Intră în cont
                 </Link>
                 <Link
                   href="/register"
-                  className="text-sm font-medium bg-aurora-primary-500 hover:bg-aurora-primary-500/90 text-white px-4 py-2 rounded-lg transition"
+                  className="text-sm font-medium bg-aurora-primary-500 hover:bg-aurora-primary-500/90 text-white px-4 py-2 rounded-lg transition whitespace-nowrap max-sm:px-3 max-sm:py-2.5"
                 >
                   Începe gratuit
                 </Link>
@@ -425,7 +429,7 @@ export function LandingPage({ isAuthenticated }: LandingPageProps) {
           variants={stagger}
           className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center"
         >
-          {STATS.map((s) => (
+          {stats.map((s) => (
             <motion.div key={s.label} variants={fadeUp}>
               <div className="flex items-center justify-center gap-3 mb-2">
                 <s.icon className="h-6 w-6 text-aurora-primary-300" />
@@ -508,7 +512,7 @@ export function LandingPage({ isAuthenticated }: LandingPageProps) {
           <motion.div variants={fadeUp} className="text-center mt-10">
             <Link
               href="/pricing"
-              className="inline-flex items-center gap-2 text-aurora-primary-300 font-semibold hover:underline text-lg"
+              className="inline-flex items-center gap-2 text-aurora-primary-300 font-semibold hover:underline text-lg max-sm:py-2"
             >
               Vezi toate planurile
               <ArrowRight className="h-5 w-5" />
@@ -585,13 +589,13 @@ export function LandingPage({ isAuthenticated }: LandingPageProps) {
             <span className="text-aurora-text-tertiary font-normal text-sm">RO</span>
           </span>
           <nav className="flex items-center gap-6">
-            <Link href="/courses" className="text-sm text-aurora-text-secondary hover:text-aurora-text-primary transition">
+            <Link href="/courses" className="text-sm text-aurora-text-secondary hover:text-aurora-text-primary transition max-sm:py-2.5">
               Cursuri
             </Link>
-            <Link href="/pricing" className="text-sm text-aurora-text-secondary hover:text-aurora-text-primary transition">
+            <Link href="/pricing" className="text-sm text-aurora-text-secondary hover:text-aurora-text-primary transition max-sm:py-2.5">
               Pricing
             </Link>
-            <Link href="mailto:contact@devpath.ro" className="text-sm text-aurora-text-secondary hover:text-aurora-text-primary transition">
+            <Link href="mailto:contact@devpath.ro" className="text-sm text-aurora-text-secondary hover:text-aurora-text-primary transition max-sm:py-2.5">
               Contact
             </Link>
           </nav>

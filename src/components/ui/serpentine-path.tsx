@@ -14,7 +14,9 @@ import { cn } from "@/lib/utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type NodeStatus = "completed" | "current" | "locked";
+// "available" = openable but not done (no sequential locking); "current" = the
+// highlighted "continue here" node; "locked" is kept for callers that still want it.
+type NodeStatus = "completed" | "current" | "available" | "locked";
 type NodeType = "lesson" | "checkpoint" | "world-gate";
 type Intensity = "minimal" | "normal" | "spectacular";
 
@@ -98,8 +100,8 @@ const COURSE_GEOMETRY = [
   { amp: 0.9, modH: 1.02, startLeft: false }, // C12 Producție — moderate finale
 ];
 
-const LESSON_SIZES = { completed: 38, current: 46, locked: 32 } as const;
-const CP_SIZES = { completed: 50, current: 52, locked: 44 } as const;
+const LESSON_SIZES = { completed: 38, current: 46, available: 36, locked: 32 } as const;
+const CP_SIZES = { completed: 50, current: 52, available: 48, locked: 44 } as const;
 
 /** Minimum center-to-center distance between a checkpoint and adjacent lesson nodes */
 const CP_MIN_GAP = 50;
@@ -504,12 +506,16 @@ function GameTooltip({
         return { pre: "⭐", title: `${node.moduleName ?? node.label} completat!`, sub: node.sublabel ?? "Toate lecțiile", c: "#F59E0B" };
       if (node.status === "current")
         return { pre: "🎯", title: node.label, sub: "Începe provocarea →", c: color };
+      if (node.status === "available")
+        return { pre: "🎯", title: node.label, sub: "Deschide →", c: color };
       return { pre: "🔒", title: node.label, sub: "Completează toate lecțiile", c: "#9CA3AF" };
     }
     if (node.status === "completed")
       return { pre: "✓", title: node.label, sub: node.sublabel, c: "#10B981" };
     if (node.status === "current")
       return { pre: null, title: node.label, sub: "Continuă →", c: color };
+    if (node.status === "available")
+      return { pre: null, title: node.label, sub: "Deschide →", c: color };
     return { pre: "🔒", title: node.label, sub: "Completează lecția anterioară", c: "#9CA3AF" };
   })();
 
@@ -615,6 +621,10 @@ function GameNode({
         return { ...base, background: `linear-gradient(135deg,${color},${color}bb)`, border: "2px solid #FDCB6E", boxShadow: `0 0 22px ${color}77,0 0 8px #FDCB6E55,0 4px 12px rgba(0,0,0,0.18)` };
       if (node.status === "current")
         return { ...base, background: `linear-gradient(135deg,${color},${color}cc)`, boxShadow: `0 0 28px ${color}88,0 4px 16px rgba(0,0,0,0.2)` };
+      if (node.status === "available") {
+        const shadow = hovered ? `0 0 20px ${color}66` : `0 0 12px ${color}44`;
+        return { ...base, background: `linear-gradient(135deg,${color}b3,${color}80)`, border: `2px solid ${color}`, boxShadow: shadow };
+      }
       // Locked checkpoint — course color at ~35% so the atmosphere reads through
       return { ...base, background: `${color}59`, border: `2px solid ${color}8c` };
     }
@@ -630,6 +640,12 @@ function GameNode({
         : `0 0 14px ${color}66`;
       return { ...base, background: `${color}dd`, border: `2px solid ${color}`, boxShadow: shadow };
     }
+    if (node.status === "available") {
+      // Open but not done — light course-colored disc with a solid rim, clearly
+      // different from the solid "completed" disc and the pulsing "current" one.
+      const shadow = hovered ? `0 0 14px ${color}66` : `0 0 6px ${color}33`;
+      return { ...base, background: `${color}26`, border: `2px solid ${color}`, boxShadow: shadow };
+    }
     // Locked lesson — course color at ~35% (not flat gray) so the path stays
     // cohesive through unvisited course zones.
     const shadow = hovered ? `0 0 12px ${color}55` : undefined;
@@ -644,7 +660,7 @@ function GameNode({
   const iconEl = isCP ? (
     node.status === "completed" ? (
       <Star style={{ width: iconSz, height: iconSz, color: "white", fill: "white" }} />
-    ) : node.status === "current" ? (
+    ) : node.status === "current" || node.status === "available" ? (
       Icon
         ? <Icon style={{ width: iconSz, height: iconSz, color: "white" }} />
         : <Shield style={{ width: iconSz, height: iconSz, color: "white" }} />
@@ -674,6 +690,10 @@ function GameNode({
       Icon
         ? <Icon style={{ width: iconSz, height: iconSz, color: "white" }} />
         : <Play style={{ width: iconSz, height: iconSz, color: "white", fill: "white" }} />
+    ) : node.status === "available" ? (
+      Icon
+        ? <Icon style={{ width: iconSz, height: iconSz, color }} />
+        : <Play style={{ width: iconSz, height: iconSz, color, fill: color }} />
     ) : (
       <Lock style={{ width: iconSz, height: iconSz, color: `${color}88` }} />
     )
@@ -693,6 +713,8 @@ function GameNode({
   return (
     <div
       ref={(el) => setRef(node.id, el)}
+      data-node-id={node.id}
+      data-status={node.status}
       className="absolute pointer-events-auto"
       style={{
         left: `${(pos.x / VW) * 100}%`,
@@ -1167,7 +1189,7 @@ function DesktopMap({
           ).length;
           const courseTotal = courseLessons.length;
           const courseHasCurrent = courseLessons.some(
-            (x) => x.status === "current"
+            (x) => x.status === "current" || x.status === "available"
           );
           const badge =
             courseTotal > 0 && doneCount === courseTotal
@@ -1393,10 +1415,12 @@ function MobileMap({
   nodes,
   onClick,
   colors,
+  setRef,
 }: {
   nodes: LessonNode[];
   onClick?: (id: string) => void;
   colors: string[];
+  setRef: (id: string, el: HTMLDivElement | null) => void;
 }) {
   return (
     <div className="relative flex flex-col items-center">
@@ -1407,14 +1431,14 @@ function MobileMap({
         const isLast = i === nodes.length - 1;
         const canClick = n.status !== "locked" && !!onClick;
         const sz = isCP
-          ? { completed: 48, current: 50, locked: 42 }[n.status]
-          : { completed: 36, current: 44, locked: 30 }[n.status];
+          ? { completed: 48, current: 50, available: 46, locked: 42 }[n.status]
+          : { completed: 36, current: 44, available: 34, locked: 30 }[n.status];
         const iconSz = isCP ? 20 : n.status === "locked" ? 12 : 14;
         const Icon = n.icon;
         const offset = isCP ? 0 : i % 2 === 0 ? -28 : 28;
 
         return (
-          <div key={n.id} className="flex flex-col items-center">
+          <div key={n.id} ref={(el) => setRef(n.id, el)} data-node-id={n.id} data-status={n.status} className="flex flex-col items-center">
             <motion.div
               initial={{ opacity: 0, scale: 0.7 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -1435,8 +1459,12 @@ function MobileMap({
                     n.status === "completed"
                       ? isCP ? "linear-gradient(135deg,#FFD166,#F59E0B)" : col
                       : n.status === "current" ? col
+                      : n.status === "available" ? `${col}26`
                       : `${col}18`,
-                  border: n.status === "locked" ? `2px solid ${col}30` : undefined,
+                  border:
+                    n.status === "locked" ? `2px solid ${col}30`
+                    : n.status === "available" ? `2px solid ${col}`
+                    : undefined,
                   opacity: n.status === "locked" ? 0.55 : 1,
                   boxShadow:
                     n.status !== "locked" ? `0 0 ${isCP ? 20 : 8}px ${col}55` : undefined,
@@ -1464,6 +1492,10 @@ function MobileMap({
                   Icon
                     ? <Icon style={{ width: iconSz, height: iconSz, color: "white" }} />
                     : <Play style={{ width: iconSz, height: iconSz, color: "white", fill: "white" }} />
+                ) : n.status === "available" ? (
+                  Icon
+                    ? <Icon style={{ width: iconSz, height: iconSz, color: col }} />
+                    : <Play style={{ width: iconSz, height: iconSz, color: col, fill: col }} />
                 ) : (
                   <Lock style={{ width: isCP ? 18 : 12, height: isCP ? 18 : 12, color: `${col}88` }} />
                 )}
@@ -1472,7 +1504,7 @@ function MobileMap({
               {/* [8b] Labels for ALL nodes — larger text for checkpoints */}
               <p
                 className={cn(
-                  "text-center mt-1 leading-tight",
+                  "text-center mt-1 leading-tight [overflow-wrap:anywhere]",
                   isCP ? "text-[12px] font-bold" : "text-[10px] font-medium"
                 )}
                 style={{
@@ -1558,7 +1590,7 @@ export function SerpentinePath({
     nodes.forEach((n) => {
       const prev = prevStatuses.current[n.id];
       if (prev && prev !== n.status) {
-        if (prev === "current" && n.status === "completed") {
+        if ((prev === "current" || prev === "available") && n.status === "completed") {
           newCompleted.add(n.id);
           onNodeComplete?.(n.id);
         }
@@ -1602,7 +1634,7 @@ export function SerpentinePath({
   return (
     <div className={cn("w-full", className)}>
       {isMobile ? (
-        <MobileMap nodes={nodes} onClick={onNodeClick} colors={colors} />
+        <MobileMap nodes={nodes} onClick={onNodeClick} colors={colors} setRef={setRef} />
       ) : (
         <DesktopMap
           nodes={nodes}

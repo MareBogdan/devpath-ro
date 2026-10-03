@@ -32,7 +32,7 @@ export function BookmarkButton({ lessonId, initialBookmarked }: BookmarkButtonPr
       disabled={isPending}
       whileTap={{ scale: 0.85 }}
       title={bookmarked ? "Elimină din favorite" : "Adaugă la favorite"}
-      className="p-1.5 rounded-md hover:bg-muted transition text-muted-foreground hover:text-foreground"
+      className="p-1.5 max-sm:p-2.5 rounded-md hover:bg-muted transition text-muted-foreground hover:text-foreground"
     >
       <Heart
         className={`h-4 w-4 transition-colors ${

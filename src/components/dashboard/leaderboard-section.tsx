@@ -50,7 +50,7 @@ export function LeaderboardSection({ topUsers, currentUserId }: LeaderboardSecti
         />
       </div>
 
-      <div className="w-full mx-auto relative z-10" style={{ maxWidth: "min(75%, 1000px)" }}>
+      <div className="w-full mx-auto relative z-10 max-sm:!max-w-full" style={{ maxWidth: "min(75%, 1000px)" }}>
         <h2 className="text-2xl font-bold mb-8">
           <AnimatedGradientText speed={1} colorFrom="#FDCB6E" colorTo="#6C5CE7" className="text-2xl font-bold">
             Clasament
@@ -220,7 +220,7 @@ export function LeaderboardSection({ topUsers, currentUserId }: LeaderboardSecti
         <div className="mt-4 text-center">
           <Link
             href="/leaderboard"
-            className="inline-flex items-center gap-2 text-sm font-medium text-aurora-text-secondary hover:text-aurora-primary-300 transition-colors"
+            className="inline-flex items-center gap-2 text-sm font-medium text-aurora-text-secondary hover:text-aurora-primary-300 transition-colors max-sm:py-3"
           >
             Vezi clasamentul complet
             <ArrowRight className="h-4 w-4" />

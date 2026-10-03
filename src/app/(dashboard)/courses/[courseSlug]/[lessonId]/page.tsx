@@ -32,6 +32,8 @@ import { LessonKeyboardNav } from "@/components/course/lesson-keyboard-nav";
 import { LessonComments } from "@/components/course/lesson-comments";
 import { ProjectSubmissionForm } from "@/components/course/project-submission-form";
 import { cn } from "@/lib/utils";
+import { getNextLesson } from "@/lib/next-lesson";
+import { escapeStrayAngleBrackets } from "@/lib/mdx-sanitize";
 import type { Lesson } from "@/types";
 
 interface PageProps {
@@ -69,6 +71,44 @@ const lessonTypeLabels: Record<string, string> = {
   boss: "Boss Fight",
 };
 
+const MDX_OPTIONS = {
+  remarkPlugins: [remarkGfm, remarkMath],
+  rehypePlugins: [rehypeHighlight, rehypeKatex],
+};
+
+/**
+ * Compile lesson markdown/MDX, in three tiers so one malformed lesson never
+ * crashes the page:
+ *   1. as written;
+ *   2. with stray "<" in prose escaped (e.g. "<1ms" — the usual authoring slip);
+ *   3. the raw text in a code fence with a short notice.
+ */
+async function compileLessonMdx(markdown: string, title: string) {
+  try {
+    return await serialize(markdown, { mdxOptions: MDX_OPTIONS });
+  } catch (err) {
+    console.warn(`[lesson] MDX compile failed for "${title}" — retrying with escaped "<":`, String(err).split("\n")[1]?.trim() ?? err);
+    try {
+      return await serialize(escapeStrayAngleBrackets(markdown), { mdxOptions: MDX_OPTIONS });
+    } catch (err2) {
+      console.error(`[lesson] MDX compile failed for "${title}" even after repair:`, err2);
+    }
+    try {
+      // Fence longer than any backtick run inside the text so it can't be closed early.
+      const longestRun = Math.max(
+        2,
+        ...(markdown.match(/`+/g) ?? []).map((run) => run.length)
+      );
+      const fence = "`".repeat(longestRun + 1);
+      return await serialize(
+        `> Această lecție nu a putut fi afișată cu formatarea completă. Iată textul ei brut:\n\n${fence}text\n${markdown}\n${fence}\n`
+      );
+    } catch {
+      return await serialize("> Conținutul acestei lecții nu poate fi afișat momentan.");
+    }
+  }
+}
+
 export default async function LessonPage({ params }: PageProps) {
   const { courseSlug, lessonId } = params;
   const supabase = createSupabaseServerClient();
@@ -98,26 +138,26 @@ export default async function LessonPage({ params }: PageProps) {
 
   // Compile the lesson MDX on the server — next-mdx-remote requires a
   // server-side compile step; the client <MDXRemote> renders the result.
-  const mdxSource = await serialize(lesson.content_md ?? "", {
-    mdxOptions: {
-      remarkPlugins: [remarkGfm, remarkMath],
-      rehypePlugins: [rehypeHighlight, rehypeKatex],
-    },
-  });
+  // A lesson whose MDX fails to compile degrades to its raw text instead of a 500.
+  const mdxSource = await compileLessonMdx(lesson.content_md ?? "", lesson.title);
 
-  // Fetch all lessons in course for navigation
+  // Fetch all lessons in course for navigation. Unpublished (skeleton) lessons are
+  // not part of the reading path; the current lesson is always kept so that the
+  // "N din M" counter and prev link stay correct on an admin-viewed draft.
   const { data: allLessons } = await supabase
     .from("lessons")
-    .select("id, title, order_index, type")
+    .select("id, title, order_index, type, is_published")
     .eq("course_id", course.id)
     .order("order_index");
 
-  const lessons: Pick<Lesson, "id" | "title" | "order_index" | "type">[] =
-    allLessons ?? [];
+  const lessons: Pick<Lesson, "id" | "title" | "order_index" | "type">[] = (
+    allLessons ?? []
+  ).filter((l) => l.is_published === true || l.id === lessonId);
   const currentIndex = lessons.findIndex((l) => l.id === lessonId);
   const prevLesson = currentIndex > 0 ? lessons[currentIndex - 1] : null;
-  const nextLesson =
-    currentIndex < lessons.length - 1 ? lessons[currentIndex + 1] : null;
+  // Next lesson: next published lesson in this course, else the first published
+  // lesson of the next course that has any (null = end of the curriculum).
+  const nextLesson = await getNextLesson(supabase, course.id, lesson.order_index);
 
   // Fetch user's completion status + level
   const [progressResult, userProfileResult] = await Promise.all([
@@ -183,20 +223,20 @@ export default async function LessonPage({ params }: PageProps) {
   const { data: bookmark } = user
     ? await supabase
         .from("lesson_bookmarks")
-        .select("id")
+        .select("user_id")
         .eq("user_id", user.id)
         .eq("lesson_id", lessonId)
-        .single()
+        .maybeSingle()
     : { data: null };
 
   // Fetch feedback status (to avoid duplicate prompt)
   const { data: existingFeedback } = user
     ? await supabase
         .from("lesson_feedback")
-        .select("id")
+        .select("user_id")
         .eq("user_id", user.id)
         .eq("lesson_id", lessonId)
-        .single()
+        .maybeSingle()
     : { data: null };
 
   // User display info for Realtime presence
@@ -250,7 +290,7 @@ export default async function LessonPage({ params }: PageProps) {
           <nav className="flex items-center gap-1.5 text-sm text-muted-foreground min-w-0">
             <Link
               href={`/courses?c=${courseSlug}`}
-              className="inline-flex items-center gap-1 shrink-0 font-medium text-muted-foreground hover:text-foreground transition"
+              className="inline-flex items-center gap-1 shrink-0 font-medium text-muted-foreground hover:text-foreground transition max-sm:py-2"
             >
               <ChevronLeft className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">{course.title}</span>
@@ -325,11 +365,11 @@ export default async function LessonPage({ params }: PageProps) {
                   lessonId={lessonId}
                   courseSlug={courseSlug}
                   isCompleted={isCompleted}
-                  nextLessonId={nextLesson?.id ?? null}
+                  nextLessonId={nextLesson?.lessonId ?? null}
+                  nextCourseSlug={nextLesson?.courseSlug ?? null}
                   nextLessonTitle={nextLesson?.title ?? null}
                   mdxSource={mdxSource}
                   lessonType={lesson.type}
-                  lessonOrder={lesson.order_index}
                   userId={user.id}
                   displayName={displayName}
                   avatarUrl={avatarUrl}
@@ -339,6 +379,7 @@ export default async function LessonPage({ params }: PageProps) {
                   interactiveState={interactiveState}
                   wowNotes={wowNotes}
                   hasWowNotes={hasWowNotes}
+                  showAiQuiz={lesson.is_published === true}
                 />
               )}
 
@@ -364,16 +405,17 @@ export default async function LessonPage({ params }: PageProps) {
                   lessonId={lessonId}
                   courseSlug={courseSlug}
                   isCompleted={isCompleted}
-                  nextLessonId={nextLesson?.id ?? null}
+                  nextLessonId={nextLesson?.lessonId ?? null}
+                  nextCourseSlug={nextLesson?.courseSlug ?? null}
                   nextLessonTitle={nextLesson?.title ?? null}
                   mdxSource={mdxSource}
                   lessonType={lesson.type}
-                  lessonOrder={lesson.order_index}
                   userId={user.id}
                   displayName={displayName}
                   avatarUrl={avatarUrl}
                   lessonTitle={lesson.title}
                   feedbackAlreadySubmitted={!!existingFeedback}
+                  showAiQuiz={lesson.is_published === true}
                 />
               )}
 
@@ -411,7 +453,8 @@ export default async function LessonPage({ params }: PageProps) {
       <LessonKeyboardNav
         courseSlug={courseSlug}
         prevLessonId={prevLesson?.id ?? null}
-        nextLessonId={nextLesson?.id ?? null}
+        nextLessonId={nextLesson?.lessonId ?? null}
+        nextCourseSlug={nextLesson?.courseSlug ?? null}
       />
 
       {/* AI Coach floating chat — hidden for coming-soon lessons */}
