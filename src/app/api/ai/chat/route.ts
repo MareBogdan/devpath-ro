@@ -1,14 +1,15 @@
-import { openai } from "@ai-sdk/openai";
 import { streamText } from "ai";
 import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { aiModel, isAIConfigured } from "@/lib/ai/model";
+import { disabledResponse } from "@/lib/optional-features";
 
 export const runtime = "edge";
 
 const chatRequestSchema = z.object({
   lessonId: z.string().uuid().optional(),
   lessonTitle: z.string().max(200).optional(),
-  lessonContent: z.string().max(8000).optional(),
+  lessonContent: z.string().max(50000).optional(),
   sessionContext: z.string().max(4000).optional(),
   messages: z
     .array(
@@ -31,6 +32,12 @@ export async function POST(req: Request) {
 
   if (!user || authError) {
     return new Response("Unauthorized", { status: 401 });
+  }
+
+  // Text AI is optional: without ANTHROPIC_API_KEY answer with a clean 503 instead of
+  // letting the provider throw.
+  if (!isAIConfigured()) {
+    return disabledResponse("ai", "AI indisponibil momentan.");
   }
 
   // Validation
@@ -89,7 +96,7 @@ ${contentSnippet}
 
   try {
     const result = await streamText({
-      model: openai("gpt-4o-mini"),
+      model: aiModel,
       system: systemPrompt,
       messages,
       maxTokens: 512,

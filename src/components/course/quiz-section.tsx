@@ -34,7 +34,7 @@ export function QuizSection({
         isCompleted={isCompleted}
         onQuizFailed={() => setShowAdaptive(true)}
       />
-      {showAdaptive && <AdaptiveQuizSection lessonId={lessonId} />}
+      {showAdaptive && <AdaptiveQuizSection lessonId={lessonId} autoStart />}
     </>
   );
 }

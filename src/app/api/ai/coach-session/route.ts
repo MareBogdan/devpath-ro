@@ -1,9 +1,10 @@
 // src/app/api/ai/coach-session/route.ts
 // POST — summarize last N messages and save to ai_coach_sessions table
-import { openai } from "@ai-sdk/openai";
 import { generateText } from "ai";
 import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { aiModel, isAIConfigured } from "@/lib/ai/model";
+import { disabledResponse } from "@/lib/optional-features";
 
 export const runtime = "edge";
 
@@ -29,6 +30,11 @@ export async function POST(req: Request) {
   } = await supabase.auth.getUser();
   if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
+  // Text AI is optional: without ANTHROPIC_API_KEY there is nothing to summarize with.
+  if (!isAIConfigured()) {
+    return disabledResponse("ai", "AI indisponibil momentan.");
+  }
+
   // Parse body
   let body: unknown;
   try {
@@ -52,17 +58,25 @@ export async function POST(req: Request) {
     )
     .join("\n");
 
-  // Summarize with GPT-4o-mini
-  const { text: summary } = await generateText({
-    model: openai("gpt-4o-mini"),
-    prompt: `Rezumă această conversație dintre un student și AI Coach în 2-3 propoziții scurte în română.
+  // Summarize with Claude. A provider failure must not surface as a 500 — the summary
+  // is only "memory" for later sessions, so answer with a clean 502 instead.
+  let summary: string;
+  try {
+    const result = await generateText({
+      model: aiModel,
+      prompt: `Rezumă această conversație dintre un student și AI Coach în 2-3 propoziții scurte în română.
 Notează ce a întrebat studentul, ce a înțeles și ce zone necesită mai multă atenție.
 Rezumatul va fi folosit ca memorie pentru sesiunile viitoare de AI Coach — fii specific și concis.
 
 Transcript:
 ${transcript}`.trim(),
-    maxTokens: 200,
-  });
+      maxTokens: 200,
+    });
+    summary = result.text;
+  } catch (err) {
+    console.error("[api/ai/coach-session] generateText error:", err);
+    return Response.json({ error: "AI generation failed" }, { status: 502 });
+  }
 
   // Save to DB
   const { error } = await supabase.from("ai_coach_sessions").insert({

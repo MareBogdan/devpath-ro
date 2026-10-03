@@ -2,14 +2,13 @@
 
 import { useRef, useEffect, useState } from "react";
 import { useChat } from "ai/react";
-import { Bot, X, Send, Loader2, Zap, ShieldCheck, Mic, MicOff, Volume2, VolumeX } from "lucide-react";
+import { Bot, X, Send, Loader2, Zap, ShieldCheck, Mic, MicOff } from "lucide-react";
 import { CosmoMascot } from "@/components/mascot/cosmo-mascot";
 import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
-import { useSpeechSynthesis } from "@/hooks/use-speech-synthesis";
 
 interface AICoachChatProps {
   lessonTitle: string;
@@ -27,13 +26,15 @@ export function AICoachChat({
   isExercise = false,
 }: AICoachChatProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
   // Memory: context string built from past sessions, injected into system prompt
   const [sessionContext, setSessionContext] = useState("");
-  // Defer all browser-API-dependent UI (mic/mute buttons) until after hydration.
+  // False when the server has no ANTHROPIC_API_KEY: the coach shows a friendly
+  // disabled state up front instead of failing on the first message.
+  const [aiEnabled, setAiEnabled] = useState(true);
+  // Defer all browser-API-dependent UI (mic button) until after hydration.
   // Server render and first client render must match — `recognition.isSupported`
-  // and `tts.isSupported` are both `false` on SSR (no window object) but flip to
-  // `true` on the client, which would otherwise mismatch.
+  // is `false` on SSR (no window object) but flips to `true` on the client,
+  // which would otherwise mismatch.
   const [mounted, setMounted] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -61,7 +62,8 @@ export function AICoachChat({
     api: "/api/ai/chat",
     body: {
       lessonTitle,
-      lessonContent,
+      // The server only uses the first 4000 chars; cap the payload well above that.
+      lessonContent: lessonContent.slice(0, 8000),
       ...(sessionContext ? { sessionContext } : {}),
     },
     initialMessages: [
@@ -74,10 +76,17 @@ export function AICoachChat({
   });
 
   const recognition = useSpeechRecognition();
-  const tts = useSpeechSynthesis();
+
+  // AI is "off" when the server said so up front (coach-sessions → aiEnabled) or when
+  // the chat route answered 503 { disabled: true }. useChat exposes the response body
+  // as the error message.
+  const chatReportedDisabled = Boolean(
+    error && /"disabled"\s*:\s*true/.test(error.message)
+  );
+  const aiOff = !aiEnabled || chatReportedDisabled;
 
   // Flip `mounted` after first paint so SSR / first client render show the same
-  // tree (no mic button, no mute button). Voice UI then appears on the next
+  // tree (no mic button). Voice input UI then appears on the next
   // render once we know the browser supports it.
   useEffect(() => {
     setMounted(true);
@@ -105,8 +114,9 @@ export function AICoachChat({
   useEffect(() => {
     fetch("/api/ai/coach-sessions?limit=3")
       .then((r) => r.json())
-      .then((data: { context?: string }) => {
+      .then((data: { context?: string; aiEnabled?: boolean }) => {
         if (data.context) setSessionContext(data.context);
+        if (data.aiEnabled === false) setAiEnabled(false);
       })
       .catch(() => {});
   }, []);
@@ -138,11 +148,6 @@ export function AICoachChat({
     }
   }, [isOpen]);
 
-  // ── Stop TTS when panel closes ────────────────────────────────────────────
-  useEffect(() => {
-    if (!isOpen) tts.stop();
-  }, [isOpen, tts.stop]); // eslint-disable-line react-hooks/exhaustive-deps
-
   // ── Mirror transcript into input field ────────────────────────────────────
   useEffect(() => {
     if (recognition.isListening) {
@@ -150,16 +155,16 @@ export function AICoachChat({
     }
   }, [recognition.isListening, recognition.transcript, setInput]);
 
-  // ── Auto-submit voice message after STT completes ───────────────────────
-  // With Whisper-based STT, isListening stays true until transcription finishes,
-  // then goes false with the final transcript already set.
+  // ── Auto-submit voice message when speech recognition ends ───────────────
+  // Browser Web Speech API: isListening goes true → false when the utterance ends
+  // (the user stopped, or paused), with the final transcript already set.
   const prevIsListeningRef = useRef(false);
   useEffect(() => {
     if (prevIsListeningRef.current && !recognition.isListening) {
-      // Recording + STT just finished
+      // Speech recognition just finished
       const text = recognition.transcript.trim();
       console.log("[CHAT] STT done — text:", JSON.stringify(text));
-      if (text && text !== "Se transcrie...") {
+      if (text && !aiOff) {
         console.log("[CHAT] calling append with:", text);
         append({ role: "user", content: text });
         recognition.resetTranscript();
@@ -167,29 +172,13 @@ export function AICoachChat({
       }
     }
     prevIsListeningRef.current = recognition.isListening;
-  }, [recognition.isListening, recognition.transcript, append, recognition.resetTranscript, setInput]);
+  }, [recognition.isListening, recognition.transcript, append, recognition.resetTranscript, setInput, aiOff]);
 
-  // ── Speak AI response when streaming completes ────────────────────────────
-  // Tracks isLoading: true → false transition. Using refs to always read the
-  // latest values without causing the effect to re-trigger on every message.
-  const isMutedRef = useRef(isMuted);
-  isMutedRef.current = isMuted;
+  // ── Save coach session to DB (fire-and-forget, uses only refs) ───────────
+  // Reads the latest messages via ref so close/unmount saves see current state.
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
 
-  const prevIsLoadingRef = useRef(false);
-  useEffect(() => {
-    if (prevIsLoadingRef.current && !isLoading && !isMutedRef.current) {
-      const last = messagesRef.current[messagesRef.current.length - 1];
-      if (last?.role === "assistant" && last.id !== "welcome") {
-        tts.speak(last.content);
-      }
-    }
-    prevIsLoadingRef.current = isLoading;
-  }, [isLoading, tts.speak]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ── Save coach session to DB (fire-and-forget, uses only refs) ───────────
-  // Defined after messagesRef so it reads the latest messages via ref.
   // Called on close and on unmount — sessionSavedRef prevents double-saving.
   function saveCoachSession() {
     const msgs = messagesRef.current.filter((m) => m.id !== "welcome");
@@ -216,7 +205,6 @@ export function AICoachChat({
       recognition.stopListening();
     } else {
       console.log("[CHAT] handleMicToggle START");
-      tts.stop(); // prevent feedback loop: stop AI speaking before mic opens
       recognition.startListening();
     }
   }
@@ -257,7 +245,7 @@ export function AICoachChat({
       {/* Full-height side panel */}
       <div
         className={cn(
-          "fixed inset-y-0 right-0 z-50 flex flex-col w-[420px] max-w-[95vw] bg-background border-l border-border shadow-2xl transition-transform duration-300 ease-in-out",
+          "fixed inset-y-0 right-0 z-50 flex flex-col w-[420px] max-w-[95vw] max-sm:w-full max-sm:max-w-none max-sm:h-[100dvh] bg-background border-l border-border shadow-2xl transition-transform duration-300 ease-in-out",
           isOpen ? "translate-x-0" : "translate-x-full"
         )}
         aria-label="AI Coach"
@@ -274,28 +262,9 @@ export function AICoachChat({
             </p>
           </div>
 
-          {/* TTS mute toggle — gated by `mounted` to avoid SSR/client mismatch */}
-          {mounted && tts.isSupported && (
-            <button
-              onClick={() => {
-                if (!isMuted) tts.stop();
-                setIsMuted((v) => !v);
-              }}
-              className="p-1.5 rounded-lg hover:bg-primary-foreground/10 transition shrink-0"
-              aria-label={isMuted ? "Activează vocea AI" : "Dezactivează vocea AI"}
-              title={isMuted ? "Activează vocea AI" : "Dezactivează vocea AI"}
-            >
-              {isMuted ? (
-                <VolumeX className="h-4 w-4" />
-              ) : (
-                <Volume2 className="h-4 w-4" />
-              )}
-            </button>
-          )}
-
           <button
             onClick={() => setIsOpen(false)}
-            className="p-1.5 rounded-lg hover:bg-primary-foreground/10 transition shrink-0"
+            className="p-1.5 max-sm:p-3 max-sm:-mr-2 rounded-lg hover:bg-primary-foreground/10 transition shrink-0"
             aria-label="Închide AI Coach"
           >
             <X className="h-4 w-4" />
@@ -307,7 +276,7 @@ export function AICoachChat({
           <div className="flex gap-2 px-4 py-3 border-b border-border bg-muted/30 shrink-0">
             <button
               onClick={handleExplainError}
-              disabled={isLoading}
+              disabled={aiOff || isLoading}
               className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium px-3 py-2 rounded-lg border border-border bg-background hover:bg-muted transition disabled:opacity-50"
             >
               <Zap className="h-3.5 w-3.5 text-amber-500" />
@@ -315,7 +284,7 @@ export function AICoachChat({
             </button>
             <button
               onClick={handleCheckSolution}
-              disabled={isLoading}
+              disabled={aiOff || isLoading}
               className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium px-3 py-2 rounded-lg border border-border bg-background hover:bg-muted transition disabled:opacity-50"
             >
               <ShieldCheck className="h-3.5 w-3.5 text-green-500" />
@@ -387,10 +356,20 @@ export function AICoachChat({
             </div>
           )}
 
-          {/* Error state */}
-          {error && (
+          {/* Disabled state — no ANTHROPIC_API_KEY configured on the server */}
+          {aiOff && (
+            <div
+              role="status"
+              className="mx-auto max-w-[90%] rounded-xl border border-border bg-muted/40 px-4 py-3 text-center text-sm text-muted-foreground"
+            >
+              AI Coach este indisponibil momentan. Poți continua lecția — revino puțin mai târziu.
+            </div>
+          )}
+
+          {/* Error state (a real failure, not the disabled state) */}
+          {error && !aiOff && (
             <p className="text-xs text-red-500 text-center px-2">
-              Eroare la conectare. Verifică cheia API OpenAI în .env.local.
+              Nu am putut obține un răspuns acum. Încearcă din nou.
             </p>
           )}
 
@@ -427,6 +406,16 @@ export function AICoachChat({
           )}
         </AnimatePresence>
 
+        {/* Voice problem (permission denied, nothing heard, offline, …) */}
+        {recognition.error && !recognition.isListening && (
+          <p
+            role="status"
+            className="px-4 pt-2 text-xs text-amber-600 dark:text-amber-400 shrink-0"
+          >
+            {recognition.error}
+          </p>
+        )}
+
         {/* Input form */}
         <form
           onSubmit={handleSubmit}
@@ -437,11 +426,15 @@ export function AICoachChat({
             value={recognition.isListening ? recognition.transcript : input}
             onChange={recognition.isListening ? undefined : handleInputChange}
             placeholder={
-              recognition.isListening ? "Vorbește acum..." : "Pune o întrebare..."
+              aiOff
+                ? "AI indisponibil momentan"
+                : recognition.isListening
+                  ? "Vorbește acum..."
+                  : "Pune o întrebare..."
             }
-            disabled={isLoading || recognition.isListening}
+            disabled={aiOff || isLoading || recognition.isListening}
             className={cn(
-              "flex-1 text-sm px-3.5 py-2.5 rounded-xl border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-70 transition-colors",
+              "flex-1 min-w-0 text-sm max-sm:text-base px-3.5 py-2.5 rounded-xl border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-70 transition-colors",
               recognition.isListening
                 ? "border-red-300 dark:border-red-800"
                 : "border-border"
@@ -453,7 +446,7 @@ export function AICoachChat({
             <button
               type="button"
               onClick={handleMicToggle}
-              disabled={isLoading}
+              disabled={aiOff || isLoading}
               aria-label={recognition.isListening ? "Oprește înregistrarea" : "Vorbește cu AI Coach"}
               title={recognition.isListening ? "Click pentru a opri" : "Click pentru a vorbi"}
               className={cn(
@@ -474,6 +467,7 @@ export function AICoachChat({
           <button
             type="submit"
             disabled={
+              aiOff ||
               (!input.trim() && !recognition.transcript.trim()) ||
               isLoading ||
               recognition.isListening

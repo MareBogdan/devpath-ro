@@ -17,20 +17,31 @@ interface AIQuestion {
 
 interface AdaptiveQuizSectionProps {
   lessonId: string;
+  /**
+   * false (default): opt-in — show an intro + "Testează-te" button and call Claude
+   * only on click, so opening a lesson costs nothing. true: generate on mount
+   * (used after a failed quiz, where the learner has already asked for practice).
+   */
+  autoStart?: boolean;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function AdaptiveQuizSection({ lessonId }: AdaptiveQuizSectionProps) {
+export function AdaptiveQuizSection({ lessonId, autoStart = false }: AdaptiveQuizSectionProps) {
+  const [started, setStarted] = useState(autoStart);
   const [questions, setQuestions] = useState<AIQuestion[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(autoStart);
+  // true when generation failed (non-2xx / network) or returned no usable questions.
+  const [failed, setFailed] = useState(false);
+  // Retry repeats the attempt that failed (plain load vs. "generate others").
+  const [lastForce, setLastForce] = useState(false);
   const [selected, setSelected] = useState<Record<number, number>>({});
   const [revealed, setRevealed] = useState<Record<number, boolean>>({});
 
   async function fetchQuestions(forceRegenerate = false) {
     setLoading(true);
-    setError(null);
+    setFailed(false);
+    setLastForce(forceRegenerate);
     setSelected({});
     setRevealed({});
     try {
@@ -40,20 +51,36 @@ export function AdaptiveQuizSection({ lessonId }: AdaptiveQuizSectionProps) {
         body: JSON.stringify({ lessonId, forceRegenerate }),
       });
       if (!res.ok) throw new Error("Eroare la generare");
-      const data = await res.json() as { questions: AIQuestion[] };
-      setQuestions(data.questions ?? []);
+      const data = (await res.json()) as { questions?: AIQuestion[] };
+      // Keep only well-formed questions so a bad payload can never crash the render.
+      const valid = (Array.isArray(data.questions) ? data.questions : []).filter(
+        (q) =>
+          typeof q?.question === "string" &&
+          Array.isArray(q.options) &&
+          q.options.length > 0
+      );
+      if (valid.length === 0) throw new Error("Niciun răspuns valid");
+      setQuestions(valid);
     } catch (err) {
-      console.error("[adaptive-quiz] Failed to generate questions:", err);
-      setError("Nu am putut genera întrebările. Încearcă din nou.");
+      console.warn("[adaptive-quiz] Failed to generate questions:", err);
+      setQuestions([]);
+      setFailed(true);
     } finally {
       setLoading(false);
     }
   }
 
+  // Opt-in: nothing is fetched until the learner starts (unless autoStart).
   useEffect(() => {
-    fetchQuestions();
+    if (autoStart) fetchQuestions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lessonId]);
+  }, [lessonId, autoStart]);
+
+  function handleStart() {
+    if (started || loading) return;
+    setStarted(true);
+    fetchQuestions();
+  }
 
   function handleSelect(qIndex: number, optIndex: number) {
     if (revealed[qIndex]) return;
@@ -82,26 +109,48 @@ export function AdaptiveQuizSection({ lessonId }: AdaptiveQuizSectionProps) {
               </span>
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Întrebări generate pe baza răspunsurilor tale greșite
+              Întrebări generate de AI pe baza lecției
             </p>
           </div>
         </div>
 
-        <button
-          onClick={() => fetchQuestions(true)}
-          disabled={loading}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/30 px-3 py-1.5 text-xs font-medium text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-950/50 transition disabled:opacity-50"
-        >
-          <RefreshCw className={cn("h-3 w-3", loading && "animate-spin")} />
-          Generează alte întrebări
-        </button>
+        {started && (
+          <button
+            onClick={() => fetchQuestions(true)}
+            disabled={loading}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/30 px-3 py-1.5 text-xs font-medium text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-950/50 transition disabled:opacity-50"
+          >
+            <RefreshCw className={cn("h-3 w-3", loading && "animate-spin")} />
+            Generează alte întrebări
+          </button>
+        )}
       </div>
 
       <div className="h-px bg-amber-200 dark:bg-amber-800/50" />
 
       {/* Content */}
       <AnimatePresence mode="wait">
-        {loading ? (
+        {!started ? (
+          <motion.div
+            key="intro"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="flex flex-col items-center gap-4 rounded-xl border border-amber-200 dark:border-amber-800/60 bg-amber-50/60 dark:bg-amber-950/20 p-6 text-center"
+          >
+            <p className="text-sm text-foreground max-w-md">
+              Vrei să vezi cât ai reținut? AI-ul îți generează 3 întrebări despre această
+              lecție, doar când apeși butonul. Practică liberă — fără notă, fără XP.
+            </p>
+            <button
+              onClick={handleStart}
+              className="inline-flex items-center gap-2 rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-600 transition"
+            >
+              <Bot className="h-4 w-4" />
+              Testează-te cu un quiz
+            </button>
+          </motion.div>
+        ) : loading ? (
           <motion.div
             key="loading"
             initial={{ opacity: 0 }}
@@ -123,15 +172,26 @@ export function AdaptiveQuizSection({ lessonId }: AdaptiveQuizSectionProps) {
               AI-ul generează întrebări personalizate...
             </p>
           </motion.div>
-        ) : error ? (
+        ) : failed ? (
           <motion.div
             key="error"
+            role="status"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/20 p-5 text-center text-sm text-red-600 dark:text-red-400"
+            className="flex flex-col items-center gap-3 rounded-xl border border-amber-200 dark:border-amber-800/60 bg-amber-50/60 dark:bg-amber-950/20 p-6 text-center"
           >
-            {error}
+            <p className="text-sm text-amber-900 dark:text-amber-200">
+              Nu am putut genera întrebări acum. Încearcă din nou.
+            </p>
+            <button
+              onClick={() => fetchQuestions(lastForce)}
+              disabled={loading}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-100 dark:bg-amber-950/40 px-3 py-1.5 text-xs font-medium text-amber-800 dark:text-amber-200 hover:bg-amber-200/70 dark:hover:bg-amber-950/60 transition disabled:opacity-50"
+            >
+              <RefreshCw className="h-3 w-3" />
+              Încearcă din nou
+            </button>
           </motion.div>
         ) : (
           <motion.div

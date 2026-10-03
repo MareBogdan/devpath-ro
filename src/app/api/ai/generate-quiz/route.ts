@@ -1,8 +1,9 @@
-import { openai } from "@ai-sdk/openai";
 import { generateObject } from "ai";
 import { z } from "zod";
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { aiModel, isAIConfigured } from "@/lib/ai/model";
+import { disabledResponse } from "@/lib/optional-features";
 
 export const runtime = "edge";
 
@@ -71,6 +72,23 @@ export async function POST(req: Request) {
     }
   }
 
+  // The lesson the questions must be about. RLS only exposes published lessons to
+  // learners, so an unpublished/unknown lesson is a plain 404 (no Claude call).
+  const { data: lesson } = await supabase
+    .from("lessons")
+    .select("title, content_md, is_published")
+    .eq("id", lessonId)
+    .eq("is_published", true)
+    .maybeSingle();
+
+  if (!lesson) {
+    return NextResponse.json({ error: "Lecție inexistentă" }, { status: 404 });
+  }
+
+  // Keep the prompt (and cost) bounded: the head of the lesson is plenty to quiz on.
+  const LESSON_CHARS = 8000;
+  const lessonText = ((lesson.content_md as string | null) ?? "").trim().slice(0, LESSON_CHARS);
+
   // Fetch wrong answers for this user+lesson to build context
   const { data: wrongRows } = await supabase
     .from("quiz_wrong_answers")
@@ -92,18 +110,35 @@ export async function POST(req: Request) {
       .join("\n");
   }
 
+  const lessonBlock = `Titlul lecției: ${lesson.title as string}\n\nConținutul lecției (început):\n"""\n${lessonText}\n"""`;
+
   const prompt = wrongContext
-    ? `Ești un generator de întrebări de quiz educativ pentru platforma DevPath RO. Răspunde EXCLUSIV în limba română. Generează exact 3 întrebări noi bazate pe greșelile utilizatorului.\n\nÎntrebările la care utilizatorul a greșit:\n${wrongContext}\n\nGenerează 3 întrebări noi care testează aceleași concepte din unghiuri diferite. Fiecare întrebare are exact 4 opțiuni. Explică de ce răspunsul corect este corect.`
-    : `Ești un generator de întrebări de quiz educativ pentru platforma DevPath RO. Răspunde EXCLUSIV în limba română. Generează exact 3 întrebări noi despre concepte de Inteligență Artificială la nivel introductiv. Fiecare întrebare are exact 4 opțiuni. Explică de ce răspunsul corect este corect.`;
+    ? `Ești un generator de întrebări de quiz educativ pentru platforma DevPath RO. Răspunde EXCLUSIV în limba română. Generează exact 3 întrebări noi, strict despre lecția de mai jos, bazate și pe greșelile utilizatorului.\n\n${lessonBlock}\n\nÎntrebările la care utilizatorul a greșit:\n${wrongContext}\n\nGenerează 3 întrebări noi care testează aceleași concepte din unghiuri diferite. Fiecare întrebare are exact 4 opțiuni, un singur răspuns corect. Explică de ce răspunsul corect este corect.`
+    : `Ești un generator de întrebări de quiz educativ pentru platforma DevPath RO. Răspunde EXCLUSIV în limba română. Generează exact 3 întrebări noi, strict despre lecția de mai jos (nu despre alte subiecte), care verifică dacă studentul a înțeles ideile ei principale.\n\n${lessonBlock}\n\nFiecare întrebare are exact 4 opțiuni, un singur răspuns corect. Explică de ce răspunsul corect este corect.`;
 
-  // Generate questions via GPT-4o-mini
-  const result = await generateObject({
-    model: openai("gpt-4o-mini"),
-    schema: GeneratedQuizSchema,
-    prompt,
-  });
+  // Cached questions above are served even when AI is off; generating new ones needs
+  // the key. Checked here (after the cache lookup) so an existing quiz still works.
+  if (!isAIConfigured()) {
+    return disabledResponse("ai", "AI indisponibil momentan.");
+  }
 
-  const questions = result.object.questions;
+  // Generate questions via Claude (structured output through the Zod schema). A
+  // provider failure returns a clean JSON error instead of a 500.
+  let questions: z.infer<typeof GeneratedQuizSchema>["questions"];
+  try {
+    const result = await generateObject({
+      model: aiModel,
+      schema: GeneratedQuizSchema,
+      prompt,
+    });
+    questions = result.object.questions;
+  } catch (err) {
+    console.error("[api/ai/generate-quiz] generateObject error:", err);
+    return NextResponse.json(
+      { error: "Nu am putut genera întrebările acum. Încearcă din nou." },
+      { status: 502 }
+    );
+  }
 
   // Clear old generated questions for this user+lesson if force regenerating
   if (forceRegenerate) {

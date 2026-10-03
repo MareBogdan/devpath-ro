@@ -1,6 +1,7 @@
 // src/app/api/ai/coach-sessions/route.ts
 // GET — return last N session summaries for the current user as a single context string
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { isAIConfigured } from "@/lib/ai/model";
 
 export const runtime = "edge";
 
@@ -22,8 +23,12 @@ export async function GET(req: Request) {
     .order("ended_at", { ascending: false })
     .limit(limit);
 
+  // `aiEnabled` lets the coach UI show its disabled state up front (no key configured)
+  // instead of only after the first message fails.
+  const aiEnabled = isAIConfigured();
+
   if (error) {
-    return Response.json({ context: "" });
+    return Response.json({ context: "", aiEnabled });
   }
 
   // Build a single string for injection into the system prompt
@@ -34,5 +39,5 @@ export async function GET(req: Request) {
     )
     .join("\n");
 
-  return Response.json({ context });
+  return Response.json({ context, aiEnabled });
 }
