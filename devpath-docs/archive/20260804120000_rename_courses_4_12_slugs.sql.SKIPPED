@@ -1,0 +1,94 @@
+-- 20260804120000_rename_courses_4_12_slugs.sql
+--
+-- v5 → ML/DL pivot: rename the slugs of Courses 4-12 to match the rewritten
+-- curriculum in devpath-docs/CURRICULUM-STRUCTURE.md (205 lessons).
+--
+-- SCOPE — this migration ONLY renames `courses.slug` for order_index 4..12.
+--   * Courses 1-3 (hardware-fizica, sisteme-de-operare, retele-internet) are
+--     never matched: every statement is keyed on an old Courses 4-12 slug AND
+--     re-guarded with `order_index between 4 and 12`.
+--   * No INSERT, no DELETE — course ids and order_index are preserved.
+--   * The `lessons` table is NOT touched here (lessons are reseeded separately
+--     by scripts/seed-curriculum.mjs via reseed_course_lessons()).
+--
+-- IDEMPOTENCY — each UPDATE is keyed on the exact OLD slug. Re-running after a
+-- successful apply matches 0 rows and is a no-op (no error). `courses.slug` is
+-- UNIQUE; none of the new slugs collide with an existing row.
+--
+-- SAFETY — Courses 4-12 have zero child rows (empty content_md, no user data),
+-- so the rename cannot orphan progress/comment/score records.
+
+begin;
+
+update public.courses set slug = 'python-matematica-dl'
+ where slug = 'python-inginerie-software'     and order_index between 4 and 12;
+
+update public.courses set slug = 'data-engineering-ml-clasic'
+ where slug = 'algoritmi-structuri-date'      and order_index between 4 and 12;
+
+update public.courses set slug = 'pytorch-core'
+ where slug = 'matematica-ai'                 and order_index between 4 and 12;
+
+update public.courses set slug = 'computer-vision-cnn'
+ where slug = 'baze-date-ingineria-datelor'   and order_index between 4 and 12;
+
+update public.courses set slug = 'sequence-models-rnn'
+ where slug = 'machine-learning'              and order_index between 4 and 12;
+
+update public.courses set slug = 'transformer-architecture'
+ where slug = 'deep-learning-computer-vision' and order_index between 4 and 12;
+
+update public.courses set slug = 'modele-generative'
+ where slug = 'ai-generativ-llms'             and order_index between 4 and 12;
+
+update public.courses set slug = 'reinforcement-learning'
+ where slug = 'agentic-ai-mcp'                and order_index between 4 and 12;
+
+update public.courses set slug = 'pytorch-productie'
+ where slug = 'ai-in-productie'               and order_index between 4 and 12;
+
+-- ── Assertions ───────────────────────────────────────────────────────────────
+-- Fails the transaction if any old Courses 4-12 slug survived the rename (i.e.
+-- a statement matched a row it should have renamed but didn't). Empty-table safe:
+-- on a fresh DB with no seeded courses every check counts 0 and the block passes.
+do $$
+declare
+  leftover text;
+  final_state text;
+begin
+  select string_agg(slug || ' (ord ' || order_index || ')', ', ' order by order_index)
+    into leftover
+    from public.courses
+   where slug in (
+     'python-inginerie-software', 'algoritmi-structuri-date', 'matematica-ai',
+     'baze-date-ingineria-datelor', 'machine-learning', 'deep-learning-computer-vision',
+     'ai-generativ-llms', 'agentic-ai-mcp', 'ai-in-productie'
+   );
+
+  if leftover is not null then
+    raise exception 'rename_courses_4_12: old slug(s) still present after rename: %', leftover;
+  end if;
+
+  -- Courses 1-3 must be intact.
+  if (select count(*) from public.courses
+       where slug in ('hardware-fizica', 'sisteme-de-operare', 'retele-internet')
+         and order_index between 1 and 3) not in (0, 3) then
+    raise exception 'rename_courses_4_12: courses 1-3 are not in their expected state';
+  end if;
+
+  select string_agg(slug || ' (ord ' || order_index || ')', ', ' order by order_index)
+    into final_state
+    from public.courses
+   where order_index >= 4;
+
+  raise notice 'rename_courses_4_12 — courses at order_index >= 4: %', coalesce(final_state, '(none)');
+end $$;
+
+commit;
+
+-- Post-apply verification (run manually):
+--   select slug, order_index from public.courses where order_index >= 4 order by order_index;
+-- Expected, in order 4..12:
+--   python-matematica-dl, data-engineering-ml-clasic, pytorch-core,
+--   computer-vision-cnn, sequence-models-rnn, transformer-architecture,
+--   modele-generative, reinforcement-learning, pytorch-productie

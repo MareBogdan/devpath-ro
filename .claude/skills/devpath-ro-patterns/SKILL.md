@@ -3,13 +3,17 @@ name: devpath-ro-patterns
 description: >-
   DevPath RO specific patterns. Use when creating new
   features, components, or API routes. Covers: Supabase
-  Realtime channel pattern, AI Coach data flow, lesson
-  page RSC structure, next-intl v4 server/client setup,
-  MDX conventions, and the 5 feature architecture decisions.
+  Realtime presence, the AI Coach / AI quiz data flow
+  (Anthropic Claude via the Vercel AI SDK v3, browser STT only,
+  no TTS), the lesson page structure, in-browser Python
+  (Pyodide in a Web Worker), MDX conventions, the Romanian-only
+  (no i18n) rule, and the feature architecture decisions.
 allowed-tools: Read
 ---
 
 # DevPath RO — Project Patterns Reference
+
+> Source of truth for project state: `PROJECT-STATE.md`, `CLAUDE.md`, `PROGRESS.md`. This file only records patterns that are easy to get wrong.
 
 ## 1. SUPABASE REALTIME PATTERN
 
@@ -31,208 +35,114 @@ interface PresenceUser {
   avatar_url: string | null;
   online_at: string; // ISO timestamp
 }
-// Tracked via:
 await channel.track({ user_id, display_name, avatar_url, online_at: new Date().toISOString() })
 ```
 
-### Broadcast format for completion celebrations
+### Broadcast for completion celebrations
 ```typescript
-// Sender (CompleteButton fires custom DOM event → LessonPresence listens):
+// CompleteButton fires a DOM event → LessonPresence listens and broadcasts:
 window.dispatchEvent(new CustomEvent("lesson-presence:complete", { detail: { lessonId } }));
 
-// LessonPresence broadcasts to channel peers:
 channelRef.current.send({
   type: "broadcast",
   event: "lesson_complete",
   payload: { display_name: string, lesson_title: string }
 })
-
-// Receivers: filter own broadcasts with:
-if (ev.display_name !== displayName) { setCelebration(ev); }
+// Receivers ignore their own broadcasts: if (ev.display_name !== displayName) setCelebration(ev)
 ```
 
-### Cleanup on unmount pattern — React 18 Strict Mode fix
+### Cleanup on unmount — React 18 Strict Mode fix
 ```typescript
-// 200ms defer prevents Strict Mode's fake-unmount from opening a WebSocket
-// that immediately closes (which logs a confusing error).
+// Defer subscribe() by 200 ms so Strict Mode's fake unmount never opens a WebSocket
+// that immediately closes (confusing console error).
 let subscribed = false;
-const timeoutId = window.setTimeout(async () => {
-  subscribed = true;
-  channel.subscribe(async (status) => { ... });
-}, 200);
-
+const timeoutId = window.setTimeout(() => { subscribed = true; channel.subscribe(...); }, 200);
 return () => {
   clearTimeout(timeoutId);
   if (subscribed) supabase.removeChannel(channel); // only if actually subscribed
 };
 ```
 
-### Presence sync handler
-```typescript
-channel.on("presence", { event: "sync" }, () => {
-  const state = channel.presenceState() as Record<string, PresenceUser[]>;
-  const users = Object.values(state).flat();
-  setPresenceList(users);
-})
-```
-
 ---
 
-## 2. AI COACH DATA FLOW
+## 2. AI (TEXT ONLY — Anthropic Claude, Vercel AI SDK v3)
 
-**Files:** `src/app/api/ai/chat/route.ts`, `src/app/api/ai/tts/route.ts`, `src/hooks/use-speech-recognition.ts`, `src/hooks/use-speech-synthesis.ts`, `src/components/course/ai-coach-chat.tsx`
+**Files:** `src/lib/ai/model.ts`, `src/lib/optional-features.ts`, `src/app/api/ai/{chat,coach-session,coach-sessions,generate-quiz}/route.ts`, `src/components/course/ai-coach-chat.tsx`, `src/components/course/adaptive-quiz-section.tsx`, `src/hooks/use-speech-recognition.ts`
 
-### Full voice pipeline
-```
-User presses + holds mic button
-  → handleMicDown(): tts.stop() first (prevents feedback loop)
-  → recognition.startListening()
-  → SpeechRecognition (lang: "ro-RO", continuous: false, interimResults: true)
-  → transcript streams live into input field via setInput(recognition.transcript)
-
-User releases mic button
-  → handleMicUp(): recognition.stopListening() [stop(), not abort() — gets final result]
-  → isListening transitions true → false
-  → useEffect detects transition: appends { role: "user", content: transcript }
-  → recognition.resetTranscript(), setInput("")
-
-Chat API call (/api/ai/chat)
-  → streamText({ model: openai("gpt-4o-mini"), system: systemPrompt, messages, maxTokens: 512 })
-  → result.toDataStreamResponse() (Vercel AI SDK v3)
-  → useChat streams response into messages array
-
-TTS playback (isLoading transitions true → false)
-  → if (!isMuted) tts.speak(last.content)
-  → stripMarkdown(text) → POST /api/ai/tts { text }
-  → OpenAI TTS-1, voice "nova" → audio/mpeg ArrayBuffer
-  → URL.createObjectURL(blob) → new Audio(url).play()
-```
-
-### AbortController race-condition pattern
+### The model lives in ONE place
 ```typescript
-// On every new speak() call, stop() is called first:
-const controller = new AbortController();
-abortControllerRef.current = controller;
-
-const res = await fetch("/api/ai/tts", { signal: controller.signal, ... });
-if (controller.signal.aborted) return; // bail if stop() fired during fetch
-const blob = await res.blob();
-if (controller.signal.aborted) return; // bail if stop() fired during blob read
+// src/lib/ai/model.ts
+export const AI_MODEL = "claude-haiku-4-5";      // alias, no date suffix
+export const aiModel = anthropic(AI_MODEL);       // @ai-sdk/anthropic reads ANTHROPIC_API_KEY lazily
+export const isAIConfigured = () => Boolean(process.env.ANTHROPIC_API_KEY);
 ```
-`stop()` calls `abortControllerRef.current.abort()` to cancel in-flight fetches immediately.
+Routes import `aiModel` / `isAIConfigured`; never hardcode a model id or a key elsewhere. Missing key → `disabledResponse("ai", "AI indisponibil momentan.")` (503 `{ ok:false, disabled:true, feature:"ai" }`) **before** calling the model.
 
-### Chat API route structure
-- Runtime: `export const runtime = "edge"` NOT set (tts route doesn't have it either — only chat does)
-- Chat: POST `/api/ai/chat` — body: `{ messages, lessonTitle, lessonContent }`
-- TTS: POST `/api/ai/tts` — body: `{ text }` — returns `audio/mpeg`
+### Route order (reference: `api/ai/chat/route.ts`)
+auth (`supabase.auth.getUser()` → 401) → `isAIConfigured()` (503) → Zod `safeParse` (400) → business logic → `streamText` / `generateObject` in try/catch (502 on provider failure). `export const runtime = "edge"`.
 
-### useChat configuration (v3)
-```typescript
-useChat({
-  api: "/api/ai/chat",
-  body: { lessonTitle, lessonContent }, // sent with every request
-  initialMessages: [{ id: "welcome", role: "assistant", content: "..." }],
-})
-// Import: import { useChat } from "ai/react"  ← v3 path (NOT "@ai-sdk/react")
+### AI Coach chat
+- `useChat({ api: "/api/ai/chat", body: {...} })` — import from **`"ai/react"`** (v3 path, keep as-is).
+- Body schema: `{ messages[{role,content}], lessonId?, lessonTitle?, lessonContent?, sessionContext? }`; lesson content is cut to 4000 chars server-side; `streamText({ model: aiModel, system, messages, maxTokens: 512 })` → `result.toDataStreamResponse()`.
+- Coach session summaries: `api/ai/coach-session(s)` → `ai_coach_sessions` (RLS: own rows).
+
+### Voice = INPUT ONLY (browser Web Speech API)
 ```
+click mic (toggle)  → recognition.startListening()   // SpeechRecognition, lang "ro-RO", continuous:false, interimResults:true
+interim transcript  → shown live in the input field
+utterance ends / click again → isListening true→false → transcript appended as a user message
+```
+There is **no text-to-speech and no sound** (removed on owner request), no `/api/ai/tts`, no `/api/ai/stt`, no `use-speech-synthesis`, no extra API key. Do not re-add them.
+
+### Adaptive AI quiz (F2) — opt-in
+`AdaptiveQuizSection` is mounted by `LessonPageClient` on every **published** lesson (before the completion row), `autoStart` is false: it shows an intro + "Testează-te cu un quiz" and only calls `POST /api/ai/generate-quiz { lessonId, forceRegenerate }` on click. The route loads the published lesson (404 otherwise), asks Claude (`generateObject`, Zod: exactly 3 questions × 4 options) for questions about that lesson, and caches them per user + lesson in `ai_generated_questions` (re-open = cache hit, no Claude call; "Generează alte" = `forceRegenerate`, button `disabled={loading}`). Failure shows a fallback with retry.
 
 ---
 
 ## 3. LESSON PAGE STRUCTURE
 
-**Files:** `src/app/(dashboard)/courses/[courseSlug]/[lessonId]/page.tsx`
+**File:** `src/app/(dashboard)/courses/[courseSlug]/[lessonId]/page.tsx` (RSC)
 
-### RSC fetches server-side (all via `createSupabaseServerClient()`)
-1. `supabase.auth.getUser()` — current user
-2. `courses` table — by `slug` param
-3. `lessons` table — by `id` + `course_id` (current lesson)
-4. `lessons` table — all lessons in course for prev/next navigation
-5. `user_progress` table — completion status for this lesson
-6. `quiz_questions` table — only if `lesson.type === "quiz"`
+### Server fetches (via `createSupabaseServerClient()`)
+`auth.getUser()` → `courses` by slug → `lessons` by id+course → all course lessons (prev/next; unpublished filtered, current kept) → `getNextLesson()` (`lib/next-lesson.ts`, can cross into the next course) → `user_progress`, `users.level`, bookmark, feedback, project, `quiz_questions` (only `type === "quiz"`), inline-question state + Wow Notes (theory-like only, via `courses/inline-loaders.ts`).
 
-### Props passed to client components
-```typescript
-<LessonContent content={lesson.content_md} />
-// lesson.content_md is the MDX string from DB
+### Content
+Single mode: render **`content_md` only** (compiled server-side with `next-mdx-remote/serialize`, remark-gfm/math + rehype-highlight/katex; three-tier fallback in `compileLessonMdx` so a bad lesson never 500s). Lesson types: `lesson|lab|boss` (new curriculum), legacy `theory|exercise|project|quiz`. Not used: `content_simple_md` (dropped), `users.learning_mode`.
 
-<QuizBlock lessonId={lessonId} courseSlug={courseSlug}
-  questions={quizQuestions} isCompleted={isCompleted} />
+### Client wrapper
+`LessonPageClient` renders: `LessonContent` (inside `LessonErrorBoundary`) → optional `AdaptiveQuizSection` (`showAiQuiz`, published only) → completion row (`LessonPresence`, `CompleteButton`) → `LessonFeedback` → next-lesson card → celebration/toasts (`GamificationBoundary`). Completing a lesson navigates to the next one, so anything the learner should still reach must sit **before** the Complete button.
 
-<LessonPresence lessonId userId displayName avatarUrl lessonTitle />
-// displayName: user_metadata.full_name ?? name ?? email prefix ?? "Student"
+### Server actions & gamification
+- `courses/actions.ts`: mark complete, progress, next lesson.
+- XP / badges / streak / referrals / `stripe_*` are written ONLY with the service-role client from server code (`lib/gamification.ts` is deliberately **not** a `"use server"` file and must never be imported by a client component). Public user data is read through the `get_public_profiles` / `get_top_users` / `get_community_stats` / `get_recent_completions` RPCs, not by querying `users`.
 
-<CompleteButton lessonId courseSlug isCompleted nextLessonId labels={t(...)} />
-
-<AICoachChat lessonTitle={lesson.title} lessonContent={lesson.content_md}
-  isExercise={lesson.type === "exercise"} />
-```
-
-### Server Actions in `src/app/(dashboard)/courses/actions.ts`
-- Progress updates (mark lesson complete)
-- Course completion tracking
-- `saveWrongAnswers()` — to be added for F2
-
-### Dashboard layout (`src/app/(dashboard)/layout.tsx`)
-RSC that auth-guards all dashboard routes. Fetches user profile, course list, and progress for sidebar. Renders `<Navbar>` and `<Sidebar>`.
+### Course map
+`/courses/[slug]` redirects to `/courses?c=<slug>`; `lib/course-map.ts` `buildAllCoursesNodes` builds one serpentine across all courses. **No sequential locking**: nodes are `completed | current (first not-done per course) | available`; every published lesson is openable in any order. Unpublished courses are listed as "În curând".
 
 ---
 
-## 4. NEXT-INTL V4 SETUP
+## 4. LANGUAGE — ROMANIAN ONLY, NO i18n LIBRARY
 
-**Files:** `src/i18n/request.ts`, `src/middleware.ts`, `src/app/layout.tsx`
-
-### How RO/EN toggle works
-Locale is stored in a **cookie** named `locale`. Default: `"ro"`.
-
-```typescript
-// src/i18n/request.ts
-const locale = (cookieStore.get("locale")?.value ?? "ro") as Locale;
-return { locale, messages: (await import(`../../messages/${locale}.json`)).default };
-```
-
-Toggle is implemented via a Server Action that sets the `locale` cookie and redirects.
-
-### Where translations live
-```
-messages/
-  ro.json   ← Romanian (primary)
-  en.json   ← English
-```
-
-### How to add a new translated string
-1. Add key-value to both `messages/ro.json` and `messages/en.json`
-2. In RSC: `const t = await getTranslations("Namespace");` → `t("key")`
-3. In Client Components: `const t = useTranslations("Namespace");` → `t("key")`
-4. In `src/app/layout.tsx`, `NextIntlClientProvider` wraps the app to provide translations client-side.
-
-### Middleware
-`src/middleware.ts` only calls `updateSession(request)` from `@/lib/supabase/middleware`. The next-intl middleware is NOT used — locale comes from cookie in `i18n/request.ts` only.
+`next-intl` was removed: there is no `src/i18n/`, no `messages/`, no locale cookie, and the middleware only calls `updateSession` (Supabase session refresh + protected-route redirect). All user-facing text is hardcoded Romanian in the components; lesson content and AI answers are Romanian. Do not add an i18n library.
 
 ---
 
-## 5. FEATURE ARCHITECTURE DECISIONS — DO NOT REVERSE
+## 5. IN-BROWSER PYTHON (F1) — Pyodide in a Web Worker, nothing else
 
-These decisions were made deliberately. Do not change them without explicit discussion.
+**Files:** `src/workers/pyodide.worker.ts`, `src/hooks/use-pyodide.ts`, `src/components/course/code-editor.tsx`
+- Pyodide **v0.27.0** from the CDN (`https://cdn.jsdelivr.net/pyodide/v0.27.0/full/`), loaded inside a **Web Worker** with classic `importScripts` (newer Pyodide needs a module worker). Never bundled, never `import pyodide`, never on the main thread.
+- `use-pyodide.ts` creates the worker lazily on the first "Run", shares one worker across editors, queues runs. Each run has a 10 s timeout (`PYTHON_RUN_TIMEOUT_MS`); on timeout or Stop the worker is `terminate()`d and a fresh one warms up (an AbortSignal can't stop an infinite loop).
+- `CodeEditor` (Monaco) is loaded with `next/dynamic` + `ssr:false`.
+- **There is no Piston and no server-side code execution** (`api/execute-code` is gone); PyTorch is not available in Pyodide, so PyTorch lessons are read/explained, not run.
 
-### F3 — Neural Network Visualizer: Zero new packages
-- **Decision:** Pure SVG + framer-motion (already installed). No React Flow, no D3.js.
-- **Reason:** Neural network topology is a fixed layered DAG — layout is trivial math. framer-motion handles all animation. Adding React Flow would make the viz look generic (every React Flow app looks similar). D3 creates React/DOM conflicts.
-- **Constraint:** Cap at 8 neurons/layer, 4 layers max to prevent SVG layout issues.
+---
 
-### F5 — Real-time Social Presence: Supabase Realtime in-memory
-- **Decision:** Supabase Realtime Presence (WebSocket, in-memory on Supabase edge). Zero new DB tables.
-- **Reason:** Presence is ephemeral — no point persisting who is online. Supabase JS (already installed) includes full Realtime client. Zero additional packages.
+## 6. FEATURE ARCHITECTURE DECISIONS — DO NOT REVERSE
 
-### F1 — In-Browser Python Execution: Pyodide CDN (not bundled)
-- **Decision:** Load Pyodide WASM from CDN at runtime. The `pyodide` npm package = TypeScript types only.
-- **Reason:** Pyodide WASM bundle is ~12 MB. Bundling it would violate the 350KB performance budget. CDN loading is lazy (first "Run" click only), cached in browser after first load.
-- **Hybrid strategy:** Pyodide for lessons 1–12, 14–30 (no PyTorch). Piston API proxy for lesson 13+ (PyTorch required). PyTorch is absent from Pyodide's package ecosystem.
-
-### F4 — Voice AI Coach STT: Web Speech API (not Whisper)
-- **Decision:** Browser-native `SpeechRecognition` for speech-to-text. Push-to-talk pattern.
-- **Reason:** Zero latency (on-device), zero cost, zero new packages. Whisper would require audio recording, multipart upload, new API route, and per-request cost.
-- **Upgrade path:** The `use-speech-recognition.ts` hook interface is identical whether the backend is Web Speech API or Whisper — swapping is a one-file change if needed.
-
-### F4 — TTS: Custom OpenAI TTS-1 endpoint (not browser SpeechSynthesis)
-- **Decision:** POST to `/api/ai/tts` → OpenAI TTS-1, voice "nova" → `audio/mpeg`.
-- **Reason:** Browser `SpeechSynthesis` is robotic and inconsistent across browsers/OS. OpenAI nova voice sounds natural and consistent. The AbortController pattern prevents race conditions when `stop()` is called mid-fetch.
+- **F3 Neural Network Visualizer:** pure SVG + framer-motion, no React Flow / D3. Cap 8 neurons/layer, 4 layers.
+- **F5 Social presence:** Supabase Realtime Presence (in-memory, zero tables, zero packages).
+- **F1 Python:** Pyodide-only in a Web Worker (see §5).
+- **F4 Voice:** browser Web Speech API push-to-talk **input only** — no Whisper, no TTS, no server voice routes.
+- **AI provider:** Anthropic Claude (`claude-haiku-4-5`) behind `src/lib/ai/model.ts`; OpenAI is not used.
+- **Optional features** (Stripe, Resend, crons, web push, text AI) ship disabled unless their keys exist; each route degrades via `lib/optional-features.ts` (`disabledResponse`).
+- **Packages:** do not install new npm packages without explicit approval.

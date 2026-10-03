@@ -5,7 +5,7 @@
 ---
 
 ## Project Documentation
-- `PROJECT-STATE.md` — Single source of truth (v5: 12 courses / 289 lessons, single content mode). Complete project state + methodology. Read first in any new session.
+- `PROJECT-STATE.md` — Single source of truth (ML/PyTorch pivot: 12 courses / 205 lessons, single content mode). Complete project state + methodology. Read first in any new session.
 - `devpath-docs/devpath-vision.md` — Original platform vision document. The mascot section references "Pixel" — that mascot was retired in Block 1.5 (2026-05-06) and replaced by Cosmo. See "Cosmo Mascot" section below for the current API.
 - `schema.sql` — DB schema reference. For live state, verify via Supabase MCP.
 
@@ -18,11 +18,11 @@
 
 ## Project Overview
 
-**DevPath RO** is a Romanian e-learning platform for IT/AI students. Desktop-first Next.js 14 App Router web application deployed on Vercel. Delivers a 12-course / 289-lesson curriculum (single content mode, `content_md`) with `lesson`, `lab`, and `boss` lesson types.
+**DevPath RO** is a Romanian e-learning platform for IT/AI students. Desktop-first Next.js 14 App Router web application deployed on Vercel. Delivers a 12-course / 205-lesson curriculum (single content mode, `content_md`) with `lesson`, `lab`, and `boss` lesson types.
 
 - **Live stack:** Next.js 14 App Router + React 18 + TypeScript (strict mode)
 - **Auth & DB:** Supabase (PostgreSQL + Auth + Realtime WebSockets)
-- **AI:** Vercel AI SDK + OpenAI API (GPT-4o-mini text, TTS-1 voice "nova")
+- **AI:** Vercel AI SDK + Anthropic (Claude, model id in `src/lib/ai/model.ts`); voice input only = browser Web Speech API STT (mic); the AI Coach has NO text-to-speech/sound, no server voice routes
 - **UI:** Tailwind CSS + Radix UI + shadcn/ui + Framer Motion
 - **Code editor:** Monaco Editor (`@monaco-editor/react`)
 - **Language:** Romanian-only (no i18n library)
@@ -48,7 +48,8 @@ From `package.json`:
 | Package | Version |
 |---|---|
 | `ai` (Vercel AI SDK) | ^3.4.33 |
-| `@ai-sdk/openai` | ^0.0.66 |
+| `@ai-sdk/anthropic` | ^0.0.56 |
+| `@ai-sdk/openai` | ^0.0.66 (unused — safe to remove) |
 | `@ai-sdk/react` | ^3.0.136 |
 
 ### Database & Auth
@@ -124,7 +125,7 @@ npx tsc --noEmit
 
 ### API Routes
 - **ALL API routes must validate input with Zod.** No exceptions.
-- Use `process.env.OPENAI_API_KEY` for OpenAI — never hardcode keys.
+- AI needs only `process.env.ANTHROPIC_API_KEY` — never hardcode keys. Import `aiModel` / `isAIConfigured` from `@/lib/ai/model` (the ONLY place the model id lives); if not configured return `disabledResponse("ai", "AI indisponibil momentan.")` (503) before calling the model.
 - Return proper HTTP status codes (400 for validation errors, 502 for upstream errors).
 
 ### Database (Supabase)
@@ -150,9 +151,9 @@ npx tsc --noEmit
 | # | Feature | Status | Notes |
 |---|---|---|---|
 | F5 | Real-time Social Presence | ✅ DONE | Supabase Realtime pub/sub, avatar stacks, Framer Motion celebration toasts |
-| F4 | Voice AI Coach | ✅ DONE | Web Speech API (push-to-talk STT) + custom OpenAI TTS endpoint (voice "nova") with AbortController race-condition fix |
+| F4 | Voice AI Coach | ✅ DONE | Voice **input** only: browser Web Speech API push-to-talk STT (`ro-RO`) → text reply from Claude. No TTS / no sound (removed 2026-10-01 by owner request; `use-speech-synthesis` deleted). No server voice routes, no extra API key |
 | F2 | Adaptive AI Quiz Generation | ✅ DONE | `api/ai/generate-quiz` + `components/course/adaptive-quiz-section.tsx` |
-| F1 | In-Browser Python Execution | ✅ DONE | Pyodide WASM + Piston fallback (`hooks/use-pyodide.ts`, `api/execute-code`) |
+| F1 | In-Browser Python Execution | ✅ DONE | Pyodide-only, runs in a Web Worker (`src/workers/pyodide.worker.ts` + `hooks/use-pyodide.ts`) with a 10 s run timeout that terminates the worker. No Piston / no `api/execute-code` |
 | F3 | Neural Network Visualizer | ✅ DONE | SVG + Framer Motion (`components/visualiser/`) |
 
 All five high-tech features (F1–F5) are shipped and live in the codebase.
@@ -180,8 +181,8 @@ c:\DevPath RO\
 │   │   │       └── sync-action.ts
 │   │   ├── api/
 │   │   │   └── ai/
-│   │   │       ├── chat/route.ts   # Edge: GPT-4o-mini streaming (Vercel AI SDK)
-│   │   │       └── tts/route.ts    # Edge: OpenAI TTS-1 nova → audio/mpeg proxy
+│   │   │       ├── chat/route.ts   # Edge: Claude streaming (Vercel AI SDK)
+│   │   │       ├── coach-session(s)/route.ts, generate-quiz/route.ts
 │   │   ├── auth/callback/route.ts  # Supabase OAuth callback
 │   │   ├── globals.css
 │   │   ├── layout.tsx              # Root layout (themes, providers)
@@ -202,8 +203,10 @@ c:\DevPath RO\
 │   │   │   └── client-providers.tsx
 │   │   └── ui/                     # shadcn/ui components
 │   ├── hooks/
-│   │   ├── use-speech-recognition.ts  # Web Speech API STT (push-to-talk)
-│   │   └── use-speech-synthesis.ts   # OpenAI TTS-1 nova (with AbortController)
+│   │   ├── use-pyodide.ts             # Pyodide worker client (timeout/Stop → terminate worker)
+│   │   └── use-speech-recognition.ts  # Web Speech API STT (push-to-talk) — the only voice hook
+│   ├── workers/
+│   │   └── pyodide.worker.ts          # Pyodide in a Web Worker (CDN, preloads numpy/matplotlib)
 │   ├── lib/
 │   │   ├── supabase/
 │   │   │   ├── server.ts    # createSupabaseServerClient (RSC/Server Actions)
@@ -214,7 +217,7 @@ c:\DevPath RO\
 │   │   └── utils.ts         # cn() helper
 │   ├── middleware.ts         # Supabase session refresh on every request
 │   └── types/index.ts       # Domain types: User, Course, Lesson, etc.
-├── content/                  # MDX lesson files (12-course v5 curriculum; C1/C2 authored)
+├── content/                  # MDX lesson files (12-course ML/PyTorch curriculum; C1/C2 authored)
 ├── schema.sql               # Full Supabase schema (reference only; verify live via Supabase MCP)
 ├── seed.sql                 # Seed data for development
 ├── next.config.mjs          # Next config (transpiles next-mdx-remote, image domains)
@@ -244,8 +247,7 @@ c:\DevPath RO\
 - `src/app/(dashboard)/courses/sync-action.ts` — MDX sync to DB
 
 ### API Routes (Edge Runtime)
-- `src/app/api/ai/chat/route.ts` — GPT-4o-mini streaming, `runtime = "edge"`
-- `src/app/api/ai/tts/route.ts` — OpenAI TTS-1 proxy, returns `audio/mpeg`
+- `src/app/api/ai/chat/route.ts` — Claude streaming, `runtime = "edge"` (voice input is browser-side; there are no tts/stt routes and the coach has no TTS)
 
 ---
 
@@ -308,9 +310,9 @@ if (!parsed.success) return NextResponse.json({ error: "Invalid" }, { status: 40
 
 ### AI streaming (Vercel AI SDK)
 ```typescript
-import { openai } from "@ai-sdk/openai";
+import { aiModel } from "@/lib/ai/model"; // anthropic(AI_MODEL) — model id lives only there
 import { streamText } from "ai";
-const result = await streamText({ model: openai("gpt-4o-mini"), ... });
+const result = await streamText({ model: aiModel, ... });
 return result.toDataStreamResponse();
 ```
 
@@ -331,7 +333,7 @@ The user also works on **edunext-production** (`c:\WORK_SPACE\edunext-production
 ## Context7 MCP — Auto-Documentation
 
 Context7 MCP is configured in this project's `.claude/settings.json`. When you need up-to-date documentation for any library used in this project (Next.js, Supabase, Vercel AI SDK, Framer Motion, Radix UI, Zod, etc.), use Context7 tools automatically without waiting to be asked. This is especially important for:
-- Vercel AI SDK (`ai`, `@ai-sdk/openai`, `@ai-sdk/react`) — API changes frequently
+- Vercel AI SDK (`ai`, `@ai-sdk/anthropic`, `@ai-sdk/react`) — API changes frequently
 - Supabase JS v2 (`@supabase/supabase-js`, `@supabase/ssr`) — SSR patterns
 - Next.js 14 App Router — use Context7 instead of relying on training data
 
@@ -433,7 +435,7 @@ Features F1–F5 are all shipped. The current priority is authoring lesson conte
 ---
 
 ## Implementation Navigation
-- Start every session by reading `PROJECT-STATE.md` (current v5 state + methodology).
+- Start every session by reading `PROJECT-STATE.md` (current ML/PyTorch state + methodology).
 - Curriculum source of truth: `devpath-docs/CURRICULUM-STRUCTURE.md` (parsed by `scripts/seed-curriculum.mjs`).
 - Pre-v5 planning docs are archived under `devpath-docs/archive/` — historical only, not the source of truth.
 
@@ -489,10 +491,11 @@ Read that file before adding any new page-level animations.
 Loads from CDN at runtime — **NEVER bundled in build:**
 `https://cdn.jsdelivr.net/pyodide/v0.27.0/full/`
 
-The `pyodide` npm package (approved) provides TypeScript types only.
-- Always use `next/dynamic` with `ssr: false` for Pyodide components.
-- Never `import pyodide` at the top level of any file.
-- Load lazily inside `use-pyodide.ts` hook on first "Run" click, then cache singleton.
+Pyodide runs **inside a Web Worker** (`src/workers/pyodide.worker.ts`, loaded via `new Worker(new URL(...))`, classic `importScripts` — v0.27.0 only; newer Pyodide needs a module worker). Python is Pyodide-only: no Piston, no server execution route.
+- Always use `next/dynamic` with `ssr: false` for the CodeEditor (Monaco + Pyodide).
+- Never `import pyodide` anywhere; never run Pyodide on the main thread.
+- `use-pyodide.ts` creates the worker lazily on the first "Run" click and shares one worker across editors (runs are queued).
+- Each run has a 10 s timeout (`PYTHON_RUN_TIMEOUT_MS`); on timeout or Stop the worker is `terminate()`d and a fresh one is warmed up. An AbortSignal alone cannot stop an infinite loop — terminating the worker is what does.
 
 ---
 
@@ -538,3 +541,16 @@ Never add shadcn components manually — always use `npx shadcn@latest add <comp
 - `/effort low` → typos, CSS tweaks, renames
 - *(default)* → normal feature work
 - `/effort high` → architecture decisions, new feature design, complex DB schema
+
+---
+
+## Deploy MVP (in progress — started 2026-09-30)
+
+Goal: deploy-ready MVP on Vercel, working + tested; visual/text polish is the LAST step and is decided by the owner.
+
+- **Source of truth:** `PROGRESS.md` (8-phase checklist, issues ranked by severity, owner decisions D1–D6). Read it at the start of every session and update it after every prompt.
+- **Supabase project (live):** ref **`zgofeajewktwmswckgup`** (`devpath-ro`, eu-central-1). `.env.local` points to it.
+- **Old project — DO NOT TOUCH:** `umtecpbixdkumfjsvzcl`. The project-bound `mcp__supabase__*` server is bound to the OLD project. For live-DB work use ONLY `mcp__claude_ai_Supabase__*` and always pass `project_id="zgofeajewktwmswckgup"`; confirm the URL first and STOP if it resolves to the old ref.
+- **Live DB ≠ repo:** the live DB has only 2 migrations (`base_schema`, `interactive_layer_and_migrations`) and 2 public functions. `schema.sql`, older repo migrations and PROJECT-STATE.md claims (RPCs, `xp_events`, `module_index`, badges seed) do not reflect it. Never re-run repo migrations blindly; new SQL goes into `supabase/migrations/` and must be shown to the owner before applying.
+- **Baseline (2026-09-30):** `tsc` 0 errors; `npm run build` fails on 1 lint error (`lesson-content.tsx:58`); XP/level/badges/leaderboard broken (missing `xp_events` + RPCs); `users` UPDATE policy allows role/plan escalation.
+- **Security rules that must stay true (Phase 3, 2026-09-30):** `users` is own-row SELECT only and clients may UPDATE only safe profile columns; XP, badges, streak/`last_active`, referrals and `stripe_*` are written ONLY with the service-role client from server code. `src/lib/gamification.ts` is deliberately NOT a `"use server"` file (its exports would become browser-callable) — never add the directive or import it from a client component. `award_xp_and_check_level` is EXECUTE-able by `service_role` only. Read other users' public data through the `get_public_profiles` / `get_top_users` / `get_community_stats` / `get_recent_completions` RPCs, never by querying `users` directly.

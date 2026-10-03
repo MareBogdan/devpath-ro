@@ -40,24 +40,30 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 
 // ── Scope ────────────────────────────────────────────────────────────────────
-// Courses 4-12 — the ONLY slugs this seeder is allowed to write.
+// Courses 7-12 — the ONLY slugs this seeder is allowed to write.
+// Courses 4-6 are OUT of scope (owner decision D1, 2026-09-30): the live DB keeps
+// their v5 slugs + authored content (python-inginerie-software,
+// algoritmi-structuri-date, matematica-ai). The ML/PyTorch slugs planned for them
+// (python-matematica-dl, data-engineering-ml-clasic, pytorch-core) must not be
+// seeded here, or the seeder would create duplicate courses next to the real ones.
 const IN_SCOPE_SLUGS = [
-  "python-inginerie-software",
-  "algoritmi-structuri-date",
-  "baze-date-ingineria-datelor",
-  "matematica-ai",
-  "machine-learning",
-  "deep-learning-computer-vision",
-  "ai-generativ-llms",
-  "agentic-ai-mcp",
-  "ai-in-productie",
+  "computer-vision-cnn",
+  "sequence-models-rnn",
+  "transformer-architecture",
+  "modele-generative",
+  "reinforcement-learning",
+  "pytorch-productie",
 ];
 
-// Courses 1-3 — must NEVER be written by this seeder (real user data lives here).
+// Courses 1-3 (real user data) and the v5 Courses 4-6 (authored content, decision
+// D1) — must NEVER be written by this seeder.
 const PROTECTED_SLUGS = [
   "hardware-fizica",
   "sisteme-de-operare",
   "retele-internet",
+  "python-inginerie-software",
+  "algoritmi-structuri-date",
+  "matematica-ai",
 ];
 
 // All 13 tables whose FK references lessons.id (ON DELETE CASCADE). The child-row
@@ -157,8 +163,8 @@ function parseCurriculum() {
 
 // ── Course row — upsert metadata from the doc (in-scope slugs only) ───────────
 // Updates title/description/difficulty/order_index so course-level renames and
-// order changes (e.g. the matematica-ai <-> baze order swap) take effect. Never
-// writes a protected slug (extra guard on top of the in-scope loop).
+// order changes (e.g. the v5 ML/DL restructure of Courses 4-12) take effect.
+// Never writes a protected slug (extra guard on top of the in-scope loop).
 async function upsertCourse(course) {
   if (PROTECTED_SLUGS.includes(course.slug)) {
     throw new Error(`refusing to write protected course ${course.slug}`);
@@ -225,7 +231,7 @@ async function assertNoChildRows(courseId, slug) {
 
 // ── Main ─────────────────────────────────────────────────────────────────────
 async function main() {
-  console.log("🌱  Seeding curriculum — Courses 4-12 (restructure-safe)\n");
+  console.log("🌱  Seeding curriculum — Courses 7-12 (restructure-safe)\n");
 
   const all = parseCurriculum();
 
