@@ -53,3 +53,13 @@ next-env.d.ts
 # Claude Code local settings (per-machine MCP permission allowlist; mirrors the
 # already-ignored .claude/settings.json above)
 .claude/settings.local.json
+# ── Personal / portfolio assets sitting in the repo root (never deploy or commit) ──
+/Bogdan-Mare-CV.pdf
+/Bogdan-Mare-CV-public.pdf
+/calorie-tracker-showcase.png
+/edunext-work.png
+/football-platform-cover.png
+/linkedin-banner.png
+/linkedin-banner-v2.png
+/graphify-out/
+/devpath-public/
