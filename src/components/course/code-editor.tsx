@@ -17,10 +17,6 @@ interface CodeEditorProps {
   /** "display" = read-only Monaco with copy button (default).
    *  "exercise" = editable Monaco + Run button + OutputPanel. */
   mode?: "display" | "exercise";
-  /** Only applies when mode="exercise".
-   *  "pyodide" = run in-browser via Pyodide (default).
-   *  "piston"  = proxy to Piston API (for PyTorch/sklearn). */
-  executionMode?: "pyodide" | "piston";
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -30,7 +26,6 @@ export function CodeEditor({
   language = "python",
   height = "420px",
   mode = "display",
-  executionMode = "pyodide",
 }: CodeEditorProps) {
   const [value, setValue] = useState(defaultValue);
   const [copied, setCopied] = useState(false);
@@ -73,34 +68,8 @@ export function CodeEditor({
     const signal = abortRef.current.signal;
 
     try {
-      let output: RunResult;
-
-      if (executionMode === "piston") {
-        // Route through server-side Piston proxy
-        const res = await fetch("/api/execute-code", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ code: value }),
-          signal,
-        });
-        if (!res.ok) {
-          const err = (await res.json()) as { error?: string };
-          output = {
-            stdout: "",
-            stderr: err.error ?? "Eroare la execuție.",
-            plots: [],
-          };
-        } else {
-          const data = (await res.json()) as {
-            stdout: string;
-            stderr: string;
-          };
-          output = { ...data, plots: [] };
-        }
-      } else {
-        // Run in-browser via Pyodide
-        output = await runCode(value, signal);
-      }
+      // Runs in a Web Worker: a timeout or Stop terminates it (see use-pyodide.ts).
+      const output: RunResult = await runCode(value, signal);
 
       setResult(output);
 
@@ -149,7 +118,7 @@ export function CodeEditor({
             <button
               onClick={handleCopy}
               className={cn(
-                "flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-md transition-all",
+                "flex items-center gap-1.5 text-xs px-2.5 py-1 max-sm:py-2.5 rounded-md transition-all",
                 copied
                   ? "text-green-400 bg-green-400/10"
                   : "text-[#858585] hover:text-white hover:bg-white/10"
@@ -172,19 +141,19 @@ export function CodeEditor({
             {showRunButton && (
               <button
                 onClick={handleRun}
-                disabled={executionMode === "pyodide" && isLoading && !isRunning}
+                disabled={isLoading && !isRunning}
                 className={cn(
-                  "flex items-center gap-1.5 text-xs px-3 py-1 rounded-md font-semibold transition-all",
+                  "flex items-center gap-1.5 text-xs px-3 py-1 max-sm:py-2.5 rounded-md font-semibold transition-all",
                   isRunning
                     ? "bg-red-600/80 hover:bg-red-600 text-white"
-                    : executionMode === "pyodide" && isLoading
+                    : isLoading
                     ? "bg-blue-800/50 text-blue-300 cursor-not-allowed"
                     : "bg-green-600 hover:bg-green-500 text-white"
                 )}
                 title={
                   isRunning
                     ? "Oprește execuția"
-                    : executionMode === "pyodide" && isLoading
+                    : isLoading
                     ? "Se încarcă Python..."
                     : "Rulează codul"
                 }
@@ -194,7 +163,7 @@ export function CodeEditor({
                     <Square className="h-3 w-3 fill-current" />
                     Stop
                   </>
-                ) : executionMode === "pyodide" && isLoading ? (
+                ) : isLoading ? (
                   <>
                     <span className="h-3 w-3 rounded-full border-2 border-blue-300/40 border-t-blue-300 animate-spin" />
                     Python...
