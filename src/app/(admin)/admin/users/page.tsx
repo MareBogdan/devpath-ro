@@ -49,7 +49,7 @@ export default async function AdminUsersPage({
   let query = adminClient
     .from("users")
     .select(
-      "id, name, email, plan, role, level, xp, streak_count, last_active, onboarding_completed, avatar_url, created_at",
+      "id, name, email, plan, role, level, xp_points, streak_count, last_active, onboarding_completed, avatar_url, created_at",
       { count: "exact" }
     )
     .order("created_at", { ascending: false })
@@ -177,7 +177,7 @@ export default async function AdminUsersPage({
                       {u.level ?? 1}
                     </td>
                     <td className="px-4 py-3 text-right tabular-nums text-foreground">
-                      {(u.xp ?? 0).toLocaleString("ro-RO")}
+                      {(u.xp_points ?? 0).toLocaleString("ro-RO")}
                     </td>
                     <td className="px-4 py-3 text-right tabular-nums text-foreground">
                       {u.streak_count ?? 0}

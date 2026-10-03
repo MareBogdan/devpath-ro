@@ -1,6 +1,7 @@
 "use client";
 
-import { Github } from "lucide-react";
+import { useState } from "react";
+import { AlertCircle } from "lucide-react";
 import { signInWithOAuth } from "./actions";
 
 function GoogleIcon({ className }: { className?: string }) {
@@ -14,22 +15,48 @@ function GoogleIcon({ className }: { className?: string }) {
   );
 }
 
+// MVP scope (owner decision D3): Google + email/password only. GitHub login is not
+// enabled in Supabase, so its button is not rendered (it would only ever fail).
 export function OAuthButtons() {
+  const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+
+  async function handleGoogle() {
+    setError(null);
+    setPending(true);
+    try {
+      const result = await signInWithOAuth("google");
+      // On success the server action redirects the browser to Google, so control
+      // only comes back here when something went wrong.
+      if (result?.error) {
+        setError(result.error);
+        setPending(false);
+      }
+    } catch {
+      setError("Nu am putut porni autentificarea cu Google. Încearcă din nou.");
+      setPending(false);
+    }
+  }
+
   return (
-    <div className="flex gap-3">
+    <div className="space-y-3">
+      {error && (
+        <div
+          role="alert"
+          className="flex items-center gap-2 rounded-lg bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-800 p-3 text-sm text-red-700 dark:text-red-400"
+        >
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          {error}
+        </div>
+      )}
       <button
-        onClick={() => signInWithOAuth("google")}
-        className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-750 font-medium text-sm transition"
+        type="button"
+        onClick={handleGoogle}
+        disabled={pending}
+        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-750 disabled:opacity-60 disabled:cursor-not-allowed font-medium text-sm transition"
       >
         <GoogleIcon className="h-4 w-4" />
-        Google
-      </button>
-      <button
-        onClick={() => signInWithOAuth("github")}
-        className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-750 font-medium text-sm transition"
-      >
-        <Github className="h-4 w-4" />
-        GitHub
+        {pending ? "Se redirecționează către Google..." : "Continuă cu Google"}
       </button>
     </div>
   );

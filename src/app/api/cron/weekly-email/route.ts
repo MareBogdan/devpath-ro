@@ -1,24 +1,29 @@
 import { NextResponse } from "next/server";
 import { render } from "@react-email/render";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { getResendClient, FROM_EMAIL } from "@/lib/email/resend";
+import { getResendClient, isResendConfigured, FROM_EMAIL } from "@/lib/email/resend";
 import { WeeklyProgressEmail } from "@/lib/email/templates/weekly-progress";
 import { LEVEL_NAMES } from "@/lib/gamification-constants";
+import {
+  disabledResponse,
+  hasValidCronSecret,
+  isCronConfigured,
+} from "@/lib/optional-features";
 
 // nodejs runtime — render() is not compatible with edge
 export const runtime = "nodejs";
 
-// Guard: only Vercel cron or internal calls with the cron secret
-function isAuthorized(req: Request): boolean {
-  const cronSecret = process.env.CRON_SECRET;
-  if (!cronSecret) return false;
-  const authHeader = req.headers.get("authorization");
-  return authHeader === `Bearer ${cronSecret}`;
-}
-
 export async function GET(req: Request) {
-  if (!isAuthorized(req)) {
+  // Cron + email are optional (MVP ships without them): missing config → clean
+  // response, never a crash.
+  if (!isCronConfigured()) {
+    return disabledResponse("cron", "Cron jobs are not configured (CRON_SECRET missing).");
+  }
+  if (!hasValidCronSecret(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!isResendConfigured()) {
+    return NextResponse.json({ ok: true, skipped: "email_disabled", sent: 0, failed: 0 });
   }
 
   const supabase = createSupabaseAdminClient();

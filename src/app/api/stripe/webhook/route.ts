@@ -1,10 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import { stripe } from "@/lib/stripe";
+import type Stripe from "stripe";
+import { getStripe } from "@/lib/stripe";
+import { disabledResponse } from "@/lib/optional-features";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs"; // raw body reading requires Node.js runtime
 
 export async function POST(req: NextRequest) {
+  // Payments are optional (MVP ships without Stripe): no key / secret → clean 503.
+  const stripe = getStripe();
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  if (!stripe || !webhookSecret) {
+    return disabledResponse("payments", "Stripe webhook is not configured.");
+  }
+
   const body = await req.text();
   const sig = req.headers.get("stripe-signature");
 
@@ -13,13 +22,9 @@ export async function POST(req: NextRequest) {
   }
 
   // ── Verify webhook signature ───────────────────────────────────────────────
-  let event: ReturnType<typeof stripe.webhooks.constructEvent>;
+  let event: Stripe.Event;
   try {
-    event = stripe.webhooks.constructEvent(
-      body,
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET!
-    );
+    event = stripe.webhooks.constructEvent(body, sig, webhookSecret);
   } catch (err) {
     console.error("[stripe/webhook] Signature verification failed:", err);
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });

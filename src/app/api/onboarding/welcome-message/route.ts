@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { openai } from "@ai-sdk/openai";
 import { generateText } from "ai";
 import { z } from "zod";
+import { aiModel, isAIConfigured } from "@/lib/ai/model";
+import { disabledResponse } from "@/lib/optional-features";
 
 export const runtime = "edge";
 
@@ -44,22 +45,33 @@ export async function POST(req: NextRequest) {
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Neautentificat" }, { status: 401 });
 
-  const parsed = bodySchema.safeParse(await req.json());
+  // Text AI is optional: onboarding falls back to a static welcome when this is 503.
+  if (!isAIConfigured()) {
+    return disabledResponse("ai", "AI indisponibil momentan.");
+  }
+
+  const parsed = bodySchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success)
     return NextResponse.json({ error: "Date invalide" }, { status: 400 });
 
   const { profileType, learningGoal, userName } = parsed.data;
 
-  const { text } = await generateText({
-    model: openai("gpt-4o-mini"),
-    system: `Ești Cosmo, mascota prietenoasă a platformei DevPath RO.
+  try {
+    const { text } = await generateText({
+      model: aiModel,
+      system: `Ești Cosmo, mascota prietenoasă a platformei DevPath RO.
 Scrie un mesaj de bun venit în română, cald și personal, de exact 2 propoziții.
 Folosești "tu", nu "dumneavoastră".
 Nu folosi emoji în text.
 Maxim 55 de cuvinte total.
 Referă-te la profilul și obiectivul utilizatorului în mod natural.`,
-    prompt: `Utilizatorul ${userName ? `"${userName}"` : "nou"} este ${PROFILE_LABELS[profileType]} și ${GOAL_LABELS[learningGoal]}.`,
-  });
+      prompt: `Utilizatorul ${userName ? `"${userName}"` : "nou"} este ${PROFILE_LABELS[profileType]} și ${GOAL_LABELS[learningGoal]}.`,
+    });
 
-  return NextResponse.json({ message: text });
+    return NextResponse.json({ message: text });
+  } catch (err) {
+    // The onboarding UI falls back to a static welcome when there is no `message`.
+    console.error("[api/onboarding/welcome-message] generateText error:", err);
+    return NextResponse.json({ error: "AI generation failed" }, { status: 502 });
+  }
 }

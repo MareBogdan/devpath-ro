@@ -3,7 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { awardXP, checkAndAwardBadges } from "@/lib/gamification";
+import { getNextLesson } from "@/lib/next-lesson";
 import {
   type AwardedBadge,
   type XPEventType,
@@ -35,6 +37,8 @@ const MINIGAME_CYCLE: MinigameType[] = [
 export interface MarkCompleteResult {
   success: boolean;
   nextLessonId: string | null;
+  /** Course slug of the next lesson (differs from the current course when crossing a course boundary). */
+  nextCourseSlug: string | null;
   error?: string;
   // Gamification:
   xpEarned: number;
@@ -62,6 +66,7 @@ export async function markLessonComplete(
   const EMPTY_RESULT = {
     success: false as const,
     nextLessonId: null,
+    nextCourseSlug: null,
     xpEarned: 0,
     newTotalXP: 0,
     leveledUp: false,
@@ -76,30 +81,46 @@ export async function markLessonComplete(
 
   if (!user) return { ...EMPTY_RESULT, error: "Not authenticated" };
 
-  // Upsert progress record
-  const { error } = await supabase.from("user_progress").upsert(
-    {
-      user_id: user.id,
-      lesson_id: lessonId,
-      completed: true,
-      completed_at: new Date().toISOString(),
-    },
-    { onConflict: "user_id,lesson_id" }
-  );
+  // Idempotency: completing an already-completed lesson (second tab, double-click)
+  // must never award XP or badges again. This pre-check covers the normal case;
+  // the refId passed to awardXP below is the DB-level guard for a true race.
+  const { data: existingProgress } = await supabase
+    .from("user_progress")
+    .select("completed")
+    .eq("user_id", user.id)
+    .eq("lesson_id", lessonId)
+    .maybeSingle();
+  const alreadyCompleted = existingProgress?.completed === true;
 
-  if (error) return { ...EMPTY_RESULT, error: error.message };
+  // Upsert progress record (skipped when already completed → keeps original completed_at)
+  if (!alreadyCompleted) {
+    const { error } = await supabase.from("user_progress").upsert(
+      {
+        user_id: user.id,
+        lesson_id: lessonId,
+        completed: true,
+        completed_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id,lesson_id" }
+    );
 
-  // Fetch user data (streak data)
+    if (error) return { ...EMPTY_RESULT, error: error.message };
+  }
+
+  // Fetch user data (streak data + current XP/level for the already-completed case)
   const { data: userData } = await supabase
     .from("users")
-    .select("last_active, streak_count")
+    .select("last_active, streak_count, xp_points, level")
     .eq("id", user.id)
     .single();
 
   // ─── Lesson XP ────────────────────────────────────────────────────────────
   const xpEventType: XPEventType = "lesson_complete";
 
-  const xpResult = await awardXP(user.id, xpEventType).catch(() => null);
+  const xpResult = alreadyCompleted
+    ? null
+    : await awardXP(user.id, xpEventType, undefined, lessonId).catch(() => null);
+  const xpAwarded = xpResult?.awarded === true;
 
   // Fetch lesson data (for badge check + next lesson)
   const { data: lessonData } = await supabase
@@ -108,14 +129,16 @@ export async function markLessonComplete(
     .eq("id", lessonId)
     .single();
 
-  // Badge check for lesson completion
-  const newBadges = await checkAndAwardBadges(user.id, {
-    event: "lesson_complete",
-    lessonType: lessonData?.type ?? "theory",
-    courseId: lessonData?.course_id ?? "",
-    moduleIndex: lessonData?.module_index ?? 1,
-    completedAt: new Date(),
-  }).catch((): AwardedBadge[] => []);
+  // Badge check for lesson completion (first completion only)
+  const newBadges: AwardedBadge[] = alreadyCompleted
+    ? []
+    : await checkAndAwardBadges(user.id, {
+        event: "lesson_complete",
+        lessonType: lessonData?.type ?? "theory",
+        courseId: lessonData?.course_id ?? "",
+        moduleIndex: lessonData?.module_index ?? 1,
+        completedAt: new Date(),
+      }).catch((): AwardedBadge[] => []);
   // ─────────────────────────────────────────────────────────────────────────
 
   // ─── Streak + last_active update ─────────────────────────────────────────
@@ -133,7 +156,9 @@ export async function markLessonComplete(
 
   const streakUpdatedToday = userData?.last_active !== today;
 
-  await supabase
+  // last_active / streak_count are not client-writable columns (Phase 3 RLS
+  // hardening) — the user was authenticated above, so write with the service role.
+  await createSupabaseAdminClient()
     .from("users")
     .update({ last_active: today, streak_count: newStreak })
     .eq("id", user.id);
@@ -158,19 +183,11 @@ export async function markLessonComplete(
       ? newStreak
       : null;
 
-  // Find next lesson
-  let nextLessonId: string | null = null;
-  if (lessonData) {
-    const { data: nextLesson } = await supabase
-      .from("lessons")
-      .select("id")
-      .eq("course_id", lessonData.course_id)
-      .gt("order_index", lessonData.order_index)
-      .order("order_index", { ascending: true })
-      .limit(1)
-      .single();
-    nextLessonId = nextLesson?.id ?? null;
-  }
+  // Find next lesson — next published lesson in this course, else the first
+  // published lesson of the next course that has any.
+  const nextLesson = lessonData
+    ? await getNextLesson(supabase, lessonData.course_id, lessonData.order_index)
+    : null;
 
   // Revalidate sidebar + course pages
   revalidatePath("/dashboard");
@@ -186,12 +203,16 @@ export async function markLessonComplete(
 
   return {
     success: true,
-    nextLessonId,
-    xpEarned: XP_VALUES[xpEventType],
-    newTotalXP: xpResult?.newXP ?? 0,
+    nextLessonId: nextLesson?.lessonId ?? null,
+    nextCourseSlug: nextLesson?.courseSlug ?? null,
+    xpEarned: xpAwarded ? XP_VALUES[xpEventType] : 0,
+    newTotalXP: xpResult?.newXP ?? userData?.xp_points ?? 0,
     leveledUp: xpResult?.leveledUp ?? false,
-    newLevel: xpResult?.newLevel ?? 1,
-    newLevelName: xpResult?.newLevelName ?? LEVEL_NAMES[xpResult?.newLevel ?? 1] ?? "",
+    newLevel: xpResult?.newLevel ?? userData?.level ?? 1,
+    newLevelName:
+      xpResult?.newLevelName ??
+      LEVEL_NAMES[xpResult?.newLevel ?? userData?.level ?? 1] ??
+      "",
     newBadges,
     streakMilestone,
     minigameReady: isMinigameTrigger,
@@ -211,15 +232,20 @@ export async function toggleBookmark(
   } = await supabase.auth.getUser();
   if (!user) return { bookmarked: false, error: "Unauthorized" };
 
+  // lesson_bookmarks has no `id` column — its key is (user_id, lesson_id).
   const { data: existing } = await supabase
     .from("lesson_bookmarks")
-    .select("id")
+    .select("user_id")
     .eq("user_id", user.id)
     .eq("lesson_id", lessonId)
-    .single();
+    .maybeSingle();
 
   if (existing) {
-    await supabase.from("lesson_bookmarks").delete().eq("id", existing.id);
+    await supabase
+      .from("lesson_bookmarks")
+      .delete()
+      .eq("user_id", user.id)
+      .eq("lesson_id", lessonId);
     return { bookmarked: false };
   } else {
     await supabase

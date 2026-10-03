@@ -2,25 +2,36 @@ import { NextResponse } from "next/server";
 import webpush from "web-push";
 import { z } from "zod";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import {
+  disabledResponse,
+  hasValidCronSecret,
+  isCronConfigured,
+  isVapidConfigured,
+} from "@/lib/optional-features";
 
 // nodejs runtime — web-push uses Node.js crypto APIs
 export const runtime = "nodejs";
 
-// Guard: fail fast if VAPID keys are missing — prevents silent push failures
-const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
-if (!vapidPublicKey || !vapidPrivateKey) {
-  throw new Error(
-    "[api/push/send] Missing VAPID keys. Set NEXT_PUBLIC_VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY in environment variables."
-  );
+// Web push is optional (MVP ships without it). VAPID keys are checked when a request
+// arrives — never at import time — so a missing key cannot fail the build or crash
+// the route; the endpoint answers with a clean 503 instead.
+let vapidConfigured = false;
+function configureWebPush(): boolean {
+  if (vapidConfigured) return true;
+  if (!isVapidConfigured()) return false;
+  try {
+    webpush.setVapidDetails(
+      process.env.VAPID_SUBJECT ?? "mailto:contact@devpath.ro",
+      process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
+      process.env.VAPID_PRIVATE_KEY!
+    );
+    vapidConfigured = true;
+    return true;
+  } catch (err) {
+    console.error("[api/push/send] Invalid VAPID configuration:", err);
+    return false;
+  }
 }
-
-// Configure web-push with VAPID keys once per cold start
-webpush.setVapidDetails(
-  process.env.VAPID_SUBJECT ?? "mailto:contact@devpath.ro",
-  vapidPublicKey,
-  vapidPrivateKey
-);
 
 const payloadSchema = z.object({
   userId: z.string().uuid(),
@@ -30,17 +41,16 @@ const payloadSchema = z.object({
   icon: z.string().optional(),
 });
 
-// Guard: only internal calls with the cron secret
-function isAuthorized(req: Request): boolean {
-  const cronSecret = process.env.CRON_SECRET;
-  if (!cronSecret) return false;
-  const authHeader = req.headers.get("authorization");
-  return authHeader === `Bearer ${cronSecret}`;
-}
-
 export async function POST(req: Request) {
-  if (!isAuthorized(req)) {
+  // Internal endpoint: no CRON_SECRET configured → the feature is off.
+  if (!isCronConfigured()) {
+    return disabledResponse("push", "Push notifications are not configured.");
+  }
+  if (!hasValidCronSecret(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!configureWebPush()) {
+    return disabledResponse("push", "Push notifications are not configured (VAPID keys missing).");
   }
 
   const body = await req.json().catch(() => null);

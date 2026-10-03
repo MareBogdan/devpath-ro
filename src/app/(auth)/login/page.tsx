@@ -1,14 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { LogIn, Mail, Lock, AlertCircle } from "lucide-react";
 import { signInWithEmail } from "../actions";
 import { OAuthButtons } from "../oauth-buttons";
+import { messageForCallbackError } from "@/lib/auth-errors";
 
 export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // The OAuth callback sends failed sign-ins back here as /login?error=<code>.
+  // (Read from window rather than useSearchParams so the page can stay static.)
+  useEffect(() => {
+    const code = new URLSearchParams(window.location.search).get("error");
+    const message = messageForCallbackError(code);
+    if (message) setError(message);
+  }, []);
 
   async function handleSubmit(formData: FormData) {
     setLoading(true);
@@ -110,7 +119,7 @@ export default function LoginPage() {
             Nu ai cont?{" "}
             <Link
               href="/register"
-              className="text-blue-600 hover:text-blue-500 font-medium"
+              className="text-blue-600 hover:text-blue-500 font-medium inline-block max-sm:py-2"
             >
               Creează cont
             </Link>

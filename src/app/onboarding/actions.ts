@@ -68,45 +68,9 @@ export async function completeOnboarding(
   // Award 50 XP for completing onboarding (graceful failure)
   await awardXP(user.id, "onboarding_complete").catch(() => null);
 
-  // Check if referred — award XP to both users (Phase 3 wires the XP side)
-  const { data: profile } = await supabase
-    .from("users")
-    .select("referred_by")
-    .eq("id", user.id)
-    .single();
-
-  if (profile?.referred_by) {
-    await supabase
-      .from("referral_events")
-      .update({ xp_awarded: false }) // stays false until Phase 3 wires awardXP
-      .eq("referred_id", user.id);
-  }
+  // Referral tracking is handled at sign-up (signUpWithEmail, service role). The
+  // former `applyReferralCode` action was removed: it was unused and, as an
+  // exported server action, let any caller link arbitrary user ids.
 
   redirect("/dashboard");
-}
-
-// Called when user registers with a referral link (/join?ref=XXXXXXXX)
-export async function applyReferralCode(
-  newUserId: string,
-  refCode: string
-): Promise<void> {
-  const supabase = createSupabaseServerClient();
-  const { data: referrer } = await supabase
-    .from("users")
-    .select("id")
-    .eq("referral_code", refCode)
-    .single();
-
-  if (!referrer || referrer.id === newUserId) return; // invalid or self-referral
-
-  await supabase
-    .from("users")
-    .update({ referred_by: referrer.id })
-    .eq("id", newUserId);
-
-  await supabase.from("referral_events").insert({
-    referrer_id: referrer.id,
-    referred_id: newUserId,
-    xp_awarded: false,
-  });
 }

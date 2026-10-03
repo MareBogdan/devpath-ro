@@ -40,18 +40,21 @@ export const XP_VALUES: Record<XPEventType, number> = {
 
 // ─── Level System ─────────────────────────────────────────────────────────────
 
-// XP required to REACH each level (cumulative)
+// XP required to REACH each level (cumulative). Source: devpath-docs/devpath-vision.md
+// ("Level 1 — Curios (0–199 XP)" … "Level 10 — Maestrul AI (3500+ XP)").
+// The SQL function public.award_xp_and_check_level hardcodes the SAME curve
+// (supabase/migrations/20260930120000_gamification_core.sql) — change both together.
 export const LEVEL_THRESHOLDS: Record<number, number> = {
   1: 0,
   2: 200,
-  3: 250,
-  4: 500,
+  3: 400,
+  4: 700,
   5: 1000,
-  6: 1750,
-  7: 2750,
-  8: 4000,
-  9: 5500,
-  10: 7500,
+  6: 1400,
+  7: 1800,
+  8: 2300,
+  9: 2900,
+  10: 3500,
 };
 
 export const LEVEL_NAMES: Record<number, string> = {

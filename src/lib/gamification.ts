@@ -1,6 +1,14 @@
-"use server";
+// SERVER-ONLY module — deliberately NOT a "use server" file.
+//
+// Every export of a "use server" file becomes a server action that the browser can
+// call with arbitrary arguments. XP and badges are written here with the SERVICE-ROLE
+// client, so these functions must only ever be reachable from other server code
+// (server actions / route handlers that have already authenticated the user and
+// decided which userId + event to award). Never add "use server" here, and never
+// import this module from a client component.
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { isRomanianHoliday } from "@/lib/holiday-helpers";
 import {
   type XPEventType,
@@ -11,28 +19,41 @@ import {
   LEVEL_NAMES,
 } from "@/lib/gamification-constants";
 
-// Re-export types only (erased at runtime — safe in "use server" files)
+// Re-export types only (erased at runtime)
 export type { XPEventType, AwardXPResult, AwardedBadge, BadgeTrigger };
 
 // ─── awardXP ─────────────────────────────────────────────────────────────────
 
+/**
+ * Award XP through the `award_xp_and_check_level` RPC.
+ *
+ * `refId` makes the award idempotent: the DB records at most one xp_event per
+ * (user, eventType, refId), so repeating the same call (double-click, second
+ * tab) returns `awarded: false` instead of granting XP again.
+ *
+ * Uses the service-role client: EXECUTE on the RPC is revoked from `authenticated`,
+ * so a signed-in user cannot grant themselves XP by calling it directly.
+ */
 export async function awardXP(
   userId: string,
   eventType: XPEventType,
-  xpOverride?: number
-): Promise<AwardXPResult> {
-  const supabase = createSupabaseServerClient();
+  xpOverride?: number,
+  refId?: string
+): Promise<AwardXPResult & { awarded: boolean }> {
+  const supabase = createSupabaseAdminClient();
   const xp = xpOverride ?? XP_VALUES[eventType];
 
   const { data, error } = await supabase.rpc("award_xp_and_check_level", {
     p_user_id: userId,
     p_event_type: eventType,
     p_xp: xp,
+    p_ref_id: refId ?? null,
   });
 
   if (error) throw new Error(error.message);
 
   const result = data as {
+    awarded: boolean;
     new_xp: number;
     old_level: number;
     new_level: number;
@@ -40,6 +61,7 @@ export async function awardXP(
   };
 
   return {
+    awarded: result.awarded,
     newXP: result.new_xp,
     oldLevel: result.old_level,
     newLevel: result.new_level,
@@ -65,7 +87,8 @@ export async function checkAndAwardBadges(
       .single();
     if (!badge) return false;
 
-    const { error } = await supabase.from("user_badges").insert({
+    // Service role: clients have no INSERT path on user_badges.
+    const { error } = await createSupabaseAdminClient().from("user_badges").insert({
       user_id: userId,
       badge_id: badge.id,
     });

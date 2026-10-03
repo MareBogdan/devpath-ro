@@ -2,32 +2,63 @@
 
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
+import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { XP_VALUES } from "@/lib/gamification-constants";
+import { mapAuthError } from "@/lib/auth-errors";
 
 export interface AuthResult {
   error: string | null;
+  /** Non-error information to show the user (e.g. "check your email"). */
+  notice?: string;
 }
+
+const emailSchema = z
+  .string({ required_error: "Emailul este obligatoriu.", invalid_type_error: "Emailul este obligatoriu." })
+  .trim()
+  .max(254, "Adresa de email este prea lungă.")
+  .email("Introdu o adresă de email validă.");
+
+const signInSchema = z.object({
+  email: emailSchema,
+  password: z
+    .string({ required_error: "Parola este obligatorie.", invalid_type_error: "Parola este obligatorie." })
+    .min(1, "Parola este obligatorie.")
+    .max(200),
+});
+
+const signUpSchema = z.object({
+  name: z
+    .string({ required_error: "Numele este obligatoriu.", invalid_type_error: "Numele este obligatoriu." })
+    .trim()
+    .min(2, "Numele trebuie să aibă între 2 și 80 de caractere.")
+    .max(80, "Numele trebuie să aibă între 2 și 80 de caractere."),
+  email: emailSchema,
+  password: z
+    .string({ required_error: "Parola este obligatorie.", invalid_type_error: "Parola este obligatorie." })
+    .min(6, "Parola trebuie să aibă cel puțin 6 caractere.")
+    .max(72, "Parola poate avea cel mult 72 de caractere."),
+});
+
+const siteUrl = () => process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 
 export async function signInWithEmail(
   formData: FormData
 ): Promise<AuthResult> {
-  const email = formData.get("email") as string;
-  const password = formData.get("password") as string;
-
-  if (!email || !password) {
-    return { error: "Email și parola sunt obligatorii." };
+  const parsed = signInSchema.safeParse({
+    email: formData.get("email"),
+    password: formData.get("password"),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Date invalide." };
   }
 
   const supabase = createSupabaseServerClient();
-  const { error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
+  const { error } = await supabase.auth.signInWithPassword(parsed.data);
 
   if (error) {
-    return { error: error.message };
+    return { error: mapAuthError(error.message) };
   }
 
   redirect("/dashboard");
@@ -36,13 +67,15 @@ export async function signInWithEmail(
 export async function signUpWithEmail(
   formData: FormData
 ): Promise<AuthResult> {
-  const email = formData.get("email") as string;
-  const password = formData.get("password") as string;
-  const name = formData.get("name") as string;
-
-  if (!email || !password) {
-    return { error: "Email și parola sunt obligatorii." };
+  const parsed = signUpSchema.safeParse({
+    name: formData.get("name"),
+    email: formData.get("email"),
+    password: formData.get("password"),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Date invalide." };
   }
+  const { name, email, password } = parsed.data;
 
   const supabase = createSupabaseServerClient();
   const { data, error } = await supabase.auth.signUp({
@@ -50,11 +83,13 @@ export async function signUpWithEmail(
     password,
     options: {
       data: { name },
+      // Only used if "Confirm email" is ever switched back on in the dashboard.
+      emailRedirectTo: `${siteUrl()}/auth/callback`,
     },
   });
 
   if (error) {
-    return { error: error.message };
+    return { error: mapAuthError(error.message) };
   }
 
   // ─── Process referral cookie ────────────────────────────────────────────────
@@ -135,26 +170,45 @@ export async function signUpWithEmail(
   }
   // ───────────────────────────────────────────────────────────────────────────
 
+  // "Confirm email" is OFF for the MVP, so signUp returns a session and the user is
+  // signed in immediately. If it is ever switched back on there is no session yet:
+  // tell the user to confirm instead of bouncing them to /login with no message.
+  if (!data.session) {
+    return {
+      error: null,
+      notice: "Ți-am trimis un email de confirmare. Deschide linkul din el ca să-ți activezi contul.",
+    };
+  }
+
   redirect("/dashboard");
 }
 
-export async function signInWithOAuth(provider: "google" | "github") {
+export async function signInWithOAuth(
+  provider: "google" | "github"
+): Promise<{ error: string } | void> {
+  const parsedProvider = z.enum(["google", "github"]).safeParse(provider);
+  if (!parsedProvider.success) {
+    return { error: mapAuthError("unsupported provider") };
+  }
+
   const supabase = createSupabaseServerClient();
 
   const { data, error } = await supabase.auth.signInWithOAuth({
-    provider,
+    provider: parsedProvider.data,
     options: {
-      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"}/auth/callback`,
+      redirectTo: `${siteUrl()}/auth/callback`,
     },
   });
 
   if (error) {
-    return { error: error.message };
+    return { error: mapAuthError(error.message) };
   }
 
-  if (data.url) {
-    redirect(data.url);
+  if (!data.url) {
+    return { error: "Nu am putut porni autentificarea. Încearcă din nou." };
   }
+
+  redirect(data.url);
 }
 
 export async function signOut() {

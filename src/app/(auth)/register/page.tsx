@@ -8,16 +8,18 @@ import { OAuthButtons } from "../oauth-buttons";
 
 export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(formData: FormData) {
     setLoading(true);
     setError(null);
+    setNotice(null);
     const result = await signUpWithEmail(formData);
-    if (result?.error) {
-      setError(result.error);
-      setLoading(false);
-    }
+    // On success the action redirects, so we only get here for an error or a notice.
+    if (result?.error) setError(result.error);
+    if (result?.notice) setNotice(result.notice);
+    setLoading(false);
   }
 
   return (
@@ -39,6 +41,14 @@ export default function RegisterPage() {
             <div className="mb-4 flex items-center gap-2 rounded-lg bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-800 p-3 text-sm text-red-700 dark:text-red-400">
               <AlertCircle className="h-4 w-4 shrink-0" />
               {error}
+            </div>
+          )}
+          {notice && (
+            <div
+              role="status"
+              className="mb-4 rounded-lg bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800 p-3 text-sm text-blue-700 dark:text-blue-300"
+            >
+              {notice}
             </div>
           )}
 
@@ -132,7 +142,7 @@ export default function RegisterPage() {
             Ai deja cont?{" "}
             <Link
               href="/login"
-              className="text-blue-600 hover:text-blue-500 font-medium"
+              className="text-blue-600 hover:text-blue-500 font-medium inline-block max-sm:py-2"
             >
               Conectare
             </Link>

@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { stripe } from "@/lib/stripe";
+import { getStripe } from "@/lib/stripe";
+import { disabledResponse } from "@/lib/optional-features";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs"; // Stripe SDK requires Node.js runtime
 
@@ -11,6 +13,14 @@ const schema = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  // ── Payments are optional (MVP ships without Stripe) ──────────────────────
+  // Checked first: whether a feature is on is not a secret, and a disabled feature
+  // should answer the same way for everyone.
+  const stripe = getStripe();
+  if (!stripe) {
+    return disabledResponse("payments", "Plățile nu sunt disponibile momentan.");
+  }
+
   // ── Auth ─────────────────────────────────────────────────────────────────
   const supabase = createSupabaseServerClient();
   const {
@@ -22,7 +32,7 @@ export async function POST(req: NextRequest) {
   }
 
   // ── Input validation ──────────────────────────────────────────────────────
-  const parsed = schema.safeParse(await req.json());
+  const parsed = schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
@@ -48,8 +58,9 @@ export async function POST(req: NextRequest) {
     });
     customerId = customer.id;
 
-    // Persist customer ID immediately so duplicate customers aren't created
-    await supabase
+    // Persist customer ID immediately so duplicate customers aren't created.
+    // stripe_* columns are not client-writable (Phase 3) → service role.
+    await createSupabaseAdminClient()
       .from("users")
       .update({ stripe_customer_id: customerId })
       .eq("id", user.id);
