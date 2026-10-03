@@ -11,9 +11,9 @@ Fazele 1–8 + review-ul owner-ului sunt făcute și verificate (vezi `PROGRESS.
 
 **STATUS TRACKER (în ordine strictă):**
 1. ✅ **Prompt 1 (Claude Code)** — fix-uri vizuale. DONE 2026-10-03: BorderBeam root fix (nicio etichetă acoperită — hero, final CTA, card Pro, dashboard) + cifre reale în courses-hero (6 cursuri · 131 lecții · 6 Boss Fights). Gate verde (tsc 0 / lint 0 / build cu lint ON, copie izolată). Rest minor: pill-ul „~60h de conținut" încă hardcodat (real ≈22h la 131 lecții) — de decis înainte de commit.
-2. ⏳ **Prompt 2 (Claude Code)** — curățenie fișiere + gate final + commit & push pe GitHub  ← URMĂTORUL
-3. ⬜ **MANUAL (Bogdan)** — Vercel + Supabase + Google OAuth (pas cu pas, mai jos)
-4. ⬜ **Prompt 3 (Claude Code)** — smoke-test amplu pe URL-ul LIVE + reparat ce iese
+2. ✅ **Prompt 2 (Claude Code)** — curățenie + gate + commit + PUSH = DONE 2026-10-03. 8 commits pe GitHub (`60cbc7a..a15e945`), gate verde, fișiere personale gitignored, dailylog arhivat, fix „~60h" pill derivat din lecții. origin/main sincronizat.
+3. ✅ **MANUAL (Bogdan)** — COMPLET 2026-10-03: Vercel `devpath-ro` PROD `https://devpath-ro.vercel.app` (Ready, 5 env vars Prod+Preview). Confirm email OFF, useri test = 0. Supabase URL Config (Site URL + /auth/callback prod & localhost). Google OAuth: provider Enabled cu Client ID/Secret, JS origin `devpath-ro.vercel.app` + redirect URI Supabase salvate. De șters separat: proiectul Supabase vechi `DevPath RO` eu-west-2 (umtecpbixdkumfjsvzcl, COMING_UP).
+4. ⏳ **Prompt 3 (Claude Code)** — smoke-test amplu pe LIVE `https://devpath-ro.vercel.app` + reparat ce iese  ← URMĂTORUL
 
 ## Regula de lucru (toate prompturile)
 Un obiectiv per prompt · gate la final: `tsc` 0 · `lint` 0 · `npm run build` cu lint ON · build în **copie izolată**, NU atinge serverul dev de pe :3000 · **Sonnet, efort High** · dacă pică gate-ul, se repară în același prompt. La final, Claude Code actualizează `PROGRESS.md`.

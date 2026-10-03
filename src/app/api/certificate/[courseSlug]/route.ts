@@ -6,6 +6,7 @@ import { renderToBuffer, type DocumentProps } from "@react-pdf/renderer";
 import QRCode from "qrcode";
 import React from "react";
 import { CertificateDocument } from "@/components/pdf/certificate-document";
+import { SITE_URL } from "@/lib/site";
 
 // Node.js runtime — PDF generation requires canvas (not supported on edge)
 export const runtime = "nodejs";
@@ -128,7 +129,7 @@ export async function GET(
     "Student";
 
   // ─── 7. Generate QR code ──────────────────────────────────────────────────
-  const verifyUrl = `https://devpath.ro/verify/${certCode}`;
+  const verifyUrl = `${SITE_URL}/verify/${certCode}`;
   const qrCodeDataUrl = await QRCode.toDataURL(verifyUrl, {
     width: 200,
     margin: 1,

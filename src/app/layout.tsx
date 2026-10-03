@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import { Analytics } from "@vercel/analytics/react";
 import { ThemeProvider } from "@/components/theme-provider";
+import { SITE_URL } from "@/lib/site";
 import "./globals.css";
 import "katex/dist/katex.min.css";
 
@@ -18,7 +19,7 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://devpath.ro"),
+  metadataBase: new URL(SITE_URL),
   title: {
     default: "DevPath RO — Învață IT & AI",
     template: "%s — DevPath RO",
@@ -30,7 +31,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "ro_RO",
-    url: "https://devpath.ro",
+    url: SITE_URL,
     siteName: "DevPath RO",
     title: "DevPath RO — Învață IT & AI",
     description:

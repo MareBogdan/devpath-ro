@@ -494,6 +494,40 @@ Left as is (judgement calls): glossar category chips 32px high, notification swi
 - ⚠ Not touched (not asked): the **"~60h de conținut"** pill is still a hardcoded claim (131 lessons ≈ 22 h at the ~10 min/lesson the dashboard uses) — worth correcting or deriving before it goes on a CV.
 - Gate: `npx tsc --noEmit` 0 · `npm run lint` 0 errors (2 P7-09 warnings) · `npm run build` passes with lint ON (isolated copy, deleted; :3000 not touched).
 
+### Phase 8 — LIVE smoke test of https://devpath-ro.vercel.app (2026-10-03) ✅ (4 fixes pending redeploy)
+Playwright against the live URL (+ Supabase `zgofeajewktwmswckgup` via MCP). Throwaway user `devpath.smoketest.<ts>@example.com` created through the normal signup flow, **deleted afterwards (0 rows left in all 17 user-linked tables)**. ⚠ The DB is **not** at 0 users: your real Google account (`marebogdan03@gmail.com`, signed up 13:31 UTC during the test) exists and was deliberately NOT touched. Early on I misread its row as mine (unfiltered "latest user" query) and briefly suspected an XP bug — false alarm; every later check filtered by id.
+
+**PASS**
+- **Landing:** 200, 0 console errors, real stats (131 lecții · 6 cursuri · 24/7), Cosmo without stray limb, beam mask fix live (hero / final CTA / Pro card: labels readable, ring on border only).
+- **Signup (email) → onboarding (4 steps) → dashboard:** confirm-email off lands straight in onboarding; trigger created the `users` row; +50 XP, referral code generated.
+- **Google OAuth:** start verified (→ accounts.google.com, `redirect_uri` = supabase callback, `redirect_to` = live `/auth/callback`, no `redirect_uri_mismatch`); end-to-end proven by your own account (`google` identity, confirmed, onboarded, +50 XP).
+- **Dashboard / map:** XP/level/streak cards, 6 course cards → `/courses/<slug>` → map scrolled to the course's first lesson; "Vezi toate cursurile" top + bottom; 131 nodes (125 available + 6 current), all pointer-clickable, none locked; hero pills **6 cursuri · 131 lecții · ~22h · 6 Boss Fights** (not 60h).
+- **All 131 published lessons** fetched as a signed-in user: 131/131 → 200, heading present, no MDX-fallback/error markers (min HTML 110 KB).
+- **Lesson flow:** content, AI Coach answers via Claude (200 from `/api/ai/chat`, Romanian, ~6 s — not the disabled state), opt-in quiz (0 requests on load; 3 on-topic questions generated in ~18 s; answers + explanations work; 3 rows cached; reload → same questions, no new rows), Complete → "+15 XP", badge `prima_lectie`, streak +5, auto-advance to the next lesson.
+- **Other pages** (profile, leaderboard, glossar [50 terms], pricing, interview [Claude-powered, feedback works], flashcards, roadmap, portfolio, notifications, courses): all 200, no console/network errors.
+- **Public profile `/u/<referral>` signed out:** renders, **no email anywhere in the HTML/RSC**; unknown/malformed handles → not-found view; malformed escapes → 400.
+- **Mobile 375px:** landing, dashboard, courses, lesson, profile, leaderboard, pricing — no horizontal scroll.
+- **404:** real 404 page (HTTP 404); protected routes → `/login`; `/admin` + `/api/admin/*` as student → redirect / 403; removed routes (`/api/execute-code`, `/api/ai/tts`) 404; Stripe → clean 503 `payments disabled`; cron → 503; unauth AI/search/certificate APIs → 401; no 5xx on malformed URLs; open-redirect attempts neutralised.
+- **Auth lifecycle:** logout, wrong password ("Email sau parolă incorecte"), login restores state.
+- **Security re-check on prod (student JWT + anon key via PostgREST):** PATCH own `role` / `plan` / `xp_points` / `stripe_customer_id` → 403 `42501`; own safe column (`name`) → OK; PATCH another user's row → 0 rows; `select=*` on `users` → only own row (no other emails); INSERT `xp_events` / `user_badges` → 403; RPC `award_xp_and_check_level` → 403; `get_admin_stats` → 403 "admin only"; `user_progress`/`xp_events`/`ai_generated_questions` → own rows only; `get_top_users` / `get_public_profiles` → public columns only; unpublished lessons → 0 rows; anon: `users`/`user_progress` → empty, leaderboard + XP RPCs denied.
+
+**FIXED in this commit (live after the next deploy)**
+1. **Privacy: public sitemap listed every user's name** (`/u/<name-slug>`, which also 404'd) **and every certificate code.** `sitemap.ts` now lists only `/`, `/pricing`, `/courses`.
+2. **Wrong canonical domain:** `robots.txt`, `sitemap.xml`, `metadataBase`/OpenGraph and the **certificate QR/verify URL** were hardcoded to `https://devpath.ro` (not this app). New `src/lib/site.ts` (`SITE_URL` = `NEXT_PUBLIC_SITE_URL`, fallback the vercel.app URL) is used in all of them. (Static brand text "devpath.ro" in the PDF/portfolio header/landing copy is unchanged.)
+3. **Performance — functions ran in `iad1` (US East) while Supabase is in eu-central-1**: lesson pages 2–5 s (median 1.9 s under load), cached quiz read 5 s. `vercel.json` → `"regions": ["fra1"]`. Re-measure after redeploy.
+4. **Pricing "Alege Pro" silently bounced a signed-in user to the dashboard** (no `NEXT_PUBLIC_STRIPE_*_PRICE_ID` → fell through to `/register?next=` → middleware → `/dashboard`). It now shows "Plățile nu sunt disponibile momentan. Revino în curând."
+5. Landing hero copy no longer advertises the retired "mod simplu și tehnic".
+
+**OPEN — proposed follow-ups (not fixed here)**
+- 🟠 **Python editor is unreachable**: no published lesson contains a `python-editor` block (all Python is static code fences), so F1 (Pyodide, timeout, Stop) could not be exercised on prod and is invisible to learners.
+- 🟠 **Interactive layer is empty**: `flashcards`, `inline_questions`, `wow_notes`, `quiz_questions` all have 0 rows → `/flashcards` can never unlock; no inline questions/Wow Notes in any lesson.
+- 🟡 **Interview content mismatch**: fixed categories (Concepte AI / ML / Rețele Neuronale / LLM) while the live curriculum is Hardware → OS → Networks → Python → Algorithms → Math.
+- 🟡 **Logout is only at the bottom of the dashboard** (not in navbar/profile).
+- 🟡 **Soft 404s**: unknown `/u/<handle>` and non-existent lesson ids return HTTP 200 (streaming + `loading.tsx`) with a not-found body, `robots: index`; titles read "… — DevPath RO — DevPath RO" (duplicated template suffix).
+- 🟡 `/u/<email-local-part>` still resolves (account-existence enumeration); consider referral-code only.
+- ⚪ Closed AI Coach panel's buttons stay in the tab order (off-screen); "1 zile streak" grammar; quiz first generation ~18 s (re-measure post-region-fix); `NEXT_PUBLIC_STRIPE_*` unset by design (payments off).
+- **Not exercised:** certificate PDF (needs a completed course), Stripe/Resend/cron/push (disabled by design), complete Google consent screen (needs a human).
+
 ### Phase 8 — pre-deploy cleanup + push to GitHub `main` (2026-10-03) ✅
 - **Repo audit (before touching anything):** 146 working-tree entries (96 modified, 4 deleted, 46 untracked → ~373 files). **No personal file is, or ever was, in git:** `git ls-files` shows none of the CV PDFs / `edunext-work.png` / `calorie-tracker-showcase.png` / `football-platform-cover.png` / `linkedin-banner*.png` / `devpath-public/` / `graphify-out/` tracked, and `git log --all` finds none of them (nor `.env*`) in any commit — so no history rewrite is needed. They were already root-anchored in `.gitignore` (Phase 7B); `.env*.local` ignored (`.env.local` confirmed untracked). `devpath-public/` is a separate nested git repo with its own `.claude/settings.local.json`. Secret-pattern scan over every changed/untracked text file: no hits; `.env.example` holds a placeholder.
 - **Removed:** `.qa-screenshots/` (137 files) and `.playwright-mcp/` (2) — gitignored QA scratch. No `*-build*` copies in the repo (isolated builds live in `%TEMP%` and were deleted each time).

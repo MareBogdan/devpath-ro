@@ -1,67 +1,30 @@
 import { MetadataRoute } from "next";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { SITE_URL } from "@/lib/site";
 
-const BASE_URL = "https://devpath.ro";
-
-export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const supabase = createSupabaseAdminClient();
-
-  // ── Static routes ──────────────────────────────────────────────────────────
-  const staticRoutes: MetadataRoute.Sitemap = [
+/**
+ * Public, non-personal pages only. Deliberately NOT listed: /u/[handle] portfolios
+ * (users never opted into being indexed, and a name-slug list leaks every account's
+ * name) and /verify/[code] certificates (the code is the secret that gates the page).
+ */
+export default function sitemap(): MetadataRoute.Sitemap {
+  return [
     {
-      url: BASE_URL,
+      url: SITE_URL,
       lastModified: new Date(),
       changeFrequency: "weekly",
       priority: 1.0,
     },
     {
-      url: `${BASE_URL}/pricing`,
+      url: `${SITE_URL}/pricing`,
       lastModified: new Date(),
       changeFrequency: "monthly",
       priority: 0.9,
     },
     {
-      url: `${BASE_URL}/courses`,
+      url: `${SITE_URL}/courses`,
       lastModified: new Date(),
       changeFrequency: "weekly",
       priority: 0.8,
     },
   ];
-
-  // ── Dynamic /u/[username] — public portfolio pages ─────────────────────────
-  const { data: users } = await supabase
-    .from("users")
-    .select("email, name")
-    .not("name", "is", null);
-
-  const portfolioRoutes: MetadataRoute.Sitemap = (users ?? []).map((u) => {
-    const username = (u.name as string)
-      .toLowerCase()
-      .replace(/\s+/g, "-")
-      .replace(/[^a-z0-9-]/g, "");
-    return {
-      url: `${BASE_URL}/u/${username}`,
-      lastModified: new Date(),
-      changeFrequency: "monthly" as const,
-      priority: 0.6,
-    };
-  });
-
-  // ── Dynamic /verify/[code] — certificates ─────────────────────────────────
-  let certificateRoutes: MetadataRoute.Sitemap = [];
-  try {
-    const { data: certs } = await supabase
-      .from("certificates")
-      .select("code, issued_at");
-    certificateRoutes = (certs ?? []).map((c) => ({
-      url: `${BASE_URL}/verify/${c.code}`,
-      lastModified: new Date(c.issued_at ?? Date.now()),
-      changeFrequency: "never" as const,
-      priority: 0.4,
-    }));
-  } catch {
-    // certificates table not yet created — skip gracefully
-  }
-
-  return [...staticRoutes, ...portfolioRoutes, ...certificateRoutes];
 }

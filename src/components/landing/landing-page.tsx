@@ -283,8 +283,8 @@ export function LandingPage({ isAuthenticated, lessonCount, courseCount }: Landi
               variants={fadeUp}
               className="mt-6 text-xl text-aurora-text-secondary leading-relaxed"
             >
-              Cursuri interactive cu mod simplu și tehnic, AI Coach personal în română,
-              și portofoliu generat automat. Pornești de la zero — ajungi angajabil.
+              Cursuri interactive, AI Coach personal în română și portofoliu generat
+              automat. Pornești de la zero — ajungi angajabil.
             </motion.p>
 
             <motion.div variants={fadeUp} className="mt-8 flex items-center gap-4 flex-wrap">

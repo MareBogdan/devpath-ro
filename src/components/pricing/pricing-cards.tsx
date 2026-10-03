@@ -317,11 +317,17 @@ export function PricingCards({ currentPlan, isAuthenticated }: PricingCardsProps
               ) : (
                 // Paid plan — triggers Stripe checkout
                 <button
-                  onClick={() =>
-                    priceId && plan.planType
-                      ? handleCheckout(plan.planType, priceId)
-                      : router.push("/register?next=/pricing")
-                  }
+                  onClick={() => {
+                    if (priceId && plan.planType) {
+                      void handleCheckout(plan.planType, priceId);
+                    } else if (isAuthenticated) {
+                      // Payments aren't configured (no price id): say so instead of
+                      // bouncing a signed-in user /register → /dashboard silently.
+                      setError("Plățile nu sunt disponibile momentan. Revino în curând.");
+                    } else {
+                      router.push("/register?next=/pricing");
+                    }
+                  }}
                   disabled={isLoading || loadingPlan !== null}
                   className={`inline-flex items-center justify-center gap-2 font-semibold py-3 px-6 rounded-xl transition text-sm disabled:opacity-60 disabled:cursor-not-allowed ${
                     plan.highlight
