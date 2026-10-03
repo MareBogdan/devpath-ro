@@ -4,6 +4,7 @@ import {
   useCallback,
   useEffect,
   useId,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -1409,7 +1410,103 @@ function DesktopMap({
 }
 
 // ─── Mobile layout ────────────────────────────────────────────────────────────
-// [8b] All nodes show labels, not just checkpoints. Current node shows sublabel.
+// One inline SVG carries a single connected, curved mini-serpentine (per-segment
+// module colors, like desktop). Nodes are HTML discs positioned ON the curve
+// points so icons/status styling stay crisp and tappable. SVG + CSS only — no
+// per-node framer-motion (≈131 nodes).
+
+/** Logical SVG width. The SVG scales to the container (max 440px), so on any
+ *  phone ≥360px the scale is ≥ 1 and px-sized labels never outgrow their rows. */
+const MW = 360;
+/** Horizontal swing of lesson nodes, as a fraction of MW (≈101 units each side). */
+const M_AMP = 0.28;
+/** Minimum vertical distance between consecutive node centers. */
+const M_MIN_GAP = 88;
+const M_TOP = 46;
+/** Label box width (px) for lessons / checkpoints. */
+const M_LABEL_W = 96;
+const M_LABEL_W_CP = 112;
+/** Outward nudge of the label away from the curve (px). */
+const M_LABEL_BIAS = 10;
+
+const M_LESSON_SIZES = { completed: 36, current: 44, available: 34, locked: 30 } as const;
+const M_CP_SIZES = { completed: 48, current: 50, available: 46, locked: 42 } as const;
+
+/** Greedy word-wrap line estimate — only used to size vertical rows. */
+function estLines(text: string, maxChars: number): number {
+  let lines = 1;
+  let cur = 0;
+  for (const w of text.split(/\s+/)) {
+    const wl = w.length;
+    if (cur === 0) cur = wl;
+    else if (cur + 1 + wl <= maxChars) cur += 1 + wl;
+    else {
+      lines++;
+      cur = wl;
+    }
+    // very long single words wrap by character (overflow-wrap:anywhere)
+    while (cur > maxChars) {
+      lines++;
+      cur -= maxChars;
+    }
+  }
+  return lines;
+}
+
+interface MobileItem {
+  /** index in the original `nodes` array (keeps `colors[]` aligned) */
+  i: number;
+  x: number;
+  y: number;
+  /** -1 left, 1 right, 0 centered (checkpoint) */
+  side: -1 | 0 | 1;
+  size: number;
+}
+
+function computeMobileLayout(nodes: LessonNode[]): { items: MobileItem[]; height: number } {
+  const items: MobileItem[] = [];
+  let lessonCount = 0;
+  let y = M_TOP;
+  let prevBottom = 0; // vertical room the previous node's label needs below its center
+
+  nodes.forEach((n, i) => {
+    if (ntype(n) === "world-gate") return; // gates are desktop-only
+    const isCP = ntype(n) === "checkpoint";
+    const size = (isCP ? M_CP_SIZES : M_LESSON_SIZES)[n.status];
+    const side: -1 | 0 | 1 = isCP ? 0 : lessonCount % 2 === 0 ? -1 : 1;
+    if (!isCP) lessonCount++;
+    const x = MW / 2 + side * MW * M_AMP;
+
+    if (items.length > 0) y += Math.max(M_MIN_GAP, prevBottom);
+    items.push({ i, x, y, side, size });
+
+    const lines = estLines(n.label, isCP ? 14 : 16);
+    const lineH = isCP ? 15 : 12.5;
+    const sub = n.status === "current" && n.sublabel ? 13 : 0;
+    prevBottom = size / 2 + 4 + lines * lineH + sub + 10;
+  });
+
+  return { items, height: y + prevBottom + 20 };
+}
+
+/** One cubic per segment, Catmull-Rom tangents → the whole path is C1-smooth
+ *  (vertical through zig-zag extremes, diagonal through centered checkpoints). */
+function mobileSegments(pts: { x: number; y: number }[]): string[] {
+  const K = 0.3;
+  const out: string[] = [];
+  for (let k = 0; k < pts.length - 1; k++) {
+    const p0 = pts[k - 1] ?? pts[k];
+    const p1 = pts[k];
+    const p2 = pts[k + 1];
+    const p3 = pts[k + 2] ?? pts[k + 1];
+    const c1x = p1.x + (p2.x - p0.x) * K;
+    const c1y = Math.min(p1.y + (p2.y - p0.y) * K, p2.y);
+    const c2x = p2.x - (p3.x - p1.x) * K;
+    const c2y = Math.max(p2.y - (p3.y - p1.y) * K, p1.y);
+    out.push(`M ${p1.x} ${p1.y} C ${c1x} ${c1y} ${c2x} ${c2y} ${p2.x} ${p2.y}`);
+  }
+  return out;
+}
 
 function MobileMap({
   nodes,
@@ -1422,38 +1519,116 @@ function MobileMap({
   colors: string[];
   setRef: (id: string, el: HTMLDivElement | null) => void;
 }) {
-  return (
-    <div className="relative flex flex-col items-center">
-      {nodes.map((n, i) => {
-        if (ntype(n) === "world-gate") return null; // gates are desktop-only
-        const isCP = ntype(n) === "checkpoint";
-        const col = colors[i];
-        const isLast = i === nodes.length - 1;
-        const canClick = n.status !== "locked" && !!onClick;
-        const sz = isCP
-          ? { completed: 48, current: 50, available: 46, locked: 42 }[n.status]
-          : { completed: 36, current: 44, available: 34, locked: 30 }[n.status];
-        const iconSz = isCP ? 20 : n.status === "locked" ? 12 : 14;
-        const Icon = n.icon;
-        const offset = isCP ? 0 : i % 2 === 0 ? -28 : 28;
+  const uid = useId().replace(/:/g, "");
+  const { items, height } = useMemo(() => computeMobileLayout(nodes), [nodes]);
+  const segs = useMemo(() => mobileSegments(items), [items]);
 
-        return (
-          <div key={n.id} ref={(el) => setRef(n.id, el)} data-node-id={n.id} data-status={n.status} className="flex flex-col items-center">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.7 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: i * 0.024, type: "spring", stiffness: 340, damping: 22 }}
-              style={{ marginLeft: offset }}
+  return (
+    <div className="relative mx-auto w-full max-w-[440px]">
+      <svg
+        viewBox={`0 0 ${MW} ${height}`}
+        width="100%"
+        className="block"
+        aria-label="Hartă de lecții"
+        role="img"
+      >
+        <defs>
+          {/* Course-boundary gradients — interpolate color N → N+1 */}
+          {items.map((it, k) => {
+            if (k === 0) return null;
+            const prev = items[k - 1];
+            if (colors[it.i] === colors[prev.i]) return null;
+            return (
+              <linearGradient
+                key={`bnd-${k}`}
+                id={`mbnd-${k}-${uid}`}
+                gradientUnits="userSpaceOnUse"
+                x1={prev.x}
+                y1={prev.y}
+                x2={it.x}
+                y2={it.y}
+              >
+                <stop offset="0%" stopColor={colors[prev.i]} />
+                <stop offset="100%" stopColor={colors[it.i]} />
+              </linearGradient>
+            );
+          })}
+        </defs>
+
+        {segs.map((d, s) => {
+          const from = items[s];
+          const to = items[s + 1];
+          const done =
+            nodes[from.i].status === "completed" || nodes[from.i].status === "current";
+          const isBoundary = colors[to.i] !== colors[from.i];
+          const paint = isBoundary ? `url(#mbnd-${s + 1}-${uid})` : colors[to.i];
+          return (
+            <g key={s}>
+              {done && (
+                <path
+                  d={d}
+                  fill="none"
+                  stroke={paint}
+                  strokeWidth={9}
+                  strokeLinecap="round"
+                  opacity={0.14}
+                  className="sp-path-glow"
+                />
+              )}
+              <path
+                d={d}
+                fill="none"
+                stroke={done ? paint : "hsl(var(--border))"}
+                strokeWidth={done ? 3.5 : 3}
+                strokeLinecap="round"
+                strokeDasharray={done ? undefined : "5 9"}
+                opacity={done ? 1 : 0.48}
+              />
+            </g>
+          );
+        })}
+      </svg>
+
+      <div className="absolute inset-0">
+        {items.map((it, k) => {
+          const n = nodes[it.i];
+          const isCP = it.side === 0;
+          const col = colors[it.i];
+          const canClick = n.status !== "locked" && !!onClick;
+          const sz = it.size;
+          const iconSz = isCP ? 20 : n.status === "locked" ? 12 : 14;
+          const Icon = n.icon;
+          const delay = Math.min(k, 14) * 28;
+
+          return (
+            <div
+              key={n.id}
+              ref={(el) => setRef(n.id, el)}
+              data-node-id={n.id}
+              data-status={n.status}
+              role={canClick ? "button" : undefined}
+              aria-label={n.label}
+              className={cn("absolute", canClick && "cursor-pointer")}
+              style={{
+                left: `${(it.x / MW) * 100}%`,
+                top: `${(it.y / height) * 100}%`,
+                width: sz,
+                height: sz,
+                transform: "translate(-50%,-50%)",
+              }}
+              onClick={canClick ? () => onClick!(n.id) : undefined}
             >
-              <motion.div
+              {/* ≥44px tap area regardless of disc size */}
+              {canClick && (
+                <span
+                  aria-hidden
+                  className="absolute left-1/2 top-1/2 h-11 w-11 -translate-x-1/2 -translate-y-1/2"
+                />
+              )}
+              <div
+                className="animate-in fade-in zoom-in-75 duration-300 fill-mode-backwards flex h-full w-full items-center justify-center rounded-full transition-transform active:scale-95"
                 style={{
-                  width: sz,
-                  height: sz,
-                  borderRadius: "50%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  cursor: canClick ? "pointer" : "default",
+                  animationDelay: `${delay}ms`,
                   // [1a+3a] Locked nodes use module color
                   background:
                     n.status === "completed"
@@ -1469,9 +1644,6 @@ function MobileMap({
                   boxShadow:
                     n.status !== "locked" ? `0 0 ${isCP ? 20 : 8}px ${col}55` : undefined,
                 }}
-                whileHover={canClick ? { scale: 1.08 } : undefined}
-                whileTap={canClick ? { scale: 0.94 } : undefined}
-                onClick={canClick ? () => onClick!(n.id) : undefined}
               >
                 {/* [6c] Completed lessons show original icon with badge */}
                 {n.status === "completed" ? (
@@ -1499,43 +1671,42 @@ function MobileMap({
                 ) : (
                   <Lock style={{ width: isCP ? 18 : 12, height: isCP ? 18 : 12, color: `${col}88` }} />
                 )}
-              </motion.div>
+              </div>
 
-              {/* [8b] Labels for ALL nodes — larger text for checkpoints */}
-              <p
-                className={cn(
-                  "text-center mt-1 leading-tight [overflow-wrap:anywhere]",
-                  isCP ? "text-[12px] font-bold" : "text-[10px] font-medium"
-                )}
+              {/* [8b] Labels for ALL nodes, centered under the disc (nudged away
+                  from the curve); a soft halo keeps text legible where the path
+                  sweeps behind it. */}
+              <div
+                className="animate-in fade-in duration-300 fill-mode-backwards absolute left-1/2 top-full mt-1 flex flex-col items-center"
                 style={{
-                  color: n.status === "locked" ? `${col}88` : col,
-                  maxWidth: isCP ? 90 : 80,
+                  width: isCP ? M_LABEL_W_CP : M_LABEL_W,
+                  transform: `translateX(calc(-50% + ${it.side * M_LABEL_BIAS}px))`,
+                  animationDelay: `${delay}ms`,
                 }}
               >
-                {n.label}
-              </p>
-              {/* Show sublabel for current node */}
-              {n.status === "current" && n.sublabel && (
-                <p className="text-[9px] text-center mt-0.5" style={{ color: "#9CA3AF" }}>
-                  {n.sublabel}
+                <p
+                  className={cn(
+                    "rounded-md px-1 text-center leading-tight [overflow-wrap:anywhere]",
+                    isCP ? "text-[12px] font-bold" : "text-[10px] font-medium"
+                  )}
+                  style={{
+                    color: n.status === "locked" ? `${col}88` : col,
+                    background: "hsl(var(--background) / 0.72)",
+                  }}
+                >
+                  {n.label}
                 </p>
-              )}
-            </motion.div>
-            {!isLast && (
-              <div
-                style={{
-                  width: 2,
-                  height: isCP ? 18 : 10,
-                  background: n.status === "completed" ? col : `${col}35`,
-                  borderRadius: 1,
-                  margin: "3px 0",
-                  opacity: n.status === "locked" ? 0.4 : 0.75,
-                }}
-              />
-            )}
-          </div>
-        );
-      })}
+                {/* Show sublabel for current node */}
+                {n.status === "current" && n.sublabel && (
+                  <p className="mt-0.5 text-center text-[9px]" style={{ color: "#9CA3AF" }}>
+                    {n.sublabel}
+                  </p>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

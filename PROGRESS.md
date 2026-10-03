@@ -570,6 +570,17 @@ Playwright against the live URL (+ Supabase `zgofeajewktwmswckgup` via MCP). Thr
 
 ---
 
+### Phase 8 — mobile course map redesigned as a real serpentine (2026-10-03) ✅ (desktop untouched)
+- **Problem:** on <768px the map was a flex column of discs zig-zagging ±28px, joined by short straight vertical stubs that did not follow the zig-zag — it read as floating circles.
+- **Change (only `MobileMap` + mobile-only helpers in `src/components/ui/serpentine-path.tsx`):** the whole mobile map is now ONE inline SVG (viewBox 360 wide, scales to the container, max 440px). Nodes sit ON the curve; lessons alternate left/right at ±28% of the width, checkpoints centered (rule kept); gates stay desktop-only. Consecutive nodes are joined by cubic Béziers with Catmull-Rom tangents (C1-smooth: vertical through zig-zag extremes, diagonal through checkpoints), coloured per module exactly like desktop (same `colors[]`, same course-boundary gradient, completed/current = solid + soft glow, rest = dashed + faded). Row height = max(88, disc + estimated label height) so 3–4 line labels never reach the next node. Labels centred under the disc (nudged 10px away from the curve, capped 96/112px) with a soft background halo where the path sweeps behind them; current node keeps its sublabel. Disc sizes/colours/icons/status styling copied unchanged; ≥44px invisible tap area per node.
+- **Perf:** removed the 2 framer-motion wrappers per node (≈260 springs). Entrance is a CSS `animate-in fade-in zoom-in-75` (tailwindcss-animate, already installed), stagger capped at 14 nodes; press feedback is CSS `active:scale-95`. No new packages, no globals.css change.
+- **Kept:** `setRef`/`data-node-id`/`data-status` on each node wrapper, so `activeNodeId` still scrolls the right node to centre (verified: node at y≈418 of 844 after load).
+- **QA (Playwright, isolated scratch copy on :3100 with a public page feeding 131 synthetic nodes / 6 courses to the REAL component; deleted-able in %TEMP%, your :3000 untouched):** @390 and @360 — 131/131 nodes rendered, 0 label↔label / label↔disc / sublabel overlaps (checked for each node against its next 3), all content inside the viewport (min left 28–35px, max right ≤ viewport−28), **no horizontal scroll** (scrollWidth = clientWidth), 131/131 tap areas ≥ 44px, violet→teal gradient at the course boundary, current node + sublabel visible. **Desktop @1440 before vs after: identical** — same 162 paths, same 131 node rects, same page height (8346) → same geometry hash (2624994112 both runs). Screenshots: `.qa-screenshots/mobile-serpentine/`.
+- **Limits:** the synthetic data has no *locked* nodes (the app no longer produces them), so the locked style was only ported, not seen; real-device scroll smoothness not measured (131 light DOM nodes + 1 SVG, no JS animation).
+- Gate: `tsc` 0 · `lint` 0 errors (the 2 P7-09 warnings) · `build` passes with lint ON (isolated copy).
+
+---
+
 ## Suggested execution order (8 prompts)
 
 1. **(this one)** Audit ✅
