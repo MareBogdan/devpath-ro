@@ -1,0 +1,152 @@
+---
+title: "Criptografia Asimetrică — două chei, o revoluție"
+order: 16
+type: lesson
+module_index: 3
+duration: 20
+difficulty: 4
+---
+
+# Criptografia Asimetrică — două chei, o revoluție
+
+## HOOK
+
+Ai un secret de spus cuiva pe care nu l-ai întâlnit niciodată. Între voi e tot internetul din blocul precedent: fiecare router de la L10, fiecare NAT de la L11, fiecare proxy de la L12, fiecare PoP de CDN de la L15 poate citi tot ce trece. Vrei să-i trimiți o cheie secretă ca să vă criptați conversația — dar ca s-o trimiți în siguranță ți-ar trebui deja o cheie secretă comună. Ca s-o ai pe aia, ți-ar trebui alta. La infinit.
+
+Ăsta e **problema distribuirii cheii**, și timp de patru mii de ani n-a avut soluție. Cezar, Enigma, telegramele diplomatice — toate se bazau pe faptul că cele două părți se întâlniseră fizic înainte și schimbaseră un secret. Fără întâlnire prealabilă, comunicarea sigură era imposibilă. Iar internetul e exact scenariul imposibil: milioane de străini care trebuie să vorbească în secret, instant, fără să se fi văzut vreodată.
+
+În 1976, doi cercetători au spart zidul cu o idee care părea absurdă: **ce-ar fi dacă cheia cu care încui NU e aceeași cu cheia cu care descui?** Una publică, pe care o dai oricui. Una privată, pe care n-o dai nimănui. Din asta se naște tot ce ține internetul în viață — de la lacătul din browser la semnătura care garantează că update-ul pe care-l instalezi vine chiar de la producător.
+
+---
+
+## CONTEXT
+
+Din L15 știi că CDN-ul termină TLS la marginea rețelei, iar din L6 ai auzit că TLS criptează conexiunea. Din L20 (Cursul 2, SSH) ai văzut deja Diffie-Hellman în acțiune. Acum înțelegi **matematica** din spate — fundamentul pe care se ridică totul.
+
+Criptografia clasică e **simetrică**: aceeași cheie criptează și decriptează. AES-256 (din SSH) e rege aici — rapid, accelerat hardware, imposibil de spart prin forță brută. Problema nu e algoritmul, ci **logistica cheii**: cum ajunge aceeași cheie secretă la ambele părți printr-un canal pe care toată lumea îl ascultă?
+
+Criptografia **asimetrică** rezolvă exact asta printr-o pereche de chei legate matematic: ce încui cu una, descui doar cu cealaltă. Ea nu înlocuiește AES — e prea lentă pentru asta. Ea rezolvă trei probleme pe care simetricul nu le poate atinge: **schimbul de cheie** (cum stabilim un secret comun în public), **identitatea** (cu cine vorbesc de fapt) și **semnătura** (cine a scris asta și n-a fost modificat). Trei întrebări, un răspuns matematic — și puntea directă spre handshake-ul TLS din L17.
+
+---
+
+## MIEZUL
+
+### Funcțiile într-un singur sens — trapa matematică
+
+Toată criptografia asimetrică stă pe **funcții one-way cu trapă**: ușor de calculat într-o direcție, practic imposibil de inversat — *decât* dacă ai un secret (trapa).
+
+Analogia clasică: cartea de telefon veche. Dacă îți dau numele, găsești numărul în secunde (e ordonată alfabetic). Dacă îți dau numărul și-ți cer numele, trebuie să parcurgi toată cartea. Aceeași operație, dificultate radical diferită în funcție de direcție. În criptografie, "greu" înseamnă *computațional imposibil* — miliarde de ani chiar și pentru toate calculatoarele planetei.
+
+Două probleme matematice stau la baza a aproape tot:
+
+- **Factorizarea numerelor mari.** Înmulțești două numere prime de câteva sute de cifre: instant. Pornești invers de la produs și încerci să-i afli factorii primi: nicio metodă cunoscută nu o face în timp rezonabil. Ăsta e RSA.
+- **Logaritmul discret.** Ridici o bază la o putere modulo un prim mare: instant. Pornești invers de la rezultat și cauți exponentul: imposibil practic. Asta e Diffie-Hellman și criptografia pe curbe eliptice.
+
+### RSA — matematica lacătului
+
+RSA (1977, Rivest–Shamir–Adleman) e cel mai intuitiv de înțeles. Generarea cheii:
+
+1. Alegi două numere prime uriașe, `p` și `q` (fiecare ~1024 biți).
+2. Calculezi `n = p × q` (modulul, ~2048 biți) și `φ(n) = (p−1)(q−1)`.
+3. Alegi un exponent public `e` (de obicei 65537).
+4. Calculezi exponentul privat `d`, inversul lui `e` modulo `φ(n)`.
+
+**Cheia publică** e perechea `(n, e)` — o dai oricui. **Cheia privată** e `d` — n-o dai nimănui.
+
+Criptarea și decriptarea sunt oglinzi matematice:
+
+$$
+c = m^e \bmod n \qquad m = c^d \bmod n
+$$
+
+Cine îți vrea mesajul trebuie să afle `d`. Ca să afle `d`, îi trebuie `φ(n)`. Ca să afle `φ(n)`, trebuie să spargă `n` în `p` și `q` — factorizarea imposibilă. Publici `n` fără frică: e produsul, nu factorii.
+
+<CosmoHint emotion="thinking">
+Observă simetria frumoasă și de ce funcționează în ambele sensuri. Ai două operații-oglindă: *cripți cu cheia publică → decripți cu cea privată*, dar și *semnezi cu cheia privată → verifici cu cea publică*. Sunt aceeași matematică rulată în sens invers. Prima îți dă **confidențialitate**: oricine îți poate trimite un secret pe care doar tu îl citești, fiindcă doar tu ai cheia privată. A doua îți dă **autenticitate**: doar tu poți produce ceva ce oricine verifică cu cheia ta publică, deci dacă verificarea trece, tu ai scris-o. Aceeași pereche de chei rezolvă două probleme opuse — cine poate *citi* și cine poate *scrie* — doar schimbând care cheie o folosești prima. Ăsta e motivul pentru care o singură invenție din 1976 a putut susține și lacătul din browser, și semnătura digitală, și login-ul cu cheie SSH.
+</CosmoHint>
+
+### Diffie-Hellman — secret comun în plină vedere
+
+RSA transportă un secret criptându-l. Diffie-Hellman (1976) face ceva și mai ciudat: **construiește** un secret comun pe care niciuna dintre părți nu-l trimite vreodată.
+
+Analogia culorilor: tu și un străin porniți de la o culoare publică (galben). Fiecare adaugă o culoare secretă proprie și trimiteți amestecul. Fiecare adaugă apoi *propriul* secret peste amestecul primit. Ambii ajung la aceeași culoare finală — dar un observator care a văzut doar amestecurile intermediare nu poate "desface" vopseaua ca să afle secretele. Matematic, "amestecul" e ridicarea la putere modulo un prim, iar "desfacerea" e logaritmul discret — imposibil.
+
+Din L20 știi deja fluxul: clientul alege secret `x` și trimite `g^x mod p`; serverul alege `y` și trimite `g^y mod p`; ambii calculează `g^xy mod p`. Cheia comună apare fără să traverseze rețeaua. Varianta modernă, **ephemeral** (ECDHE), generează un `x` și `y` nou la fiecare sesiune — baza pentru *forward secrecy*, pe care o vezi în L17.
+
+### Curbele eliptice — aceeași forță, chei mici
+
+RSA are o problemă: ca să crești securitatea, cheile cresc brutal. RSA-2048 dă ~112 biți de securitate; ca să ajungi la 128 îți trebuie RSA-3072. Pe dispozitive mici (telefoane, IoT, carduri) e prea scump.
+
+**Criptografia pe curbe eliptice (ECC)** rezolvă problema logaritmului discret pe o structură matematică diferită — puncte pe o curbă, cu o operație de "adunare" geometrică. Problema inversă (afli de câte ori s-a adunat un punct cu el însuși) e și mai grea decât la numere obișnuite, deci obții aceeași securitate cu chei mult mai mici:
+
+{/* TABLE */}
+
+| Securitate | RSA | ECC | Raport |
+|---|---|---|---|
+| 112 biți | 2048 biți | 224 biți | ~9× |
+| 128 biți | 3072 biți | 256 biți | ~12× |
+| 256 biți | 15360 biți | 512 biți | ~30× |
+
+De-aia internetul modern migrează spre ECC: **X25519** pentru schimb de cheie și **Ed25519** pentru semnături (le-ai văzut la SSH în L20) — rapide, chei de 32 de bytes, imune la o clasă de atacuri prin sincronizare.
+
+### Semnăturile digitale — sigiliul care nu se poate falsifica
+
+A treia superputere: dovada că un mesaj vine de la cine spune și n-a fost atins. Nu cripți conținutul — îl **sigilezi**.
+
+Fluxul: calculezi un hash al mesajului (o amprentă de dimensiune fixă), apoi îl "cripți" cu cheia ta **privată** → asta e semnătura. Oricine recalculează hash-ul mesajului și verifică semnătura cu cheia ta **publică**. Dacă cele două se potrivesc: mesajul e neatins (integritate) și doar tu l-ai putut semna (autenticitate + non-repudiere).
+
+Aici se sudează blocul: semnăturile digitale sunt cum browserul verifică certificatul unui site (L17), cum sistemul de operare verifică un update, cum Bitcoin dovedește cine deține monedele. Fără ele, cheia publică pe care o primești ar putea fi a unui atacator din mijloc (MITM) — semnătura unei autorități de încredere e ce leagă o cheie de o identitate reală.
+
+### Criptografia hibridă — de ce nu cripți tot cu RSA
+
+RSA și ECC sunt **lente** — de ordinul a de 1000× mai lente decât AES pentru volume mari de date. Nimeni nu cripta un stream video de 4K cu RSA; ar fi inutilizabil.
+
+Soluția reală, folosită peste tot: **criptografie hibridă**. Folosești asimetricul o singură dată, la început, doar ca să stabiliți în siguranță o cheie simetrică (AES). Apoi toată conversația curge prin AES, rapid. Asimetricul deschide ușa; simetricul cară marfa.
+
+<CosmoHint emotion="encouraging">
+Nu memora algoritmii ca formule izolate — reține **diviziunea muncii**, fiindcă asta explică fiecare protocol pe care-l vei întâlni. Asimetricul (RSA/ECC/DH) e scump și de aceea îl folosești o singură dată, la deschiderea conexiunii, ca să rezolvi problema imposibilă: să stabilești un secret comun cu un străin. Simetricul (AES) e ieftin și de aceea îl folosești pentru tot restul: gigaocteții de date care curg după aceea. Când vei citi handshake-ul TLS în L17, n-o să vezi o grămadă de matematică aleatorie — o să vezi exact acest tipar: câteva milisecunde de criptografie asimetrică scumpă la început ca să nască o cheie AES, apoi viteză simetrică pentru tot ce urmează. Odată ce vezi tiparul "asimetric ca să pornești, simetric ca să duci", ai înțeles arhitectura fiecărui canal criptat din lume.
+</CosmoHint>
+
+### Amenințarea cuantică
+
+Un calculator cuantic suficient de mare, rulând **algoritmul lui Shor**, ar sparge factorizarea și logaritmul discret în timp polinomial — adică ar prăbuși RSA și ECC deodată. Astfel de calculatoare încă nu există la scara necesară, dar amenințarea e reală pe termen lung ("harvest now, decrypt later": atacatorii stochează azi trafic criptat ca să-l spargă mâine).
+
+Răspunsul e **criptografia post-cuantică**. În 2024, NIST a standardizat primii algoritmi rezistenți la cuantic — **ML-KEM** (schimb de cheie, fostul Kyber) și **ML-DSA** (semnături, fostul Dilithium) — bazați pe probleme din rețele matematice (lattices), nu pe factorizare. Migrarea internetului spre ei a și început, adesea în mod hibrid (clasic + post-cuantic simultan).
+
+<FactBox>
+**Criptografia asimetrică — cifre cheie:**
+- Diffie-Hellman: **1976** · RSA: **1977** (prima soluție practică)
+- RSA-2048 ≈ **112 biți** securitate; RSA-3072 ≈ **128 biți**
+- ECC-256 ≈ **128 biți** — aceeași forță ca RSA-3072, cheie de **~12× mai mică**
+- Ed25519: cheie privată de **32 bytes**, semnătură de **64 bytes**
+- Asimetric vs simetric: RSA e de **~1000×** mai lent decât AES → de aici criptografia hibridă
+- Exponent public RSA uzual: **65537** (`2^16 + 1`)
+- Shor's algorithm sparge RSA + ECC → NIST standardizează **ML-KEM** și **ML-DSA** în **2024**
+- "Harvest now, decrypt later": traficul criptat azi poate fi ținta de mâine
+</FactBox>
+
+---
+
+## REVEAL
+
+Cele trei primitive ale criptografiei moderne, fiecare cu rolul ei — și de ce niciuna nu ajunge singură:
+
+{/* TABLE */}
+
+| Primitivă | Ce rezolvă | Exemplu | Slăbiciune |
+|---|---|---|---|
+| **Simetrică** (AES) | confidențialitate rapidă, volume mari | streamul după handshake | distribuirea cheii |
+| **Asimetrică** (RSA/ECC/DH) | schimb de cheie + identitate | pornirea conexiunii | lentă, nu pentru volume |
+| **Hash** (SHA-256) | integritate, amprentă fixă | baza semnăturii | nu criptează nimic |
+
+Observația care leagă tot: un canal criptat real le compune pe toate trei. Asimetricul rezolvă problema imposibilă (secret comun cu un străin) și dovedește identitatea prin semnătură; hash-ul garantează că nimic n-a fost modificat; simetricul cară efectiv datele. Asta *este* TLS — și e exact ce dezasamblezi în L17.
+
+Instrumente practice: `openssl genpkey`/`openssl rsa` pentru a genera și inspecta chei, `openssl x509 -text` pentru a citi ce cheie publică și ce semnătură conține un certificat, iar `ssh-keygen -t ed25519` (din L20) pentru perechea ECC pe care o folosești zilnic.
+
+---
+
+## ÎNCHEIERE
+
+Criptografia asimetrică a spart un zid de patru mii de ani cu o singură idee: o cheie publică pentru încuiat, una privată pentru descuiat. Din perechea asta ies trei superputeri — schimb de cheie fără întâlnire prealabilă (Diffie-Hellman), confidențialitate (RSA/ECC) și semnături care dovedesc identitatea. Fiindcă e lentă, o folosești chirurgical: o dată, la început, ca să nască o cheie AES rapidă. Restul e viteză simetrică.
+
+Regulă practică: preferă ECC (Ed25519/X25519) în locul lui RSA pentru sisteme noi — aceeași securitate, chei mici, viteză mai bună; și ține minte că orice cheie privată care ajunge pe disc fără protecție anulează toată matematica. Ai acum toate piesele: schimb de cheie, identitate, semnătură. Urmează să le vezi combinându-se într-o coregrafie de câteva milisecunde care se întâmplă de miliarde de ori pe secundă pe tot globul — **SSL/TLS Handshake**, din L17.

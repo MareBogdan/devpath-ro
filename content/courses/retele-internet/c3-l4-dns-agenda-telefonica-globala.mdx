@@ -1,0 +1,180 @@
+---
+title: "DNS — agenda telefonică globală"
+order: 4
+type: lesson
+module_index: 3
+duration: 17
+difficulty: 3
+---
+
+# DNS — agenda telefonică globală
+
+## HOOK
+
+Pe **21 octombrie 2016**, Twitter, Netflix, GitHub, Reddit și PayPal au dispărut de pe internet pentru milioane de oameni din America de Nord și Europa. Site-urile funcționau perfect. Serverele lor erau pornite. Dar nimeni nu le mai putea găsi.
+
+Atacatorii nu loviseră site-urile. Loviseră **Dyn** — un operator DNS — cu un botnet de camere IP și DVR-uri infectate cu malware-ul Mirai, generând un val de **1,2 Tbps** de trafic. Fără DNS, numele `twitter.com` nu se mai putea traduce într-o adresă IP. Internetul era încă acolo, dar harta lui dispăruse.
+
+DNS-ul e sistemul care traduce nume în adrese IP. În L1 l-ai atins în treacăt — cascada cache → resolver → root → TLD. Acum deschidem cutia: ierarhia, cache-ul, înregistrările, și de ce un protocol vechi de **40 de ani** rămâne cel mai fragil punct al internetului.
+
+---
+
+## CONTEXT
+
+Din L3 știi că numele nu sunt rutabile — doar IP-urile. `198.51.100.24` ajunge la destinație; `example.com` nu înseamnă nimic pentru un router. DNS-ul e puntea.
+
+De ce nume și nu IP-uri direct? Memorabilitate, în primul rând. Dar mai important: un IP se schimbă (failover, migrare, reconfigurare), pe când numele rămâne constant. DNS-ul **decuplează** identitatea logică a unui serviciu de localizarea lui fizică.
+
+La început, totul era un singur fișier: `HOSTS.TXT`, menținut manual la SRI-NIC. Fiecare adăugare de host cerea descărcarea fișierului de toate nodurile. Consumul creștea cu **pătratul** numărului de host-uri — nesustenabil. În **1983**, Paul Mockapetris a inventat DNS-ul (RFC 1034/1035): o bază de date distribuită și ierarhică, fără punct unic de eșec, cu autoritate delegată. Aceeași arhitectură rulează și azi, la o scară colosală: **~390 milioane** de domenii și **trilioane** de interogări zilnic.
+
+---
+
+## MIEZUL
+
+### Ierarhia — un arbore inversat
+
+DNS-ul e un arbore cu rădăcina sus. Originea e **root**-ul, notat cu un punct (`.`). Un **FQDN** (Fully Qualified Domain Name) e calea completă până la root, inclusiv punctul final implicit: `www.example.com.`
+
+Sub root sunt **TLD**-urile (Top-Level Domains), gestionate sub IANA:
+- **gTLD** generice: `.com`, `.org`
+- **ccTLD** de țară: `.ro` (administrat de RoTLD / ICI București), `.de`
+- **ngTLD** noi: `.ai`, `.shop` (explozie după 2012)
+
+La începutul lui 2026 existau **~1.591** de TLD-uri delegate. Sub TLD vin domeniile de nivel secundar (`example.com`) și subdomeniile (`api.example.com`), autoritatea fiind delegată continuu în jos.
+
+Root-ul e deservit de exact **13 servere logice**, numite `a` până la `m` (`a.root-servers.net`...). De ce fix 13? Nu e arbitrar — e o moștenire matematică. RFC 1035 limita pachetele DNS peste UDP la **512 bytes** (ca să încapă fără fragmentare IP). Răspunsul de inițializare (priming query) care listează toate cele 13 servere ocupă **436 bytes** — cu compresie de nume. Un al 14-lea ar fi riscat depășirea limitei și trecerea forțată pe TCP. Azi limita e depășită prin EDNS0, dar cele 13 au rămas din compatibilitate. Și nu sunt 13 mașini — prin **Anycast**, cele 13 IP-uri sunt anunțate de **peste 1.600** de instanțe fizice pe toate continentele.
+
+### Rezoluția — recursiv vs iterativ
+
+Aici e distincția cheie. Există două tipuri de resolvere:
+
+**Stub resolver** — în sistemul de operare (apelat prin `getaddrinfo()`). E minimalist: nu știe să parcurgă ierarhia. Doar formulează interogarea, o trimite la serverul configurat (`1.1.1.1`, ISP-ul) și așteaptă răspunsul final. Cere **recursivitate**.
+
+**Recursive resolver** — la ISP sau public. El face munca grea: parcurge ierarhia **iterativ**, întrebând nivel cu nivel.
+
+Cascada pentru `www.example.com` (presupunând cache gol):
+
+1. Resolver-ul întreabă un server **Root**. Root-ul nu știe răspunsul, dar dă un **referral**: înregistrări NS cu serverele pentru `.com`.
+2. Resolver-ul întreabă serverul **TLD** `.com`. Nici el nu știe `www`, dar dă un referral către serverele autoritative ale `example.com`.
+3. Resolver-ul întreabă serverul **autoritativ**. Acesta deține fișierul de zonă, găsește înregistrarea A/AAAA și returnează IP-ul.
+4. Resolver-ul salvează în cache și trimite IP-ul la stub.
+
+Transferul de responsabilitate e ideea de bază: clientul cere **recursiv** (vreau răspunsul gata), resolver-ul lucrează **iterativ** (urmărește firul referral-urilor).
+
+<CosmoHint emotion="thinking">
+Observă diviziunea muncii — e exact ce face un proces care deleagă unui worker. Stub resolver-ul e ca un apel de funcție care zice "dă-mi rezultatul, nu mă interesează cum". Recursive resolver-ul e worker-ul care face zece apeluri de rețea în spate (root, TLD, autoritativ) și returnează un singur răspuns. Tu, ca utilizator, nu vezi niciodată cei zece pași — nu pentru că nu se întâmplă, ci pentru că aproape mereu răspunsul vine din cache. Iar fără cache, root-ul și TLD-urile ar colapsa instant sub interogări redundante.
+</CosmoHint>
+
+### Caching și TTL
+
+DNS-ul trăiește din cache. Informația e stocată pe straturi: **browser** → **OS** (`systemd-resolved`, `mDNSResponder`) → **recursive resolver**. La nivelul resolver-ului public, rata de cache hit e uriașă (latență ~0ms vs 10-100ms pentru o traversare iterativă completă).
+
+Valabilitatea e dictată de **TTL** (Time-To-Live), în secunde, setat **exclusiv de operatorul zonei**. E un compromis:
+- **TTL mare** (`86400` = 24h): puține interogări, imunitate parțială la pene (cache-ul ține serviciul viu), dar **rigid** — dacă schimbi IP-ul, traficul vechi continuă până expiră.
+- **TTL mic** (`60`-`300`): agilitate maximă (failover în câteva minute), dar sarcină mare pe serverele autoritative.
+
+De aceea, înainte de o migrare planificată, scazi preventiv TTL-ul (la 300s) cu **24-48h** înainte — ca toate cache-urile globale să fie deja forțate să reinterogheze rapid când muți IP-urile. Zero downtime.
+
+Și eșecurile se cache-uiesc: **Negative Caching**. Un domeniu inexistent returnează `NXDOMAIN`, memorat temporar pentru durata câmpului **Minimum TTL** din înregistrarea **SOA** a zonei.
+
+### Tipuri de înregistrări
+
+{/* TABLE */}
+
+| Tip | Funcție | Restricție / detaliu |
+|---|---|---|
+| **A / AAAA** | Nume → IPv4 / IPv6 | Fundamentul rutării (din L3) |
+| **CNAME** | Alias către alt nume | NU poate coexista cu alt tip; interzis la apex |
+| **MX** | Servere de mail | Cu prioritate; trebuie să puncteze A/AAAA, nu CNAME |
+| **TXT** | Metadate text | SPF, DKIM, DMARC — securitatea email-ului |
+| **NS** | Delegarea zonei | Referral-ul care face arborele să funcționeze |
+| **SOA** | Autoritatea zonei | Serial, Refresh, Retry, Minimum TTL (NXDOMAIN) |
+| **PTR** | Reverse DNS (IP → nume) | Zona `in-addr.arpa` / `ip6.arpa` |
+| **CAA** | Autorizare certificate | Limitează ce CA pot emite TLS pentru domeniu |
+
+Restricția CNAME e subtilă: dacă un nod are CNAME, nu poate avea alt tip (RFC 1034). Apex-ul (`example.com`, fără subdomeniu) trebuie obligatoriu să aibă SOA și NS — deci **nu poți pune CNAME la apex**. Asta intra în conflict cu CDN-urile, care vor să redirecționeze apex-ul. Soluția vendorilor: pseudo-înregistrări **ALIAS/ANAME** — serverul autoritativ rezolvă intern ținta (CNAME flattening) și răspunde direct cu IP-urile A/AAAA, valid la apex.
+
+### Transport — UDP, TCP și criptare
+
+DNS folosește **UDP pe portul 53** — fără handshake, o datagramă dus, una întors, latență minimă. Dar limita istorică era **512 bytes**. Când răspunsul depășește, serverul setează bitul **TC** (Truncation), iar clientul reia pe **TCP port 53** (costisitor).
+
+Cheile DNSSEC și IPv6 au umflat răspunsurile, deci a apărut **EDNS0** (RFC 6891): o pseudo-înregistrare OPT prin care clientul anunță că poate primi pachete UDP mai mari (1232 sau 4096 bytes), evitând fallback-ul TCP. TCP pur pe 53 a rămas pentru **zone transfer** între servere: **AXFR** (transfer complet) și **IXFR** (doar delta-ul, eficient).
+
+Mai nou, fiindcă DNS-ul în clar permite supraveghere (ISP-ul vede fiecare domeniu interogat), au apărut variante criptate: **DoT** (DNS over TLS, port 853) și **DoH** (DNS over HTTPS, port 443). DoH e deosebit de puternic — împachetat ca trafic HTTPS normal, e indistinct de navigarea web, anulând filtrarea prin DPI (vei vedea TLS în L17, HTTP în L20).
+
+<FactBox>
+**DNS — cifre cheie:**
+- Inventat **1983**, Paul Mockapetris (RFC 1034/1035)
+- **13** servere root logice (`a`-`m`), **>1.600** instanțe Anycast
+- TLD-uri delegate (2026): **~1.591**; domenii globale: **~390 milioane**
+- Porturi: UDP/TCP **53**, DoT **853**, DoH **443**
+- Limita UDP originală: **512 bytes**; EDNS0: **1232-4096 bytes**
+- Query ID: **16 biți** = **65.536** valori (slăbiciunea Kaminsky)
+- TTL tipice: **300s** (failover), **3600s**, **86400s** (24h)
+- Interogări zilnice: Google `8.8.8.8` **>1 trilion**, Cloudflare `1.1.1.1` **~4,3 trilioane**
+- Kaminsky cache poisoning: **2008**; Dyn DDoS (Mirai): **21 oct 2016**, **1,2 Tbps**
+- Cache hit: **~0ms**; miss (iterativ): **10-100ms**
+</FactBox>
+
+### DNS în producție — load balancing și disponibilitate
+
+Capacitatea de a mapa multe IP-uri la un nume a făcut din DNS primul load balancer. **Round-robin DNS**: mai multe înregistrări A, serverul le permută ciclic la fiecare cerere, distribuind clienții pe tot clusterul. Problema: e **stateless** — dacă un server pică, DNS-ul tot returnează IP-ul mort până expiră cache-ul.
+
+Soluția modernă: **Health Checks**. Platforma monitorizează serverele și retrage automat IP-urile moarte din răspunsuri. Cu TTL mic (sub 60s), failover-ul e aproape instant, fără intervenție umană.
+
+Și mai departe: **GeoDNS** (latency-based routing). Serverul autoritativ analizează IP-ul resolver-ului (și EDNS Client Subnet) și returnează centrul de date cel mai apropiat. Un user din Cluj primește un IP din Frankfurt; unul din New York primește Ashburn — același FQDN, IP-uri diferite. Asta e nucleul tehnologic al **CDN**-urilor (detaliu în L15). Iar resolverele și root-urile folosesc **Anycast** ca să nu cedeze niciodată.
+
+### Securitatea — de ce DNS-ul e fragil
+
+Încrederea în DNS-ul originar e șubredă. Un resolver acceptă un răspuns UDP ca legitim dacă se potrivesc patru lucruri: portul, IP-ul, domeniul și un **Query ID de 16 biți** — doar **65.536** valori.
+
+În **2008**, Dan Kaminsky a spart sistemul. Atacatorul interoga resolver-ul cu subdomenii inexistente (`1.banca.ro`, `2.banca.ro`...), forțându-l să lanseze instant mii de interogări externe — anulând întârzierea TTL. Simultan, bombarda cu răspunsuri false ghicind Query ID-ul, iar în secțiunea Authority strecura: "serverul NS pentru tot `banca.ro` e acum IP-ul meu". La un singur ID nimerit, tot domeniul era compromis. Prima apărare: **Source Port Randomization** (încă 16 biți de entropie).
+
+Soluția definitivă: **DNSSEC** — nu criptează datele, ci le **certifică integritatea** prin chei publice asimetrice (conceptual ca semnăturile digitale din SSH). Înregistrările sunt semnate cu cheia privată **ZSK**, semnătura publicată ca **RRSIG**, cheia publică în **DNSKEY**. Cheia **KSK** semnează colecția de chei, iar amprenta ei (un hash) e stocată în zona părinte ca înregistrare **DS** — formând **lanțul de încredere**: `example.com` validat de `.com`, validat de Root (cu ancora ICANN).
+
+<CosmoHint emotion="surprised">
+Reține distincția fină: DNSSEC nu ascunde nimic — oricine poate citi răspunsul. El doar dovedește că răspunsul vine de la cine trebuie și n-a fost alterat. E exact ideea semnăturii digitale din SSH: cheia privată semnează, cheia publică verifică. Diferența genială e lanțul de încredere — nu trebuie să ai încredere în fiecare zonă separat, ci doar în Root (a cărui cheie e o ancoră publică gestionată de ICANN). Root garantează pentru `.com`, `.com` garantează pentru `example.com`. Încrederea curge de sus în jos, exact ca autoritatea în arborele DNS. Confidențialitatea (cine vede interogarea) e o problemă separată, rezolvată de DoH/DoT — nu confunda cele două.
+</CosmoHint>
+
+DNS-ul devine și **armă**: **DNS Amplification** (falsifici IP-ul victimei, trimiți o cerere mică, serverul răspunde cu 4096 bytes spre victimă — amplificare de sute de ori) și **DNS Tunneling** (exfiltrare de date codate Base32 ca subdomenii, ocolind firewall-urile care permit DNS dar blochează web).
+
+### Tool-uri practice
+
+```bash
+dig example.com           # ANSWER, AUTHORITY, ADDITIONAL; flag-uri qr/rd/ra/aa/tc
+dig +trace example.com    # urmărește ierarhia de la root în jos, ocolind cache
+nslookup / host           # interogări rapide
+```
+
+Flag-urile din header-ul `dig` spun multe: `rd` (recursion desired), `ra` (recursion available), `aa` (authoritative answer — direct de la sursă, nu din cache), `tc` (truncated — a intervenit TCP).
+
+Local, ordinea e dictată de `/etc/nsswitch.conf` (`hosts: files dns` — întâi `/etc/hosts`, apoi DNS din `/etc/resolv.conf`). Pe Ubuntu modern, `/etc/resolv.conf` e un symlink, iar singurul nameserver e `127.0.0.53` — daemon-ul **systemd-resolved**, cu micro-cache local.
+
+Pe Docker (din Cursul 2): rețelele bridge custom au un resolver intern la `127.0.0.11`, capturat prin reguli iptables DNAT către `dockerd`. Așa funcționează **service discovery** — containerul A rezolvă `container_B` prin nume, fără IP-uri statice. Fără acest strat, Kubernetes n-ar funcționa.
+
+---
+
+## REVEAL
+
+Cele două lumi ale DNS-ului — viteză vs încredere:
+
+{/* TABLE */}
+
+| Aspect | Mecanismul clasic | Evoluția modernă |
+|---|---|---|
+| Transport | UDP 53 (512 bytes) | EDNS0, TCP fallback, DoT/DoH |
+| Confidențialitate | În clar (surveillance) | DoH (port 443, indistinct de web) |
+| Integritate | Query ID 16 biți (Kaminsky) | DNSSEC (RRSIG, DS, lanț de încredere) |
+| Load balancing | Round-robin (stateless) | Health checks + GeoDNS + Anycast |
+| Disponibilitate | Server unic | Anycast, >1.600 instanțe root |
+| Cache | TTL fix | TTL mic + failover automat |
+
+DNS-ul e infrastructura invizibilă: un arbore ierarhic, delegat, susținut de cache la fiecare nivel. Ierarhia permite delegarea, cache-ul permite scara, TTL-ul echilibrează agilitatea cu sarcina, DNSSEC repară încrederea pe care protocolul originar n-o avea.
+
+---
+
+## ÎNCHEIERE
+
+DNS-ul traduce nume în IP-uri printr-un arbore distribuit: root → TLD → autoritativ, cu cache la fiecare pas. E vechi de 40 de ani, rulează pe UDP port 53, și rămâne atât coloana vertebrală a internetului, cât și cel mai expus punct al lui.
+
+Regulă practică: când "site-ul nu merge" dar serverul e pornit, suspectează DNS-ul. `dig +trace` îți arată exact unde se rupe lanțul de delegare — și de cele mai multe ori problema nu e site-ul, ci traducerea numelui.

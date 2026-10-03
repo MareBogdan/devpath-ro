@@ -1,0 +1,169 @@
+---
+title: "Porturile și socket-urile"
+order: 9
+type: lesson
+module_index: 3
+duration: 18
+difficulty: 4
+---
+
+# Porturile și socket-urile
+
+## HOOK
+
+Un server web servește 50.000 de clienți simultan pe portul 443. Întrebare-capcană: cum încap 50.000 de conexiuni într-un singur port, când există doar 65.536 porturi în total?
+
+Răspunsul demontează cea mai răspândită confuzie din rețelistică: **un port nu e o conexiune**. Serverul ascultă pe **un singur** port (443), dar fiecare client deschide o conexiune unică identificată prin cvintuplu — protocol + IP sursă + port sursă + IP destinație + port destinație. Două milioane de clienți pot lovi același port 443; kernel-ul îi distinge prin amprenta completă a cvintuplului, nu prin port.
+
+În L6 și L8 ai tratat portul ca pe un număr de 16 biți. Acum cobori în kernel: cum un `bind()` revendică un port, cum `accept()` creează un socket nou pentru fiecare client, și cum un server gestionează 10 milioane de conexiuni cu un singur thread. De la abstracție la mecanică.
+
+---
+
+## CONTEXT
+
+Din Cursul 2 știi principiul Unix "everything is a file" — procesele accesează totul prin file descriptors. Socket-ul e exact asta: un endpoint de rețea împachetat ca file descriptor, pe care îl citești și scrii ca pe un fișier.
+
+Din L6 cunoști cvintuplul (5-tuple) ca identificator unic de conexiune, porturile efemere (32768-60999 pe Linux), TIME_WAIT, port exhaustion și `EADDRNOTAVAIL`. Din L8 știi că L4 e granița kernel/user, iar socket-ul e interfața dintre cele două lumi.
+
+Acum legăm totul. Portul răspunde la întrebarea "care serviciu?", IP-ul la "care mașină?", iar cvintuplul complet la "care conexiune anume?". Kernel-ul folosește portul ca **cheie de dispersie** (hash key) ca să direcționeze fiecare pachet sosit către socket-ul corect — la milioane de pachete pe secundă, cu o căutare O(1).
+
+---
+
+## MIEZUL
+
+### Cele trei categorii de porturi
+
+IANA împarte cele 65.536 de porturi în trei zone:
+
+{/* TABLE */}
+
+| Categorie | Interval | Cine le folosește | Exemple |
+|---|---|---|---|
+| Well-known | 0-1023 | Servicii esențiale (necesită privilegii) | 22 SSH, 53 DNS, 80 HTTP, 443 HTTPS |
+| Registered | 1024-49151 | Aplicații, baze de date | 3306 MySQL, 5432 PostgreSQL, 6379 Redis |
+| Ephemeral | 49152-65535 (IANA) / 32768-60999 (Linux) | Porturi sursă client, alocate automat | browsere, proxy-uri |
+
+Detaliul cheie e zona **0-1023**. Pe Unix, ca să asculți pe un port sub 1024 ai nevoie de privilegii **root**. De ce? Origine istorică BSD: pe serverele universitare cu sute de studenți, doar adminul avea root. Dacă te conectai la portul 22, aveai garanția că serviciul a fost pornit de admin, nu de un student care-ți fură parola. Era o barieră de încredere rudimentară.
+
+Azi, rularea ca root e periculoasă (principiul celui mai mic privilegiu). Linux a spart drepturile root în 40+ **capabilities** granulare. Pentru a lega Nginx pe portul 80 fără root, îi dai exact capabilitatea `CAP_NET_BIND_SERVICE` (cu `setcap`), nimic mai mult. Sau cobori pragul prin `sysctl net.ipv4.ip_unprivileged_port_start`.
+
+O practică des întâlnită e mutarea SSH-ului de pe 22 pe un port mare (ex. 8022) — *security through obscurity*. Oprește scanerele automate care testează doar porturile standard, dar nu e protecție reală: un scan `nmap` cu detecție de serviciu găsește SSH-ul oriunde l-ai pune, fiindcă semnătura protocolului îl trădează. E zgomot redus, nu securitate.
+
+### Socket-ul — anatomia abstracției
+
+Când apelezi `socket()`, se creează **două** lucruri la granița kernel/user:
+- în **user space**: un file descriptor (un simplu întreg, ca la deschiderea unui fișier);
+- în **kernel space**: o structură `struct socket` în VFS + o `struct sock` în stiva de rețea, care ține toată starea (numere de secvență, fereastră de congestie, stare handshake).
+
+Configurezi socket-ul prin doi parametri:
+- **Domeniu**: `AF_INET` (IPv4), `AF_INET6` (IPv6), `AF_UNIX` (comunicare locală între procese, ocolind complet stiva TCP/IP).
+- **Tip**: `SOCK_STREAM` (TCP, fiabil, ordonat), `SOCK_DGRAM` (UDP, datagrame independente), `SOCK_RAW` (acces brut la pachete — folosit de `ping`/`tcpdump`).
+
+Distincția care contează: **portul** e o locație logică (un număr). **Conexiunea** e fluxul garantat de starea sincronizată a celor două kernel-uri (cvintuplu). **Socket-ul** e structura de date (file descriptor) prin care aplicația accesează conexiunea. Un server ascultă pe **un port** dar instanțiază **zeci de mii de socket-uri** — câte unul per client.
+
+### Ciclul de viață — server
+
+Serverul TCP urmează un șablon strict de syscall-uri:
+
+```
+socket()  → creează file descriptor
+bind()    → revendică IP:port (EADDRINUSE dacă e ocupat)
+listen()  → trece socketul în mod pasiv, creează cozile
+accept()  → preia un client, returnează un socket NOU
+read()/write() → comunică cu acel client
+close()
+```
+
+Două subtilități fac diferența între un junior și un senior aici.
+
+Prima: **`listen()` creează două cozi**. Când sosește un SYN (din L6), kernel-ul pune conexiunea half-open în **SYN queue** (limitată de `tcp_max_syn_backlog`) și răspunde cu SYN-ACK. Când clientul trimite ACK-ul final, conexiunea trece în **Accept queue** (limitată de `somaxconn`), de unde aplicația o preia. Dacă Accept queue se umple (aplicația citește prea încet), comportamentul depinde de `tcp_abort_on_overflow`: implicit (0), kernel-ul ignoră silențios ACK-ul final — clientul retransmite, dându-i serverului timp; setat pe 1, serverul trimite RST și taie conexiunea instant. Dacă SYN queue se umple sub un SYN flood, se activează SYN cookies (din L6).
+
+A doua, cea mai prost înțeleasă: **`accept()` returnează un file descriptor NOU**. Socket-ul pe care ai făcut `listen()` rămâne neatins, buclând la infinit ca să prindă noi conexiuni. Fiecare client primește propriul socket nou, legat de cvintuplul lui stabil. Asta e cum un singur port servește mii de clienți: un socket de listening + mii de socket-uri conectate.
+
+<CosmoHint emotion="surprised">
+Reține momentul ăsta, fiindcă dezleagă întreaga confuzie a lecției. Mintea îți spune "un port = o conexiune", dar accept() demonstrează contrariul: din același port 443 ies mii de socket-uri distincte, fiecare cu propriul file descriptor, fiecare vorbind cu un client diferit. Portul de listening e ca recepția unui hotel — un singur birou unde toți oaspeții se prezintă. Dar fiecare oaspete primește camera lui (socket-ul din accept()). Recepția nu se mută; ea doar distribuie camere. De-aia întrebarea "cum încap 50.000 de clienți într-un port?" e greșit pusă: nu încap în port, încap în cvintupluri distincte, iar portul e doar ușa de intrare comună.
+</CosmoHint>
+
+### Ciclul de viață — client
+
+Clientul e mai simplu: `socket()` → `connect()` → `read()/write()` → `close()`. Lipsește `bind()`-ul explicit.
+
+Când apelezi `connect()`, kernel-ul observă că n-ai legat un port și face **implicit binding**: alege automat un port efemer din intervalul 32768-60999 (de ex. 41205). Apoi `connect()` declanșează SYN-ul (handshake-ul din L6).
+
+Aici se naște o clasă întreagă de pene. Cum știi din L6, partea care închide activ intră în TIME_WAIT ~60s, iar portul efemer rămâne blocat. Un reverse proxy care deschide mii de conexiuni scurte spre același backend epuizează cele ~28.000 de porturi înainte ca TIME_WAIT-urile să expire — și `connect()` returnează `EADDRNOTAVAIL`. Exact hook-ul din L6, acum vezi de unde vine: din `connect()`.
+
+### Concurența — problema C10K
+
+Cum gestionezi 10.000 de clienți simultani? Întrebarea asta a definit arhitectura serverelor.
+
+**Model 1 — proces per conexiune** (Apache `prefork`): după fiecare `accept()`, `fork()` un proces-copil. Izolat și sigur, dar fiecare proces consumă zeci de MB. La mii de clienți, memoria explodează.
+
+**Model 2 — thread per conexiune**: thread-uri în loc de procese. Mai puțină memorie, dar mii de thread-uri care concurează pentru CPU produc **context switching** masiv — latența crește, throughput-ul scade.
+
+**Model 3 — I/O multiplexing**: un singur thread monitorizează mii de socket-uri. Vechile `select()`/`poll()` făceau asta iterând **liniar** peste toate socket-urile — O(N). Pe 10.000 de conexiuni, verificarea repetată a tuturor pentru un singur pachet sufoca CPU-ul.
+
+<CosmoHint emotion="excited">
+Aici e saltul care a făcut posibil internetul modern: epoll. În loc să întrebi kernel-ul "are vreunul dintre cei 10.000 de socket-uri date noi?" și să-i verifici pe toți (O(N)), inversezi logica. Kernel-ul ține socket-urile într-un arbore Red-Black și, când un pachet sosește, callback-ul de întrerupere al plăcii de rețea bagă instant referința socket-ului activ într-o "ready list". Când apelezi epoll_wait(), primești direct doar socket-urile cu activitate — O(1), indiferent dacă supraveghezi o mie sau două milioane. Asta e diferența dintre Apache și Nginx, dintre C10K și C10M. Nu e o optimizare incrementală; e o schimbare de paradigmă de la "întreabă și verifică" la "fii notificat".
+</CosmoHint>
+
+`epoll` (Linux 2.6+) reduce totul la O(1): un arbore Red-Black pentru gestiunea socket-urilor (inserare/ștergere O(log N)) și o **ready list** dublu înlănțuită umplută asincron de întreruperile hardware. `epoll_wait()` golește direct ready list-ul, fără să itereze prin toți clienții.
+
+O capcană: modul **Edge-Triggered** (`EPOLLET`, folosit de Nginx și Go). Spre deosebire de Level-Triggered (te trezește cât timp există date necitite), ET te notifică **o singură dată** la sosirea datelor. Trebuie să citești în buclă până la `EAGAIN`, altfel pierzi datele rămase — kernel-ul nu te mai trezește pentru ele.
+
+### SO_REUSEADDR și SO_REUSEPORT
+
+Două opțiuni de socket rezolvă probleme reale de producție.
+
+`SO_REUSEADDR`: când reporneșți un server, portul rămâne blocat în TIME_WAIT și `bind()` dă `EADDRINUSE`. Acest flag instruiește kernel-ul să tolereze ascultarea pe un port cu conexiuni "pe jumătate moarte" — salvează serviciul de downtime la restart.
+
+`SO_REUSEPORT`: permite **mai multe procese** să facă `bind()` pe **același** IP:port. Kernel-ul face hashing pe cvintuplu și distribuie conexiunile echilibrat între ele — load balancing în kernel, fără un singur thread care să fie gâtuire. Nginx modern combină epoll+EPOLLET cu SO_REUSEPORT pentru throughput maxim.
+
+Două opțiuni mai vezi des: `TCP_NODELAY` dezactivează algoritmul Nagle (din L6) — forțează trimiterea imediată a pachetelor mici, obligatoriu pentru protocoale interactive cu latență mică (SSH, jocuri). Iar `SO_RCVBUF`/`SO_SNDBUF` reglează manual mărimea bufferelor de recepție/trimitere, utile când auto-tuning-ul kernel-ului nu umple ferestre mari pe legături cu BDP gigant (din L5).
+
+<FactBox>
+**Porturi și socket-uri — cifre cheie:**
+- Total: **65.536** porturi (16 biți)
+- Well-known **0-1023** (root/`CAP_NET_BIND_SERVICE`), registered **1024-49151**, ephemeral **49152-65535** IANA / **32768-60999** Linux
+- Pool efemer real: ~**28.000** porturi → sursă de `EADDRNOTAVAIL`
+- Cozi `listen()`: SYN queue (`tcp_max_syn_backlog`) + Accept queue (`somaxconn`)
+- `somaxconn`: vechi limitat la **128**, azi până la **65535+**
+- `accept()` returnează un **file descriptor NOU**
+- `select()`/`poll()` = **O(N)**; `epoll` = **O(1)**
+- C10K (10.000 conexiuni) → C10M (10 milioane)
+- conntrack: `nf_conntrack_max` tipic **262.144** / 1M
+- Sintaxă: `socket()`→`bind()`→`listen()`→`accept()` (server)
+</FactBox>
+
+### Porturi în Docker, NAT, conntrack
+
+Când rulezi `docker run -p 8080:80`, Docker face **port mapping** prin reguli `iptables`/`netfilter`: traficul sosit pe portul 8080 al gazdei e tradus prin **DNAT** (Destination NAT) către portul 80 din namespace-ul containerului. (Există și un `docker-proxy` în user space ca fallback, dar e lent — calea rapidă e iptables. NAT-ul îl aprofundăm în L11.)
+
+Pentru a urmări aceste remapări, kernel-ul folosește **conntrack** (connection tracking) — o tabelă hash care ține fiecare sesiune (sursă, destinație, stare, mapările NAT). Limita `nf_conntrack_max` (tipic 262.144) e o sursă insidioasă de pene: când se umple, kernel-ul aruncă SYN-uri noi cu eroarea `nf_conntrack: table full, dropping packet` — conexiunile pică deși serverul are porturi libere. Nu e port exhaustion, e **conntrack exhaustion**, și se diagnostichează diferit.
+
+---
+
+## REVEAL
+
+Vocabularul complet, de la număr la conexiune:
+
+{/* TABLE */}
+
+| Concept | Ce e | Cardinalitate |
+|---|---|---|
+| Port | Număr logic (16 biți) | 1 per serviciu |
+| Socket de listening | FD pasiv care așteaptă | 1 per port ascultat |
+| Socket conectat | FD per client (din `accept()`) | mii per port |
+| Conexiune | Flux identificat de cvintuplu | 1 per pereche client-server |
+| Cvintuplu | Amprenta unică (proto+IP:port ×2) | limita reală de scalare |
+
+Tool-uri esențiale: `ss -tlnp` (ce ascultă, cu PID-uri), `ss -s` (sumar stări), `lsof -i` (ce proces deține ce port), `nc` (testare conexiuni), `nmap` (scanare). `ss` a înlocuit `netstat` fiindcă vorbește direct cu kernel-ul prin Netlink, în loc să citească și să parseze `/proc/net/tcp` (sursa brută, în hexazecimal little-endian) cum făcea `netstat` — de-aia `ss` rămâne instant chiar la zeci de mii de conexiuni.
+
+Limita reală a unui server **nu** e numărul de porturi. Serverul ascultă pe un port fix; ce variază e cvintuplul. Cu milioane de IP-uri client posibile × porturile lor efemere, plafonul practic e dat de RAM și file descriptors, nu de cele 65.536 porturi. Mitul "un server suportă maxim 65k conexiuni" cade exact pe înțelegerea cvintuplului.
+
+---
+
+## ÎNCHEIERE
+
+Un port e o adresă logică, un socket e file descriptor-ul prin care o folosești, iar conexiunea e cvintuplul care le leagă. Serverul ascultă pe un port, dar `accept()` îi dă un socket nou pentru fiecare client — așa servești mii de conexiuni pe un singur port.
+
+Regulă practică: când un server "nu mai acceptă conexiuni", verifică în ordine — Accept queue plină (`somaxconn`)? Porturi efemere epuizate (`EADDRNOTAVAIL`)? Tabela conntrack plină? Sunt trei limite diferite, cu trei soluții diferite, și niciuna nu e "prea puține porturi".

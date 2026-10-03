@@ -1,0 +1,217 @@
+---
+title: "TCP vs. UDP"
+order: 6
+type: lesson
+module_index: 3
+duration: 18
+difficulty: 4
+---
+
+# TCP vs. UDP
+
+## HOOK
+
+Un load balancer deschide mii de conexiuni pe minut către un backend. Brusc, începe să refuze cereri cu eroarea `EADDRNOTAVAIL`. Serverul are RAM liber, CPU liber, bandă liberă. Și totuși, nu mai poate deschide nicio conexiune.
+
+Cauza: **epuizarea porturilor efemere**. Linux are doar ~28.000 de porturi disponibile (32768-60999), iar fiecare conexiune închisă rămâne blocată **60 de secunde** în starea `TIME_WAIT`. La mii de conexiuni/secundă, toate porturile sunt prizoniere în această stare.
+
+Asta nu se întâmplă la UDP — fiindcă UDP **nu are stări**. Nu are handshake, nu are TIME_WAIT, nu are nimic de curățat. Diferența dintre cele două protocoale de transport e diferența dintre o conexiune și o scrisoare aruncată în cutia poștală.
+
+În L1-L5 ai văzut TCP și UDP în treacăt. Acum cobori sub capotă: mașina de stări, timerele, retransmisia, controlul congestiei — și de ce alegerea dintre ele decide totul.
+
+---
+
+## CONTEXT
+
+IP-ul (L3) livrează între **host-uri** — best-effort, fără garanții. Dar un sistem rulează sute de procese. Cum ajunge pachetul la Nginx și nu la baza de date? Aici intervine stratul transport (L4): adresarea **proces-la-proces** prin **porturi** (16 biți, 65.536 valori — aprofundăm în L9).
+
+Un flux e identificat unic de un **cvintuplu** (5-tuple): protocol, IP sursă, port sursă, IP destinație, port destinație. Din L3 știi câmpul Protocol din headerul IP: **TCP=6, UDP=17**.
+
+Peste IP există două filozofii opuse. **TCP** construiește iluzia unui circuit privat infailibil — livrare garantată, ordonată, cu control de flux și congestie. **UDP** e un mesager minimal — trimite și uită. Din L1 cunoști deja handshake-ul TCP (SYN/SYN-ACK/ACK) și că UDP e folosit la voce/DNS. Din L5 cunoști fereastra, BDP, congestion control (CUBIC vs BBR). Acum legăm totul.
+
+---
+
+## MIEZUL
+
+### UDP — simplitatea ca virtute
+
+UDP (RFC 768) e *fire-and-forget*. Headerul are exact **8 bytes**, patru câmpuri de 16 biți: port sursă, port destinație, length, checksum. Atât.
+
+Fără handshake, fără ACK, fără ordonare, fără retransmisie, fără control de congestie. E **message-oriented** (păstrează granițele datagramelor, spre deosebire de stream-ul TCP). Nu necesită blocuri de control în kernel, deci e imun la atacuri de epuizare a memoriei (SYN flood).
+
+Payload teoretic maxim: 65.507 bytes (65.535 − 20 IP − 8 UDP). În practică, depășirea MTU provoacă fragmentare IP — și dacă **un singur fragment** se pierde, întreaga datagramă e ștearsă silențios (TCP retransmite segmente individuale; UDP nu).
+
+O subtilitate elegantă: checksum-ul. Valoarea `0x0000` e rezervată ca semnal "necalculat" (opțional pe IPv4). Dar calculul matematic poate produce zero legitim — caz în care standardul obligă înlocuirea cu `0xFFFF`. Ignorarea acestei reguli a cauzat bug-uri reale (OpenVPN corupea traficul NAT rescriind checksum-uri zero).
+
+### TCP — fiabilitatea ca mecanism
+
+TCP construiește un **stream de bytes** fiabil peste un IP care pierde pachete. Headerul are minim **20 bytes**, până la **60** cu opțiuni (MSS, Window Scaling, SACK), marcate prin câmpul Data Offset.
+
+Câmpuri cheie: **seq number** și **ack number** (garantează ordinea și detectează pierderi), **flags** (SYN, ACK, FIN, RST, PSH, URG), **window** (16 biți, din L5), checksum.
+
+**ISN** (Initial Sequence Number) e randomizat criptografic. De ce? Securitate. Istoric, ISN-urile predictibile (MD5 slab) permiteau TCP hijacking. Linux folosește azi **SipHash** — un atacator nu mai poate ghici secvența ca să injecteze pachete.
+
+### Handshake și teardown
+
+Stabilirea conexiunii — **Three-way handshake** (din L1, acum cu detalii):
+
+```
+Client → SYN (seq=x)              → Server   [SYN_SENT]
+Client ← SYN-ACK (seq=y, ack=x+1) ← Server   [SYN_RECEIVED]
+Client → ACK (ack=y+1)            → Server   [ESTABLISHED]
+```
+
+Se sincronizează ISN-urile ambelor capete, se negociază MSS (~1460) și factorul Window Scaling. Dacă SYN-ul se pierde, Linux retransmite — `tcp_syn_retries` default **5**, cu exponential backoff, totalizând ~180 secunde înainte de `ETIMEDOUT`. Timeout-ul inițial (`TCP_TIMEOUT_INIT`) e azi **1 secundă** (kernel 4.13+), coborât de la cei 3s istorici (RFC 1122 → RFC 6298).
+
+Închiderea — **Four-way teardown** (FIN/ACK/FIN/ACK), patru pași fiindcă TCP e full-duplex (fiecare direcție se închide separat):
+
+```
+A → FIN → B    [FIN_WAIT_1]
+A ← ACK ← B    [FIN_WAIT_2 / CLOSE_WAIT]
+A ← FIN ← B    [LAST_ACK]
+A → ACK → B    [TIME_WAIT]
+```
+
+**SYN flood**: atacatorul trimite SYN-uri cu IP-uri false, forțând serverul să rezerve memorie pentru conexiuni half-open. Apărarea: **SYN cookies** — kernel-ul nu mai alocă memorie, ci codifică starea într-un ISN calculat criptografic (timestamp în top 5 biți, MSS index în 3 biți, hash în bottom 24 biți). Doar un client legitim întoarce `ACK = ISN+1`, permițând reconstrucția stării.
+
+### Mașina de stări și TIME_WAIT
+
+TCP are **11 stări**: CLOSED, LISTEN, SYN_SENT, SYN_RECEIVED, ESTABLISHED, FIN_WAIT_1, FIN_WAIT_2, CLOSE_WAIT, CLOSING, LAST_ACK, TIME_WAIT. Le vezi cu `ss -t` sau `netstat`.
+
+Steaua dezbaterilor de performanță e **TIME_WAIT**. Cine inițiază închiderea ("Active Close", trimite primul FIN) intră în TIME_WAIT. Rolul: previne ca o conexiune nouă cu același cvintuplu să primească pachete întârziate din cea veche, și garantează că ultimul ACK a ajuns.
+
+Aici e prima discrepanță majoră Linux vs RFC. RFC 793 cere **2×MSL** ≈ 4 minute (240s). Pentru un server web cu sute de mii de conexiuni scurte, ar fi dezastruos. Linux ignoră explicit norma: `TCP_TIMEWAIT_LEN` e hardcodat la **60 secunde**. La fel, `TCP_FIN_TIMEOUT` (blocaj în FIN_WAIT_2) a fost coborât de la 3 minute (BSD) la tot 60s.
+
+<CosmoHint emotion="surprised">
+Observă ceva fascinant: Linux **încalcă deliberat** standardul. RFC-ul, scris în 1981, presupunea o rețea lentă unde un pachet putea rătăci 2 minute. Pe internetul modern, 60 de secunde sunt mai mult decât suficiente, iar diferența e vitală — la 10.000 conexiuni/secundă, 240s ar însemna 2,4 milioane de socket-uri blocate simultan în "death row". E un exemplu perfect de inginerie pragmatică: standardul e o recomandare, nu o lege fizică, iar implementarea reală alege ce funcționează la scară. Întotdeauna verifică ce face kernel-ul, nu doar ce zice RFC-ul.
+</CosmoHint>
+
+Soluții la epuizarea porturilor: `tcp_tw_reuse` (reciclează portul pentru conexiuni outbound noi, sigur prin TCP Timestamps). Vechiul `tcp_tw_recycle` a fost **eliminat din kernel** (4.12, 2017) — distrugea conexiunile din spatele NAT-ului (clienți cu ceasuri nesincronizate).
+
+### Fiabilitate sub capotă — RTO și retransmisie
+
+TCP retransmite orice pachet neconfirmat. Cheia: cât aștepți? Parametrul **RTO** (Retransmission Timeout), calculat prin algoritmul **Jacobson/Karels** (RFC 6298). Nu e fix — se adaptează la RTT:
+
+$$SRTT = (1-\alpha) \cdot SRTT + \alpha \cdot R \quad (\alpha = 1/8)$$
+$$RTTVAR = (1-\beta) \cdot RTTVAR + \beta \cdot |SRTT - R| \quad (\beta = 1/4)$$
+$$RTO = SRTT + \max(G, 4 \cdot RTTVAR)$$
+
+SRTT e media netezită a RTT-ului; RTTVAR captează variația (jitter); RTO adaugă un buffer de siguranță de 4× variația.
+
+A doua discrepanță Linux vs RFC: RFC 6298 cere `RTO_min` = **1 secundă**. Linux îl retează la **200ms** (`HZ/5`) — fiindcă 1s e prea pesimist pe LAN-uri rapide. `RTO_max` = 120s la Linux (vs 240s teoretic).
+
+Mecanisme complementare:
+- **Fast retransmit**: 3 ACK-uri duplicate → retransmite imediat, fără să aștepte RTO.
+- **SACK** (Selective ACK): confirmă bucăți specifice, nu doar cumulativ.
+- **Delayed ACK**: amână ACK-ul (max 200ms) ca să-l combine cu date.
+- **Nagle** (`TCP_NODELAY` pentru a-l dezactiva): grupează pachete mici; uneori dăunător pentru latență interactivă.
+
+<FactBox>
+**TCP vs UDP — cifre cheie:**
+- Header: UDP **8 bytes**, TCP **20-60 bytes**
+- Protocol field: TCP=**6**, UDP=**17**
+- Porturi efemere Linux: **32768-60999** (~28.000)
+- TCP: **11 stări**; flags principale: SYN, ACK, FIN, RST, PSH, URG
+- TIME_WAIT: RFC **240s** (2×MSL) vs Linux **60s** (`TCP_TIMEWAIT_LEN`)
+- RTO_min: RFC **1s** vs Linux **200ms**; RTO_max Linux **120s**
+- Jacobson/Karels: α=**1/8**, β=**1/4**, K=**4**
+- Fast retransmit: **3** ACK-uri duplicate
+- `tcp_syn_retries` default **5** (~180s); `TCP_TIMEOUT_INIT` **1s**
+- CUBIC: β=**0,7** (drop 30%); Reno: cwnd/2 (drop 50%)
+- HTTP/3 (QUIC/UDP) adopție 2026: ~**21%** request-level, mobil până la **45%**
+</FactBox>
+
+### Control congestie — recap și aprofundare
+
+Din L5: fereastra de congestie **cwnd** (cât permite rețeaua) vs **rwnd** (cât permite receptorul). TCP trimite minimul dintre ele.
+
+Familia clasică (Reno) folosește **AIMD** (Additive Increase, Multiplicative Decrease): crește cu 1 segment/RTT, taie 50% la prima pierdere. Problema: **RTT-unfairness** — fluxurile cu RTT mic recuperează rapid, cele transcontinentale rămân strangulate.
+
+**CUBIC** (default Linux, RFC 8312) decuplează creșterea de RTT, folosind o funcție cubică în timp absolut:
+
+$$W_{cubic}(t) = C \cdot (t - K)^3 + W_{max}$$
+
+cu C=0,4 și β=0,7 (taie doar 30%, mai blând decât Reno). Forma cubică recuperează fulgerător sub `W_max`, stagnează la "fereastra sigură", apoi sondează agresiv peste. Dar fiind **loss-based**, ține bufferele saturate → bufferbloat (din L5).
+
+**BBR** (Google) e **delay-based** — nu reacționează la pierderi, ci modelează rețeaua: măsoară `BtlBw` (banda la gâtuire) și `RTprop` (RTT-ul minim), apoi limitează datele în zbor la BDP = BtlBw × RTprop, cu **pacing** (ritm constant, nu explozii). La 1% packet loss, CUBIC se prăbușește la ~235 Mbps; BBR ține **794 Mbps**.
+
+Cum măsoară cei doi piloni e ingenios. **BtlBw** (Bottleneck Bandwidth) e rata maximă de date confirmate observată recent — BBR ține o fereastră de măsurători și ia maximul, fiindcă cel mai îngust link de pe rută dictează debitul real. **RTprop** (Round-trip propagation time) e minimul RTT observat — minimul, nu media, fiindcă orice RTT mai mare decât minimul înseamnă că s-au format cozi pe traseu. Problema: nu poți măsura ambele simultan. Ca să afli banda reală trebuie să umpli pipe-ul (ceea ce creează cozi și umflă RTT-ul), iar ca să afli RTT-ul curat trebuie să golești pipe-ul (ceea ce subutilizează banda). BBR rezolvă alternând: cea mai mare parte a timpului sondează banda, iar periodic (la fiecare 10 secunde) intră în faza **ProbeRTT**, reducând datele în zbor la minim pentru ~200ms ca să măsoare un RTprop curat, necontaminat de cozi.
+
+### Când alegi TCP vs UDP
+
+{/* TABLE */}
+
+| Criteriu | TCP | UDP |
+|---|---|---|
+| Conexiune | Orientat pe conexiune | Connectionless |
+| Garanții | Livrare, ordine, integritate | Niciuna |
+| Header | 20-60 bytes | 8 bytes |
+| Viteză | Mai lent (overhead) | Minim overhead |
+| Ordonare | Da | Nu |
+| Control congestie | Da | Nu (aplicația decide) |
+| Head-of-Line blocking | Da | Nu |
+| Folosit pentru | Web, SSH, email, DB, transfer | DNS, VoIP, gaming, streaming, IoT |
+
+TCP pentru orice cere certitudine: API REST, SSH, baze de date, transfer fișiere. Dar plătești prețul **Head-of-Line blocking**: dacă segmentul #32 din 100 se pierde, segmentele #33-100 ajung dar **stau blocate** în kernel până la retransmiterea lui #32 — aplicația nu primește niciun byte.
+
+Mecanica e o consecință directă a garanției de ordine. Kernel-ul stochează segmentele sosite în afara ordinii într-un buffer de reasamblare (out-of-order queue), dar **nu le poate livra** aplicației prin `recv()` până nu sosește segmentul lipsă — fiindcă TCP promite un stream ordonat, iar livrarea lui #33 înaintea lui #32 ar încălca acea promisiune. Aplicația stă blocată în `recv()`, datele sunt deja în RAM-ul kernel-ului, dar inaccesibile. Abia când emițătorul detectează pierderea (prin 3 ACK-uri duplicate sau expirarea RTO) și retransmite #32, kernel-ul eliberează tot blocul #32-100 dintr-o dată. Pe un link cu 1% packet loss, asta înseamnă micro-blocaje constante, fiecare costând minim un RTT.
+
+UDP pentru *time-sensitive*: DNS, VoIP, gaming, streaming live. Un eșantion de voce pierdut e preferabil unei retransmisii întârziate — un glitch e mai bun decât un ecou.
+
+<CosmoHint emotion="thinking">
+Head-of-Line blocking e exact problema care a forțat reinventarea transportului. TCP garantează ordinea, deci dacă un pachet se pierde, tot ce vine după el stă la coadă — chiar dacă a ajuns deja. Pe o pagină web cu 50 de resurse independente, un singur pachet pierdut blochează tot. Aici e ironia: garanția de ordine, care e virtutea TCP, devine defectul lui. QUIC rezolvă asta multiplexând fluxuri separate peste UDP — dacă se pierde un pachet din imagine, textul curge nestingherit. Vezi tiparul? Fiecare protocol nou nu inventează de la zero, ci ia un compromis vechi și îl reechilibrează. UDP a fost prea sărac, TCP prea rigid, QUIC ia ce e bun din ambele.
+</CosmoHint>
+
+Punctul de joncțiune: **QUIC** (HTTP/3). Google a reconstruit fiabilitatea TCP în user space, peste UDP — multiplexând fluxuri independente ca să elimine Head-of-Line blocking-ul global, cu 0-RTT la reconectare. Aprofundăm în L20.
+
+### Tool-uri și observare
+
+```bash
+ss -tan state time-wait     # conexiunile blocate în TIME_WAIT
+ss -s                       # statistici sumare (death row)
+sysctl net.ipv4.tcp_rmem    # buffere de recepție (min/default/max)
+cat /proc/net/sockstat      # sockets in-use, orphan, tw
+tcpdump -i eth0 'tcp[tcpflags] & tcp-syn != 0'   # handshake-ul vizibil
+iperf3 -u                   # test throughput UDP vs TCP
+```
+
+`ss` (înlocuitorul modern al `netstat`) îți arată instant dacă ai port exhaustion. Un output tipic pe un server încărcat arată stările și numărul lor — mii de intrări în TIME_WAIT semnalează că faci Active Close prea des:
+
+```
+$ ss -s
+Total: 1843
+TCP:   28394 (estab 412, closed 27801, timewait 27780)
+```
+
+Aici `timewait 27780` e alarma: aproape toate porturile efemere sunt prizoniere. Soluția nu e să crești numărul de porturi, ci să reduci Active Close-urile (connection pooling) sau să activezi `tcp_tw_reuse`. Pentru control fin per-conexiune fără recompilare de kernel, eBPF permite alterarea timerelor on-the-fly (`BPF_SOCK_OPS_TIMEOUT_INIT`), iar `bpf_tcp_gen_syncookie` prin XDP generează SYN cookies în microsecunde, salvând serverele de DDoS masiv.
+
+---
+
+## REVEAL
+
+Cele două filozofii de transport:
+
+{/* TABLE */}
+
+| Dimensiune | TCP | UDP |
+|---|---|---|
+| Metafora | Convorbire telefonică | Carte poștală |
+| Stare | 11 stări, stateful | Stateless |
+| Setup | Handshake (1 RTT) | Niciun setup |
+| Fiabilitate | Garantată (ACK, retransmisie) | Aplicația decide |
+| Ordine | Garantată (seq numbers) | Negarantată |
+| Cost memorie | TCB per conexiune | Zero |
+| Latență | Mai mare (handshake, HoL) | Minimă |
+| Securitate | SYN flood (mitigat SYN cookies) | Imun la epuizare stare |
+
+TCP transformă un IP nesigur într-un canal infailibil — cu prețul stărilor, timerelor și Head-of-Line blocking-ului. UDP nu promite nimic și de aceea e instant. Iar discrepanțele Linux vs RFC (TIME_WAIT 60 vs 240s, RTO_min 200ms vs 1s) arată că standardul e punctul de plecare, nu legea finală.
+
+Acest compromis modelează direct arhitectura sistemelor distribuite moderne. Un microserviciu care face mii de apeluri scurte spre alt serviciu plătește taxa TIME_WAIT și riscă port exhaustion — de aceea infrastructurile mari folosesc connection pooling (reutilizezi conexiuni TCP deschise în loc să le deschizi și închizi constant) sau migrează spre gRPC peste HTTP/2, care multiplexează multe cereri pe o singură conexiune. Un sistem de telemetrie care trimite milioane de metrici pe secundă alege UDP tocmai fiindcă nu-și permite stările per-conexiune. Iar bazele de date distribuite, unde fiecare milisecundă de latență la consens contează, sunt motivul pentru care Google a investit în BBR și QUIC. Alegerea protocolului de transport nu e un detaliu de nivel jos — e o decizie de arhitectură care se propagă în sus prin tot stack-ul.
+
+---
+
+## ÎNCHEIERE
+
+TCP e o convorbire (setup, confirmări, închidere ordonată); UDP e o carte poștală (arunci și uiți). Alegerea nu e despre "care e mai bun", ci despre ce tolerează aplicația: pierderea unui byte (UDP) sau întârzierea lui (TCP).
+
+Regulă practică: TCP pentru date care trebuie să ajungă întregi și în ordine; UDP când latența contează mai mult decât o pierdere ocazională. Și dacă vezi `EADDRNOTAVAIL` pe un server încărcat — verifică `ss -s` pentru TIME_WAIT: ai epuizat porturile, nu RAM-ul.

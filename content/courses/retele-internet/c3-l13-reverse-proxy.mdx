@@ -1,0 +1,194 @@
+---
+title: "Reverse Proxy"
+order: 13
+type: lesson
+module_index: 3
+duration: 18
+difficulty: 4
+---
+
+# Reverse Proxy
+
+## HOOK
+
+Când intri pe orice site mare — o bancă, un magazin online, o rețea socială — **nu vorbești cu serverul lor**. Vorbești cu un intermediar care se dă drept server. Serverul real e ascuns, fără adresă publică, invizibil din internet. Iar tu nici nu știi că intermediarul există.
+
+Ăsta e un **reverse proxy** — oglinda perfectă a forward proxy-ului din L12. Acolo, proxy-ul acționa în numele clientului (tu îl configurai, serverul nu te vedea). Aici, e invers: proxy-ul acționează **în numele serverului**. Tu crezi că vorbești direct cu `banca.ro`, dar de fapt vorbești cu un Nginx care filtrează, decriptează, și abia apoi trimite cererea mai departe către serverul real, ascuns într-o rețea privată.
+
+E recepționerul unei corporații: suni la numărul public, răspunde mereu recepționerul, care ascultă, decide ce departament îți trebuie și transferă apelul. Tu crezi că ai vorbit cu "compania". N-ai idee câți angajați sunt în spate sau cum e organizat biroul.
+
+Reverse proxy-ul e fundamentul web-ului modern. Aproape orice site pe care intri e în spatele unuia.
+
+---
+
+## CONTEXT
+
+Din L12 cunoști deja mecanica: două conexiuni TCP separate, procesare la L7, `accept()`/`connect()`, X-Forwarded-For. Reverse proxy-ul folosește **exact aceeași** mecanică — doar poziția e inversată.
+
+Distincția pe care lecția o ține fermă (completând tabelul din L12):
+- **Forward proxy** (L12): în numele clientului. Clientul îl configurează, e ascuns clientul.
+- **Reverse proxy** (L13): în numele serverului. Adminul serverului îl configurează, e ascuns serverul.
+- **NAT** (L11): doar adrese L3/L4, orb la conținut.
+- **Load balancer** (L14): o *funcție* pe care reverse proxy-ul o poate face — dar algoritmii de distribuție sunt subiectul lecției următoare, nu al ăsteia.
+
+Cheia: clientul face handshake cu proxy-ul crezând că e serverul real. Proxy-ul termină conexiunea, o analizează la L7, apoi deschide o conexiune nouă spre backend-ul ascuns. Backend-ul vede IP-ul proxy-ului; IP-ul real al clientului călătorește în X-Forwarded-For (din L12).
+
+---
+
+## MIEZUL
+
+### De ce există — problemele pe care le rezolvă
+
+Reverse proxy-ul a apărut când arhitecturile au evoluat de la un singur server monolitic la sisteme distribuite. Adaugă un hop (latență mică), dar beneficiile justifică totul:
+
+**Ascunderea infrastructurii**: backend-urile nu mai au nevoie de IP-uri publice. Stau izolate în rețele private, accesibile doar prin proxy. Un atacator care scanează internetul lovește doar proxy-ul, care rulează strict web pe 80/443. Portul 8080 al aplicației Java sau 3306 al MySQL-ului sunt garantat inaccesibile din exterior — suprafața de atac se prăbușește.
+
+**Single point of entry**: o pagină modernă cere date de la zeci de microservicii. Fără proxy, clientul ar trebui să știe IP-ul fiecăruia și să facă handshake TCP/TLS separat cu fiecare. Reverse proxy-ul expune un singur domeniu și gestionează el complexitatea internă.
+
+**Securitate centralizată**: cu tot traficul printr-un punct, integrezi un WAF (Web Application Firewall) care blochează SQL injection și XSS, plus rate limiting care oprește DDoS și brute-force la margine — backend-urile primesc doar trafic curat.
+
+**Descărcarea backend-urilor**: TLS, compresie, caching sunt sarcini care ar epuiza CPU-ul aplicației. Le muți pe proxy (software de rețea hiper-optimizat scris în C), iar backend-ul se ocupă doar de logica de business.
+
+### TLS Termination — funcția centrală
+
+Cea mai importantă funcție. TLS (din L6) cere calcule criptografice scumpe la handshake (RSA, ECC). Într-o arhitectură cu 100 de servere, a gestiona certificate pe fiecare ar fi un coșmar — un certificat expirat pe un nod produce erori intermitente imposibil de depanat.
+
+Prin **TLS Termination**, proxy-ul centralizează criptarea. Clientul face handshake TLS **doar cu proxy-ul**, care deține certificatul și cheia privată. Din acel punct, traficul e decriptat și trimis mai departe spre backend ca **HTTP simplu**. Un singur loc pentru certificate, iar backend-urile sunt scutite de povara criptării (TLS offloading).
+
+O problemă istorică: cum servești multe domenii (cu certificate diferite) pe același IP? Handshake-ul TLS are loc **înainte** ca headerul `Host:` să fie trimis — deci proxy-ul nu știe ce certificat să prezinte. Soluția: **SNI** (Server Name Indication) — clientul pune numele domeniului direct în `ClientHello`, la începutul handshake-ului, într-un câmp încă necriptat. Proxy-ul îl citește și selectează certificatul corect. Așa un singur proxy servește zeci de mii de domenii securizate pe un IP.
+
+<CosmoHint emotion="thinking">
+Reține de ce SNI a fost necesar — dezvăluie o problemă subtilă de ordine. TLS-ul criptează totul pentru securitate, dar creează un paradox: proxy-ul trebuie să știe ce certificat să prezinte *înainte* de a putea decripta cererea care conține domeniul. E ca și cum ai avea nevoie de cheie ca să afli ce încuietoare deschizi. SNI rezolvă asta lăsând un singur câmp — numele domeniului — necriptat la începutul handshake-ului. E un compromis fascinant: sacrifici un strop de confidențialitate (un observator vede *ce site* accesezi, deși nu și *ce faci* acolo) ca să faci posibilă întreaga arhitectură de hosting modern. Fiecare decizie de securitate e un astfel de troc — nimic nu e gratis, totul e un echilibru.
+</CosmoHint>
+
+Excepția: în domenii reglementate strict (financiar, medical), traficul nu are voie decriptat nicăieri în afară de serverul final — **criptare end-to-end**. Aici proxy-ul face **TLS Passthrough**: citește doar domeniul din SNI (necriptat), apoi comută în mod TCP orb și trimite pachetele criptate intacte spre backend. Prețul: proxy-ul pierde vizibilitatea L7 — nu poate face routing pe path, nu poate rula WAF, nu poate modifica headere. Devine un router L4 ghidat de SNI.
+
+{/* TABLE */}
+
+| Aspect | TLS Termination | TLS Passthrough |
+|---|---|---|
+| Unde se decriptează | pe proxy | pe backend |
+| Certificatele stau | pe proxy | pe backend |
+| Routing pe path (/api) | da | nu (doar pe SNI) |
+| WAF / modificare headere | posibil | imposibil (trafic opac) |
+| X-Forwarded-For | da | nu |
+
+### Routing L7 — puterea reală
+
+Aici e diferența absolută față de NAT. Un NAT rutează pe IP+port, orb la intenție. Reverse proxy-ul asamblează întreaga cerere HTTP și decide pe baza **conținutului**:
+
+**Path-based routing**: `exemplu.ro/api/users` → microserviciul de utilizatori (10.0.0.1); `exemplu.ro/static/img.png` → serverul de fișiere statice (10.0.0.2). Clientul are iluzia unui sistem monolitic; în spate sunt servicii izolate.
+
+**Host-based routing** (virtual hosting): un singur IP public, sute de domenii. Proxy-ul citește `Host: client-a.ro` și rutează spre un backend; `Host: client-b.ro` spre altul. Asta e mecanica shared hosting-ului.
+
+**Header-based routing**: pe baza unui cookie, User-Agent (mobil → cluster optimizat), sau un header custom (`X-API-Version: beta` → backend nou pentru A/B testing).
+
+Nimic din astea nu e posibil la L4 — pachetele TCP/IP nu conțin conceptul de "URI" sau "Cookie". Acestea sunt îngropate în payload-ul (criptat) care poate fi fragmentat pe mai multe pachete. Doar reasamblarea și analiza L7 le poate accesa.
+
+### Caching și compresie
+
+Oglinda funcției din L12. Forward proxy-ul cache-uia răspunsuri din internet pentru clienții locali; reverse proxy-ul cache-uiește răspunsurile **propriului backend** ca să-l scutească de muncă repetitivă. Dacă un milion de clienți cer aceeași pagină, proxy-ul o servește din cache-ul lui — backend-ul o generează o singură dată. Devine un **HTTP accelerator**. Provocarea rămâne cache invalidation (când se schimbă sursa, prin `Cache-Control`/`ETag`).
+
+Compresie la edge: proxy-ul comprimă textul (HTML/CSS/JS/JSON) cu **gzip** (1992) sau **Brotli** (Google, 2013 — cu dicționar predefinit de structuri web, ~20% mai eficient ca gzip). Clientul anunță ce suportă prin `Accept-Encoding: gzip, br`; proxy-ul comprimă și adaugă `Content-Encoding: br`. Backend-ul nu depune niciun efort.
+
+Concret în Nginx, cache-ul se activează cu câteva directive:
+
+```nginx
+proxy_cache_path /var/cache/nginx keys_zone=my_cache:10m max_size=1g;
+
+location / {
+    proxy_cache my_cache;
+    proxy_cache_valid 200 10m;          # cache răspunsuri 200 pentru 10 min
+    proxy_cache_use_stale error timeout updating;
+    proxy_pass http://aplicatia_backend;
+}
+```
+
+Directiva `proxy_cache_use_stale` e cheia rezilienței: dacă backend-ul cade sau răspunde lent, proxy-ul servește **copia veche (stale)** din cache în loc să dea eroare — utilizatorul primește o pagină ușor învechită, dar funcțională. Combinat cu `updating`, Nginx implementează un pattern **stale-while-revalidate**: servește instant copia veche și, în paralel, împrospătează cache-ul în fundal. Utilizatorul nu așteaptă niciodată reîmprospătarea — vede mereu ceva, iar versiunea nouă e gata pentru cererea următoare. E diferența dintre un site care "clipește" la fiecare update și unul care pare instant.
+
+### Nginx în practică
+
+Nginx e cel mai comun reverse proxy, cu arhitectură event-driven (epoll, din L9) care ține sute de mii de conexiuni idle pe RAM minim. Configurarea centrală se bazează pe `upstream` (grupul de backend-uri) și `proxy_pass`:
+
+```nginx
+upstream aplicatia_backend {
+    server 10.0.0.15:8080;
+}
+
+server {
+    listen 80;
+    server_name api.exemplu.ro;
+
+    location /api/ {
+        proxy_pass http://aplicatia_backend;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+}
+```
+
+`proxy_set_header` injectează IP-ul real al clientului (X-Real-IP, X-Forwarded-For) ca backend-ul să știe cine e clientul, nu doar proxy-ul. Testezi configurația cu `nginx -t` înainte de `nginx -s reload` (care reîncarcă graceful, fără să taie conexiunile active — datorită arhitecturii master/worker).
+
+O capcană clasică de securitate: **off-by-slash**. Dacă `location /static` (fără slash final) folosește `alias`, un atacator poate cere `/static../etc/passwd`, iar Nginx concatenează literal → path traversal. Regula: aliniază strict slash-urile (ambele cu `/`, sau niciunul).
+
+<FactBox>
+**Reverse proxy — cifre cheie:**
+- Reverse proxy = în numele **serverului**; forward (L12) = client
+- Nginx market share: **~32%**; Cloudflare ~28%, Apache ~24%
+- Linux: **~96%** din top 1M servere web
+- Porturi: **80/443** public, backend intern (8080, 3306...)
+- TLS Termination: certificat într-**un** loc, backend vorbește HTTP simplu
+- SNI: domeniul în `ClientHello` (necriptat) → certificatul corect
+- Brotli vs gzip: ~**20%** mai eficient pe web
+- Kubernetes: Ingress Controller = reverse proxy (Nginx/Traefik)
+- Vulnerabilități: SSRF, HTTP request smuggling (CL.TE/TE.CL)
+</FactBox>
+
+### Reverse proxy în arhitectura modernă
+
+Reverse proxy-ul e peste tot în infrastructura contemporană:
+
+**Ingress Controller (Kubernetes)**: din L9/L10 știi că pod-urile au IP-uri interne, instabile, nerutabile din exterior. Un obiect `Ingress` (YAML) definește reguli de routing L7, dar nu face nimic singur — un **Ingress Controller** (un reverse proxy, de obicei Nginx sau Traefik, rulând ca pod) citește regulile și rutează traficul extern spre pod-uri. E puntea L7 obligatorie spre un cluster K8s.
+
+**API Gateway** (Kong, construit pe Nginx): reverse proxy + validare JWT, rate limiting per user, transformări de payload — descarcă microserviciile de cod redundant.
+
+**Service Mesh** (Envoy sidecar în Istio): în loc de un proxy uriaș la margine, **fiecare** microserviciu primește propriul mini-proxy atașat. Serviciul A cheamă `localhost`, sidecar-ul interceptează, adaugă mTLS, găsește serviciul B, rutează. Rețeaua internă e mediată de mii de proxy-uri microscopice.
+
+**CDN** (Cloudflare, Fastly): reverse proxy la scară planetară. Traficul global merge, prin BGP Anycast (din L10), la cel mai apropiat PoP, care termină TLS-ul rapid și servește din cache. Serverul real e complet ascuns. (Arhitectura CDN — L15.)
+
+---
+
+## REVEAL
+
+Tabelul intermediarilor, acum complet:
+
+{/* TABLE */}
+
+| Intermediar | Nivel | În numele cui | Cine e ascuns | Vede conținutul |
+|---|---|---|---|---|
+| NAT | L3/L4 | rețelei | IP-urile private | nu |
+| Forward proxy | L7 | clientului | clientul | da (mai puțin CONNECT) |
+| Reverse proxy | L7 | serverului | serverul | da (mai puțin passthrough) |
+
+Poziția centrală a reverse proxy-ului îl face și o țintă critică. Două vulnerabilități serioase izvorăsc din natura lui de a interpreta trafic:
+
+**SSRF** (Server-Side Request Forgery): dacă o rută construiește dinamic destinația din input-ul userului fără validare, un atacator poate forța proxy-ul să lovească rețeaua internă sau serviciile de metadata cloud (`169.254.169.254` la AWS). Soluția: whitelist strict.
+
+**HTTP Request Smuggling** (CWE-444): dacă proxy-ul și backend-ul interpretează diferit limitele unei cereri (unul citește `Content-Length`, celălalt `Transfer-Encoding`), un atacator ascunde o a doua cerere în corpul primeia. Pe conexiunile keep-alive partajate, cererea otrăvită se lipește de cererea următorului utilizator inocent — cache poisoning, session hijacking. Soluția reală: HTTP/2 end-to-end (cadre binare, fără ambiguitate de delimitare).
+
+<CosmoHint emotion="concerned">
+Observă tiparul care leagă ambele vulnerabilități — și de ce reverse proxy-ul e simultan cel mai util și cel mai periculos element din stivă. Toată puterea lui vine din faptul că *interpretează* trafic: citește, parsează, decide, reconstruiește. Dar exact aceeași putere e slăbiciunea: dacă interpretarea proxy-ului diferă cu un fir de păr de cea a backend-ului, atacatorul strecoară ceva prin crăpătură. Poziția centrală care-l face indispensabil îl face și punctul unic de compromitere totală — pică proxy-ul, pică tot ce ascunde. E o lecție de arhitectură mai adâncă decât rețelistica: orice componentă căreia îi dai putere și încredere devine și cel mai valoros lucru de atacat. De-aia securitatea la margine (proxy) nu e opțională — e locul unde se joacă totul.
+</CosmoHint>
+
+Tool-uri: `curl -v -H "Host: api.exemplu.ro" http://IP_PROXY` (testezi routing-ul L7 fără DNS), `nginx -t` (validezi config), logurile Nginx cu `$request_time` vs `$upstream_response_time` (primul mare + al doilea mic = client lent; al doilea mare = backend supraîncărcat).
+
+Un header standard de proxy pe care merită să-l cunoști e `Via` (RFC 7230): fiecare proxy de pe traseu îl adaugă ca să semnaleze că a procesat cererea și să prevină buclele de rutare. În teorie, un lanț de proxy-uri lasă o urmă în `Via`. În practică, reverse proxy-urile îl **elimină deliberat** din răspuns — fiindcă ar trăda infrastructura internă (câte proxy-uri, ce software, ce versiuni), exact ce vrei să ascunzi de un atacator. Absența lui `Via` e ea însăși o decizie de securitate.
+
+---
+
+## ÎNCHEIERE
+
+Reverse proxy-ul e intermediarul serverului: stă la marginea infrastructurii, termină conexiunea clientului, decriptează TLS-ul, rutează pe conținut (path/host/header) și ascunde backend-urile reale. Clientul crede că vorbește cu serverul; vorbește cu proxy-ul. E fundamentul web-ului modern — de la Nginx pe un VPS la Cloudflare la scară planetară.
+
+Regulă practică: reverse proxy = în numele serverului (adminul îl configurează). Dacă un site are un singur domeniu dar zeci de servicii în spate, dacă vezi Cloudflare sau Nginx în headerele răspunsului, dacă certificatul TLS se termină undeva ce nu e serverul de aplicație — e un reverse proxy. Iar când vrei să distribui traficul spre mai multe backend-uri identice, intri în teritoriul load balancer-ului: L14.

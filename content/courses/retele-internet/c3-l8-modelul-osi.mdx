@@ -1,0 +1,164 @@
+---
+title: "Modelul OSI — cele 7 straturi"
+order: 8
+type: lesson
+module_index: 3
+duration: 17
+difficulty: 3
+---
+
+# Modelul OSI — cele 7 straturi
+
+## HOOK
+
+Modelul pe care toată lumea îl predă — cele 7 straturi OSI — descrie un sistem care **n-a câștigat niciodată**. Internetul nu rulează pe OSI. Rulează pe TCP/IP, un model cu 4 straturi.
+
+În anii '80 s-au luptat două tabere. OSI, susținut de ISO, guvernele europene și monopolurile de telefonie, a standardizat teoretic fiecare detaliu înainte de a scrie cod. TCP/IP, făcut de DARPA cu filozofia "rough consensus and running code", a fost implementat și funcționa deja când OSI era încă în comitete. TCP/IP a câștigat zdrobitor.
+
+Și totuși, predăm OSI. De ce? Fiindcă OSI a pierdut ca *implementare*, dar a câștigat ca *vocabular*. Când un inginer zice "e o problemă de Layer 2" sau "load balancer L7", vorbește OSI.
+
+Ai văzut deja fiecare strat în acțiune (L1-L6). Acum primești harta care le leagă.
+
+---
+
+## CONTEXT
+
+În anii '70, fiecare producător avea propria stivă incompatibilă: IBM cu SNA (1974), DEC cu DECnet (1975). Să conectezi un mainframe IBM cu minicalculatoare DEC cerea gateway-uri de traducere lente și scumpe — un Turn Babel tehnologic.
+
+Soluția a venit din același principiu ca în software: **separation of concerns** și **abstractizare**. Din Cursul 2 știi granița kernel/user space — un proces apelează un syscall fără să știe cum gestionează kernel-ul registrele hardware. Stratificarea rețelei face același lucru: fiecare strat are o funcție delimitată și o interfață strictă spre vecini.
+
+Mecanismul concret e **încapsularea** (din L1, păpușile Matrioșka). Un segment TCP devine "payload opac" pentru IP, care nu-i pasă de porturi. Pachetul IP devine payload opac pentru Ethernet. Avantajul: schimbi un strat fără să atingi restul. Treci de la Ethernet (cablu) la WiFi (radio) — se schimbă doar L1 și L2, iar IP, TCP și HTTPS rămân intacte.
+
+---
+
+## MIEZUL
+
+### Cele 7 straturi — harta completă
+
+Mnemonică (de jos în sus): **"Please Do Not Throw Sausage Pizza Away"**. În română, de sus în jos: *"Am plecat să trimit roze la fete"*.
+
+{/* TABLE */}
+
+| # | Strat | Funcție | Din L1-L6 | PDU |
+|---|---|---|---|---|
+| L7 | Application | Interfața rețea pentru aplicații | DNS, HTTP, SSH | Date |
+| L6 | Presentation | Formatare, compresie, criptare | (TLS conceptual) | Date |
+| L5 | Session | Dialog, sesiuni, checkpoints | — | Date |
+| L4 | Transport | Livrare end-to-end, porturi | TCP, UDP, BDP | Segment |
+| L3 | Network | Adresare logică, rutare | IP, subnetting, TTL | Pachet |
+| L2 | Data Link | Livrare locală, MAC | Ethernet, switch, ARP | Cadru |
+| L1 | Physical | Biți pe mediu fizic | Fibră, tensiuni, radio | Bit |
+
+Echivalența cu TCP/IP: L1+L2 = Network Access, L3 = Internet, L4 = Transport, iar L5+L6+L7 sunt comasate într-un singur **Application**. Asta e cheia de ce TCP/IP are 4 straturi și OSI 7 — straturile de sus sunt prea greu de separat în practică.
+
+### L1 — Physical: biți orbi
+
+Stratul fizic transformă logica în realitate măsurabilă: tensiuni pe cupru, lumină pe fibră, unde radio (802.11). Aici trăiesc pinii RJ-45, transceiverele SFP+, hub-urile (perimate).
+
+Un detaliu pe care nu l-ai văzut: **codarea semnalelor**. Nu poți trimite tensiune continuă — dacă transmiți 500 de biți "0" la rând, linia pare moartă și ceasul receptorului derivează. Soluțiile:
+- **Manchester** (Ethernet original): tranziție obligatorie la mijlocul fiecărui bit → ceas extras din semnal (self-clocking), dar eficiență doar 50%.
+- **4B/5B** (Fast Ethernet): mapează 4 biți de date în coduri de 5 biți alese să garanteze tranziții suficiente → eficiență 80%.
+
+Definitoriu pentru L1: **orbirea totală**. Un hub habar n-are de MAC, IP sau pachete — multiplică orbește impulsuri pe toți pinii.
+
+### L2 & L3 — livrare locală vs globală
+
+Aici e una dintre cele mai importante decizii din rețelistică: separarea livrării **locale** de cea **globală**.
+
+**L2 (Data Link)** livrează de la un nod la vecinul adiacent (node-to-node). Cadre, adrese MAC plate pe 48 biți, switch-uri. Se oprește la primul router. O rețea L2 (sau un VLAN) rămâne un singur domeniu de broadcast.
+
+**L3 (Network)** rezolvă topologia globală. Pachete, adresare IP ierarhică, routere care decapsulează cadrul, citesc IP-ul destinație, decrementează TTL și consultă tabela de rutare pentru următorul hop.
+
+<CosmoHint emotion="thinking">
+Reține distincția asta, e inima rețelisticii: MAC-ul (L2) răspunde la "următorul hop fizic", IP-ul (L3) la "destinația finală logică". Ai văzut-o în L2 — MAC-ul se rescrie la fiecare hop, IP-ul rămâne constant. Acum vezi de ce: sunt straturi diferite, cu responsabilități diferite. L2 livrează "pe scara blocului", L3 navighează "între orașe". Switch-ul lucrează la L2 (vede MAC-uri), routerul la L3 (vede IP-uri). Aceeași separare pe care o regăsești în orice problemă de rețea: e locală sau globală?
+</CosmoHint>
+
+ARP-ul e cazul fascinant. Tehnic e L2 (încapsulat direct în Ethernet, EtherType `0x0806`, fără header IP, nu traversează routere). Dar **scopul** lui e pur L3: mapează un IP la un MAC. Din cauza acestei duble naturi, e plasat colocvial la **"Layer 2.5"** — primul semn că modelul rigid se curbează în fața realității.
+
+### L4 — Transport: granița kernel/aplicație
+
+L4 mută atenția de la "între mașini" la "între procese". Porturile (16 biți, 0-65535) identifică serviciile, realizând **multiplexarea** — fără ele, un calculator care descarcă un fișier și încarcă o pagină simultan n-ar ști cum să direcționeze pachetele care sosesc la aceeași adresă IP.
+
+Din L6 știi tot: TCP adaugă fiabilitate (handshake, secvențe, ACK, congestion control), UDP renunță la tot pentru viteză. IP-ul de dedesubt e best-effort; L4 e locul unde repari (sau nu) deficiențele.
+
+Conceptual, L4 e **ultima frontieră a kernel-ului**. Stiva TCP/IP din nucleu procesează totul până aici. Deasupra, aplicațiile din user space accesează rețeaua prin **sockets** (din Cursul 2) — API-ul prin care un proces "scrie în rețea" la fel de simplu ca într-un fișier. L4 e granița dintre lumea rețelei și lumea aplicațiilor.
+
+### L5-L6-L7 — zona neclară
+
+Straturile de sus generează cea mai mare confuzie, fiindcă limitele lor teoretice rareori se respectă în practică. De-aia TCP/IP le-a comasat.
+
+**L5 (Session)** — ar gestiona dialogul, sesiunile lungi, checkpoints pentru reluarea transferurilor. În practică, asta a fost absorbit de handshake-ul/teardown-ul TCP (L4) sau de logica protocoalelor L7.
+
+**L6 (Presentation)** — formatare, compresie, criptare. Conceput pentru incompatibilități (mainframe IBM cu EBCDIC vorbind cu UNIX pe ASCII). Azi: JSON, XML, codec-uri video (H.264), MIME.
+
+**L7 (Application)** — protocoalele cu care interacționezi: HTTP, SMTP, SSH, DNS. Limbajele cu sintaxă proprie pe care clienții și serverele le folosesc.
+
+Controversa clasică: **unde stă TLS?** Conceptual, criptarea ar fi L6. Dar TLS nu se supune: plutește deasupra L4 (peste TCP), face handshake-uri și gestionează chei (invadând L5), și negociază protocolul de aplicație prin ALPN (atingând L7). Arhitecții admit deschis că TLS traversează L5-L6-L7 simultan — dovada că modelul teoretic nu prinde realitatea. (Aprofundăm TLS în L17.)
+
+<FactBox>
+**Modelul OSI — cifre cheie:**
+- OSI: **7 straturi**, ISO 7498, publicat **1984**
+- TCP/IP: **4-5 straturi**, RFC 791/793, **1981**
+- "Flag day" ARPANET (NCP → TCP/IP): **1 ianuarie 1983**
+- PDU-uri: bit (L1) → cadru (L2) → pachet (L3) → segment (L4) → date (L5-7)
+- Headere: TCP **20 bytes**, IP **20 bytes**, Ethernet **14 bytes** + FCS **4**
+- MTU 1500 → MSS 1460 (1500 − 20 IP − 20 TCP)
+- ARP: EtherType **0x0806**, plasat la "**Layer 2.5**"
+- VXLAN: L2 peste UDP port **4789**; depășește limita de **4096** VLAN-uri
+- QUIC (RFC 9000): până la **~40%** din traficul global, în user space
+- Dispozitive: hub (L1), switch (L2), router (L3), LB (L4/L7)
+</FactBox>
+
+### Încapsularea completă — un request HTTP
+
+Reluăm mecanismul din L1, acum cu tot vocabularul OSI. Un `GET / HTTP/1.1` coboară:
+
+```
+L7/6/5  Date HTTP (criptate TLS)           → "Date"
+L4      + Header TCP (20B): port 443, seq   → "Segment"
+L3      + Header IP (20B): IP src/dst, TTL  → "Pachet"
+L2      + Header Ethernet (14B): MAC + FCS  → "Cadru"
+L1      + Preambul (7B) + SFD (1B)          → biți pe fir
+```
+
+Fiecare strat tratează tot ce vine de sus ca payload opac și adaugă propriul header. La destinație, procesul se inversează (**decapsulare**): fiecare strat își scoate header-ul după verificare. Iar la fiecare router intermediar (L3), cadrul L2 e **distrus și recreat** pentru ruta următoare, TTL-ul scade cu 1 — exact mecanismul hop-by-hop din L2.
+
+### Unde modelul se rupe
+
+OSI vrea o ierarhie pură: stratul N depinde doar de N-1. Realitatea îl sfidează constant.
+
+**Tunneling / VXLAN**: pentru a depăși limita de 4096 VLAN-uri, VXLAN ia un cadru Ethernet (L2) și-l încapsulează într-un datagram UDP (L4), peste IP (L3). Rezultatul: "L2 peste L4 peste L3" — secvențialitatea OSI complet distrusă, dar e fundamentul cloud-ului modern.
+
+**QUIC** (din L6): Google a vrut să inoveze transportul, dar TCP e blocat în kernel și firewall-urile resping orice L4 nou (middlebox ossification). Soluția radicală: a ascuns un protocol de transport nou **în interiorul UDP**. Pentru firewall arată ca UDP banal; înăuntru e logică de transport completă, în user space. OSI e neputincios să clasifice "un L4 deasupra altui L4 care rulează ca aplicație".
+
+<CosmoHint emotion="surprised">
+Oprește-te aici, fiindcă ăsta e momentul în care modelul pe care tocmai l-ai învățat se sparge — și e cel mai valoros lucru din lecție. OSI presupune că straturile sunt curate și ordonate: N peste N-1, fără excepții. Dar VXLAN bagă L2 în L4, QUIC bagă transport în transport, TLS se întinde peste trei straturi deodată. Inovația reală nu respectă cutiile. Și totuși nu arunci modelul — îl folosești ca limbaj, știind unde minte. Asta e maturitatea inginerească: să ții în cap simultan harta *și* conștiința că harta nu e teritoriul. Când vei auzi pe cineva certându-se dacă WebSocket-ul e "L7 sau L4", vei ști că întrebarea însăși e greșită — realitatea e mai dezordonată decât orice diagramă.
+</CosmoHint>
+
+**Layer 8**: gluma inginerilor. Stratul imaginar = utilizatorul. "Layer 9" = managementul, politicile, banii. Recunoașterea ironică că multe pene nu vin de la un PDU corupt, ci de la factorul uman.
+
+---
+
+## REVEAL
+
+OSI nu e doar teorie de memorat — e instrumentul suprem de **debugging**. Când o rețea pică, izolezi defectul pe straturi:
+
+{/* TABLE */}
+
+| Strat | Simptom tipic | Unealtă |
+|---|---|---|
+| L1 | Cablu îndoit, SFP ars, atenuare | OTDR, multimetru |
+| L2 | VLAN greșit, buclă fără STP, erori CRC | loguri switch, tabelă MAC |
+| L3 | ACL blochează, rută lipsă, NAT greșit | `ping`, `traceroute` |
+| L4 | Port blocat de firewall, handshake eșuat | `netstat`, scanere porturi |
+| L7 | 502 Bad Gateway, API căzut, "It's always DNS" | loguri aplicație, `curl` |
+
+Aceeași logică definește designul real: **load balancer L4** (HAProxy tcp-mode, AWS NLB) rutează doar pe IP/port, e orbește rapid, TLS trece intact prin el. **Load balancer L7** (Nginx, Envoy, AWS ALB) deschide payload-ul, decriptează TLS, citește URL-ul (`/api` → microservicii, `/static` → imagini), dar consumă CPU. Arhitectura clasică le stivuiește: L4 masiv la edge (filtrează DDoS), L7 mai mic în cluster (rutare de finețe). Aprofundăm load balancing în L14.
+
+---
+
+## ÎNCHEIERE
+
+OSI a pierdut ca implementare, dar a câștigat ca limbaj. Cele 7 straturi sunt harta mentală care organizează tot ce ai învățat empiric: L1 biți, L2 livrare locală, L3 globală, L4 procese, L5-7 aplicație. Modelul se rupe la TLS, VXLAN, QUIC — dar rămâne indispensabil.
+
+Regulă practică: când ceva nu merge, gândește pe straturi. Ai conectivitate fizică (L1)? Ajunge pachetul (L3, `ping`)? Trece de firewall (L4)? Răspunde aplicația (L7)? Întrebarea "e o problemă de L1 sau de L7?" transformă debugging-ul din ghicit în metodă.

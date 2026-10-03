@@ -1,0 +1,158 @@
+---
+title: "Rutarea pachetelor"
+order: 10
+type: lesson
+module_index: 3
+duration: 18
+difficulty: 4
+---
+
+# Rutarea pachetelor
+
+## HOOK
+
+Pe 24 februarie 2008, YouTube a dispărut de pe internet timp de aproape două ore. Cauza n-a fost un atac, ci o singură linie de configurare greșită la un ISP din Pakistan.
+
+Guvernul ordonase blocarea YouTube intern. Inginerii au creat o rută falsă către `208.65.153.0/24` ca s-o trimită într-un "blackhole" local. Dar n-au filtrat anunțul la graniță — și ruta s-a scurs către restul lumii. YouTube anunța legitim `208.65.152.0/22`. Ruta pakistaneză era `/24` — mai specifică. Și aici e capcana: **regula longest prefix match** spune că prefixul cel mai lung câștigă. Fiecare router de pe planetă a decis că ruta falsă e "mai bună", și tot traficul global spre YouTube a curs spre un server din Pakistan.
+
+Un singur ISP, o singură rută, internetul global deturnat. Asta e fragilitatea pe care o vei înțelege azi: cum un pachet își găsește drumul prin zeci de routere care nu se cunosc între ele, și de ce sistemul care ține internetul unit se bazează pe încredere oarbă.
+
+---
+
+## CONTEXT
+
+Din L3 știi adresarea IP, CIDR, masca de rețea și TTL. Din L8 știi că routerul (L3) decapsulează cadrul, citește IP-ul destinație, decrementează TTL și rescrie header-ul L2 pentru următorul hop — iar IP-ul rămâne constant pe tot traseul, în timp ce MAC-ul se schimbă la fiecare salt. Din L9 știi cum pachetul *sosit* ajunge la socket-ul corect.
+
+Acum răspundem la întrebarea dintre L8 și L9: cum ajunge pachetul acolo, traversând internetul?
+
+Paradigma fundamentală: **nimeni nu cunoaște ruta completă**. Niciun router de pe planetă nu deține o hartă pas-cu-pas de la tine la destinație. Fiecare ia o singură decizie locală — "care e următorul hop?" — și mută pachetul un salt mai aproape. E ca și cum ai întreba din colț în colț, fără să ai harta întreagă. Această abordare descentralizată (numită "hot potato") e ce permite internetului să scaleze la zeci de mii de rețele independente.
+
+---
+
+## MIEZUL
+
+### Tabela de rutare și longest prefix match
+
+Baza de cunoștințe a unui router e **tabela de rutare** (RIB — Routing Information Base). Nu mapează IP-uri individuale (ar fi miliarde de intrări), ci **prefixe** CIDR (din L3): destinație + mască, gateway (next hop), interfață, metric.
+
+Când sosește un pachet, routerul caută IP-ul destinație. Frecvent, o adresă se potrivește la **mai multe** rute. Regula care decide: **longest prefix match** (LPM) — câștigă ruta cu masca cea mai lungă, fiindcă descrie destinația cel mai precis. Pentru `130.95.0.50`, dacă tabela are și `130.95.0.0/16` și `130.95.0.0/24`, câștigă `/24`. Dacă nimic nu se potrivește, se folosește **ruta default** `0.0.0.0/0` — gateway of last resort.
+
+<CosmoHint emotion="curious">
+Întoarce-te o clipă la hook-ul lecției, fiindcă acum vezi mecanismul exact. YouTube anunța `/22`, Pakistan a anunțat `/24` — un prefix mai lung, deci mai specific. LPM nu întreabă "cine e legitim?", întreabă doar "care prefix e mai precis?". Ruta falsă a câștigat nu prin atac sofisticat, ci prin simpla aplicare a regulii pe care fiecare router o execută orbește. Asta e atât puterea cât și pericolul LPM: e determinist și rapid, dar n-are noțiunea de "corect". Regula matematică nu știe de proprietate sau intenție — și de-aia o eroare de configurare la un capăt al lumii poate deturna trafic global. Tehnologia care face internetul eficient e aceeași care îl face fragil.
+</CosmoHint>
+
+Implementarea LPM e o provocare reală. O căutare liniară prin sute de mii de rute ar fi O(N) — inacceptabil. Linux folosește o structură numită **LC-trie** (Level-Compressed trie): comprimă căile și nivelurile dense, reducând căutarea la 1-2 accesări în memorie pentru ~64 MiB de RAM la o tabelă globală completă. Funcția `fib_lookup()` din kernel parcurge acest arbore.
+
+### Forwarding vs Routing — control plane vs data plane
+
+Distincția care explică arhitectura routerelor moderne: **planul de control** vs **planul de date**.
+
+**Control plane** ("creierul"): rulează pe CPU, procesează protocoalele de rutare, descoperă topologia, construiește RIB-ul. Intensiv matematic, dar nu critic per-pachet.
+
+**Data plane** ("mușchii"): forwarding-ul efectiv — preia pachetul, consultă **FIB** (Forwarding Information Base, o versiune pre-compilată a RIB-ului), comută pachetul pe interfața de ieșire.
+
+Pe un server Linux, ambele rulează pe CPU — pachetul intră prin NIC, declanșează o întrerupere, CPU-ul face lookup în LC-trie, modifică TTL/checksum, trimite înapoi. Zeci de milioane de pachete/secundă (Mpps).
+
+Routerele carrier-grade din nucleul internetului folosesc **ASIC-uri** dedicate și un tip special de memorie: **TCAM** (Ternary Content Addressable Memory). În RAM normal, dai o adresă și primești date. În TCAM, dai **datele** (IP-ul destinație) și hardware-ul caută simultan în toate celulele, returnând acțiunea de forwarding. "Ternar" = fiecare bit poate fi 0, 1 sau "don't care" (X) — exact ce permite implementarea LPM direct în hardware: biții din mască se caută exact, restul sunt "don't care". Rezultatul: miliarde de pachete/secundă la "wire-speed". Dar TCAM-ul e scump, consumă multă energie și e finit — de-aia depășirea pragului de ~1 milion de rute a creat panică reală în industrie.
+
+### Static vs dinamic
+
+Rutele vin din trei surse. **Direct conectate**: generate automat când configurezi un IP pe o interfață. **Statice**: configurate manual (`ip route add 10.10.0.0/16 via 192.168.1.1`) — stabile, zero overhead, ideale pentru rețele stub, dar **incapabile să se adapteze**. Dacă next-hop-ul cade, traficul dispare în neant (blackhole) până intervine un om.
+
+**Dinamice**: protocoale care schimbă constant mesaje cu vecinii, detectează schimbările de topologie și reconvergează automat. Esențiale la scară.
+
+Când un router învață aceeași destinație din surse diferite, **distanța administrativă** decide: fiecare sursă are o valoare de încredere, iar câștigă **valoarea cea mai mică** — direct conectat (0) < static (1) < OSPF (110) < BGP. Cu cât numărul e mai mic, cu atât sursa e mai de încredere.
+
+### IGP — OSPF și logica link-state
+
+Un domeniu sub control unic (corporație, ISP, datacenter) e un **Sistem Autonom** (AS). Protocoalele din interiorul lui se numesc **IGP** (Interior Gateway Protocols).
+
+Două filozofii. **Distance-vector** (RIP, vechi): fiecare router primește tabelele vecinilor, adaugă propriul cost, propagă. Metrica = numărul de hop-uri, cu limita strictă de **15** (16 = inaccesibil) — de-aia RIP merge doar pe rețele mici.
+
+**Link-state** (OSPF): fiecare router anunță doar starea propriilor link-uri locale, iar aceste anunțuri sunt inundate ("flooded") la toate routerele din zonă. Rezultatul: fiecare router construiește **harta completă** a topologiei și rulează **algoritmul Dijkstra** pe ea, calculând arborele de cost minim cu sine ca rădăcină. Costul OSPF nu e numărul de hop-uri, ci invers proporțional cu banda — favorizează automat fibra de 10Gbps față de cuprul lent. Convergența în milisecunde, zero bucle interne.
+
+{/* TABLE */}
+
+| Protocol | Tip | Algoritm | Metrică | Domeniu |
+|---|---|---|---|---|
+| RIP | distance-vector | Bellman-Ford | hop count (max 15) | rețele mici |
+| OSPF | link-state | Dijkstra | cost ∝ 1/bandă | intra-AS (enterprise) |
+| BGP | path-vector | best-path | AS_PATH + politică | inter-AS (internet) |
+
+### BGP — protocolul care ține internetul unit
+
+OSPF se prăbușește la scara internetului — un Dijkstra pe sute de milioane de link-uri ar bloca orice supercomputer, iar firmele nu vor să-și expună topologia. Interconectarea AS-urilor cere un **EGP**, și singurul care există e **BGP** (Border Gateway Protocol).
+
+BGP e sistemul nervos central al internetului. Fără el, am avea mii de rețele izolate. Fiecare entitate primește un **ASN** unic (de la RIPE, ARIN etc.) — în 2026 sunt peste 85.000 de ASN-uri active (Google AS15169, Cloudflare AS13335).
+
+BGP folosește **path-vector**: anunță **calea completă** (AS_PATH), nu distanțe. Când un AS anunță un prefix, adaugă propriul ASN; la fiecare salt, următorul AS prepend-ează al lui. Lista (ex. `AS3333 → AS3356 → AS3549`) servește două scopuri: previne buclele (dacă-ți vezi propriul ASN în listă, arunci anunțul) și e metrica principală (AS_PATH mai scurt câștigă, la mască egală).
+
+<CosmoHint emotion="thinking">
+Aici e diferența care schimbă totul: OSPF caută calea matematic optimă; BGP caută calea cea mai **avantajoasă financiar**. BGP nu e despre viteză, e despre bani și politică. Două modele economice guvernează internetul: "transit" (un ISP mic plătește unul mare ca să-i ducă traficul oriunde) și "peering" (două rețele egale schimbă trafic direct, gratuit). De-aia traficul tău nu ia neapărat calea cea mai scurtă fizic — ia calea pe care providerii au decis-o pe baza contractelor. Internetul nu e o rețea tehnică neutră; e o hartă de relații comerciale, codificată în politici BGP. Când înțelegi asta, înțelegi de ce un pachet din București spre un server din București poate trece prin Frankfurt.
+</CosmoHint>
+
+La vârf stau rețelele **Tier 1** (Lumen AS3356, Arelion AS1299, NTT AS2914) — backbone-uri cu fibră intercontinentală care nu plătesc tranzit nimănui, ajungând oriunde doar prin peering. Tabela globală BGP (Default-Free Zone) a depășit **1,1 milioane de rute** IPv4 în 2026, cu IPv6 crescând cu 30%+ anual.
+
+### Cum se rupe rutarea
+
+BGP a fost proiectat în anii '80, când toți participanții aveau încredere reciprocă. N-are autentificare nativă a originii. Orice AS poate anunța că deține un bloc IP care nu-i aparține — și dacă anunțul e mai specific (LPM) sau are AS_PATH mai scurt, internetul îl crede.
+
+<FactBox>
+**Rutarea — cifre cheie:**
+- Tabela BGP globală 2026: **~1,1 milioane** rute IPv4
+- ASN-uri active: **85.000+**
+- LPM: prefixul **cel mai lung** câștigă
+- RIP: limita **15** hop-uri; OSPF: Dijkstra, cost ∝ 1/bandă
+- LC-trie Linux: **1-2** accesări memorie, ~**64 MiB** tabelă globală
+- TCAM: "don't care" (X) = LPM în hardware, miliarde pkt/s
+- TTL default: **64** (Linux), **128** (Windows), **255** (unele)
+- Hop-uri tipice transcontinental: **10-20**
+- Distanță administrativă: cea mai mică câștigă — direct (0) < static (1) < OSPF (110) < BGP
+- Incident YouTube/Pakistan: **24 feb 2008**, ~2 ore
+</FactBox>
+
+Asta a fost incidentul YouTube — un route leak combinat cu LPM. Dar nu e izolat: în 2019 China Telecom a redirecționat 40.000 de rute europene; în 2021 o configurare Vodafone Idea a afectat Google și Akamai cu 34.000+ prefixe false. **TTL-ul** (din L3) e plasa de siguranță parțială — limitează cât poate rătăci un pachet într-o buclă, dar nu previne hijacking-ul.
+
+Soluția modernă: **RPKI** (Resource Public Key Infrastructure). Nu înlocuiește BGP, ci adaugă un strat criptografic. Proprietarul legitim al unui bloc IP obține un certificat **ROA** care leagă irevocabil blocul de un singur ASN autorizat. Concret, un ROA spune ceva de forma "prefixul `208.65.152.0/22` poate fi anunțat **doar** de AS36561, cu masca maximă /24". Routerele de graniță fac **ROV** (Route Origin Validation): compară fiecare anunț cu ROA-ul; dacă originea nu se potrivește, anunțul e marcat "invalid" și aruncat. Dacă RPKI ar fi existat în 2008, anunțul fals din Pakistan ar fi fost respins instant — fiindcă AS17557 nu era autorizat pentru acel prefix.
+
+### Rutarea în Linux
+
+O mașină Linux devine router activând `net.ipv4.ip_forward = 1` (implicit 0 — un calculator nu rutează trafic străin din precauție). Kernel-ul suportă **multiple tabele de rutare** (local/main/default) și **policy routing** (`ip rule`): poți ruta pe baza IP-ului sursă, marcaje de firewall, interfața de intrare — nu doar destinația.
+
+Asta e fundamentul containerelor (din L9): Docker dă fiecărui container propriul **network namespace** cu tabelă de rutare izolată, conectat la gazdă prin perechi **veth** și un bridge (`docker0`). Pachetul din container urmează ruta default spre veth, apare pe gazdă, iar de acolo (cu `ip_forward=1`) iese spre internet. Translatarea adreselor private spre internetul public — NAT — e exact subiectul lecției următoare (L11).
+
+---
+
+## REVEAL
+
+Cele trei niveluri de rutare, de la local la planetar:
+
+{/* TABLE */}
+
+| Nivel | Protocol | Algoritm | Scop |
+|---|---|---|---|
+| Local | direct/static | — | rute conectate, rețele stub |
+| Intra-AS (IGP) | OSPF / IS-IS | Dijkstra (link-state) | cea mai rapidă cale intern |
+| Inter-AS (EGP) | BGP | path-vector | cea mai avantajoasă cale (politică) |
+
+Tool-uri esențiale: `ip route` (tabela kernel), `ip route get <IP>` (ce rută ar alege kernel-ul, fără să trimită trafic), `traceroute`. Acesta din urmă e ingenios: exploatează TTL-ul (din L3). Trimite pachete cu TTL=1 (primul router îl decrementează la 0, îl aruncă și trimite înapoi "ICMP Time Exceeded", expunându-și IP-ul), apoi TTL=2, TTL=3... reconstruind traseul hop cu hop. De-aia un `traceroute` îți arată fiecare router de pe drum:
+
+```
+$ traceroute google.com
+ 1  192.168.1.1      1.2 ms     (gateway-ul tău)
+ 2  10.20.0.1        8.4 ms     (ISP-ul local)
+ 7  72.14.196.1     24.1 ms     (intri în AS-ul Google)
+ 9  142.250.74.46   25.0 ms     (destinația)
+```
+
+Liniile cu `* * *` înseamnă un router care nu răspunde la ICMP (mulți îl blochează din politică) — traseul continuă, dar acel hop rămâne invizibil.
+
+Fizic, totul curge prin **IXP-uri** (puncte neutre unde rețelele schimbă trafic — în România RoNIX și InterLAN, ultimul cu vârfuri peste 1 Tbps) și prin **cabluri submarine** (1,4 milioane km de fibră, 99% din traficul internațional — nu sateliți, cum cred mulți).
+
+---
+
+## ÎNCHEIERE
+
+Rutarea e un milion de decizii locale care, împreună, creează iluzia unei rute globale. Niciun router nu vede tot drumul — fiecare mută pachetul un hop mai aproape, pe baza tabelei sale și a regulii longest prefix match. Intern domnește OSPF (matematic optim); între AS-uri, BGP (avantajos comercial).
+
+Regulă practică: când conectivitatea pică, gândește în straturi de rutare. Ajunge pachetul la gateway (rută locală)? Trece prin AS-ul tău (IGP)? Se propagă global (BGP)? Iar dacă un site dispare brusc pentru jumătate de planetă fără motiv — verifică BGP: probabil cineva a anunțat un prefix care nu-i al lui.

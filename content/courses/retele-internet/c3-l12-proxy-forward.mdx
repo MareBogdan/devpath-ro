@@ -1,0 +1,203 @@
+---
+title: "Proxy Forward"
+order: 12
+type: lesson
+module_index: 3
+duration: 17
+difficulty: 3
+---
+
+# Proxy Forward
+
+## HOOK
+
+Când ești la serviciu și încerci să intri pe un site blocat, primești un `403 Forbidden` — dar nu de la site. De la firma ta. Ceva stă între tine și internet, citește exact ce ceri, și decide dacă ai voie. Acel ceva e un **forward proxy**.
+
+Diferența față de NAT-ul din L11 e crucială. NAT rescrie adrese pe plicuri fără să deschidă vreodată scrisoarea — e orb la conținut, lucrează la L3/L4. Un forward proxy **deschide scrisoarea**: citește URL-ul, înțelege că ceri `/malware/`, și te refuză. Lucrează la L7, nivelul aplicației.
+
+Un forward proxy e un intermediar care acționează **în numele tău** — clientul. Tu știi de el (ești configurat să treci prin el); serverul din exterior nu te vede pe tine, vede doar proxy-ul. E asistentul care face cumpărături în numele tău: magazinul nu știe cine ești, știe doar cine a venit.
+
+Asta e prima jumătate a poveștii intermediarilor. Cealaltă jumătate — proxy-ul care apără serverul, nu clientul — vine în L13.
+
+---
+
+## CONTEXT
+
+Din L11 știi NAT-ul: rescrie adrese la L3/L4, transparent, orb la conținut, în kernel. Din L9 cunoști socket-urile și ciclul connect/accept. Din L8 știi că L7 e nivelul aplicației, unde trăiește HTTP. Din L4 știi DNS-ul.
+
+Un forward proxy e alt gen de intermediar. Nu rescrie pachete în kernel — rulează ca **proces în user space** (ex. Squid) și înțelege protocolul. Cheia care îl diferențiază de NAT: proxy-ul **termină** conexiunea ta și deschide una **nouă** spre server. Sunt două conexiuni TCP complet separate: client↔proxy și proxy↔server.
+
+Distincția pe care lecția o ține fermă: **forward** proxy = în numele clientului (tu îl configurezi, serverul nu te vede). **Reverse** proxy (L13) = în numele serverului. **NAT** (L11) = doar adrese, fără înțelegerea conținutului. Trei intermediari, trei roluri — nu le confunda.
+
+---
+
+## MIEZUL
+
+### Mecanica — două conexiuni, un intermediar
+
+Spre deosebire de NAT (care procesează pachete în kernel la viteză mare), proxy-ul rulează ca proces user space și gestionează conexiuni întregi. Ciclul unei cereri:
+
+1. **Client → Proxy**: în loc să rezolve DNS-ul serverului și să trimită direct, clientul face handshake TCP cu proxy-ul (ex. `192.168.1.254:3128`). Proxy-ul apelează `accept()`.
+2. **Procesare L7**: clientul trimite `GET http://example.com/ HTTP/1.1`. Proxy-ul citește fluxul cu `read()`, îl parsează ca HTTP, verifică ACL-urile (ai voie la acest domeniu?), cache-ul (îl am deja?), politicile.
+3. **Proxy → Server**: dacă trece, proxy-ul devine **el** client — rezolvă DNS-ul, creează un socket nou, face `connect()` spre server. Serverul vede doar proxy-ul.
+4. **Relay**: proxy-ul copiază răspunsul de pe al doilea socket înapoi pe primul, spre client.
+
+Izolarea e completă: retransmisiile, congestia și ferestrele TCP sunt separate pentru fiecare conexiune. Un pachet pierdut între server și proxy nu atinge fereastra clientului. Această decuplare la L4 + reasamblare la L7 e și motivul pentru care proxy-urile consumă mult mai mult CPU/RAM decât o regulă NAT.
+
+### Tipuri de forward proxy
+
+Două dimensiuni de clasificare. După **protocol**:
+- **HTTP proxy**: înțelege HTTP (verbe, headere, URL-uri). Ideal pentru filtrare de URL, dar nu duce trafic non-HTTP fără tunelare.
+- **SOCKS proxy**: agnostic de protocol (conceptual L5). Nu se uită la payload, doar rutează bytes — orice TCP (și UDP la SOCKS5).
+
+După **configurare**:
+- **Explicit**: clientul știe de proxy (setat manual sau prin PAC).
+- **Transparent**: clientul nu știe — rețeaua îi deturnează traficul cu o regulă DNAT (din L11!) spre proxy. Squid apoi citește headerul `Host:` ca să afle unde voia clientul să ajungă.
+
+Proxy-urile transparente se chinuie cu HTTPS: dacă deturnezi un handshake TLS spre alt server, certificatul nu se potrivește și conexiunea eșuează — de-aia proxy-urile explicite domină în corporații.
+
+### Squid în practică — cum arată controlul L7
+
+Teoria devine concretă în configurația unui proxy real. Squid e liderul istoric pe Linux, iar fișierul `/etc/squid/squid.conf` arată exact cum se traduce "controlul L7" în reguli. Un extras:
+
+```
+# Proxy-ul ascultă pe portul standard 3128
+http_port 3128
+
+# Definim cine e "rețeaua locală" (clienții permiși)
+acl localnet src 10.0.0.0/8
+acl localnet src 192.168.0.0/16
+
+# Definim porturile destinație sigure
+acl Safe_ports port 80
+acl Safe_ports port 443
+
+# Limităm tunelurile CONNECT strict la HTTPS (443)
+acl SSL_ports port 443
+http_access deny CONNECT !SSL_ports
+
+# Regulile se aplică secvențial, de sus în jos:
+http_access deny !Safe_ports      # refuză porturi nesigure
+http_access allow localnet        # permite rețeaua noastră
+http_access deny all              # blochează restul
+```
+
+Fiecare linie e o decizie L7 pe care un router n-o poate lua. `acl` definește o resursă (o mulțime de IP-uri, porturi sau domenii), iar `http_access` aplică politica. Ordinea contează enorm — Squid evaluează regulile **de sus în jos** și se oprește la prima potrivire. Linia `http_access deny CONNECT !SSL_ports` e un exemplu de securitate reală: **blochează tunelurile CONNECT către orice port care nu e 443**, împiedicând un angajat să tuneleze SSH sau SMTP prin proxy deghizat ca HTTPS.
+
+Pentru a bloca un domeniu specific, adaugi o regulă cu `dstdomain`:
+
+```
+acl blocked_sites dstdomain .facebook.com .tiktok.com
+http_access deny blocked_sites
+```
+
+Punctul din fața domeniului (`.facebook.com`) înseamnă "acest domeniu și toate subdomeniile". Când un client cere `www.facebook.com`, Squid citește headerul `Host:`, îl potrivește cu ACL-ul și returnează `403 Forbidden` — exact hook-ul lecției, acum văzut din partea proxy-ului. Asta e granularitatea imposibilă la L3/L4: un NAT ar putea bloca doar întregul IP (afectând mii de site-uri care partajează acel server), pe când Squid blochează exact domeniul, citind cererea.
+
+Distribuirea configurației la mii de stații se face automat prin fișiere **PAC** (Proxy Auto-Config) — un script JavaScript cu funcția `FindProxyForURL(url, host)` pe care browserul îl evaluează pentru fiecare URL, decidând `DIRECT` (fără proxy) sau `PROXY ip:port`. Clientul descoperă unde e fișierul PAC prin **WPAD**, mecanism la care revenim la securitate.
+
+### Caching — motivul original
+
+Forward proxy-urile s-au născut în anii '90 ca să **economisească bandă**. Dacă 1000 de angajați descarcă dimineața același update de OS, e absurd să treacă de 1000 de ori prin linia WAN scumpă.
+
+Proxy-ul stochează copii. Prima cerere pentru un obiect = **cache miss** (proxy-ul îl descarcă de la origine, îl servește, îl salvează). A doua cerere = **cache hit** (servit direct din depozit local, zero bandă externă). În logurile Squid vezi `TCP_MISS`, `TCP_HIT`, `TCP_MEM_HIT` (din RAM, ultra-rapid).
+
+Cum decide proxy-ul ce e "proaspăt"? Prin headerele de cache HTTP: `Cache-Control`, `Expires`, `ETag`. Când un obiect e învechit (stale), proxy-ul face un **conditional request** cu `If-Modified-Since`. Dacă serverul răspunde `304 Not Modified`, proxy-ul servește copia veche — trafic extern minim, doar un schimb de headere.
+
+<CosmoHint emotion="thinking">
+Observă cum se schimbă natura intermediarului odată ce trece de la L3/L4 la L7. NAT-ul din L11 era un dispecer orb — rescria etichete pe plicuri fără să le deschidă. Proxy-ul, operând la nivelul aplicației, devine un participant activ la conversație: citește, înțelege, decide, cache-uiește. Această putere are un preț simetric. NAT-ul e rapid și ieftin fiindcă e prost — nu trebuie să înțeleagă nimic. Proxy-ul e scump fiindcă e deștept — trebuie să reasambleze fiecare cerere și să o interpreteze. Regula generală în rețelistică: cu cât un intermediar urcă mai sus în stivă, cu atât devine mai capabil și mai costisitor. Alegi nivelul în funcție de cât de mult trebuie să *înțeleagă* dispozitivul.
+</CosmoHint>
+
+### HTTP CONNECT — cum trece HTTPS prin proxy
+
+Problema: dacă traficul e criptat (HTTPS), proxy-ul nu poate citi URL-ul sau conținutul — totul e un pachet TLS opac. Cum rutează atunci?
+
+Soluția: metoda **HTTP CONNECT**, care transformă temporar proxy-ul inteligent L7 într-un tunel orb L4. Mecanica:
+
+1. Clientul deschide TCP **în clar** spre proxy și trimite:
+   ```
+   CONNECT www.example.com:443 HTTP/1.1
+   ```
+   Doar hostname:port — nicio cale, nimic de conținut.
+2. Proxy-ul validează (ACL, autentificare), face `connect()` spre `www.example.com:443`.
+3. Proxy-ul răspunde `HTTP/1.1 200 Connection Established`.
+4. Din acest moment, **parserul HTTP e dezactivat**. Proxy-ul intră în "tunnel mode": copiază orbește bytes între cele două socket-uri.
+5. Clientul negociază TLS **prin tunel**, direct cu serverul. Proxy-ul vede doar bytes criptați.
+
+Consecință: pe HTTPS prin CONNECT, proxy-ul vede **doar destinația** (hostname:port), nu conținutul — deci nu poate face caching. În loguri apare doar `CONNECT example.com:443`, restul e invizibil.
+
+Ca să recâștige vizibilitatea, corporațiile folosesc **TLS interception** (MITM corporativ): proxy-ul generează on-the-fly un certificat fals pentru fiecare site, semnat cu propriul CA. Ca să nu dea eroare, CA-ul proxy-ului trebuie instalat ca "de încredere" pe fiecare calculator. Așa proxy-ul decriptează, inspectează, recriptează. E controversat (angajatorul îți vede tot traficul "securizat"), dar frecvent în enterprise. (TLS în detaliu — L17.)
+
+<CosmoHint emotion="surprised">
+Oprește-te la implicația asta, fiindcă schimbă cum înțelegi "lacătul verde" din browser. Pe un laptop de serviciu cu CA-ul corporativ instalat, HTTPS-ul spre banca ta e decriptat și recitit de proxy-ul firmei — lacătul apare, dar nu mai garantează confidențialitate față de angajator. Nu e un hack ilegal; e o configurare deliberată, iar tu ai "consimțit" instalând CA-ul (adesea fără să știi). Lecția reală nu e despre corporații, ci despre modelul de încredere: TLS te protejează doar atât cât ai încredere în autoritățile de certificare din sistemul tău. Cine controlează lista de CA-uri de încredere controlează ce înseamnă "securizat". De-aia contează enorm ce certificate rădăcină ai instalate — sunt cheile întregului tău model de securitate web.
+</CosmoHint>
+
+### SOCKS — proxy-ul generic
+
+Dacă CONNECT a fost adăugat târziu la HTTP, **SOCKS** a fost gândit din start ca proxy agnostic. Nu vorbește HTTP — rutează orice TCP/UDP la nivelul de bytes.
+
+**SOCKS5** (RFC 1928) e standardul: autentificare, IPv6, și `UDP ASSOCIATE` (pentru VoIP/streaming). Un avantaj subtil: poate delega rezoluția DNS pe server, prevenind **DNS leaks** (important pentru anonimat). Overhead-ul e minim — pachetele de control sunt câțiva bytes, iar payload-ul nu e parsat.
+
+Cazul practic pe care-l vei folosi: `ssh -D 1080 user@server` creează un **SOCKS proxy personal** prin tunelul SSH. Configurezi browserul să treacă prin `localhost:1080` și tot traficul iese prin server — util pe rețele nesigure. Tor funcționează tot ca SOCKS proxy.
+
+### Proxy vs VPN vs NAT
+
+Trei paradigme confundate constant fiindcă toate "ascund IP-ul":
+
+{/* TABLE */}
+
+| | NAT (L11) | Forward Proxy | VPN (L19) |
+|---|---|---|---|
+| Nivel OSI | L3/L4 | L7 (sau L5 SOCKS) | L3 (încapsulare) |
+| Rulează în | kernel | user space | kernel (TUN/TAP) |
+| Ce face cu datele | rescrie adrese | termină sesiunea, poate citi/modifica payload | învelește pachete întregi, criptat |
+| Clientul | nu setează nimic | trebuie configurat | modifică tabela de rutare |
+| Criptare | zero | doar dacă aplicația folosește TLS | totul criptat |
+
+Filozofia: NAT = supraviețuire topologică (partajezi un IP). VPN = extensie de rețea (mașina ta trăiește virtual în alt LAN). Proxy = punct de inspecție și politici (cine vede ce, când, pe bază de conținut). VPN-ul îl aprofundăm în L19.
+
+<FactBox>
+**Forward proxy — cifre cheie:**
+- Porturi tipice: **3128** (Squid), **8080** (HTTP), **1080** (SOCKS)
+- Forward proxy = în numele **clientului** (L7); reverse = server (L13)
+- HTTP CONNECT: tunel orb L4 pentru HTTPS → doar `host:port` vizibil
+- SOCKS5 (RFC 1928): TCP+UDP, IPv6, DNS remote (anti-leak)
+- `ssh -D 1080` = SOCKS proxy personal
+- Caching: `TCP_HIT` / `TCP_MISS` / `304 Not Modified`
+- X-Forwarded-For / `Forwarded` (RFC 7239): IP-ul original
+- WPAD: DHCP opțiunea **252** sau DNS `wpad.domeniu`
+- TLS interception: CA-ul proxy-ului instalat pe client
+</FactBox>
+
+### X-Forwarded-For și pericolul WPAD
+
+Când proxy-ul face a doua conexiune, serverul vede IP-ul proxy-ului, nu al clientului. Ca serverul să știe cine e clientul real (pentru rate limiting, loguri), proxy-ul injectează headerul **X-Forwarded-For** (sau standardul modern `Forwarded`, RFC 7239). Prin lanțuri de proxy-uri, IP-urile se adaugă separate prin virgulă.
+
+Capcana de securitate: XFF e **text controlat de client**. Un atacator poate trimite `X-Forwarded-For: 127.0.0.1` ca să pară de încredere. De-aia serverele trebuie să valideze de la **dreapta spre stânga**, având încredere doar în ultimul proxy cunoscut (trusted proxies).
+
+Al doilea pericol: **WPAD hijacking**. Corporațiile distribuie automat configurația de proxy prin fișiere **PAC** (JavaScript cu `FindProxyForURL`), descoperite prin WPAD — clientul întreabă DHCP (opțiunea 252) sau DNS (`wpad.domeniu`). Problema: pe un LAN nesigur (WiFi de cafenea), un atacator poate răspunde primul la cererea WPAD, injectând un proxy malițios. Tot traficul tău trece atunci prin infrastructura lui — un MITM insidios, sub nivelul de percepție al clientului.
+
+---
+
+## REVEAL
+
+Cei trei intermediari ai cursului, pe niveluri și roluri:
+
+{/* TABLE */}
+
+| Intermediar | Nivel | În numele cui | Vede conținutul? | Lecția |
+|---|---|---|---|---|
+| NAT | L3/L4 | topologiei | nu | L11 |
+| Forward proxy | L7 (L5 SOCKS) | clientului | da (mai puțin HTTPS-CONNECT) | L12 |
+| Reverse proxy | L7 | serverului | da | L13 |
+
+Tool-uri esențiale: `curl -x http://proxy:3128 http://example.com` (forțezi traficul prin proxy), `curl -x socks5://proxy:1080 ...` (test SOCKS), variabilele `http_proxy`/`https_proxy`/`no_proxy`. Pe server, `tail -f /var/log/squid/access.log` îți arată fiecare decizie: `TCP_MISS/200`, IP client, URL, destinație. Pentru HTTPS vezi doar `CONNECT example.com:443` — restul e criptat.
+
+Anonimatul prin proxy e **iluzoriu** dacă nu ești atent: proxy-ul îți vede tot traficul necriptat, iar un proxy public malițios poate loga sau injecta. Proxy ≠ anonimat garantat.
+
+---
+
+## ÎNCHEIERE
+
+Un forward proxy e intermediarul clientului: stă între tine și internet, la nivelul aplicației, citește ce ceri și aplică politici — filtrare, caching, logging, anonimizare. Termină conexiunea ta și deschide una nouă, deci serverul vede doar proxy-ul. Pe HTTPS, metoda CONNECT îl transformă într-un tunel orb.
+
+Regulă practică: forward proxy = în numele clientului (tu îl configurezi). Dacă vezi `403` de la propria firmă sau `CONNECT` în loguri, e un forward proxy la lucru. Iar dacă ești pe un WiFi public cu "auto-detect proxy" pornit — oprește-l, WPAD hijacking e real. Următorul intermediar, cel care apără serverul, e reverse proxy-ul din L13.

@@ -1,0 +1,205 @@
+---
+title: "LAN și adresele MAC"
+order: 2
+type: lesson
+module_index: 3
+duration: 16
+difficulty: 3
+---
+
+# LAN și adresele MAC
+
+## HOOK
+
+Un atacator se conectează la un port de switch din firma ta. Pornește `macof` — un script Perl de 100 de linii. În **2 secunde**, trimite zeci de mii de frame-uri cu adrese MAC sursă false.
+
+Tabela de memorie a switch-ului, limitată la 16.000 de intrări, se umple. Switch-ul intră în "fail-open": nemaiavând loc să învețe adrese reale, începe să **inunde** tot traficul pe toate porturile. Brusc, atacatorul vede în Wireshark transferurile colegilor — parole, sesiuni de bază de date, tot.
+
+Asta e un atac de **MAC flooding**, și exploatează exact mecanismul prin care un switch învață cine e conectat unde. Ca să-l înțelegi, trebuie să cobori la stratul 2 — locul unde dispozitivele nu se cunosc prin adrese IP, ci prin **adrese MAC** arse în siliciu.
+
+În L1 ai văzut frame-ul L2 trecând pe lângă tine. Acum îl deschidem.
+
+---
+
+## CONTEXT
+
+Un LAN nu e "rețeaua din casă". Definiția inginerească e strictă: un LAN e un **domeniu de broadcast** — mulțimea de dispozitive care primesc același frame trimis către adresa de difuzare `FF:FF:FF:FF:FF:FF`.
+
+Limita LAN-ului e prima interfață de **rutare** (L3) pe care o întâlnește traficul. Routerele nu transmit mai departe frame-urile de broadcast L2 — deci acolo unde se oprește un broadcast, acolo se termină LAN-ul. Fără această izolare, traficul de control (ARP, DHCP) ar inunda exponențial toată planeta.
+
+Din L1 știi că routerul WiFi din scenariul WhatsApp e primul hop. De fapt e un dispozitiv compozit: un switch L2 hardware, un Access Point (bridge L2) și un gateway L3 — toate într-un cip. Frame-ul tău trăia exclusiv în domeniul de broadcast al acelui micro-switch.
+
+---
+
+## MIEZUL
+
+### Adresa MAC — 48 de biți cu structură
+
+O adresă MAC (numită tehnic **EUI-48**) are **48 de biți = 6 octeți**, afișați hexazecimal: `00:1A:2B:3C:4D:5E`. Spațiul total: $2^{48} \approx$ **281 de trilioane** de adrese.
+
+Structura nu e aleatorie. Primii 24 de biți sunt **OUI** (Organizationally Unique Identifier), alocați de IEEE producătorului (Apple, Intel, Broadcom). Există $2^{24} \approx$ 16,7 milioane de OUI posibile. Ultimii 24 de biți sunt numărul de serie alocat de producător plăcii.
+
+Dar adevărata profunzime e în primul octet. Cei mai puțin semnificativi doi biți au funcții de control:
+
+{/* TABLE */}
+
+| Bit | Nume | Valoare 0 | Valoare 1 |
+|---|---|---|---|
+| Bit 0 (LSB) | I/G (Individual/Group) | Unicast (o interfață) | Multicast/Broadcast (grup) |
+| Bit 1 | U/L (Universal/Local) | Arsă din fabrică (BIA) | Administrată software (LAA) |
+
+Bitul **I/G** dictează dacă frame-ul vizează o singură placă (unicast) sau mai multe (multicast). Când toți cei 48 de biți sunt 1 (`FF:FF:FF:FF:FF:FF`), e **broadcast** — fiecare placă de pe segment ridică un IRQ și trimite frame-ul kernel-ului.
+
+Bitul **U/L** spune dacă adresa e cea arsă în EEPROM (BIA — Burned-In Address) sau una setată software. Ține minte distincția — revine la randomizarea MAC.
+
+Pe Linux vezi MAC-ul cu `ip link show` (folosește un socket `AF_NETLINK` către kernel). Pe Windows, `ipconfig /all` îl afișează ca "Physical Address".
+
+### MAC vs IP — de ce avem nevoie de ambele
+
+De ce două scheme de adresare paralele? Diferența e fundamentală.
+
+**MAC** = identitate fizică, fixă, locală. Răspunde la "cine ești?". Spațiul MAC e **plat** — nu există nicio corelație geografică între două adrese. MAC-ul unui server din Tokyo poate fi consecutiv cu al unui container din România, doar fiindcă au același OUI.
+
+**IP** = adresă logică, efemeră (prin DHCP), rutabilă, **ierarhică**. Răspunde la "unde ești acum?".
+
+Analogia: MAC e **CNP-ul** (te definește oriunde mergi), IP e **adresa poștală** (ierarhică: RO → București → Sector 1 → stradă). Curierul nu-ți poate livra un colet știind doar CNP-ul — nu derivă din el continentul. Dar adresa poștală e ierarhică, deci routerele pot agrega rute.
+
+Aici e cheia tehnică: routerele agregă milioane de IP-uri sub o singură rută **CIDR** (ex. un prefix `/8`). MAC-urile **nu** permit agregare — un router global ar trebui să țină o rută individuală pentru fiecare dintre miliardele de dispozitive. Memoriile **TCAM** ale routerelor ar exploda. De aceea rutarea globală e pe IP, nu pe MAC.
+
+Consecința în practică: pe tot parcursul transcontinental, IP-ul sursă și destinație rămân **constante** (exceptând NAT). Dar MAC-urile sursă/destinație se **rescriu la fiecare hop**, pe măsură ce frame-ul trece de la un router la altul prin LAN-uri adiacente.
+
+<CosmoHint emotion="thinking">
+Reține asimetria asta — e una dintre cele mai prost înțelese idei din rețelistică. IP-ul e ca destinatarul final scris pe colet: nu se schimbă de la depozit la depozit. MAC-ul e ca eticheta de pe banda transportoare a fiecărui depozit: se rescrie la fiecare punct intermediar. Un pachet care merge România → SUA poate avea 15 perechi de MAC-uri diferite pe parcurs, dar o singură pereche de IP-uri (până la NAT). MAC = următorul hop fizic; IP = destinația finală logică.
+</CosmoHint>
+
+### MAC randomization — privacy prin spoofing
+
+MAC-ul e "ars" în EEPROM, dar e doar o abstracție gestionată de kernel. La boot, driverul copiază valoarea din flash în RAM — și de acolo kernel-ul are control absolut. Cu privilegii root (`CAP_NET_ADMIN`), poți suprascrie adresa:
+
+```bash
+ip link set dev eth0 down
+ip link set dev eth0 address 00:11:22:33:44:55
+ip link set dev eth0 up
+```
+
+Asta se numește **MAC spoofing**. Sună ofensiv, dar a devenit o funcție critică de **privacy**. Problema: telefoanele emit periodic frame-uri "Probe Request" (802.11) cu MAC-ul lor, căutând rețele cunoscute. Mall-urile și aeroporturile colectau aceste MAC-uri ca să urmărească fizic mișcarea fiecărui vizitator.
+
+Soluția — **MAC Randomization** (iOS 14+, Android 10+): la conectarea la o rețea nouă, OS-ul generează o adresă aleatorie. Dar nu complet aleatorie — ar putea coliziona cu un OUI real. Funcția forțează bitul **U/L=1** (Locally Administered) și **I/G=0** (unicast), populând restul de 46 de biți aleator.
+
+Trucul de detecție: fiindcă biții inferiori ai primului octet sunt blocați pe `10` binar, **al doilea caracter hex al primului octet va fi mereu 2, 6, A sau E**. O adresă ca `92:B1:B8:42:D1:85` e randomizată (al doilea caracter e `2`). Adresa rămâne stabilă per SSID, ca să nu strice DHCP-ul.
+
+Corolarul de securitate: **MAC filtering e o protecție iluzorie**. Un atacator citește un MAC valid din trafic (mod promiscuu, `tcpdump`), apoi îl clonează cu `ip link set`. Securitate "through obscurity", inutilă.
+
+### Switch-ul — cum învață și comută
+
+Diferența hub → switch a maturizat rețelistica. Un **hub** era un repetor prost: primea curent pe un port, îl amplifica pe toate. Un **switch** are un creier: **tabela CAM** (Content Addressable Memory), alias MAC Address Table.
+
+Tranziția nu a fost doar despre inteligență, ci și despre **topologie**. Rețelele Ethernet vechi (10BASE2/10BASE5) foloseau topologie **bus**: un singur cablu coaxial partajat de toate nodurile, unde o singură rupere de cablu pica **tot** segmentul. Topologia **star** modernă — fiecare nod cu propriul cablu UTP către un switch central — a câștigat tocmai prin **izolarea defectelor**: dacă un cablu cedează, doar acel nod pică, restul LAN-ului rămâne funcțional.
+
+CAM e magie hardware. Într-un RAM normal dai o adresă și primești conținutul. CAM funcționează invers: îi dai **conținutul** (un MAC de 48 de biți) și îți returnează în timp **O(1)** constant adresa asociată (numărul portului). Asta permite miliarde de decizii pe secundă.
+
+Switch-ul face simultan două lucruri:
+
+**Learning** (pasiv): când un frame intră pe un port, switch-ul extrage **MAC-ul sursă** și îl mapează în CAM cu portul de intrare. Așa își construiește topologia automat.
+
+**Forwarding/Flooding**: pentru fiecare frame, switch-ul caută **MAC-ul destinație** în CAM. Dacă există → trimite exclusiv pe portul corect. Dacă **nu** există → **Unknown Unicast Flooding**: reproduce frame-ul pe toate porturile, mai puțin cel sursă.
+
+CAM e finită (8K, 16K, 64K intrări). Fiecare intrare are un **Aging Timer** — dacă un dispozitiv tace prea mult, intrarea e evacuată. Default tipic: **300 secunde** (Cisco, Arista).
+
+Acum înțelegi atacul din hook: **MAC flooding** umple CAM cu mii de surse false. Switch-ul, neputând învăța surse reale, retrogradează la "fail-open" — devine un hub prost care inundă tot. Atacatorul ascultă tot traficul VLAN-ului.
+
+Două filozofii de comutare: **store-and-forward** (citește tot frame-ul, verifică FCS, apoi expediază — zeci de microsecunde) vs **cut-through** (citește doar primii 14 octeți cu MAC-ul destinație și începe să expedieze înainte să sosească restul — sub **1 microsecundă**, folosit în High Frequency Trading).
+
+<FactBox>
+**LAN și MAC — cifre cheie:**
+- Adresa MAC: **48 biți** (6 octeți), $2^{48} \approx$ **281 trilioane** adrese
+- OUI: primii **24 biți**, $\approx$ **16,7 milioane** organizații
+- Distanță UTP: **100 metri** (1000BASE-T / 10GBASE-T)
+- Ethernet: **10 Mbps** istoric → **10/40/100/400 Gbps** modern
+- Frame Ethernet: **64-1518 bytes** (header 14, FCS 4), sau **1522** cu VLAN tag
+- MTU payload: **1500 bytes**; Jumbo frames: **9000 bytes**
+- CAM aging timer: **300s** (5 min); ARP cache Linux: **15-45s**; ARP Cisco: **14.400s** (4h)
+- EtherType: **0x0800** (IPv4), **0x0806** (ARP), **0x86DD** (IPv6)
+- Cut-through latență: **<1µs**; Cisco Nexus 93180YC: **1,2 miliarde** pachete/s
+- MAC flooding: tabela plină în **~2 secunde** cu `macof`
+</FactBox>
+
+### ARP — puntea dintre IP și MAC
+
+Iată dilema concretă: kernel-ul are IP-ul destinației (`192.168.1.10`, în același LAN), dar placa de rețea nu înțelege IP-uri. Pentru a completa headerul L2, are nevoie de **MAC-ul** acelui IP. Cum îl află?
+
+Prin **ARP** (Address Resolution Protocol, RFC 826, vechi de 40 de ani). Doi pași:
+
+1. **ARP Request** (broadcast): "Cine are `192.168.1.10`? Răspundeți la `AA:BB:CC:DD:EE:FF`." MAC-ul destinație al frame-ului e `FF:FF:FF:FF:FF:FF`, deci switch-ul îl inundă pe toate porturile.
+2. **ARP Reply** (unicast): doar mașina cu acel IP răspunde, direct, cu MAC-ul ei.
+
+Kernel-ul salvează maparea `<IP→MAC>` în **Neighbor Cache** (`ip neigh show` sau istoric `arp -a`). Pe Linux, o intrare trece prin stări: `INCOMPLETE` → `REACHABLE` → `STALE` → `PROBE` → `FAILED`. Durata `REACHABLE` default e **30 secunde**, dar kernel-ul adaugă **jitter** aleator în marja `[0.5, 1.5]×`, deci practic **15-45 secunde**. De ce jitter? Ca să nu expire toate intrările simultan și să declanșeze un **ARP storm**. Routerele Cisco țin ARP **4 ore** (14.400s) — diferența cauzează unicast flooding la dispozitivele tăcute.
+
+**Gratuitous ARP**: un frame care nu cere nimic, ci declară "acesta e noul meu IP pe acest MAC!". Folosit la failover HA — forțează switch-urile și vecinii să repopuleze mapările instant.
+
+Punctul slab: ARP a fost inventat într-o eră de încredere totală, fără autentificare. De aici **ARP spoofing** (poisoning): atacatorul trimite reply-uri false simultan către gateway ("eu sunt victima") și victimă ("eu sunt gateway-ul"), băgându-se man-in-the-middle. IPv6 a eliminat broadcast-ul ARP — folosește **NDP** (Neighbor Discovery, peste ICMPv6 multicast).
+
+<CosmoHint emotion="concerned">
+Observă de ce ARP spoofing funcționează atât de ușor: majoritatea sistemelor de operare acceptă un ARP Reply chiar dacă **n-au trimis niciodată** un Request. Protocolul, vechi de 40 de ani, presupunea că toți de pe LAN sunt prieteni — zero autentificare, zero verificare. Un atacator trimite două minciuni și deviază tot traficul prin mașina lui. Asta e moștenirea unei ere în care securitatea nu era o problemă. Aceeași naivitate o vei vedea repetându-se la alte protocoale vechi — motivul pentru care TLS (L17) și criptografia asimetrică (L16) au devenit obligatorii.
+</CosmoHint>
+
+### Frame-ul Ethernet și moștenirea coliziunilor
+
+Anatomia exactă a frame-ului pe fir:
+
+{/* TABLE */}
+
+| Câmp | Dimensiune | Rol |
+|---|---|---|
+| Preamble | 7 bytes | Sincronizare ceas (`10101010`) |
+| SFD | 1 byte | "Urmează adresa" (`10101011`) |
+| MAC Destinație | 6 bytes | Prima — permite cut-through |
+| MAC Sursă | 6 bytes | Pentru learning în CAM |
+| EtherType | 2 bytes | Demux L3: `0x0800`/`0x0806`/`0x86DD` |
+| Payload | 46-1500 bytes | Datele (IP, TCP, etc.) |
+| FCS | 4 bytes | CRC32 — detecție erori |
+
+Frame minim: 14 (header) + 46 (payload) + 4 (FCS) = **64 bytes**. Sub asta = "runt", aruncat. Dacă payload-ul real e mai mic de 46 bytes, placa adaugă **padding** cu zerouri. Frame maxim: 14 + 1500 + 4 = **1518 bytes** (sau 1522 cu VLAN tag 802.1Q).
+
+**FCS** rulează CRC32 pe frame. Un singur bit inversat → frame-ul e aruncat **silențios** în hardware, fără notificare. Retransmisia rămâne în sarcina TCP de mai sus.
+
+Padding-ul și frame-ul minim de 64 bytes sunt moșteniri de la **CSMA/CD** — protocolul erei half-duplex (coaxial, hub). Atunci, două noduri puteau transmite simultan → **coliziune**, semnalele se corupeau. CSMA/CD detecta coliziunea, trimitea un "Jam Signal" și folosea **Truncated Binary Exponential Backoff** (fiecare nod aștepta un timp aleator crescând exponențial).
+
+Switch-urile full-duplex au **eliminat** coliziunile: fiecare port are perechi UTP dedicate (Tx și Rx separate), un singur dispozitiv per port. Domeniul de coliziune a dispărut. CSMA/CD e obsolet pe cablu — dar varianta **CSMA/CA** (Collision Avoidance) supraviețuiește pe WiFi, unde mediul radio rămâne partajat (ai văzut în L1).
+
+### LAN modern — VLAN, WiFi, Docker
+
+**VLAN** (IEEE 802.1Q): împarte un switch fizic în switch-uri logice. Porturile 1,5 → VLAN 10; porturile 2,6 → VLAN 20. Un broadcast ARP din VLAN 10 nu atinge **niciodată** VLAN 20 — domenii de broadcast complet separate pe același hardware. Mecanismul: switch-ul inserează un **tag de 4 octeți** între MAC sursă și EtherType (de aici frame-ul de 1522 bytes).
+
+**Docker bridge** — exact aceleași concepte L2, dar în software. Interfața `docker0` e un **switch L2 simulat 100% în C**, cu propria tabelă CAM și rezoluții ARP interne. Containerele se conectează prin **veth pairs** — "cabluri virtuale" în formă de U: un capăt în namespace-ul containerului (ca `eth0`, cu MAC generat cu prefix U/L local), celălalt înfipt în `docker0`. Pentru a ieși spre internet, kernel-ul aplică **MASQUERADE** (SNAT) prin netfilter. Recunoști tot din Cursul 2 — acum vezi că e literalmente L2 reimplementat.
+
+Pericolul L2: **Broadcast Storm**. Headerul Ethernet **nu** are TTL (spre deosebire de IP). O buclă fizică între două porturi → un frame de broadcast circulă la infinit, se multiplică, și în **5 secunde** paralizează toată rețeaua. Remediul: **Spanning Tree Protocol** (STP), care rupe automat link-urile duplicate.
+
+---
+
+## REVEAL
+
+L2 vs L3 — cele două lumi ale adresării:
+
+{/* TABLE */}
+
+| Aspect | MAC (L2) | IP (L3) |
+|---|---|---|
+| Întrebarea | "Cine ești?" | "Unde ești?" |
+| Spațiu | Plat (fără ierarhie) | Ierarhic (agregabil CIDR) |
+| Permanență | Fixă (teoretic) | Efemeră (DHCP) |
+| Scop | Livrare în LAN | Rutare globală |
+| Se schimbă | La fiecare hop | Constant (exceptând NAT) |
+| Rezoluție | ARP / NDP | DNS |
+| Broadcast | `FF:FF:FF:FF:FF:FF` | — (folosește multicast) |
+| Protecție loop | STP (extern) | TTL (intern) |
+
+LAN-ul e domeniul de broadcast. MAC-ul livrează în interiorul lui prin switch și ARP. IP-ul preia când traficul iese din LAN, la primul router. Frame-ul de 64-1518 bytes e containerul fizic; CAM și ARP sunt tabelele care fac livrarea posibilă.
+
+---
+
+## ÎNCHEIERE
+
+Stratul 2 e lumea în care dispozitivele se cunosc prin 48 de biți arși în siliciu, switch-ul învață observând frame-uri, iar ARP traduce IP-ul în MAC. Totul trăiește strict în domeniul de broadcast — până la primul router.
+
+Regulă practică: când rețeaua locală "se comportă ciudat" (lentoare bruscă, trafic care apare unde n-ar trebui), suspectează stratul 2 — tabelă CAM saturată, ARP poisoning sau o buclă fără STP. Problemele L2 sunt invizibile pentru `ping` și `traceroute`, care operează la L3.

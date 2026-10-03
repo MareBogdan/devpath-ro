@@ -1,0 +1,207 @@
+---
+title: "Trimiți un mesaj pe WhatsApp — ce se întâmplă?"
+order: 1
+type: lesson
+module_index: 3
+duration: 16
+difficulty: 3
+---
+
+# Trimiți un mesaj pe WhatsApp — ce se întâmplă?
+
+## HOOK
+
+Atingi "Trimite". 200 de milisecunde mai târziu, o bifă gri apare lângă mesaj.
+
+În acele 200ms, textul tău a fost criptat, a traversat kernel-ul telefonului, a primit o adresă IP printr-o interogare DNS, a stabilit o conexiune TCP, a fost împachetat în patru straturi de headere, a ieșit prin WiFi, a fost rescris de router prin NAT, a sărit prin 10-20 de routere, a coborât pe fundul oceanului într-un cablu de fibră optică, a urcat pe alt continent, a fost despachetat de un proces Erlang pe un server FreeBSD și a fost livrat.
+
+WhatsApp procesează **150 de miliarde de mesaje** așa în fiecare zi, pentru **3,3 miliarde de utilizatori**. Iar partea fascinantă: niciun server pe tot acest traseu nu poate citi ce ai scris.
+
+Această lecție e firul narativ al întregului curs. Fiecare strat pe care îl atingem azi devine o lecție întreagă mai târziu.
+
+---
+
+## CONTEXT
+
+Toată călătoria începe cu o decizie de arhitectură: WhatsApp **nu** trimite mesajul direct de la telefonul tău la telefonul prietenului. Trece obligatoriu printr-un server central — model client-server, nu peer-to-peer.
+
+De ce? Trei motive concrete. Bateria: un nod P2P ar trebui să asculte permanent conexiuni de intrare, golind acumulatorul. Livrarea asincronă: telefoanele pierd semnalul sau se opresc, deci serverul trebuie să rețină mesajul (store-and-forward) până când destinatarul revine online. Și NAT: două telefoane în rețele private diferite nu se pot conecta direct fără protocoale adiționale (STUN/TURN) care ar adăuga latențe inacceptabile.
+
+Cunoști deja din Cursul 2 procese, kernel/user mode, syscall-uri și criptografia cu chei publice (Diffie-Hellman din lecția SSH). Le vei vedea pe toate aici, în mișcare.
+
+---
+
+## MIEZUL
+
+### Pasul 1 — Criptarea și predarea către kernel
+
+Atingi "Trimite". Textul există ca șir UTF-8 într-un buffer din memoria aplicației (user space). Dar înainte să părăsească telefonul, se declanșează **Signal Protocol** pentru criptare End-to-End.
+
+Algoritmul **Double Ratchet** preia textul în clar și, folosind cheia de sesiune negociată anterior prin **X3DH** (Extended Triple Diffie-Hellman — rudă cu ce ai văzut la SSH), îl transformă în ciphertext. Detaliul cheie: se generează o cheie nouă pentru **fiecare** mesaj, garantând forward secrecy. Dacă o cheie e compromisă mâine, mesajele de azi rămân sigure.
+
+Kernel-ul telefonului (Linux pe Android, XNU pe iOS) nu vede niciodată textul clar sau cheile private. Rezultatul e un payload pe care nimeni — nici ISP-ul, nici Meta — nu îl poate decripta.
+
+Acum aplicația trebuie să predea datele kernel-ului, fiindcă procesele user space nu accesează direct cipul radio WiFi. Puntea o fac **syscall-urile**:
+
+```c
+socket()   // creează endpoint, returnează file descriptor
+connect()  // inițiază handshake-ul cu serverul
+send()     // predă bufferul criptat kernel-ului
+```
+
+La `send()`, execuția trece din **Ring 3** (user mode) în **Ring 0** (kernel mode) printr-un context switch. Kernel-ul alocă o structură `sk_buff` (socket buffer) și copiază datele acolo. Din acest moment, datele au părăsit jurisdicția aplicației — intră în stiva TCP/IP a sistemului de operare.
+
+### Pasul 2 — DNS: de la nume la adresă
+
+Aplicația știe doar un nume de domeniu, ex. `chat.cdn.whatsapp.net`. Dar routerele nu rutează pe baza numelor — operează exclusiv pe adrese IP numerice. E nevoie de **DNS** ca să traducă.
+
+Cascada de rezoluție, optimizată să minimizeze latența:
+
+1. **Cache local** — OS-ul verifică dacă a rezolvat recent numele. Fiecare înregistrare are un **TTL** (Time to Live) în secunde. Cache hit valid → adresa returnată în ~0ms. Scenariul ideal.
+2. **Cache miss** → OS trimite o interogare prin **UDP pe portul 53** către resolver-ul configurat (ISP-ul, sau public ca `1.1.1.1` Cloudflare, `8.8.8.8` Google).
+3. Resolver-ul interoghează recursiv ierarhia: server Root → server TLD (`.net`) → servere autoritative Meta.
+4. Răspunsul: o înregistrare **A** (IPv4, ex. `157.240.241.60`) sau **AAAA** (IPv6).
+
+Timpii reali: **10-20ms** pe fibră, dar **50-100ms** pe 4G/5G congestionat. Iar IP-ul returnat nu e al unui server fix — prin rutare **Anycast**, DNS-ul returnează nodul Edge cel mai apropiat geografic. Aprofundăm DNS în L4.
+
+### Pasul 3 — TCP handshake: stabilirea conexiunii
+
+Avem un IP. Acum kernel-ul alege protocolul de transport. Două opțiuni: **UDP** (rapid, fără garanții — folosit pentru apelurile vocale) sau **TCP** (fiabil, ordonat).
+
+Pentru mesaje text, unde pierderea unui cuvânt sau a unei chei ar corupe conversația, alegerea e **TCP**. O rețea mobilă e instabilă — handover între celule, semnal pierdut în clădiri. TCP absoarbe toată instabilitatea, retransmițând invizibil segmentele pierdute.
+
+TCP impune **Three-way Handshake**:
+
+```
+Telefon  → SYN     →  Server   (propun număr de secvență)
+Telefon  ← SYN-ACK ←  Server   (confirmă + propune al lui)
+Telefon  → ACK     →  Server   (confirmă)
+```
+
+Costul: exact **1 RTT** (Round Trip Time). Până nu se termină, niciun byte din mesaj nu pleacă. Imediat după, se negociază criptarea de transport (TLS clasic, sau Noise în cazul WhatsApp) — încă 0-2 RTT. Aprofundăm TCP/UDP în L6, handshake-ul TLS în L17.
+
+<CosmoHint emotion="thinking">
+Observă diferența dintre cele două criptări. Signal Protocol (E2E) protejează **conținutul** mesajului — serverul nu îl poate citi niciodată. Criptarea de transport (TLS/Noise) protejează **metadatele** între telefon și server — împiedică ISP-ul să vadă cu cine vorbești. Sunt două straturi complet separate, cu scopuri diferite. Una rezolvă "ce spui", cealaltă "cu cine vorbești".
+</CosmoHint>
+
+### Pasul 4 — Încapsularea: păpușile Matrioșka
+
+Bufferul din kernel trebuie transformat într-un format care supraviețuiește rețelelor fizice. Procesul se numește **încapsulare** — fiecare strat adaugă propriul header, ca păpușile rusești.
+
+{/* TABLE */}
+
+| Strat | Unitate | Header adăugat | Conține |
+|---|---|---|---|
+| Transport (L4) | Segment TCP | ~20 bytes | Port sursă (efemer, ex. 49152), port destinație, nr. secvență, checksum |
+| Rețea (L3) | Pachet IP | 20 bytes | IP sursă (privat: `192.168.1.10`), IP destinație, TTL (init. 64) |
+| Legătură (L2) | Frame Ethernet/WiFi | ~14 bytes | MAC sursă (telefon), MAC destinație (routerul WiFi), trailer FCS |
+
+Conceptul critic aici: **MTU** (Maximum Transmission Unit) — dimensiunea maximă a pachetului pe o legătură fizică, standard **1500 bytes** pe Ethernet/WiFi. Scăzând cele două headere obligatorii (20 IP + 20 TCP), rămân **1460 bytes** utili = **MSS** (Maximum Segment Size).
+
+Un mesaj text obișnuit, datorită formatului binar compact al WhatsApp, încape lejer într-un singur pachet nefragmentat — overhead-ul headerelor e sub 5% din trafic.
+
+### Pasul 5 — Ieșirea din rețeaua locală: WiFi și NAT
+
+Frame-ul e modulat în unde radio (2.4 sau 5 GHz, standard IEEE 802.11) și radiat către router. Routerul îl primește, vede că MAC-ul destinație e al lui, înlătură headerul L2 și inspectează pachetul IP.
+
+Aici se întâmplă **NAT** (Network Address Translation) — invizibil, dar vital. Telefonul are o adresă IP **privată** (`192.168.1.50`), non-rutabilă pe internetul public. Routerele din backbone ar arunca instant orice pachet cu o asemenea sursă.
+
+Mecanismul exact e **PAT** (Port Address Translation), sau NAT Overload:
+
+1. Routerul înlocuiește IP-ul sursă privat cu **singurul IP public** dat de ISP (ex. `82.76.101.44`).
+2. Alege un port sursă nou din rezerva sa și îl mapează în **tabela NAT** către telefonul original.
+3. Fiindcă a modificat IP-ul, **recalculează checksum-urile** IP și TCP.
+
+Când răspunsul vine înapoi către `82.76.101.44`, routerul consultă tabela NAT, identifică portul, rescrie pachetul cu IP-ul privat `192.168.1.50` și îl livrează telefonului corect. Aprofundăm NAT în L11 — îl vei recunoaște din Docker networking (Cursul 2, MASQUERADE pe bridge).
+
+<FactBox>
+**Călătoria unui mesaj — cifre cheie:**
+- WhatsApp: **3,3 miliarde** utilizatori activi lunar, **150 miliarde** mesaje text/zi, **7 miliarde** mesaje vocale/zi
+- Record istoric: **2 milioane** conexiuni TCP concurente pe **un singur** server FreeBSD
+- MTU standard Ethernet/WiFi: **1500 bytes** → MSS util: **1460 bytes**
+- Viteza luminii în fibră: **~200.000 km/s** (2/3 din viteza în vid, indice refracție n≈1,5)
+- Latență teoretică Londra-New York (5600 km): **28ms** unidirecțional, **56ms** RTT minim
+- RTT real România-SUA: **100-150ms**; prima conectare "la rece": **300-500ms**
+- Cabluri submarine: **>500** active, transportă **95-99%** din traficul intercontinental
+- Sateliți: sub **5%** din traficul global; **~80%** din avariile la cabluri = ancore/traulere
+</FactBox>
+
+### Pasul 6 — Călătoria prin internet: rute și fizică
+
+Pachetul intră în spațiul public. Internetul e un conglomerat de mii de rețele numite **Sisteme Autonome** (AS-uri), fiecare cu un identificator unic (ASN). Deciziile se iau **hop-by-hop**, în nanosecunde, de procesoarele specializate (ASIC) ale routerelor.
+
+Fiecare router consultă **FIB** (Forwarding Information Base) — o tabelă de rute populată dinamic prin protocolul **BGP** (Border Gateway Protocol). BGP nu cunoaște traseul complet, dar știe exact pe ce interfață să trimită pachetul ca să-l apropie de destinație.
+
+Un `traceroute` din România către un server WhatsApp din SUA arată tipic **10-20 hops**: routere ISP local → noduri de peering (Frankfurt DE-CIX, Londra LINX) → stații de aterizare ale cablurilor transoceanice.
+
+Aici realitatea fizică surprinde: comunicațiile globale **nu** merg prin sateliți (sub 5%, latențe de 500-600ms RTT inacceptabile). Coloana vertebrală sunt **peste 500 de cabluri submarine** de fibră optică, care transportă **95-99%** din traficul intercontinental. Doar în 2024 s-au instalat ~200.000 km de cablu nou.
+
+Viteza semnalului e guvernată de fizică pură. Lumina **nu** merge cu c≈300.000 km/s prin sticlă — indicele de refracție (n≈1,5) o frânează la:
+
+$$v = \frac{c}{n} \approx \frac{300.000}{1,5} = 200.000 \text{ km/s}$$
+
+De aici, latența teoretică minimă pe orice distanță:
+
+$$t_{min} = \frac{d}{v}$$
+
+Pentru Londra-New York (5600 km):
+
+$$t_{min} = \frac{5600}{200.000} = 28 \text{ ms (unidirecțional)}$$
+
+RTT-ul minim absolut e dublu: **56ms**. Niciun software nu poate trece sub această limită — e fizică. Adăugând repetoarele, cozile din routere, NAT-ul și interfața radio, RTT-ul real România-SUA ajunge la **100-150ms**. Aprofundăm rutarea în L10, latența vs bandwidth în L5.
+
+### Pasul 7 — Serverul, livrarea și bifele
+
+Pachetul aterizează la centrul de date Meta, pe portul TCP **5222**. Load balancere distribuie conexiunea către unul din miile de noduri backend, care rulează pe **FreeBSD** — ales pentru `kqueue`, mecanismul I/O asincron care susține milioane de file descriptors cu consum minim de CPU.
+
+Serverul **decapsulează** invers (înlătură frame, IP, ajunge la segmentul TCP), decriptează stratul de transport și dezvelește pachetul de aplicație. Dar mesajul rămâne **opac** — E2E-ul Signal nu poate fi înlăturat, serverul nu are cheile private ale destinatarului.
+
+Mașina virtuală **BEAM** a limbajului Erlang preia rutarea. Fiecare utilizator conectat are propriul **proces Erlang** ultra-ușor (nu thread OS — proces izolat, fără mutex-uri). Procesul tău interoghează baza de date in-memory **Mnesia** ca să afle starea destinatarului:
+
+<CosmoHint emotion="surprised">
+Aici e cheia scalabilității. Un proces Erlang nu e un thread de OS din Cursul 2 — e o micro-entitate izolată, rulată de mașina virtuală BEAM, cu amprentă de memorie de ordinul kilobytes. Nu există variabile partajate, deci nu există mutex-uri, deci nu există blocaje. Asta a permis **2 milioane** de conexiuni concurente pe un singur server FreeBSD, cu o echipă de sub 50 de ingineri. Compară cu modelul thread-per-connection din C++/Java, unde fiecare thread costă megabytes și fiecare resursă partajată cere un lock scump.
+</CosmoHint>
+
+**Destinatar online:** procesul tău Erlang pasează mesajul direct procesului receptorului, care îl criptează Noise și îl trimite pe telefonul lui. La confirmare, serverul **șterge** mesajul din memoria centrală — store-and-forward fără urme.
+
+**Destinatar offline:** mesajul se salvează temporar, iar serverul trimite o "scânteie" prin **APNs** (iOS, port 5223) sau **FCM** (Android) — o notificare push fără conținut (E2E o interzice) care trezește aplicația. Telefonul resuscitat reface DNS + TCP + handshake și descarcă mesajele acumulate.
+
+Bifele mapează exact straturile:
+
+{/* TABLE */}
+
+| Indicator | Semnificație | Stratul confirmării |
+|---|---|---|
+| ✓ O bifă gri | Serverul Meta a primit și validat mesajul (FunXMPP) | Aplicație → server |
+| ✓✓ Două bife gri | Telefonul destinatarului a descărcat și salvat mesajul | Aplicație → dispozitiv |
+| ✓✓ Două bife albastre | Destinatarul a deschis chat-ul (eveniment UI) | Interfață utilizator |
+
+Atenție la o distincție fină: **TCP ACK** (confirmarea mecanică de transport, generată de kernel) **nu** e tot una cu bifa gri (confirmarea logică de aplicație). ACK-ul spune "biții au ajuns integri"; bifa spune "serverul a procesat mesajul". Straturi diferite, scopuri diferite — exact ideea de separation of concerns.
+
+---
+
+## REVEAL
+
+Întreaga călătorie, condensată — și unde fiecare strat devine o lecție:
+
+{/* TABLE */}
+
+| Pas | Ce se întâmplă | Strat | Lecția viitoare |
+|---|---|---|---|
+| 1 | Criptare E2E + syscall `send()` | Aplicație | — (Curs 2) |
+| 2 | DNS: nume → IP, UDP port 53 | Aplicație | L4 |
+| 3 | TCP 3-way handshake (1 RTT) | Transport | L6, L17 |
+| 4 | Încapsulare (TCP→IP→frame) | Toate | L8 (OSI) |
+| 5 | WiFi + NAT (IP privat → public) | Legătură/Rețea | L2, L11 |
+| 6 | Rutare BGP, cabluri submarine | Rețea | L10, L5 |
+| 7 | Server Erlang, livrare, bife | Aplicație | L20 (HTTP) |
+
+Tot ce ai văzut azi e o hartă. Fiecare casetă se deschide într-o lecție întreagă. Latența totală a buclei complete: tipic **sub 500ms** — peste 50 de componente hardware și 15.000 km de fibră, validate cu acuratețe milimetrică.
+
+---
+
+## ÎNCHEIERE
+
+Un mesaj de două cuvinte traversează șapte straturi, două continente și fundul oceanului în mai puțin timp decât clipești. Criptarea protejează conținutul, transportul protejează metadatele, TCP garantează livrarea, NAT permite evadarea din rețeaua locală, BGP găsește ruta, fizica fibrei pune limita.
+
+Regulă practică: când o aplicație pare "lentă", întreabă-te la ce strat. DNS? Handshake? Latența fizică? Răspunsul e mereu într-unul din cei șapte pași de azi.

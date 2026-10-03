@@ -1,0 +1,174 @@
+---
+title: "CDN — Content Delivery Network"
+order: 15
+type: lesson
+module_index: 3
+duration: 19
+difficulty: 4
+---
+
+# CDN — Content Delivery Network
+
+## HOOK
+
+Serverul tău e în Frankfurt. Un utilizator din Sydney îți accesează site-ul. Între ei sunt ~16.000 km de fibră optică. Poți cumpăra cel mai rapid server din lume — nu contează. Lumina însăși are o limită, iar pe distanța aia ea adaugă sute de milisecunde **înainte** ca serverul tău să apuce să facă ceva.
+
+Ăsta e zidul pe care niciun hardware nu-l sparge: **latența e geografie**. Nu poți face un server "mai rapid" ca să învingi distanța fizică. Din L5 știi de ce — semnalul se propagă cu viteză finită, iar RTT-ul crește cu fiecare kilometru.
+
+Soluția nu e un server mai bun. E să **muți conținutul aproape de utilizator**. Dacă ai o copie a site-ului tău în Sydney, utilizatorul din Sydney o primește în milisecunde, nu în sute. Asta e un **CDN** — o rețea de sute de servere-copie împrăștiate pe tot globul, fiecare gata să servească utilizatorii din zona lor.
+
+E capătul blocului de intermediari: CDN-ul e reverse proxy (L13) + load balancing (L14) + BGP Anycast (L10), dar aplicate la **scară planetară**. Și e prima linie de apărare a internetului — puntea spre securitatea din lecțiile următoare.
+
+---
+
+## CONTEXT
+
+Din L5 știi latența vs banda, RTT-ul, propagarea. Din L10 — BGP Anycast. Din L13 — reverse proxy, TLS termination, caching, Cloudflare/Fastly ca reverse proxy global. Din L14 — load balancing, GSLB, health checks. Din L4 — DNS.
+
+CDN-ul le combină pe toate și adaugă dimensiunea pe care blocul n-a atins-o: **spațiul geografic**. Un reverse proxy regional stă într-un loc; un CDN e distribuit în sute de **PoP-uri** (Points of Presence) plasate în marile puncte de schimb de internet din lume.
+
+Ideea centrală: în loc de un **origin server** unic la mii de km distanță, ai o rețea de **edge servers** care servesc conținutul local. Utilizatorul lovește cel mai apropiat PoP, care fie are conținutul în cache (rapid), fie îl aduce de la origin o singură dată și-l păstrează pentru toți ceilalți. Cele trei întrebări ale lecției: cum ajunge utilizatorul la cel mai apropiat PoP, cum funcționează cache-ul la edge, și cum devine CDN-ul un scut de securitate.
+
+---
+
+## MIEZUL
+
+### Latența e fizică — cifrele
+
+Lumina în vid: ~300.000 km/s. Dar în fibra optică (indice de refracție ~1,47) scade la **~200.000 km/s** — adică ~5 µs de propagare per kilometru, deci ~10 µs de RTT per km. Pe distanțe transcontinentale, se adună brutal:
+
+{/* TABLE */}
+
+| Rută | Distanță | RTT real (aprox.) |
+|---|---|---|
+| New York – Londra | 5.585 km | 70-90 ms |
+| New York – Sydney | 15.993 km | 200-240 ms |
+| București – Frankfurt | 1.450 km | 20-40 ms |
+| București – Tokyo | 8.700 km | 250-300 ms |
+
+Și asta e doar propagarea. Peste ea se adaugă handshake-ul TCP (1 RTT) și negocierea TLS (1-2 RTT). O latență de bază de 150 ms devine instant peste jumătate de secundă doar ca să *stabilești* conexiunea, înainte de primul byte util (TTFB). Cercetările arată că peste 100-200 ms utilizatorii percep clar "lag", iar peste 300 ms aplicația pare lentă. De-aia mutarea conținutului aproape de utilizator nu e un lux — e singura soluție la un zid fizic.
+
+### Rețeaua de PoP-uri — două filozofii
+
+Un CDN e o rețea de PoP-uri, dar furnizorii aleg strategii opuse:
+
+**Deep Edge** (Akamai): densitate geografică extremă — ~4.400 de PoP-uri încorporate adânc în ~1.200 de rețele ISP, ~365.000 de servere. Nodurile stau în ultimul segment al rețelei operatorului, scurtcircuitând congestia de peering. Optimizat pentru streaming video masiv.
+
+**Mega-PoP** (Fastly): ~100 de PoP-uri, dar fiecare cu putere hardware enormă (768 GB RAM, 24 TB SSD, 100 Gbps per server). Mai puține locații, dar volume colosale servite direct din RAM.
+
+**Edge omogen** (Cloudflare): ~330 de locații, arhitectură "Anycast-first" unde **fiecare serviciu rulează pe fiecare server**. Capacitate totală ~449 Tbps, conținut la sub 50 ms pentru 95% din populația conectată.
+
+Diferența față de un simplu reverse proxy regional (L13): un CDN transformă internetul dintr-unul de **tranzit** într-unul de **margine** — resursele întâlnesc utilizatorul la granița propriei lui rețele.
+
+### Cum ajunge utilizatorul la cel mai apropiat PoP
+
+Două paradigme de rutare:
+
+**BGP Anycast** (din L10): CDN-ul anunță **aceeași adresă IP** de la sute de servere din lume. Routerele internetului rutează automat pachetele spre destinația topologic cea mai apropiată (AS path minim). Rutarea e intrinsecă rețelei — extrem de rapidă, și dispersează natural atacurile DDoS (fiecare PoP absoarbe traficul din zona lui). Defectul: instabilitate — ECMP-ul din ISP-uri poate "arunca" pachetele aceleiași conexiuni spre PoP-uri diferite dacă topologia fluctuează.
+
+**GSLB** (din L14): mută logica la nivel DNS. Sistemul vede geolocația clientului și telemetria (sănătate servere, congestie), și returnează IP-ul celui mai bun PoP — poate ruta un bucureștean spre Viena în loc de Frankfurt dacă prima rută e blocată. Control granular, dar limitat de TTL-ul DNS: dacă un PoP cade, failover-ul întârzie până expiră cache-urile DNS. BGP Anycast reconverge aproape instant; GSLB e mai deștept dar mai lent la failover.
+
+În practică, CDN-urile mari combină ambele: Cloudflare merge pe Anycast-first (viteză de conectare, reziliență la DDoS), Akamai și CloudFront preferă GSLB (control fin al încărcării). Frontiera actuală e **Client-Side GSLB** — clientul software măsoară concurent latența spre mai multe PoP-uri și alege singur înainte de a deschide conexiunea, ocolind atât imprevizibilitatea BGP-ului cât și inerția TTL-ului DNS.
+
+### Caching la edge — inima CDN-ului
+
+Un reverse proxy geografic ajută doar dacă răspunde **local**. Metrica supremă e **Cache Hit Ratio** (CHR): un CDN modern vizează 85-95% general, peste 95% pe static. Un **cache MISS** costă triplu: latența RTT spre origin, CPU pe origin, și bani (egress pe cloud scump).
+
+Cheia de cache identifică fiecare obiect (Hostname + Path + Query String, opțional rafinat cu geolocație/User-Agent). Directivele HTTP (`Cache-Control`, TTL, `ETag` — din L12/L13) decid prospețimea.
+
+Dar arhitectura plată a unui CDN are o slăbiciune: dacă un obiect popular expiră și mii de utilizatori din toată lumea îl cer simultan, **fiecare** din sutele de PoP-uri raportează MISS și lovește independent originul. E **thundering herd** — o avalanșă care poate prăbuși backend-ul.
+
+<CosmoHint emotion="thinking">
+Observă cum revine aici o problemă pe care ai mai văzut-o, dar la altă scară. În L14, consistent hashing rezolva ce se întâmplă când un cache distribuit pierde un nod. Aici, thundering herd e problema inversă: nu un nod pică, ci sute de noduri *simultan* descoperă că le lipsește același lucru și se reped toate deodată spre origin. Aceeași cauză de fond — lipsa de coordonare între noduri distribuite — dar manifestată invers. Vei observa acest tipar peste tot în sistemele distribuite: problemele nu vin din ce face un singur nod, ci din ce fac *toate deodată* când nu comunică între ele. De-aia soluțiile bune (origin shield, request collapsing) nu fac nodurile mai rapide — le fac să *colaboreze*, transformând sute de cereri identice într-una singură.
+</CosmoHint>
+
+Soluția: **Tiered Caching / Origin Shield**. Adaugi un nivel intermediar (un mega-PoP regional) între edge și origin. Un edge cu MISS nu mai contactează originul direct — merge la Origin Shield. Dacă și acela are MISS, **grupează toate cererile simultane** (request collapsing) într-una singură spre backend, apoi propagă răspunsul spre toate edge-urile. Originul vede o singură cerere în loc de sute.
+
+Impactul nu e doar de performanță, ci și economic. Traficul de egress dinspre un origin pe cloud scump (AWS S3) poate ajunge la sute sau mii de dolari lunar; un CDN cu caching ierarhizat reduce asta la o fracțiune, fiindcă originul e contactat rar. Soluții ca Cloudflare Argo Tiered Cache sau Fastly Origin Shield fac ca rata de acces local să rămână artificial ridicată la margine, protejând backend-ul de exploziile bruște de trafic.
+
+### Tipuri de conținut
+
+Nu tot conținutul se cache-uiește la fel:
+
+**Static** (~55% din trafic): CSS, imagini, JS — imuabile, TTL uriaș (zile/ani). CDN-urile fac și optimizare on-the-fly: dacă browserul suportă (via `Accept`), convertesc invizibil JPEG → WebP/AVIF, economisind bandă fără efort pe backend.
+
+**Video streaming** (ABR — HLS/DASH): fișierul se sparge în micro-segmente + un manifest (playlist). Segmentele sunt statice → CHR mare, TTL lung. Dar manifestul, la live streaming, se schimbă la fiecare 2 secunde → TTL mic. Le tratezi diferit.
+
+**Dinamic**: date volatile (inventar, prețuri). Fastly a inversat problema cu **Instant Purge**: ții pagina în cache un an, atașezi o `Surrogate-Key`, iar la o modificare API-ul șterge exact acea cheie global în ~150 ms.
+
+**Reziliență**: `stale-while-revalidate` (servești copia veche instant + revalidezi în fundal — din L13) și `stale-if-error` (dacă originul dă 500, servești ultima copie bună, mascând dezastrul).
+
+### Edge Computing — dincolo de cache
+
+Următorul salt: nu doar cache static, ci **cod care rulează la edge**. Serverless clasic (Lambda) pune codul într-o regiune; edge computing îl lansează în **toate** cele sute de PoP-uri, la 10-15 ms de utilizator.
+
+Problema: containerele/MicroVM-urile au cold start de 100-500 ms — ar anula tot avantajul geografic. Două soluții:
+
+- **V8 Isolates** (Cloudflare Workers): reutilizează motorul V8 din Chrome; mii de procese ușoare partajează același mediu securizat prin granițe de memorie. Cold start **sub 5 ms**.
+- **WebAssembly AOT** (Fastly Compute): cod compilat înainte (Rust/JS/C++) în mașină x86 prin Wasmtime; sandboxing criptografic al memoriei, cold start aproape zero.
+
+Cazuri: A/B testing, autentificare, transformări de payload — toate direct în proxy, sub 5 ms. Frontiera actuală e chiar **inference AI la edge**: furnizorii distribuie acceleratoare hardware (GPU-uri Nvidia) în mii de locații, permițând rularea de LLM-uri sau modele compacte la zeci de km de utilizator, cu latențe de 38-45 ms per inferență. Aceeași logică geografică — apropie procesarea de utilizator — se extinde de la servit fișiere la rulat inteligență artificială.
+
+<FactBox>
+**CDN — cifre cheie:**
+- Lumina în fibră: **~200.000 km/s** (~10 µs RTT per km)
+- București–Tokyo: **250-300 ms** RTT
+- Akamai ~**4.400** PoP-uri; Cloudflare ~**330** (449 Tbps); Fastly ~**100** (578 Tbps)
+- Cache Hit Ratio țintă: **85-95%** general, >95% static
+- Origin Shield + request collapsing → 1 cerere în loc de sute
+- V8 Isolates cold start **<5 ms** vs container 100-500 ms
+- DDoS mitigat: Cloudflare a oprit **5,6 Tbps** în <3 s
+- TLS 1.3: **1-RTT** (vs 2 la 1.2), 0-RTT la reconectare
+- CDN market ~**$31 mld** (2025); majoritatea internetului trece prin CDN
+</FactBox>
+
+### Securitate integrată — puntea spre L16
+
+Fiind pe calea traficului, la perimetrul geografic al internetului, CDN-ul e o **poartă de securitate**:
+
+**DDoS mitigation**: BGP Anycast transformă amploarea atacatorului în slăbiciune. În loc ca zeci de Tbps să lovească un router, atacul e **dispersat** pe toată banda globală a rețelei; centrele de scrubbing curăță fluxul înainte să atingă originul. Cloudflare a mitigat un atac de **5,6 Tbps** în sub 3 secunde, cu capacitate excedentară de ~50×.
+
+<CosmoHint emotion="surprised">
+Prinde inversarea asta, fiindcă e frumoasă din punct de vedere arhitectural. Un atac DDoS își trage puterea din distribuție — mii de calculatoare infectate din toată lumea lovesc simultan. Împotriva unui singur server, distribuția e o armă devastatoare: toate loviturile converg într-un punct care se prăbușește. Dar împotriva unei rețele Anycast, aceeași distribuție se întoarce împotriva atacatorului. Fiecare botnet lovește PoP-ul cel mai apropiat *lui*, nu un punct central — deci atacul se împrăștie exact pe suprafața cea mai potrivită să-l absoarbă. Structura care făcea atacul letal (a fi peste tot) devine motivul pentru care eșuează. E un principiu pe care-l vei revedea în securitate: cea mai bună apărare nu e un zid mai gros într-un loc, ci o arhitectură în care forța atacatorului se dizolvă în chiar felul în care e construit sistemul.
+</CosmoHint>
+
+**WAF la edge** (din L13): semnături L7 care blochează SQL injection, XSS, exploit-uri — la margine, înainte de origin.
+
+**Ascunderea originului prin tunnel** (ex. Cloudflare Tunnel): un setup clasic lasă originul cu IP public, vulnerabil la "origin bypass" (atacatorul scanează IP-uri și lovește direct, ocolind CDN-ul). Soluția modernă (Zero Trust): un agent (`cloudflared`) rulează pe server și inițiază **conexiuni de ieșire** spre CDN. Apoi blochezi complet orice conexiune de intrare — porturile 80/443 devin invizibile din exterior. Nimeni nu mai poate atinge originul decât prin tunel. E exact saltul conceptual spre securitatea din L16-L19.
+
+### TLS la edge
+
+TLS-ul (din L6, detaliu în L17) e inamicul latenței — negocierea cere round-trips. Dacă handshake-ul se face pe originul din alt continent, aduni RTT-uri masive. CDN-ul mută terminarea TLS la **cel mai apropiat PoP**:
+
+- **TLS 1.3**: comprimă handshake-ul de la 2-RTT (1.2) la **1-RTT**, plus **0-RTT** la reconectare (clientul recurent trimite payload din primul pachet).
+- **OCSP stapling**: în loc ca browserul să contacteze separat Autoritatea de Certificare ca să verifice dacă certificatul e valid (sute de ms), PoP-ul "capsează" răspunsul CA semnat direct în handshake — elimină un round-trip întreg.
+
+Apropierea contează dublu la TLS: fiecare round-trip economisit se multiplică cu numărul de RTT-uri din handshake.
+
+---
+
+## REVEAL
+
+Blocul de intermediari, complet — de la un IP la scară planetară:
+
+{/* TABLE */}
+
+| Intermediar | Scop | Scară | Lecția |
+|---|---|---|---|
+| NAT | partajare adrese | o rețea | L11 |
+| Forward proxy | apără clientul | o organizație | L12 |
+| Reverse proxy | apără serverul | un datacenter | L13 |
+| Load balancer | distribuie sarcina | o flotă | L14 |
+| CDN | apropie conținutul | tot globul | L15 |
+
+Tool-uri: `curl -I` pentru headerele CDN — `CF-Cache-Status` la Cloudflare (`HIT`/`MISS`/`DYNAMIC`/`BYPASS`), `X-Cache` la Fastly, `Age` (vechimea în cache). `traceroute` cu geohints (coduri IATA în hostname: `LHR`=Londra, `FRA`=Frankfurt, `NRT`=Tokyo) îți arată la ce PoP ești rutat — util ca să prinzi când ești trimis greșit geografic. Instrumente ca Globalping rulează traceroute din zeci de locații simultan ca să mapezi rutarea globală.
+
+Observația care leagă tot: CDN-ul nu e o tehnologie nouă — e **compunerea** a tot ce ai învățat în bloc (proxy + LB + Anycast), scalată la geografie. Iar poziția lui la margine îl face nu doar accelerator, ci **scutul** internetului.
+
+---
+
+## ÎNCHEIERE
+
+Un CDN sparge zidul fizic al latenței nu făcând serverele mai rapide, ci mutând conținutul aproape de utilizator — sute de PoP-uri globale, rutare prin Anycast/GSLB, cache la edge cu Origin Shield contra thundering herd, și cod care rulează la margine în sub 5 ms. Pe deasupra, e prima linie de apărare: absoarbe DDoS-ul, filtrează la WAF, și ascunde originul.
+
+Regulă practică: dacă servești utilizatori din zone geografice diferite, un CDN nu e opțional — e răspunsul la fizică. Verifică `CF-Cache-Status: HIT` ca să confirmi că edge-ul lucrează, și țintește un cache hit ratio peste 90%. Cu asta închidem blocul de intermediari și infrastructură. Urmează fundamentul securității pe care CDN-ul l-a tot invocat: **criptografia asimetrică**, din L16 — cum două părți care nu s-au întâlnit niciodată pot vorbi în secret.

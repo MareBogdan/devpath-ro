@@ -1,0 +1,188 @@
+---
+title: "NAT — Network Address Translation"
+order: 11
+type: lesson
+module_index: 3
+duration: 18
+difficulty: 4
+---
+
+# NAT — Network Address Translation
+
+## HOOK
+
+IPv4 are 4,29 miliarde de adrese. Pe planetă sunt zeci de miliarde de dispozitive conectate. Matematic, internetul ar fi trebuit să se blocheze la sfârșitul anilor '90.
+
+N-a făcut-o. Telefonul, laptopul și televizorul tău partajează *aceeași* adresă IP publică chiar acum, fără să se calce reciproc. Mecanismul care a făcut asta posibil — și a amânat criza IPv4 cu **decenii** — se numește NAT.
+
+Dar NAT n-a fost gratis. A rupt modelul original al internetului, în care orice mașină putea contacta direct orice altă mașină. În spatele unui NAT, ești invizibil din exterior: poți suna, dar nimeni nu te poate suna. De-aia gaming-ul peer-to-peer, VoIP-ul și apelurile video se chinuie cu "NAT traversal", iar ISP-ul tău mobil te poate băga într-un purgatoriu numit CGNAT unde nici măcar nu deții o adresă publică.
+
+În L10 am închis cu "translatarea adreselor private". Acum vezi cum funcționează — și de ce e simultan cel mai genial și cel mai problematic hack din istoria internetului.
+
+---
+
+## CONTEXT
+
+Din L3 știi adresele private RFC 1918 (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`) — reutilizabile la infinit, dar **nerutabile** pe internetul public. Din L6 cunoști cvintuplul și porturile efemere. Din L9 ai văzut conntrack și port mapping Docker (`-p`), cu DNAT-ul menționat. Din L10 știi `ip_forward`, masquerade și docker0.
+
+NAT leagă toate astea. Problema fundamentală: ai o insulă de adrese private care trebuie să vorbească cu lumea, dar lumea nu știe să rutează spre ele. Soluția: la graniță, un router **rescrie** adresele private în adresa lui publică la ieșire, ține minte cine-i cine, și face translatarea inversă la întoarcere.
+
+IANA a epuizat oficial rezerva centrală IPv4 pe **3 februarie 2011**, iar RIPE (Europa) în septembrie 2012. Azi o adresă IPv4 e un activ financiar (zeci de dolari bucata). NAT e ce ține totul în viață între timp.
+
+---
+
+## MIEZUL
+
+### Terminologia exactă
+
+"NAT" colocvial înseamnă de fapt mai multe mecanisme. Precizia contează:
+
+- **Static NAT (1:1)**: mapare fixă între o privată și o publică. Modifică doar IP-ul, lasă portul intact. Nu rezolvă epuizarea (o publică per dispozitiv) — folosit ca să expui servere.
+- **Dynamic NAT**: pool de adrese publice asignate temporar. Dacă pool-ul se epuizează, conexiunile noi sunt respinse.
+- **PAT / NAPT** (Port Address Translation): rescrie **IP-ul sursă ȘI portul sursă**. Asta folosește toată lumea acasă — mii de fluxuri partajează o singură publică.
+
+Pe Linux, direcția definește totul:
+- **SNAT** (Source NAT): rescrie sursa la ieșire. IP public fix.
+- **DNAT** (Destination NAT): rescrie destinația la intrare — exact "port forwarding", și exact ce face Docker `-p` (din L9).
+- **MASQUERADE**: SNAT dinamic, pentru IP-uri volatile (DHCP, PPPoE). Interoghează IP-ul curent al interfeței la fiecare conexiune. Docker îl folosește pe docker0 (din L10).
+
+Când zici "NAT" pentru laptopul din cafenea, vorbești de fapt despre **NAPT implementat prin masquerade**.
+
+### Mecanica PAT — exemplul care lămurește tot
+
+Scenariu: gateway cu publica `203.0.113.1` și privata `192.168.1.1`. Două dispozitive, A (`192.168.1.10`) și B (`192.168.1.11`), accesează simultan același server (`93.184.216.34:443`).
+
+A alege portul efemer 54321. Prin coincidență, **B alege exact același port**, 54321. Ambele pachete au sursa `...:54321` și aceeași destinație. Dacă routerul doar ar rescrie IP-ul, ar crea două conexiuni identice — coliziune fatală.
+
+Aici intervine geniul PAT:
+
+- Pachetul A: routerul rescrie sursa în `203.0.113.1:54321` (portul 54321 e liber pe publică, îl păstrează).
+- Pachetul B: routerul vede că `203.0.113.1:54321` e deja luat → alege alt port, `41235`.
+
+Și ține minte în tabela de translatare:
+
+```
+A: 192.168.1.10:54321 ↔ 203.0.113.1:54321 → 93.184.216.34:443
+B: 192.168.1.11:54321 ↔ 203.0.113.1:41235 → 93.184.216.34:443
+```
+
+Serverul vede o singură mașină (`203.0.113.1`) și răspunde la porturile 54321 și 41235. Când răspunsurile sosesc, routerul nu știe inițial cui aparțin — toate au destinația lui. **Portul devine demultiplexorul**: răspunsul pe 41235 → tradus înapoi la `192.168.1.11:54321`, răspunsul pe 54321 → la `192.168.1.10:54321`. Fiecare ajunge la dispozitivul corect.
+
+<CosmoHint emotion="curious">
+Observă ce s-a întâmplat cu portul aici. În L6, portul era un identificator de proces pe o singură mașină — "care aplicație de pe acest calculator?". În L9, era cum kernel-ul livra pachetul sosit la socket-ul corect. Acum, în NAT, același număr de 16 biți capătă un al treilea rol: demultiplexor de rețea care distinge zeci de mii de dispozitive diferite în spatele unei singure adrese publice. Același mecanism, trei niveluri de abstracție — asta e eleganța stivei. Un concept simplu (un număr pe 16 biți) e reutilizat la fiecare strat pentru a rezolva o problemă diferită. Când vezi un port, întreabă-te mereu: la ce nivel demultiplexează aici?
+</CosmoHint>
+
+### NAT în kernel — netfilter și conntrack
+
+Toată logica trăiește în kernel (din C2), orchestrată de **netfilter** (prin `iptables`/`nftables`). Tabela `nat` intervine la două momente din rutare (L10): lanțul **PREROUTING** (unde se aplică DNAT, înainte de decizia de rutare) și **POSTROUTING** (unde se aplică SNAT/MASQUERADE, după).
+
+Inima sistemului e **conntrack** (din L9). NAT e inerent **stateful** — dacă routerul ar rescrie pachetele fără să-și amintească, traficul de întoarcere ar fi imposibil. Conntrack stochează două tupluri per conexiune: direcția **ORIGINAL** (cum a venit) și **REPLY** (cum va arăta răspunsul). Când o regulă NAT modifică pachetul, conntrack actualizează tuplul REPLY. La întoarcere, kernel-ul identifică pachetul după REPLY și aplică translatarea inversă **fără să mai consulte regulile** — doar primul pachet dintr-un flux trece prin reguli, restul sunt translatate automat.
+
+O mașină Linux devine gateway NAT cu o regulă:
+
+```bash
+iptables -t nat -A POSTROUTING -s 192.168.1.0/24 -o eth0 -j MASQUERADE
+```
+
+SNAT static (`--to-source 203.0.113.1`) e mai rapid (IP-ul e hardcodat, O(1)); MASQUERADE interoghează interfața la fiecare sesiune nouă, dar e singura opțiune când IP-ul e dinamic.
+
+### De ce NAT strică peer-to-peer
+
+NAT anulează conectivitatea end-to-end. Vizibilitatea devine **unidirecțională**: poți iniția conexiuni spre exterior (inside-out, conntrack deschide poarta de întoarcere), dar un SYN venit din exterior spre un port fără stare prealabilă e **aruncat** — nu există mapare pentru el.
+
+Asta devastează P2P, gaming descentralizat și VoIP. La SIP (telefonie), clientul pune adresa lui **privată** în payload-ul aplicației și cere serverului să trimită audio acolo — dar `192.168.x.x` nu e rutabil, deci apelul se conectează "în gol".
+
+IETF a clasificat NAT-urile în RFC 3489 după cât de greu sunt de traversat:
+
+{/* TABLE */}
+
+| Tip NAT | Comportament | Traversare P2P |
+|---|---|---|
+| Full Cone | orice host extern poate intra pe portul mapat | foarte ușoară (rară) |
+| Restricted Cone | doar de la host-uri deja contactate | medie |
+| Port-Restricted Cone | doar host+port deja contactat | medie (standard casnic) |
+| Symmetric | port public nou pentru fiecare destinație | foarte dificilă |
+
+Symmetric e coșmarul: alocă un **port public diferit pentru fiecare destinație**, distrugând previzibilitatea de care depinde traversarea.
+
+### NAT traversal — STUN, hole punching, TURN
+
+Ca două mașini din rețele private să se conecteze direct, ecosistemul a inventat **NAT traversal**.
+
+**STUN** (port 3478): clientul întreabă un server public "ce IP și port public am?". Serverul vede fațada creată de NAT și o raportează înapoi. Acum clientul își știe amprenta publică.
+
+**UDP hole punching**: cu datele de la STUN, A și B (mediați de un server de coordonare) își trimit simultan pachete. Pas cu pas:
+
+```
+1. A → coordonare → află [IP_public_B]:[port_B]   (și B află datele lui A)
+2. A → pachet UDP → NAT-A deschide gaura → ... → NAT-B îl ARUNCĂ
+   (B n-a trimis încă nimic spre A, deci e "nelegitim")
+3. B → pachet UDP → NAT-B deschide gaura → NAT-A îl ACCEPTĂ
+   (se potrivește cu gaura deschisă de A la pasul 2)
+4. De-acum ambele direcții sunt deschise → P2P direct stabilit
+```
+
+Primul pachet al lui A "străpunge o gaură" în NAT-A (conntrack deschide poarta de întoarcere), dar e respins de NAT-B. Apoi B trimite spre A — străpunge NAT-B, iar la NAT-A trece, fiindcă se potrivește cu poarta deschisă. Asta e coloana vertebrală a **WebRTC** (apeluri video în browser, fără server intermediar).
+
+Dar hole punching **colapsează la Symmetric NAT**: portul raportat la STUN nu e cel folosit la comunicarea directă, deci pachetele lovesc o gaură greșită. Fallback-ul e **TURN**: un server releu care retransmite **tot** traficul între A și B — funcționează mereu, dar adaugă latență și cost. **ICE** e framework-ul care încearcă automat toate metodele (direct → STUN → TURN), în ordinea preferinței.
+
+<FactBox>
+**NAT — cifre cheie:**
+- IPv4: **4,29 miliarde** adrese; IANA epuizat **3 feb 2011**
+- RFC 1918 privat: `10/8`, `172.16/12`, `192.168/16`
+- CGNAT (RFC 6598): `100.64.0.0/10` (~4,1M adrese)
+- Porturi per IP public: **~64.512** active per protocol
+- CGNAT cu PBA 1000 porturi: max **~64** gospodării per IP public
+- RFC 3489: 4 tipuri NAT (Full/Restricted/Port-Restricted Cone, Symmetric)
+- STUN port **3478**; consolele: NAT Type 1/2/3
+- conntrack: **~320 bytes**/sesiune; 64GB RAM → ~**2,1M** conexiuni
+- IPv6 adopție 2026 (Google): **~46-50%**; România ~**20-30%**
+</FactBox>
+
+### CGNAT — NAT peste NAT
+
+Ce face un ISP mobil cu zeci de mii de abonați și fără adrese IPv4? **Carrier-Grade NAT** (CGNAT), numit tehnic și **Large-Scale NAT (LSN)**: NAT peste NAT.
+
+Topologia se numește **NAT444** — fiindcă pachetul traversează **trei** domenii IPv4 succesive: privat (în casa ta) → `100.64.0.0/10` (rețeaua ISP-ului) → public (internetul). Trei "4"-uri, trei translatări. Routerul tău face primul NAT (privat → WAN). Dar WAN-ul tău primește o adresă din spațiul special `100.64.0.0/10` (RFC 6598) — nici privat, nici public, rezervat exclusiv pentru CGNAT. ISP-ul face un **al doilea NAT** la echipamentele lui de agregare, mapând mii de abonați pe o mână de IP-uri publice.
+
+Consecințele sunt reale: **port exhaustion** (un IP public oferă ~64.512 porturi; cu blocuri de 1000/gospodărie, max ~64 utilizatori per IP), **paralizia inbound** (nu poți face port forwarding, deci nu rulezi VPN sau server de acasă), **ban-uri colective** (un dispozitiv infectat poate face ca tot IP-ul partajat să fie banat de un serviciu), și **logging legal** (ISP-ul trebuie să țină evidența cvintuplurilor la microsecundă ca să poată identifica un abonat).
+
+Iar scalarea asta apasă direct pe conntrack (din L9). Echipamentul LSN al ISP-ului ține o intrare conntrack pentru **fiecare flux** al **fiecărui** abonat — milioane simultan. Fiecare sesiune consumă ~320 bytes; un nod cu 64GB RAM se plafonează matematic la ~2,1 milioane de conexiuni. Când tabela se umple (atac sau pur și simplu vârf de trafic), kernel-ul aruncă pachete cu `nf_conntrack: table full` — și mii de abonați pierd conectivitatea simultan, deși fibra e liberă. De-aia CGNAT-ul nu e doar incomod pentru utilizator, ci o gâtuire arhitecturală pentru ISP.
+
+### Mitul "NAT = securitate"
+
+Cea mai persistentă confuzie din rețelistică: ideea că NAT e un firewall. **Nu este.** Faptul că pachetele din exterior sunt aruncate nu e o politică de securitate — e doar imposibilitatea routerului de a găsi o mapare pentru ele. Securitatea reală vine dintr-un mecanism separat: **stateful firewall** (bazat tot pe conntrack, dar cu reguli explicite de filtrare). Cercetările de NAT bypass arată că, fără firewall dedicat, un atacator care ghicește portul și falsifică sursa poate ajunge la o mașină internă chiar prin NAT.
+
+<CosmoHint emotion="concerned">
+Insistă pe distincția asta, fiindcă te va salva de greșeli reale de proiectare. "Nu sunt accesibil din exterior, deci sunt în siguranță" e un raționament periculos. NAT te ascunde ca efect secundar al felului în care funcționează, nu fiindcă cineva a decis să te protejeze. E ca și cum ai zice că ușa ta e încuiată pentru că e vopsită în aceeași culoare ca peretele — poate nu se vede, dar nu e încuiată. Când treci la IPv6, unde fiecare dispozitiv are adresă publică și NAT-ul dispare, dacă ai crezut că NAT-ul te apăra, brusc ești expus. Securitatea trebuie să fie o decizie explicită — o regulă de firewall care spune "drop" — nu un accident de arhitectură. Confundă astea două și vei construi sisteme care par sigure exact până în ziua în care nu mai sunt.
+</CosmoHint>
+
+IPv6 elimină nevoia de NAT (spațiu inepuizabil) și restaurează conectivitatea end-to-end, securizată prin firewall explicit `default deny`, nu prin mutilarea headerelor. Ironia: NAT a fost atât de eficient încât a întârziat adopția IPv6 cu un sfert de secol.
+
+Și totuși, există **NAT66** (NPTv6, RFC 6296) — NAT pentru IPv6. De ce ai vrea NAT pe un protocol conceput exact ca să-l elimine? Motivul real e **multihoming**: o firmă cu doi ISP-uri vrea să-și schimbe providerul activ fără să renumere fiecare dispozitiv din rețea. NAT66 translatează doar **prefixul** (nu și portul sau identificatorul dispozitivului, evitând starea de sesiune), mapând adresele locale ULA spre prefixul public. Comunitatea de ingineri descurajează ferm practica — repetă exact greșelile de complexitate și fracturare end-to-end pe care IPv6 trebuia să le anuleze. Dar nostalgia "securității prin NAT" și problema multihoming-ului o țin în viață marginal.
+
+---
+
+## REVEAL
+
+Cele trei roluri ale portului, acumulate de-a lungul cursului:
+
+{/* TABLE */}
+
+| Strat | Rolul portului | Lecția |
+|---|---|---|
+| Transport | identifică procesul pe o mașină | L6 |
+| Socket | livrează pachetul sosit la socketul corect | L9 |
+| NAT | demultiplexează mii de dispozitive pe o publică | L11 |
+
+Tool-uri esențiale: `conntrack -L` (tabela de translatări vii, cu flag-ul `[ASSURED]` când fluxul e bidirecțional confirmat), `iptables -t nat -L -v -n` sau `nft list ruleset` (regulile NAT). Pentru a detecta CGNAT: dacă WAN-ul routerului e în `100.64.0.0/10`, ești în spatele CGNAT; sau dacă IP-ul WAN diferă de ce raportează `curl ifconfig.me`, există un NAT al ISP-ului amonte — și port forwarding-ul local e inutil.
+
+Consolele de gaming traduc clasificarea RFC 3489 în NAT Type 1 (Open/Full Cone), 2 (Moderate/Cone) și 3 (Strict/Symmetric) — de-aia un "NAT Type 3" îți strică matchmaking-ul.
+
+---
+
+## ÎNCHEIERE
+
+NAT e hack-ul care a ținut IPv4 în viață: rescrie adrese private în una publică și folosește portul ca demultiplexor ca să distingă mii de dispozitive. Prețul: a rupt conectivitatea end-to-end, forțând STUN/TURN/ICE pentru orice e peer-to-peer, și a deschis ușa CGNAT-ului.
+
+Regulă practică: NAT nu e securitate — e doar translatare. Dacă un serviciu de acasă nu e accesibil din exterior, întreabă-te dacă ești în spatele unui CGNAT (verifică `100.64.0.0/10`). Și ține minte: soluția reală nu e mai mult NAT, ci IPv6 — pe care îl atingem din nou la VPN-uri (L19).

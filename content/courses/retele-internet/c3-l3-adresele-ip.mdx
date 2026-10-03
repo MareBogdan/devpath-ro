@@ -1,0 +1,221 @@
+---
+title: "Adresele IP"
+order: 3
+type: lesson
+module_index: 3
+duration: 17
+difficulty: 3
+---
+
+# Adresele IP
+
+## HOOK
+
+Pe **3 februarie 2011**, IANA — autoritatea care guvernează spațiul global de adrese — a alocat ultimele cinci blocuri `/8` din IPv4. Rezerva mondială era oficial goală.
+
+Profeția era veche de 20 de ani. IPv4 are **32 de biți** = $2^{32}$ ≈ **4,29 miliarde** de adrese. Pare mult, până realizezi că azi există mai multe dispozitive conectate decât oameni pe planetă. Telefonul tău, laptopul, televizorul, frigiderul, mașina — fiecare vrea o adresă.
+
+Soluțiile la această criză sunt peste tot în jurul tău: adresa `192.168.x.x` din casă (privată, refolosită de miliarde de oameni), NAT-ul din router, și succesorul cu $2^{128}$ adrese — IPv6.
+
+În L2 ai văzut adresa MAC: fizică, plată, fără hartă. Acum urci un strat. IP-ul e adresa **logică și ierarhică** — cea care face rutarea globală posibilă.
+
+---
+
+## CONTEXT
+
+De ce două scheme de adresare? În L2 ai văzut răspunsul pe scurt: MAC-ul e plat, IP-ul e ierarhic.
+
+Dacă internetul ar ruta pe MAC, fiecare router ar trebui să țină o intrare pentru fiecare dispozitiv din lume — imposibil. IP-ul rezolvă asta prin **ierarhie**: partea de sus a adresei spune regiunea, apoi ISP-ul, apoi rețeaua finală. Routerele agregă milioane de adrese sub o singură rută.
+
+Legătura cu L2 e ARP: când pachetul IP ajunge în LAN-ul destinație, ultimul router folosește ARP ca să afle MAC-ul și să livreze frame-ul pe fir. IP-ul rutează global, MAC-ul livrează local.
+
+Din L1 cunoști deja headerul IP: 20 bytes, IP sursă/destinație, și **TTL** (Time to Live, init 64) — mecanismul anti-buclă. Spre deosebire de frame-urile L2 (care n-au TTL și pot circula infinit), fiecare router decrementează TTL-ul; la zero, pachetul moare.
+
+---
+
+## MIEZUL
+
+### IPv4 — 32 de biți, scriși ca patru numere
+
+O adresă IPv4 are **32 de biți**, împărțiți în 4 octeți, scriși zecimal cu puncte (**dotted-decimal**): `192.168.1.1`. Fiecare octet e 0-255.
+
+Conversia binară contează, fiindcă kernel-ul și routerele lucrează pe biți. `192` = `11000000` (biții 128+64). `168` = `10101000` (128+32+8). Deci `192.168.1.1` devine:
+
+```
+11000000.10101000.00000001.00000001
+```
+
+Orice adresă se împarte logic în **Network portion** (spune routerelor direcția) și **Host portion** (identifică dispozitivul final). Granița dintre ele nu e fixă — o dictează **masca de subrețea**.
+
+### Clasele istorice și revoluția CIDR
+
+În anii '80, alocarea era **classful** — pe clase rigide, definite de primii biți:
+
+- **Clasa A** (`/8`): 16,7 milioane host-uri. Alocate la IBM, MIT, Apple, Departamentul Apărării SUA.
+- **Clasa B** (`/16`): 65.534 host-uri. Universități, corporații.
+- **Clasa C** (`/24`): 254 host-uri. Organizații mici.
+
+Problema: **risipa**. O companie cu 3.000 de calculatoare nu încăpea într-un `/24` (254), deci primea automat un `/16` (65.534). Peste 62.000 de adrese rămâneau blocate, nefolosite, indisponibile pentru oricine altcineva. Risipa accelera epuizarea.
+
+În **1993**, **CIDR** (Classless Inter-Domain Routing) a abolit clasele. Notația `/n` spune exact câți biți reprezintă rețeaua. Masca `255.255.255.0` = 24 de biți de 1 = `/24`. Formula numărului de host-uri:
+
+$$\text{host-uri} = 2^{(32-n)} - 2$$
+
+Scădem 2 fiindcă prima adresă (toți biții host = 0) e **Network Address** și ultima (toți = 1) e **Broadcast Address** — niciuna nu se alocă unui dispozitiv.
+
+{/* TABLE */}
+
+| CIDR | Mască | Total | Utilizabile | Caz tipic |
+|---|---|---|---|---|
+| `/8` | `255.0.0.0` | 16.777.216 | 16.777.214 | Blocuri ISP istorice |
+| `/16` | `255.255.0.0` | 65.536 | 65.534 | Enterprise, bridge Docker |
+| `/24` | `255.255.255.0` | 256 | 254 | LAN birou/casă |
+| `/30` | `255.255.255.252` | 4 | 2 | Link point-to-point routere |
+
+### Subnetting — împarți o rețea logic
+
+De ce împarți o rețea? Pentru a **izola broadcast-ul** (din L2 știi că un domeniu de broadcast prea mare = zgomot ARP/DHCP care întrerupe toate CPU-urile). Subnetting-ul L3 se aliniază cu VLAN-urile L2.
+
+Cum decide kernel-ul dacă o destinație e locală sau remote? Prin **AND logic** între IP-ul destinație și propria mască. Dacă rezultatul = propria adresă de rețea → e în LAN, declanșează ARP. Dacă diferă → e remote, trimite la **Default Gateway** (convențional `.1`), care preia rutarea.
+
+Exemplu complet: împărțim `192.168.1.0/24` în patru subrețele. Împrumutăm 2 biți din host ($2^2 = 4$ subrețele), masca devine `/26` (`255.255.255.192`). Rămân 6 biți host → $2^6 = 64$ adrese, 62 utilizabile, per subrețea:
+
+{/* TABLE */}
+
+| Subnet | Rețea | Prima | Ultima | Broadcast |
+|---|---|---|---|---|
+| 0 | `192.168.1.0/26` | `.1` | `.62` | `.63` |
+| 1 | `192.168.1.64/26` | `.65` | `.126` | `.127` |
+| 2 | `192.168.1.128/26` | `.129` | `.190` | `.191` |
+| 3 | `192.168.1.192/26` | `.193` | `.254` | `.255` |
+
+Asta e fundamentul **VLSM** (Variable Length Subnet Masking): măști diferite în aceeași topologie — un `/26` pentru servere, `/30`-uri pentru interconectarea routerelor, zero risipă.
+
+<CosmoHint emotion="thinking">
+Operațiunea AND e inima rutării locale, și se întâmplă la fiecare pachet pe care îl trimiți. IP destinație AND masca ta → dacă iese adresa ta de rețea, kernel-ul știe că destinatarul e "pe scara blocului" și cheamă ARP direct. Dacă iese altceva, trimite totul la gateway și spală-se pe mâini. Două numere, o instrucțiune de procesor, și kernel-ul decide instant dacă livrează local sau pasează mai departe. Toată complexitatea rutării începe cu acest singur bitwise AND.
+</CosmoHint>
+
+### Adrese private, publice și speciale
+
+**RFC 1918** (mijlocul anilor '90) a creat adrese **private**, refolosibile de oricine, interzise în tabelele de rutare ISP. Routerele de frontieră aruncă orice pachet cu sursă privată ne-tradusă:
+
+- **`10.0.0.0/8`** — 16,7M adrese. Enterprise, cloud (AWS VPC, Azure VNet), Kubernetes.
+- **`172.16.0.0/12`** — 1M adrese. Docker folosește `172.17.0.0/16` pentru bridge-ul standard (recunoști din Cursul 2).
+- **`192.168.0.0/16`** — 65K adrese. Casnic, small-business.
+
+Ca un IP privat să iasă în lume, routerul aplică **NAT** (din L1) — maschează sursa privată cu IP-ul public al interfeței externe.
+
+Adrese speciale critice:
+- **`127.0.0.0/8`** — Loopback. `127.0.0.1` (localhost) nu părăsește niciodată mașina; kernel-ul rutează pachetul înapoi în stivă. Folosit pentru comunicarea între procese pe același sistem.
+- **`169.254.0.0/16`** — Link-Local (APIPA). Când DHCP eșuează, OS-ul își autogenerează o adresă aici, verifică unicitatea cu Gratuitous ARP (DAD), dar niciun router n-o tranzitează.
+- **`0.0.0.0/0`** — Default Route, ruta "catch-all" pentru orice destinație necunoscută.
+- **`255.255.255.255`** — Broadcast universal.
+
+Și un bloc al erei epuizării: **`100.64.0.0/10`** (RFC 6598), dedicat **CGNAT** (Carrier-Grade NAT). ISP-urile nu mai au IP-uri publice pentru fiecare client, deci adaugă un al doilea strat de NAT — routerul tău primește un IP din `100.64.x.x` pe WAN, nu unul public real. Arhitectura **NAT444**.
+
+### DHCP — cum primești un IP automat
+
+Static (manual) e ok pentru servere. Dar pentru mii de dispozitive mobile ai nevoie de **DHCP** (Dynamic Host Configuration Protocol). Rulează peste **UDP, porturile 67 (server) și 68 (client)**.
+
+Paradoxul: cum cere un IP un dispozitiv care **n-are** încă un IP? Prin broadcast L2. Procesul se numește **DORA**:
+
+1. **Discover** — clientul (IP sursă `0.0.0.0`, destinație broadcast `255.255.255.255`, MAC `FF:FF:FF:FF:FF:FF`) întreabă: "E vreun server DHCP aici?"
+2. **Offer** — serverul propune un IP (ex. `192.168.1.50`), mască, gateway, DNS, lease time.
+3. **Request** — clientul acceptă o ofertă (prin broadcast, ca celelalte servere să-și retragă ofertele).
+4. **Acknowledge** — serverul confirmă, înscrie maparea MAC↔IP. Kernel-ul activează interfața.
+
+IP-ul e **închiriat**, nu donat. La jumătatea lease-ului (T1), clientul trimite unicast un renewal. Lease time-ul default reflectă filozofii diferite: MikroTik **10 min** (hotspot-uri dense), Cisco **1 zi**, Windows Server **8 zile** (desktopuri statice, minim zgomot). Din L1: telefonul a primit `192.168.1.50` exact așa.
+
+<FactBox>
+**Adresele IP — cifre cheie:**
+- IPv4: **32 biți**, $2^{32}$ ≈ **4,29 miliarde** adrese
+- IPv6: **128 biți**, $2^{128}$ ≈ **3,4 × 10³⁸** (340 undecilioane)
+- Epuizare IANA: **2011**; RIPE (Europa): alocarea finală `/22` în **noiembrie 2019**
+- RFC 1918: `10/8` (16,7M), `172.16/12` (1M), `192.168/16` (65K)
+- CGNAT: `100.64.0.0/10` (RFC 6598), ~4,19M adrese
+- CIDR: `/24` = 254 host-uri, `/16` = 65.534, `/8` = 16,7M
+- DHCP: UDP porturile **67/68**, mecanism **DORA**
+- Protocol field: TCP=**6**, UDP=**17**, ICMP=**1**
+- Header: IPv4 **20 bytes** (dinamic), IPv6 **40 bytes** (fix)
+- Adopție IPv6 (2026): Google global **~45-50%**, mobil **~72%**, România **~34%**
+</FactBox>
+
+### IPv6 — 128 de biți și autoconfigurare
+
+IPv6 extinde adresa la **128 de biți** = $2^{128}$ ≈ **3,4 × 10³⁸** adrese. Atât de multe încât nu se mai alocă adrese individuale, ci subrețele întregi per dispozitiv.
+
+Notația e hexazecimală, 8 grupuri de 16 biți separate de `:`:
+```
+2001:0db8:85a3:0000:0000:8a2e:0370:7334
+```
+Reguli de compresie: zerourile de început dintr-un grup se omit (`0db8`→`db8`), iar cel mai lung șir continuu de grupuri-zero se înlocuiește o singură dată cu `::`. Comprimat: `2001:db8:85a3::8a2e:370:7334`.
+
+Structura: primii **64 biți** = prefix de rețea, ultimii **64** = Interface ID. ISP-ul dă o organizație un `/48`, lăsând 16 biți pentru 65.536 de subrețele `/64`.
+
+**SLAAC** (Stateless Address Autoconfiguration) e marea noutate: fără server, fără bază de date. Dispozitivul ascultă **Router Advertisements** (prin NDP, care a înlocuit ARP) — routerul anunță prefixul `/64`, iar clientul își generează singur ultimii 64 de biți.
+
+Istoric, metoda era **EUI-64**: lua MAC-ul de 48 biți, injecta `FF:FE` la mijloc, inversa bitul U/L (legătură directă cu L2!). Problema: MAC-ul nu se schimbă niciodată, deci ultimii 64 de biți deveneau o **amprentă de tracking** — același telefon era recunoscut în aeroport dimineața și acasă seara. Soluția: **Privacy Extensions** (RFC 8981) — IID aleator, rotit la fiecare 24h. Serverele păstrează adrese stabile (pentru DNS inbound).
+
+<CosmoHint emotion="surprised">
+Vezi cum aceeași problemă de privacy revine, dar la alt strat. În L2, MAC randomization a apărut fiindcă MAC-ul fix permitea tracking-ul în mall-uri. Aici, EUI-64 a luat exact acel MAC fix și l-a băgat în adresa IPv6 globală — deci tracking-ul s-a mutat de la nivel local la nivel planetar, vizibil oricărui server de pe internet. Aceeași cauză (un identificator hardware imuabil), același remediu (randomizare cu bitul Locally Administered), dar de data asta miza e mult mai mare. Lecția se repetă: orice identificator fix și permanent devine, mai devreme sau mai târziu, o problemă de confidențialitate.
+</CosmoHint>
+
+Adopția (dual-stack, ambele stive în paralel): în 2026, accesul la Google peste IPv6 a depășit **45-50%** global, **~72%** pe mobil (5G), dar doar **~34%** în România și sub un sfert în enterprise-urile Fortune 500.
+
+### Headerul — IPv4 vs IPv6
+
+{/* TABLE */}
+
+| Câmp | IPv4 (20 bytes) | IPv6 (40 bytes) |
+|---|---|---|
+| Lungime | Dinamică (IHL) | Fixă |
+| TTL / Hop Limit | TTL (decrementat per hop) | Hop Limit (identic) |
+| Protocol | 6=TCP, 17=UDP, 1=ICMP | Next Header (similar) |
+| Checksum | Da (recalculat per hop!) | **Eliminat** |
+| Fragmentare | În router (costisitor) | Doar la sursă (Path MTU) |
+
+Două decizii cheie în IPv6. **Eliminarea checksum-ului**: era redundant — integritatea e deja garantată de FCS (L2, din L2) și de checksum-urile TCP/UDP (L4). Asta a eliberat CPU masiv pe routere, fiindcă IPv4 recalcula checksum-ul **la fiecare hop** (TTL-ul se schimbă, deci checksum-ul devine invalid). **Eliminarea fragmentării în router**: IPv6 nu fragmentează în tranzit; dacă pachetul e prea mare, routerul îl aruncă și trimite ICMPv6 "Packet Too Big" — sursa reduce dimensiunea (Path MTU Discovery).
+
+### Tool-uri practice
+
+Suita modernă e **iproute2** (înlocuiește vechiul `ifconfig`/`route`), comunicând cu kernel-ul prin Netlink.
+
+```bash
+ip addr show       # IP-urile interfețelor (inet 192.168.1.50/24, inet6 fe80::...)
+ip route show      # tabela de rutare (FIB): "default via 192.168.1.1 dev eth0"
+ping 8.8.8.8       # ICMP (protocol 1) — testează rutabilitatea
+traceroute 8.8.8.8 # exploatează TTL: trimite TTL=1,2,3... ca să mapeze hops
+```
+
+`traceroute` e un truc strălucit: trimite pachete cu TTL=1 (primul router îl scade la 0, răspunde "Time Exceeded"), apoi TTL=2, etc. — reconstruind harta hop-by-hop pe care ai văzut-o în L1.
+
+Pe Docker: `ip route` arată `172.17.0.0/16 dev docker0 proto kernel scope link` — bridge-ul are gateway `.1`, NAT prin MASQUERADE, exact mecanismele din Cursul 2, acum vizibile la L3.
+
+---
+
+## REVEAL
+
+IPv4 vs IPv6 — două epoci ale adresării:
+
+{/* TABLE */}
+
+| Aspect | IPv4 | IPv6 |
+|---|---|---|
+| Biți | 32 | 128 |
+| Adrese | 4,29 miliarde | 3,4 × 10³⁸ |
+| Notație | Dotted-decimal | Hexazecimal cu `:` |
+| Configurare | DHCP (DORA) | SLAAC + DHCPv6 |
+| Rezoluție L2 | ARP | NDP |
+| Header | 20 bytes, checksum, fragmentare | 40 bytes, fără checksum, fără fragmentare în router |
+| Privacy | — | Privacy Extensions (IID rotit) |
+| Status 2026 | Epuizat, NAT peste tot | ~45-50% global, în creștere |
+
+IP-ul e stratul logic care transformă o colecție haotică de switch-uri într-o hartă globală navigabilă. Ierarhia permite agregarea, masca definește granițele, AND-ul decide local vs remote, iar TTL-ul oprește buclele.
+
+---
+
+## ÎNCHEIERE
+
+Adresa IP răspunde la "unde ești" prin ierarhie: rețea + host, granița dictată de mască. CIDR a înlocuit clasele rigide, subnetting-ul izolează broadcast-ul, NAT și adresele private au amânat criza IPv4, iar IPv6 o rezolvă matematic.
+
+Regulă practică: când un dispozitiv "nu are internet", verifică în ordine — are IP valid (`ip addr`)? are gateway (`ip route`)? trece de gateway (`ping` la `.1`, apoi la `8.8.8.8`)? Fiecare pas testează un strat diferit din ce ai învățat azi.

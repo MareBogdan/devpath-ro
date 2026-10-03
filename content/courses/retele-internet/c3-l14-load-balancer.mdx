@@ -1,0 +1,171 @@
+---
+title: "Load Balancer"
+order: 14
+type: lesson
+module_index: 3
+duration: 19
+difficulty: 4
+---
+
+# Load Balancer
+
+## HOOK
+
+Ai un server care ține 10.000 de utilizatori. Îți vin 100.000. Ce faci?
+
+Prima idee — un server mai mare (scalare verticală) — te lovește de două ziduri. Costul hardware-ului enterprise crește exponențial cu performanța, iar problema reală rămâne: **un singur server e un single point of failure**. O actualizare de kernel, o placă de bază arsă, și toți cei 100.000 de utilizatori pică simultan.
+
+Soluția reală e **scalarea orizontală**: nu un server uriaș, ci zeci de servere medii care împart munca. Dar cine decide ce cerere merge la ce server? Cine observă când un server moare și-l scoate din rotație? Cine se asigură că nu trimiți totul la un singur nod în timp ce restul stau degeaba?
+
+Ăsta e **load balancer-ul**. E casa de marcat de la supermarket: în loc de o singură casă ultra-rapidă la care se aliniază toată lumea, deschizi zeci de case standard, iar un coordonator trimite fiecare client la casa liberă — și oprește pe oricine intră în pauză.
+
+În L13 am stabilit că load balancing-ul e o funcție a reverse proxy-ului. Acum vedem **cum** distribuie: algoritmii, verificarea sănătății, și disponibilitatea sistemului însuși.
+
+---
+
+## CONTEXT
+
+Din L13 știi reverse proxy-ul ca fundație — două conexiuni TCP, TLS termination, routing L7, `upstream` în Nginx, și distincția L4/L7 introdusă. Din L10 cunoști BGP Anycast. Din L9 — C10K, epoll, conntrack, cvintuplul. Din L11 — NAT.
+
+Load balancing-ul e o *disciplină* peste reverse proxy: nu doar intermediază conexiunea, ci execută algoritmi decizionali, evaluări matematice și verificări de sănătate ca să optimizeze cum e folosită flota de servere.
+
+Trei întrebări structurează lecția. **Cum** aleg serverul (algoritmii de distribuție)? **Cum** știu că un server e viu (health checks)? Și **cum** mă asigur că load balancer-ul însuși nu devine punctul unic de eșec (high availability)? Plus reluarea distincției **L4 vs L7** — de data asta focalizată pe distribuție, nu pe proxy în general.
+
+---
+
+## MIEZUL
+
+### L4 vs L7 — reluat pe distribuție
+
+Din L13 știi diferența de principiu. Aici contează pentru **performanță**.
+
+**L4** distribuie pe cvintuplu (IP+port, din L6), la momentul SYN-ului. Nu parsează HTTP, nu decriptează TLS, nu reasamblează stream-ul. Rescrie doar destinația (DNAT) din VIP-ul (Virtual IP) load balancer-ului spre backend. Rezultatul: **excepțional de rapid** — peste 10 milioane de conexiuni concurente, 100+ Gbps, latență de 50-500 microsecunde. Adesea rulează în kernel sau pe ASIC.
+
+**L7** e "inteligent": termină conexiunea, decriptează TLS, reasamblează HTTP-ul și rutează pe conținut (path, header, cookie). Prețul: pe același hardware unde L4 face 10M pkt/s, L7 face 1-2M și adaugă 1-5 milisecunde latență. Îl folosești doar când chiar ai nevoie de decizii pe conținut.
+
+O optimizare L4 avansată: **Direct Server Return** (DSR). Normal, și cererea și răspunsul trec prin load balancer — dar răspunsurile (video, download) sunt mult mai mari decât cererile, deci interfața LB-ului devine gâtuire la ieșire. Cu DSR, LB-ul modifică doar **MAC-ul** (L2), nu IP-ul, iar backend-ul răspunde **direct clientului**, ocolind complet load balancer-ul la retur. Banda totală devine suma benzilor tuturor backend-urilor. (Necesită configurarea VIP-ului pe loopback-ul fiecărui backend + suprimarea ARP.)
+
+### Algoritmi statici
+
+Regulile predefinite, independente de starea reală a serverelor. Simple, rapide, dar riscă asimetrie.
+
+**Round Robin**: rotație simplă — cererea 1 la A, 2 la B, 3 la C, apoi iar A. Default în Nginx/HAProxy. Perfect pentru aplicații stateless cu cereri omogene. Defectul: ignoră efortul. Dacă o cerere grea (10 secunde) nimerește pe A, iar restul sunt banale, la următorul ciclu A primește altă sarcină grea deși e la 100% CPU, în timp ce B și C stau degeaba.
+
+**Weighted Round Robin**: pentru servere inegale. Un server nou (64 nuclee) primește `weight=5`, unul vechi `weight=1` — din 6 cereri, 5 merg la cel puternic. Util în migrări parțiale de hardware.
+
+**IP Hash**: `hash(IP_sursă) % N_servere` → același client merge mereu la același server. Pare o soluție de persistență, dar are un defect fatal legat de NAT (din L11): mii de utilizatori din spatele aceluiași NAT corporativ apar cu **un singur IP** → toți aterizează pe același server, creând un hotspot și anulând echilibrarea. Rareori folosit pentru trafic public.
+
+### Algoritmi dinamici
+
+Citesc starea reală a backend-urilor. Mai buni, dar consumă mai mult CPU pe LB.
+
+**Least Connections**: cererea nouă merge la serverul cu cele mai puține conexiuni active. Standardul pentru L7 cu durate variabile (WebSockets, download-uri, API-uri grele). Netezește perfect: dacă un server e blocat cu un query de 30s, noile cereri curg spre cele care s-au eliberat.
+
+**Least Response Time**: adaugă latența reală (TTFB — Time To First Byte). Serverul care răspunde cel mai prompt și are conexiuni puține primește cererea. Absoarbe micro-incendiile: dacă un backend Java intră în Garbage Collection agresiv, timpul lui de răspuns crește, iar LB-ul îl ocolește automat până se stabilizează.
+
+**Resource-based**: un agent pe backend citește CPU/RAM real din kernel și-l raportează la LB. Cea mai inteligentă, dar cere software instalat pe fiecare nod.
+
+<CosmoHint emotion="thinking">
+Observă tensiunea fundamentală dintre static și dinamic — e un troc pe care-l vei regăsi peste tot în inginerie. Algoritmii statici (round robin) sunt orbi dar aproape gratuiți: o simplă rotație, zero cicluri CPU pierdute pe decizie. Cei dinamici (least connections) sunt deștepți dar scumpi: LB-ul trebuie să țină socoteala stării fiecărui backend în timp real. Nu există "cel mai bun algoritm" — există cel potrivit sarcinii. Cereri omogene și rapide? Round robin e perfect, orice inteligență ar fi risipă. Cereri cu durate imprevizibile? Least connections merită costul. Regula pe care o duci mai departe: cu cât o decizie devine mai inteligentă, cu atât costă mai mult s-o iei — iar arta e să știi când merită inteligența și când e doar overhead.
+</CosmoHint>
+
+{/* TABLE */}
+
+| Algoritm | Cum decide | Bun pentru | Defect |
+|---|---|---|---|
+| Round Robin | rotație liniară | stateless, cereri uniforme | ignoră efortul |
+| Weighted RR | rotație ponderată | servere inegale | tot static |
+| IP Hash | `hash(IP) % N` | persistență rudimentară | eșuează la NAT |
+| Least Connections | cele mai puține active | durate variabile | memorie pe LB |
+| Resource-based | CPU/RAM real (agent) | backend-uri asimetrice | agent pe fiecare nod |
+
+### Consistent Hashing — algoritmul special
+
+Pentru cache-uri distribuite (Redis, Memcached), baze de date (Cassandra) și CDN-uri, ai nevoie de alocare **deterministă**: aceeași cheie → mereu același server. Soluția naivă e `hash(cheie) % N`. Funcționează perfect... până când N se schimbă.
+
+Aici e catastrofa: ai 100.000 de chei pe 4 noduri (`% 4`). Un nod cade → recalculezi `% 3` pentru **toate** cheile. Rezultatul matematic: **~75% dintre chei** ajung pe alt server. Pentru un cache, asta e 75.000 de cache miss simultane care lovesc baza de date — un **cache stampede** care prăbușește tot sistemul în cascadă.
+
+**Consistent hashing** (Karger et al., MIT; popularizat de Amazon Dynamo, 2007) rezolvă asta. Mapează atât serverele, cât și cheile pe același **inel** circular (0 la 2³²−1). Pentru o cheie, mergi în sensul acelor de ceas până la primul server. Proprietatea magică (**monotonicitate**): când adaugi/scoți un server, se remapează **doar** cheile adiacente lui pe inel — restul rămân neatinse.
+
+<FactBox>
+**Load balancing — cifre cheie:**
+- Scalare orizontală: servere commodity vs verticală (un server mare)
+- L4: **>10M** conexiuni, 100+ Gbps, 50-500 µs; L7: **1-2M**, 1-5 ms
+- DSR: backend răspunde direct clientului (ocolește LB la retur)
+- Consistent hashing: `% N` naiv rehash-uiește **~75%**; inel remapează **~24%**
+- Virtual nodes: **~150** = echilibru optim
+- Health check anti-flapping: `fall=3`, `rise=2` (asimetric)
+- Sticky sessions = anti-pattern; stateless (Redis) = soluția
+- HA: VRRP/keepalived (active-passive), BGP Anycast ECMP (active-active)
+- "Five 9s" = **99,999%** disponibilitate
+- Kubernetes: kube-proxy iptables O(n) vs IPVS O(1)
+</FactBox>
+
+La modelul cu 4 noduri reduse la 3, inelul remapează doar **~24%** (cheile nodului căzut, preluate de vecin), lăsând ~76% din cache intact. La scară, când schimbi N servere, doar ~K/N rute se rearanjează.
+
+O problemă practică: hashing-ul poate plasa două servere aproape pe inel → dezechilibru (unul acoperă 50%, altul 2%). Soluția: **virtual nodes** — fiecare server fizic apare de sute de ori pe inel (`ServerA#vnode1`, `#vnode2`...). Standardul e ~150 vnodes per server (peste asta, randament marginal descrescător). În Nginx: `hash $request_uri consistent;`.
+
+### Health Checks — inima disponibilității
+
+Toată logica de distribuție e inutilă dacă LB-ul trimite trafic unui server mort — asta ar fi "black-holing", cu time-out-uri în lanț pentru utilizatori.
+
+**Passive**: LB-ul observă traficul real; dacă un backend dă repetat `502` sau time-out, îl scoate. Problema: erorile sunt experimentate de utilizatori reali înainte ca sistemul să reacționeze.
+
+**Active**: LB-ul trimite sonde sintetice la intervale scurte, detectând blocajul **înainte** ca traficul real să-l lovească. Patru parametri:
+- `interval`: frecvența (2000-5000 ms tipic)
+- `timeout`: cât aștepți răspunsul
+- `fall`: câte eșecuri consecutive → server "DOWN"
+- `rise`: câte succese consecutive → server "UP"
+
+Greșeala clasică: `fall=1, rise=1`. Un singur pachet pierdut declară serverul mort, secunda următoare îl învie — **flapping**, care desincronizează clusterul. Best practice e asimetric și conservator: `fall=3` (precaut la tăiere), `rise=2` (confirmare stabilă la reintroducere).
+
+Un detaliu vital: testul **L4** (`tcp-check`) verifică doar dacă portul e deschis — dar un Tomcat poate avea portul 8080 deschis în kernel în timp ce firele Java sunt epuizate și aruncă `500`. De-aia se preferă testul **L7** (`httpchk GET /health` + `expect status 200`). Atenție: ruta `/health` nu trebuie să interogheze baza de date — la 10 sonde/secundă pe o flotă mare, ai crea un DDoS intern asupra propriei infrastructuri.
+
+### Session Persistence și de ce e un anti-pattern
+
+Problema: aplicațiile vechi (stateful) țin sesiunea (login, coș) în RAM-ul serverului care a procesat login-ul. Dacă Round Robin trimite următoarea cerere la alt server, acela nu recunoaște sesiunea → utilizatorul e deconectat.
+
+Soluția tradițională: **sticky sessions**. LB-ul injectează un cookie (`Set-Cookie: SERVERID=Server_A`); cererile viitoare cu acel cookie merg mereu la A. Funcționează, dar e un **anti-pattern la scară**: dacă power-userii nimeresc toți pe A, rămân "lipiți" de el, ducându-l la 100% CPU în timp ce C stă gol — anulezi exact utilitatea load balancer-ului.
+
+Soluția corectă: arhitectură **stateless**. Sesiunea (JWT, session ID) trăiește într-un store extern rapid (Redis), nu în RAM-ul unui server. Atunci LB-ul poate trimite orice cerere la orice backend liber, fără constrângeri artificiale. Sticky sessions e un plasture pentru cod prost scris; stateless e vindecarea.
+
+### High Availability a load balancer-ului însuși
+
+Paradoxul: ai eliminat SPOF-ul serverelor, dar acum **load balancer-ul** e punctul unic de eșec. Dacă pică, pică tot, oricâte backend-uri sănătoase ai.
+
+<CosmoHint emotion="surprised">
+Prinde ironia asta, fiindcă e o lecție de arhitectură care se repetă la nesfârșit. Ai construit load balancer-ul exact ca să scapi de single point of failure — și ai creat un nou single point of failure, doar că mutat cu un nivel mai sus. Nu poți elimina niciodată complet SPOF-ul; poți doar să-l muți în locuri unde e mai ieftin și mai rapid să te aperi. De-aia soluția nu e "încă un load balancer în față" (ai muta problema iar), ci mecanisme fundamental diferite: VRRP care pasează un IP flotant între două noduri, sau BGP Anycast unde routerul însuși distribuie spre mai multe LB-uri active. Principiul pe care-l duci mai departe în orice sistem critic: întreabă-te mereu "dacă asta pică, ce se întâmplă?" — și vei descoperi că redundanța nu e o funcție pe care o adaugi la final, ci o proprietate pe care trebuie s-o proiectezi la fiecare nivel.
+</CosmoHint>
+
+**Active-Passive (VRRP/keepalived)**: două LB-uri, un VIP flotant. Master-ul (prioritate mare) deține VIP-ul și emite heartbeat-uri multicast. Dacă tace, Backup-ul se auto-promovează și trimite Gratuitous ARP ca să actualizeze switch-urile — pauză de 1-2 secunde, apoi serviciu restabilit. Limită: cere același segment L2 și irosește 50% din hardware (backup-ul stă).
+
+**Active-Active (BGP Anycast + ECMP)**: mai multe LB-uri anunță **același VIP** prin BGP (din L10). Routerul vede căi de cost egal (ECMP) și distribuie traficul pe toate simultan, pe hash de cvintuplu. Nicio comunicare heartbeat, zeci de unități active. Asta scalează global.
+
+**GSLB** (Global Server Load Balancing): pentru mai multe datacentre (Europa + SUA). DNS round-robin simplu suferă de TTL (cache-urile rețin rute vechi ore, trimițând clienți spre un datacenter mort). GSLB e un DNS inteligent care verifică RTT și geolocație și returnează IP-ul datacentrului sănătos cel mai apropiat — disaster recovery fluid.
+
+---
+
+## REVEAL
+
+Arhitectura reală la scară nu alege L4 **sau** L7 — le **stivuiește**:
+
+{/* TABLE */}
+
+| Nivel | Ce face | Tehnologie |
+|---|---|---|
+| Edge (extern) | absoarbe DDoS, DSR rapid, >10M pkt/s | L4 hardware + BGP Anycast ECMP |
+| Interior | rutare L7, TLS, WAF, JWT | Nginx/HAProxy (sute de instanțe) |
+
+Nodurile L4 masive stau la margine, preiau asalturile brute și trimit doar trafic curat spre etajul L7 din spate, care consumă CPU pe analiza inteligentă. Așa obții "**five 9s**" — 99,999% disponibilitate.
+
+În Kubernetes, distribuția o face `kube-proxy`. Modul vechi `iptables` evalua reguli secvențial — O(n), dezastruos la mii de servicii. Modul modern **IPVS** (IP Virtual Server, load balancer L4 în kernel) folosește o tabelă hash — **O(1)** indiferent dacă ai 10 sau 100.000 de containere.
+
+Tool-uri: HAProxy (`frontend`/`backend`, cu `check`, `rise`/`fall`, `cookie`), Nginx `upstream` (`least_conn`, `hash ... consistent`), cloud (AWS NLB=L4, ALB=L7). Vezi distribuția în stats/metrics — dacă un backend primește disproporționat de mult, verifici algoritmul și health check-urile.
+
+---
+
+## ÎNCHEIERE
+
+Load balancer-ul transformă o colecție de servere fragile într-un sistem rezilient. Distribuie prin algoritmi (round robin simplu, least connections inteligent, consistent hashing pentru cache), verifică sănătatea backend-urilor (active checks, `fall=3 rise=2`), și se protejează pe sine de a fi SPOF (VRRP sau BGP Anycast).
+
+Regulă practică: alege algoritmul după sarcină (uniform → round robin; variabil → least connections; cache → consistent hashing). Evită sticky sessions — fă aplicația stateless. Și nu uita: orice load balancer are nevoie el însuși de un plan de high availability, altfel ai mutat doar single point of failure-ul. Următorul pas — distribuția nu doar între servere, ci pe tot globul — e CDN-ul din L15.

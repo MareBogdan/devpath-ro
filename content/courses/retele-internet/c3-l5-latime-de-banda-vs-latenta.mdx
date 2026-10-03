@@ -1,0 +1,196 @@
+---
+title: "Lățime de bandă vs. Latență"
+order: 5
+type: lesson
+module_index: 3
+duration: 16
+difficulty: 3
+---
+
+# Lățime de bandă vs. Latență
+
+## HOOK
+
+Plătești pentru o conexiune de **1 Gbps**. Descarci un fișier de pe un server din SUA. Și obții... **5 Mbps**. 0,5% din ce ai plătit.
+
+Nu e o eroare a ISP-ului. E matematică. Pe o rută cu RTT de 100ms, protocolul TCP clasic, cu fereastra lui de 64KB, **nu poate** depăși ~5 Mbps — indiferent dacă ai 1 Gbps, 10 Gbps sau 400 Gbps. Fereastra se golește în prima milisecundă, apoi linkul stă mort 99% din timp, așteptând confirmarea peste ocean.
+
+Asta e diferența pe care lumea o confundă constant: **banda** (cât de mult per secundă) nu e tot una cu **latența** (cât durează să ajungă). Marketingul ISP vinde doar prima. Dar pentru web, gaming și apeluri, a doua decide totul.
+
+În L1 ai văzut viteza luminii în fibră limitând latența. Acum înțelegi de ce banda nu poate repara o rețea fizic lungă — și de ce latența nu se poate cumpăra.
+
+---
+
+## CONTEXT
+
+Două dimensiuni, complet diferite ca natură.
+
+**Lățimea de bandă** e **capacitatea** — cât de multe date încap pe canal per secundă, măsurată în bps (Kbps, Mbps, Gbps, Tbps). E un volum, nu o viteză. Te spune cât de *lat* e canalul.
+
+**Latența** e **întârzierea** — cât durează ca un singur bit să ajungă de la sursă la destinație, măsurată în ms. Te spune cât de *responsiv* e canalul.
+
+Analogia clasică: o autostradă. Numărul de benzi = banda (câte mașini pe oră). Distanța dintre orașe = latența (cât durează drumul). Adaugi benzi și treci mai multe mașini — dar o mașină tot face același timp pe distanță. Capacitatea crește, responsivitatea individuală nu.
+
+Din L1 cunoști deja partea fizică: viteza luminii în fibră (~200.000 km/s), formula latenței (d/v), RTT România-SUA 100-150ms. Acum legăm asta de performanța reală a aplicațiilor.
+
+---
+
+## MIEZUL
+
+### Anatomia latenței — patru componente
+
+Latența unui pachet printr-un nod nu e monolitică. E suma a patru întârzieri:
+
+$$D_{nod} = D_{prop} + D_{trans} + D_{proc} + D_{queue}$$
+
+**Propagation delay** — timpul fizic de a traversa mediul (din L1). Determinat de distanță și viteza luminii în fibră: $D_{prop} = d/s$. Fix, imuabil — **4,9 µs per kilometru** de fibră. Un cablu de 5.000 km impune **25ms** per sens, indiferent de tehnologie.
+
+**Transmission delay** (serializare) — timpul de a *împinge* biții pe link: $D_{trans} = L/R$ (lungime pachet / bandă). Un pachet de 1500 bytes (12.000 biți) pe 100 Mbps = **120 µs**; pe 10 Gbps = **1,2 µs**. Aici banda chiar ajută latența — dar marginal, doar pentru pachete mari sau linkuri lente.
+
+**Processing delay** — timpul ca routerul să inspecteze headerul, să verifice checksum-ul, să decrementeze TTL, să interogheze FIB. Pe hardware modern (ASIC): nanosecunde. Dar cu NAT, DPI sau criptare IPsec, poate urca la milisecunde.
+
+**Queuing delay** — singura componentă **variabilă și non-deterministă**. Când traficul depășește temporar capacitatea interfeței, pachetele așteaptă în cozi. Acesta e principalul inamic al performanței și cauza directă a **jitter-ului**.
+
+Patologia modernă: **Bufferbloat**. Producătorii pun buffere uriașe ca să nu piardă pachete — dar asta distruge bucla de feedback a TCP-ului, care crede că rețeaua e liberă și inundă mai departe, adăugând zeci-sute de ms de latență. Ai 1 Gbps, dar rețeaua e paralizată sub încărcare.
+
+### RTT, ping și jitter
+
+**RTT** (Round Trip Time) e timpul dus-întors: de la trimitere până la confirmarea (ACK) că pachetul a ajuns. E pulsul stivei TCP/IP. **Atenție**: RTT nu e neapărat dublul latenței unidirecționale — rutarea BGP e adesea **asimetrică** (drumul dus diferă de cel întors).
+
+Măsurat clasic cu `ping` (ICMP, protocol 1 din L4). Dar `ping` are o capcană: routerele tratează ICMP cu prioritate scăzută (control plane vs data plane), deci traficul real TCP/UDP trece adesea mai *rapid* decât sugerează ping-ul.
+
+{/* TABLE */}
+
+| Mediu | RTT tipic | Constrângere |
+|---|---|---|
+| LAN / datacenter | < 1ms | Sub 100µs pe gigabit local |
+| Metropolitan (MAN) | 2-10ms | FTTH până la primul IXP |
+| Regional | 15-40ms | București → Frankfurt (DE-CIX) |
+| Transcontinental | 70-150ms | Cabluri submarine, EU → Virginia |
+| Satelit LEO (Starlink) | 20-50ms | Orbită joasă (340-550 km) |
+| Satelit GEO | 500-700ms | 35.000+ km, interactiv inutilizabil |
+
+**Jitter** = variația RTT între pachete consecutive. Dacă unul vine în 20ms, altul în 60ms, altul în 15ms — jitter periculos. Aplicațiile de voce/video folosesc un **jitter buffer** (rețin pachetele rapide ca să le alinieze cu cele lente), dar asta adaugă latență. Când jitter-ul depășește bufferul (~30-50ms), apar pierderi de pachete și artefacte audio.
+
+### Bandwidth-Delay Product — conceptul cheie
+
+Aici e conceptul care unește totul: **BDP** (Bandwidth-Delay Product) = câtă date sunt "în zbor" simultan pe circuit, trimise dar neconfirmate încă.
+
+$$BDP = \text{Bandă (bps)} \times RTT \text{ (s)}$$
+
+Analogia: volumul conductei. Banda e secțiunea, RTT-ul e lungimea, produsul e câtă apă încape ca să ții țeava plină.
+
+Exemplu transatlantic: 1 Gbps × 100ms RTT = 100.000.000 biți = **12,5 MB** în zbor. Asta e câtă date trebuie să țină sistemul în RAM, neconfirmate, ca să satureze linkul.
+
+{/* TABLE */}
+
+| Scenariu | Bandă | RTT | BDP |
+|---|---|---|---|
+| LAN | 1 Gbps | 1ms | ~125 KB |
+| Broadband rezidențial | 500 Mbps | 20ms | ~1,25 MB |
+| Backbone datacenter | 10 Gbps | 3ms | ~3,75 MB |
+| LFN transoceanic | 1 Gbps | 175ms | ~21,9 MB |
+
+Rutele cu bandă mare **și** latență mare se numesc **LFN** (Long Fat Networks). Sunt câmpul de bătaie al rețelisticii avansate — fiindcă protocolul TCP clasic se sufocă pe ele.
+
+### De ce latența distruge throughput-ul TCP
+
+TCP garantează livrarea cerând ACK-uri. Receptorul anunță o **fereastră** (TCP Receive Window) — câți bytes acceptă înainte de a confirma. În headerul clasic, fereastra are exact **16 biți** = maxim **65.535 bytes** (~64KB).
+
+Cât timp fereastra e fixă la 64KB, throughput-ul are o limită matematică absolută:
+
+$$\text{Throughput}_{max} \approx \frac{\text{Fereastra TCP}}{RTT}$$
+
+Pe scenariul de 1 Gbps cu 100ms RTT:
+
+$$\frac{65.535 \times 8}{0,1} \approx 5,24 \text{ Mbps}$$
+
+Acolo se duc cei 5 Mbps din hook. Fereastra de 64KB se epuizează în prima milisecundă, apoi linkul **amuțește** restul de 99ms, așteptând ACK-ul peste ocean. 99,5% din fibră stă goală.
+
+<CosmoHint emotion="surprised">
+Reține paradoxul: poți avea cea mai groasă fibră din lume, dar dacă fereastra TCP e mai mică decât BDP-ul, transferul se gâtuie acolo, nu la nivelul fizic. E ca o conductă uriașă pe care torni apă cu paharul și aștepți confirmarea că a ajuns înainte să torni următorul pahar. Conducta e plină 0,5% din timp. Banda devine irelevantă — fereastra și RTT-ul decid totul. Asta explică de ce un fișier de pe un server vechi din alt continent se descarcă "ilogic de lent" deși ai gigabit acasă.
+</CosmoHint>
+
+Soluția: **TCP Window Scaling** (RFC 7323). O opțiune negociată în handshake (din L1) care multiplică fereastra cu o putere a lui 2 (shift factor 0-14), ducând-o până la ~**1 GB**. Sistemele moderne fac **auto-tuning** dinamic (`net.ipv4.tcp_rmem` pe Linux, Receive Window Auto-Tuning pe Windows).
+
+A doua barieră e **congestion control**. Algoritmii clasici (CUBIC) sunt **loss-based**: orice pachet pierdut e interpretat ca aglomerare, deci înjumătățesc rata brutal. Pe un LFN, o pierdere aleatorie (zgomot WiFi) prăbușește throughput-ul și recuperarea durează mult. Soluția Google: **BBR** (Bottleneck Bandwidth and RTT), **delay-based** — măsoară capacitatea reală și ignoră pierderile izolate. La 1% packet loss simulat, CUBIC scade de la 800 la 235 Mbps; BBR ține **794 Mbps**. (Aprofundăm TCP în L6.)
+
+### Latența ca limită fizică — ce nu poți cumpăra
+
+Banda o crești cu bani: mai multă fibră, DWDM, 5G, DOCSIS 4.0. Dar **latența de propagare e limitată de viteza luminii**. Londra-New York pe cercul mare (5.585 km) = **28ms** unidirecțional minim, **56ms** RTT — fizică pură, neînfrânt de niciun software.
+
+Există o industrie care arde milioane pentru milisecunde: **High-Frequency Trading**. Algoritmii care arbitrează diferențe între burse câștigă dacă ordinul lor ajunge primul, pe distanțe sub 1ms. Două soluții extreme:
+
+- **Cabluri dedicate**: Hibernia Express (azi EXA Express, 2015), >300M$ pentru ~4.600 km de cablu transatlantic care urmează aproape exact cercul mare, atingând **58,95ms** RTT NY-Londra (sub cei ~70-90ms standard). Vândut băncilor cu milioane/lună doar pentru zecimile de ms.
+- **Microwave links**: pe uscat, HFT-ul abandonează fibra pentru radio. De ce? În aer, semnalul merge la ~**300.000 km/s** (indice 1,0003), față de 200.000 km/s în fibră — cu **40-50% mai rapid** per km. Plus, antenele merg în linie dreaptă, nu pe trasee ocolite. Sacrifică banda (max ~200 Mbps), dar câștigă latența.
+
+<CosmoHint emotion="thinking">
+Asta răstoarnă intuiția: radio prin aer e mai rapid decât lumina prin fibră. Pare absurd — dar fibra încetinește lumina la 2/3 din viteza ei în vid (indicele de refracție al sticlei, din L1), pe când aerul aproape n-o încetinește deloc. Așa că un semnal microwave între Chicago și New York, mergând în linie dreaptă prin atmosferă, bate un cablu de fibră îngropat care urmează șanțuri ocolite. Pentru un transfer normal n-ar conta — dar pentru un algoritm de trading, acele microsecunde valorează milioane. E lecția supremă a capitolului: banda o cumperi oricând, dar ca să câștigi latență trebuie să te lupți cu fizica însăși.
+</CosmoHint>
+
+<FactBox>
+**Bandă vs latență — cifre cheie:**
+- 1 byte = **8 biți**; unități: bps → Tbps
+- Viteza fibră: **~200.000 km/s** (4,9 µs/km), aer: ~300.000 km/s
+- RTT: LAN <1ms, oraș 5ms, continent 15-40ms, intercontinental 70-150ms, GEO 500-700ms, Starlink 20-50ms
+- BDP exemplu: 1 Gbps × 100ms = **12,5 MB** în zbor
+- Fereastra TCP clasică: **16 biți** = 65.535 bytes (~64KB)
+- Throughput pe 64KB / 100ms RTT: **~5,24 Mbps** (indiferent de bandă)
+- Window Scaling (RFC 7323): până la **~1 GB**, shift 0-14
+- BBR vs CUBIC la 1% loss: **794 vs 235 Mbps**
+- Hibernia/EXA Express: **58,95ms** RTT NY-Londra (vs ~70-90ms standard)
+- Throughput real 1 Gbps: **~940 Mbps** (overhead headere ~5-6%)
+- Prag VoIP (ITU-T G.114): **<150ms** one-way; >400ms inacceptabil
+</FactBox>
+
+### Optimizare: latență vs bandă
+
+Cele două se optimizează **complet diferit**.
+
+**Pentru latență** (mitighezi distanța și round-trips): caching (din L4), **CDN** (replicare geografică, RTT >150ms → <15ms; detaliu L15), edge computing, connection reuse (Keep-Alive din L1 — economisești cele +3 RTT de DNS+TCP+TLS la fiecare cerere), protocoale **0-RTT** (TLS 1.3 resumption, Noise din L1), reducerea round-trip-urilor (HTTP/2, HTTP/3 cu QUIC — atingere, L20). Și anti-bufferbloat: **AQM** modern (FQ-CoDel, CAKE) care prioritizează pachetele mici critice și taie cozile.
+
+**Pentru bandă** (scalezi capacitatea): compresie (gzip, Brotli — reduce HTML-ul cu ~70%), multiplexare, conexiuni paralele, upgrade fizic (FTTx, XGS-PON, 5G C-Band). Toate costă bani și se scalează predictibil.
+
+Doctrina capitolului: **banda se cumpără, latența nu.** Banda mare e o normă plictisitoare a oricărui ISP; latența mică e Sfântul Graal, vândut ca lux.
+
+### Cazuri reale — unde confuzia costă
+
+{/* TABLE */}
+
+| Aplicație | Sensibilă la | Bandă necesară |
+|---|---|---|
+| HFT / trading | Latență (µs) | Minimă (mesaje text) |
+| Gaming FPS | Latență + jitter (<30-50ms) | Scăzută (<1 Mbps) |
+| Apel video / VoIP | Latență (<150ms G.114) + jitter | Medie (1,5-3 Mbps) |
+| Streaming 4K | Aproape deloc (buffer maschează) | Mare (~25 Mbps) |
+| Transfer fișiere mari | Tolerant (dar vezi BDP) | Masivă (Gbps) |
+
+Gaming-ul e exemplul paradigmatic: pachetul de poziție XYZ ocupă zeci de Kbps (banda e irelevantă), dar un jitter de la bufferbloat (un torrent în background) distruge hit-registration-ul. Streaming-ul 4K e opusul: ~25 Mbps obligatoriu, dar bufferul de câteva secunde maschează complet o latență de 300ms.
+
+---
+
+## REVEAL
+
+Cele două dimensiuni, comparate:
+
+{/* TABLE */}
+
+| Aspect | Lățime de bandă | Latență |
+|---|---|---|
+| Ce măsoară | Capacitate (volum/timp) | Întârziere (timp) |
+| Unitate | bps, Mbps, Gbps | ms, µs |
+| Analogie | Benzile autostrăzii | Distanța dintre orașe |
+| Se scalează cu | Bani (echipamente) | Nimic (limită fizică) |
+| Limita | Tehnologia L1 | Viteza luminii |
+| Contează pentru | Streaming, transfer mare | Gaming, VoIP, trading |
+| Optimizare | Compresie, fibră, paralel | Caching, CDN, edge, 0-RTT |
+
+Cele două sunt unite de BDP: produsul lor decide cât trebuie să țină TCP "în zbor". O fereastră mai mică decât BDP-ul gâtuie transferul, oricât de groasă ar fi fibra. Banda umple conducta; latența decide cât de repede simți răspunsul.
+
+---
+
+## ÎNCHEIERE
+
+Banda e cât de mult; latența e cât de repede. Confuzia lor costă: cumperi gigabit și te miri de ce gaming-ul e laggy sau fișierul se descarcă lent. Banda se scalează cu bani, latența e plafonată de fizică.
+
+Regulă practică: pentru aplicații interactive (gaming, apeluri, web), optimizează latența — server mai aproape, CDN, conexiuni reutilizate. Pentru transfer masiv, optimizează banda și tunează fereastra TCP. Și verifică-ți bufferbloat-ul: o conexiune de 1 Gbps cu jitter de 80ms e inutilă pentru voce.
