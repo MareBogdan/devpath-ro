@@ -581,6 +581,16 @@ Playwright against the live URL (+ Supabase `zgofeajewktwmswckgup` via MCP). Thr
 
 ---
 
+### Phase 8 — mobile map: course-boundary headers + refined per-course palette (2026-10-03) ✅ (desktop untouched)
+- **Course headers (mobile only):** at the first node of every course (incl. course 1) `MobileMap` reserves a band and draws a slim "unit header" strip — number badge + "CURSUL N" eyebrow + course name — in a rounded pill whose background blends the previous course hue into the next, flanked by soft fading divider lines and a faint glow. The boundary path segment already gradients prev → next hue (now with the new palette) and passes behind the pill. Pure HTML/CSS (one `animate-in fade-in`), no new framer-motion. Light + dark via `bg-background` / `text-foreground` tokens; the eyebrow and node labels use theme-aware tints (`dark:` variants).
+- **Palette (mobile-local):** new `M_COURSE_PALETTE` in `serpentine-path.tsx`, keyed by `courseIndex`: C1 violet `#7C5CF0` · C2 blue `#4A86F0` · C3 teal `#0FA5A0` · C4 green `#2BB066` · C5 amber `#E58A12` · C6 rose `#E04F86` — each with a darker `ink` (light-theme label text, ≈4.4–6.5:1 on the page bg, estimated) and a lighter `glow` (dark theme). **The shared `COURSE_PALETTE` in `src/lib/course-map.ts` is NOT edited** — mobile reads `n.courseIndex` and overrides the color locally, so desktop still receives the original `colors[]`. Courses past the curated six (or nodes without `courseIndex`) fall back to their original color.
+- **Unchanged:** node sizes/icons/status styling, completed glow / dashed-faded rest, labels, active-node scroll, gates skipped on mobile.
+- **QA (Playwright, isolated scratch copy on :3100, 131 synthetic nodes / 6 real course names fed to the REAL component):** @390 and @360, light AND dark — 6/6 headers with the right "Cursul N" + name, none clipped, 0 overlaps between headers/labels/discs, all content inside the viewport, no horizontal scroll, label colors flip per theme (computed colors read back). Viewed violet→blue, green→amber and amber→rose hand-offs. **Desktop @1440:** committed (HEAD) component vs new component on identical data → same 162 paths, 131 node rects, page height 8346 → identical geometry hash (2624994112 both). Screenshots: `.qa-screenshots/mobile-serpentine/b2-*.png`.
+- **Notes:** unfinished boundary segments stay dashed/faded (same rule as desktop), so the gradient is fully visible only once the preceding lesson is done. Course 1 also gets a header (not only transitions) so every "world" opens the same way — easy to drop. The hydration warning in the test page comes from the QA page reading `location` during render, not from the component.
+- Gate: `tsc` 0 · `lint` 0 errors (2 P7-09 warnings) · `build` passes with lint ON (isolated copy).
+
+---
+
 ## Suggested execution order (8 prompts)
 
 1. **(this one)** Audit ✅

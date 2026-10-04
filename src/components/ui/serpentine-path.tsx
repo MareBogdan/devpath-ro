@@ -1429,6 +1429,39 @@ const M_LABEL_W_CP = 112;
 /** Outward nudge of the label away from the curve (px). */
 const M_LABEL_BIAS = 10;
 
+/** Vertical room reserved for a course header (pill ≈ 46px + breathing room). */
+const M_HDR_H = 46;
+/** Gap between the previous label block and the header, and header → first node. */
+const M_HDR_PAD = 22;
+
+/** Mobile-only course palette (does NOT touch the shared COURSE_PALETTE that
+ *  desktop uses). `base` paints discs/paths; `ink` / `glow` are the label
+ *  text colors for light / dark theme (darker / lighter tints of the same hue
+ *  so 10px labels stay readable on both backgrounds). One distinct hue per
+ *  course, walking violet → blue → teal → green → amber → rose at similar
+ *  saturation so the whole path still reads as one premium family. */
+const M_COURSE_PALETTE = [
+  { base: "#7C5CF0", ink: "#5B3FD6", glow: "#B4A3FF" }, // C1 Hardware & Fizică     — violet
+  { base: "#4A86F0", ink: "#2461CC", glow: "#8DB9FF" }, // C2 Sisteme de Operare    — blue
+  { base: "#0FA5A0", ink: "#0A7B77", glow: "#4FD9D2" }, // C3 Rețele & Internet     — teal
+  { base: "#2BB066", ink: "#17824A", glow: "#6EE0A2" }, // C4 Python & Ing. Soft    — green
+  { base: "#E58A12", ink: "#A8610A", glow: "#FFC56B" }, // C5 Algoritmi & Str. Date — amber
+  { base: "#E04F86", ink: "#B82A64", glow: "#FF93BB" }, // C6 Matematică pentru AI  — rose
+] as const;
+
+interface MobileTone {
+  base: string;
+  ink: string;
+  glow: string;
+}
+
+/** Palette lookup by course position; courses past the curated six (or nodes
+ *  without course info) keep their original color unchanged. */
+function mobileTone(n: LessonNode, fallback: string): MobileTone {
+  const p = n.courseIndex != null ? M_COURSE_PALETTE[n.courseIndex] : undefined;
+  return p ?? { base: fallback, ink: fallback, glow: fallback };
+}
+
 const M_LESSON_SIZES = { completed: 36, current: 44, available: 34, locked: 30 } as const;
 const M_CP_SIZES = { completed: 48, current: 50, available: 46, locked: 42 } as const;
 
@@ -1461,6 +1494,8 @@ interface MobileItem {
   /** -1 left, 1 right, 0 centered (checkpoint) */
   side: -1 | 0 | 1;
   size: number;
+  /** set on the first node of a course: where its header sits (SVG units) */
+  header?: { courseIndex: number; name: string; y: number };
 }
 
 function computeMobileLayout(nodes: LessonNode[]): { items: MobileItem[]; height: number } {
@@ -1477,8 +1512,22 @@ function computeMobileLayout(nodes: LessonNode[]): { items: MobileItem[]; height
     if (!isCP) lessonCount++;
     const x = MW / 2 + side * MW * M_AMP;
 
-    if (items.length > 0) y += Math.max(M_MIN_GAP, prevBottom);
-    items.push({ i, x, y, side, size });
+    // First node of a course → reserve a header band above it.
+    const prevN = items.length > 0 ? nodes[items[items.length - 1].i] : undefined;
+    const startsCourse =
+      n.courseIndex != null && (!prevN || prevN.courseIndex !== n.courseIndex);
+    let header: MobileItem["header"];
+    if (startsCourse) {
+      const top = items.length === 0 ? 14 : y + prevBottom + M_HDR_PAD - 10;
+      const hy = top + M_HDR_H / 2;
+      header = { courseIndex: n.courseIndex!, name: n.courseName ?? "", y: hy };
+      y = hy + M_HDR_H / 2 + M_HDR_PAD + size / 2;
+    } else if (items.length > 0) {
+      y += Math.max(M_MIN_GAP, prevBottom);
+    } else {
+      y = M_TOP;
+    }
+    items.push({ i, x, y, side, size, header });
 
     const lines = estLines(n.label, isCP ? 14 : 16);
     const lineH = isCP ? 15 : 12.5;
@@ -1522,6 +1571,12 @@ function MobileMap({
   const uid = useId().replace(/:/g, "");
   const { items, height } = useMemo(() => computeMobileLayout(nodes), [nodes]);
   const segs = useMemo(() => mobileSegments(items), [items]);
+  // Mobile-local course tones — overrides the shared per-node color (desktop
+  // keeps using `colors` untouched).
+  const tones = useMemo(
+    () => nodes.map((n, i) => mobileTone(n, colors[i])),
+    [nodes, colors]
+  );
 
   return (
     <div className="relative mx-auto w-full max-w-[440px]">
@@ -1537,7 +1592,7 @@ function MobileMap({
           {items.map((it, k) => {
             if (k === 0) return null;
             const prev = items[k - 1];
-            if (colors[it.i] === colors[prev.i]) return null;
+            if (tones[it.i].base === tones[prev.i].base) return null;
             return (
               <linearGradient
                 key={`bnd-${k}`}
@@ -1548,8 +1603,8 @@ function MobileMap({
                 x2={it.x}
                 y2={it.y}
               >
-                <stop offset="0%" stopColor={colors[prev.i]} />
-                <stop offset="100%" stopColor={colors[it.i]} />
+                <stop offset="0%" stopColor={tones[prev.i].base} />
+                <stop offset="100%" stopColor={tones[it.i].base} />
               </linearGradient>
             );
           })}
@@ -1560,8 +1615,8 @@ function MobileMap({
           const to = items[s + 1];
           const done =
             nodes[from.i].status === "completed" || nodes[from.i].status === "current";
-          const isBoundary = colors[to.i] !== colors[from.i];
-          const paint = isBoundary ? `url(#mbnd-${s + 1}-${uid})` : colors[to.i];
+          const isBoundary = tones[to.i].base !== tones[from.i].base;
+          const paint = isBoundary ? `url(#mbnd-${s + 1}-${uid})` : tones[to.i].base;
           return (
             <g key={s}>
               {done && (
@@ -1589,11 +1644,72 @@ function MobileMap({
         })}
       </svg>
 
+      {/* Course headers — slim "unit" strip where a new course begins. The
+          boundary path segment (gradient prev → next hue) passes behind it. */}
+      <div className="pointer-events-none absolute inset-0">
+        {items.map((it, k) => {
+          if (!it.header) return null;
+          const to = tones[it.i];
+          const from = k > 0 ? tones[items[k - 1].i] : to;
+          const num = it.header.courseIndex + 1;
+          return (
+            <div
+              key={`hdr-${it.header.courseIndex}`}
+              data-course-header={it.header.courseIndex}
+              className="animate-in fade-in duration-500 absolute inset-x-0 flex items-center gap-3 px-4"
+              style={{
+                top: `${(it.header.y / height) * 100}%`,
+                height: M_HDR_H,
+                transform: "translateY(-50%)",
+                ["--hd-l" as string]: to.ink,
+                ["--hd-d" as string]: to.glow,
+              }}
+            >
+              <span
+                aria-hidden
+                className="h-px flex-1"
+                style={{ background: `linear-gradient(90deg, transparent, ${from.base}66)` }}
+              />
+              <div
+                className="relative flex max-w-[300px] items-center gap-2.5 rounded-2xl border px-3 py-1.5 shadow-sm"
+                style={{
+                  borderColor: `${to.base}55`,
+                  background: `linear-gradient(100deg, ${from.base}26, ${to.base}2e), hsl(var(--background) / 0.92)`,
+                  boxShadow: `0 6px 22px -10px ${to.base}88`,
+                }}
+              >
+                <span
+                  aria-hidden
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[13px] font-extrabold text-white"
+                  style={{ background: `linear-gradient(135deg, ${from.base}, ${to.base})` }}
+                >
+                  {num}
+                </span>
+                <div className="min-w-0 text-left leading-tight">
+                  <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-[color:var(--hd-l)] dark:text-[color:var(--hd-d)]">
+                    Cursul {num}
+                  </p>
+                  <p className="truncate text-[13px] font-bold text-foreground">
+                    {it.header.name}
+                  </p>
+                </div>
+              </div>
+              <span
+                aria-hidden
+                className="h-px flex-1"
+                style={{ background: `linear-gradient(90deg, ${to.base}66, transparent)` }}
+              />
+            </div>
+          );
+        })}
+      </div>
+
       <div className="absolute inset-0">
         {items.map((it, k) => {
           const n = nodes[it.i];
           const isCP = it.side === 0;
-          const col = colors[it.i];
+          const tone = tones[it.i];
+          const col = tone.base;
           const canClick = n.status !== "locked" && !!onClick;
           const sz = it.size;
           const iconSz = isCP ? 20 : n.status === "locked" ? 12 : 14;
@@ -1610,6 +1726,8 @@ function MobileMap({
               aria-label={n.label}
               className={cn("absolute", canClick && "cursor-pointer")}
               style={{
+                ["--lbl-l" as string]: tone.ink,
+                ["--lbl-d" as string]: tone.glow,
                 left: `${(it.x / MW) * 100}%`,
                 top: `${(it.y / height) * 100}%`,
                 width: sz,
@@ -1687,12 +1805,11 @@ function MobileMap({
                 <p
                   className={cn(
                     "rounded-md px-1 text-center leading-tight [overflow-wrap:anywhere]",
-                    isCP ? "text-[12px] font-bold" : "text-[10px] font-medium"
+                    "text-[color:var(--lbl-l)] dark:text-[color:var(--lbl-d)]",
+                    isCP ? "text-[12px] font-bold" : "text-[10px] font-medium",
+                    n.status === "locked" && "opacity-60"
                   )}
-                  style={{
-                    color: n.status === "locked" ? `${col}88` : col,
-                    background: "hsl(var(--background) / 0.72)",
-                  }}
+                  style={{ background: "hsl(var(--background) / 0.72)" }}
                 >
                   {n.label}
                 </p>
