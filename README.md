@@ -4,6 +4,8 @@
 
 🔗 **Live demo:** https://devpath-ro.vercel.app
 
+![DevPath RO — landing](docs/landing.jpg)
+
 ---
 
 ## About
