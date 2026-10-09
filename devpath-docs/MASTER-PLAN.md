@@ -19,6 +19,22 @@ Push-ul se face manual de Bogdan (PowerShell): `cd "C:\DevPath RO"` → `del ".g
 
 ---
 
+## ⏸️ UNDE AM RĂMAS — citește asta primul (2026-10-09, 22:40)
+
+**Git:** 5 commit-uri locale, **NEPUSHATE**. `origin/main` e la `17c90b3`; local HEAD e `2070de0`.
+Ordinea: P1 `8056793` → P2 `3654974` → P2b `612ca79` → P3 `216199c` → P4 `2070de0`. Arborele e curat.
+
+**DB live:** 13 cursuri. Cursul 1 are 30 de lecții publicate, cu 3 lab (8, 10, 23) și 2 boss (16, 29) — deja vizibile pe prod, fiindcă jocurile erau deja în codul deployat.
+
+**P4 e terminat și comis, DAR au rămas 2 lucruri aprobate de owner și NEEXECUTATE:**
+
+1. **Sincronizarea conținutului în DB.** Cele 5 fișiere `.mdx` lab/boss au primit bold înapoi (după fix-ul de light mode), dar rândurile din DB au încă textul vechi, fără bold. Trebuie un UPDATE pe `content_md` pentru exact acele 5 rânduri.
+2. **Boss-ul absoarbe checkpoint-ul vecin.** Acum sunt două noduri mari lipite: checkpoint aritmetic la 15 + boss la 16 (la fel 29/30). Regula aprobată: *un modul se închide cu exact un nod mare; unde un boss e lipit de un checkpoint obișnuit, boss-ul îl absoarbe.*
+
+**Următorul pas:** execuți cele 2 de mai sus → owner-ul dă `git push origin main` (primul deploy după 5 commit-uri) → apoi P5.
+
+---
+
 ## STAREA REALĂ LA 2026-10-09 (audit complet)
 
 | Ce | Stare |
