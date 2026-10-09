@@ -19,7 +19,7 @@ export function CoursesPageClient({
   completedLessonIds,
   initialCourseId,
 }: CoursesPageClientProps) {
-  // Build the single continuous 12-course node list once.
+  // Build the single continuous 13-course node list once.
   const built = useMemo(() => {
     const completedSet = new Set(completedLessonIds);
     const rawCourses: RawCourse[] = courses.map((c) => ({

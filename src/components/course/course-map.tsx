@@ -19,7 +19,7 @@ interface CourseMapProps {
 }
 
 /**
- * Renders the unified 12-course serpentine. Every course is one colored
+ * Renders the unified 13-course serpentine. Every course is one colored
  * "world" in a single continuous path.
  */
 export function CourseMap({

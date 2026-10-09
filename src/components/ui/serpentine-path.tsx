@@ -79,7 +79,7 @@ const COURSE_DIFFICULTY = [
   2.0, 2.5, 2.5, 2.5, 3.0, 3.0, 3.0, 3.5, 4.0, 4.0, 4.5, 4.0,
 ];
 
-// Per-course serpentine geometry, so the 12-course path reads as varied terrain
+// Per-course serpentine geometry, so the 13-course path reads as varied terrain
 // rather than one loop repeated. Hand-tuned (deterministic, not random):
 //   amp       — horizontal swing as a fraction of the max edge span (0–1)
 //   modH      — vertical-spacing multiplier on the base module height
@@ -93,12 +93,13 @@ const COURSE_GEOMETRY = [
   { amp: 0.84, modH: 0.97, startLeft: false }, // C4  Python (26) — kept tight
   { amp: 1.0, modH: 1.08, startLeft: true }, // C5  Algoritmi — wide
   { amp: 0.88, modH: 1.0, startLeft: true }, // C6  Matematică — medium
-  { amp: 0.93, modH: 1.1, startLeft: false }, // C7  Date & Embeddings — wide-ish
-  { amp: 0.8, modH: 0.95, startLeft: true }, // C8  ML — tight, snappy
-  { amp: 0.99, modH: 1.07, startLeft: false }, // C9  Deep Learning — wide
-  { amp: 0.85, modH: 0.96, startLeft: false }, // C10 LLMs (36) — kept tight
-  { amp: 1.0, modH: 1.12, startLeft: true }, // C11 Agentic — widest, dramatic
-  { amp: 0.9, modH: 1.02, startLeft: false }, // C12 Producție — moderate finale
+  { amp: 0.93, modH: 1.1, startLeft: false }, // C7  PyTorch Core — wide-ish
+  { amp: 0.8, modH: 0.95, startLeft: true }, // C8  Computer Vision — tight, snappy
+  { amp: 0.99, modH: 1.07, startLeft: false }, // C9  Sequence Models — wide
+  { amp: 0.85, modH: 0.96, startLeft: false }, // C10 Transformer — kept tight
+  { amp: 1.0, modH: 1.12, startLeft: true }, // C11 Generative — widest, dramatic
+  { amp: 0.9, modH: 1.02, startLeft: false }, // C12 Reinforcement Learning — moderate
+  { amp: 0.92, modH: 1.04, startLeft: true }, // C13 PyTorch în Producție — finale (own entry; was wrapping to C1)
 ];
 
 const LESSON_SIZES = { completed: 38, current: 46, available: 36, locked: 32 } as const;
@@ -161,7 +162,7 @@ function computeRealPositions(nodes: LessonNode[]): { x: number; y: number }[] {
 
   // ── Serpentine curve geometry ──
   const TOP = 55;
-  // Comfortable base per-module height for the long unified 12-course path.
+  // Comfortable base per-module height for the long unified 13-course path.
   const baseModH = Math.max(118, Math.min(150, 680 / Math.max(numMods, 1)));
   const SPAN = EDGE_R - EDGE_L;
   const MID = (EDGE_L + EDGE_R) / 2;

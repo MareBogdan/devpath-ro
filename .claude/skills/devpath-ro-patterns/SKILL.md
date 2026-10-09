@@ -13,7 +13,7 @@ allowed-tools: Read
 
 # DevPath RO — Project Patterns Reference
 
-> Source of truth for project state: `PROJECT-STATE.md`, `CLAUDE.md`, `PROGRESS.md`. This file only records patterns that are easy to get wrong.
+> Source of truth: current plan = `devpath-docs/MASTER-PLAN.md`; curriculum structure (13 courses / 245 lessons) = `devpath-docs/CURRICULUM-STRUCTURE.md`; project state = `PROJECT-STATE.md`, `CLAUDE.md`; history = `PROGRESS.md`. This file only records patterns that are easy to get wrong.
 
 ## 1. SUPABASE REALTIME PATTERN
 
@@ -117,7 +117,7 @@ Single mode: render **`content_md` only** (compiled server-side with `next-mdx-r
 - XP / badges / streak / referrals / `stripe_*` are written ONLY with the service-role client from server code (`lib/gamification.ts` is deliberately **not** a `"use server"` file and must never be imported by a client component). Public user data is read through the `get_public_profiles` / `get_top_users` / `get_community_stats` / `get_recent_completions` RPCs, not by querying `users`.
 
 ### Course map
-`/courses/[slug]` redirects to `/courses?c=<slug>`; `lib/course-map.ts` `buildAllCoursesNodes` builds one serpentine across all courses. **No sequential locking**: nodes are `completed | current (first not-done per course) | available`; every published lesson is openable in any order. Unpublished courses are listed as "În curând".
+`/courses/[slug]` redirects to `/courses?c=<slug>`; `lib/course-map.ts` `buildAllCoursesNodes` builds one serpentine across all courses. **No sequential locking**: nodes are `completed | current (first not-done per course) | available`; every published lesson is openable in any order. Courses with no published lessons (today C7–C13: `pytorch-core` … `pytorch-productie`) are listed as "În curând"; the 13-colour `COURSE_PALETTE` and `COURSE_BANNERS` / `COURSE_DESCRIPTIONS` in `course-map.ts` are keyed by course position / slug, so a new course needs an entry in each.
 
 ---
 

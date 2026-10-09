@@ -42,7 +42,7 @@ export default async function CoursesPage({ searchParams }: CoursesPageProps) {
     supabase
       .from("lessons")
       .select("id, title, type, course_id, order_index, is_published")
-      // Unpublished rows are empty skeletons (Courses 7-12): they must not appear
+      // Unpublished rows are empty skeletons (Courses 7-13): they must not appear
       // as lessons, count toward totals, or be offered as "continue". Courses with
       // no published lessons are listed as "În curând" instead.
       .eq("is_published", true)
@@ -108,12 +108,12 @@ export default async function CoursesPage({ searchParams }: CoursesPageProps) {
   );
 
   // Courses that actually have content (≥ 1 published lesson) — drives the hero's
-  // "N cursuri" / "N Boss Fights" pills so they never overpromise the 12-course roadmap.
+  // "N cursuri" / "N Boss Fights" pills so they never overpromise the 13-course roadmap.
   const publishedCourses = selectorOptions.filter(
     (c) => c.publishedLessons > 0
   ).length;
 
-  // Per-course state for the hero's 12 course badges.
+  // Per-course state for the hero's 13 course badges.
   const courseStates: ("completed" | "started" | "locked")[] =
     selectorOptions.map((c) =>
       c.totalLessons > 0 && c.completedLessons === c.totalLessons

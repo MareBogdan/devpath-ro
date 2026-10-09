@@ -109,7 +109,7 @@ Serpentina le randează deja corect: `lab` → iconiță `Code2` + "Exercițiu �
 
 - [x] **P1 · Structura adevărată** ✅ 2026-10-09 — rescrie `CURRICULUM-STRUCTURE.md` (13 cursuri, sloturi lab/boss),
       inserează `pytorch-core` ca C7 în DB, reindexează C8–C13. Niciun fișier de conținut atins.
-- [ ] **P2 · Curățenie** — cod mort, fișiere nefolosite, docs/planuri vechi, `CLAUDE.md` + `PROJECT-STATE.md` aduse la zi.
+- [x] **P2 · Curățenie** ✅ 2026-10-09 (cu 2 puncte rămase **în așteptarea aprobării owner-ului**: ștergerea celor 8 fișiere candidate din sweep + split-ul `PROGRESS.md`/`CHANGELOG.md`) — cod mort, fișiere nefolosite, docs/planuri vechi, `CLAUDE.md` + `PROJECT-STATE.md` aduse la zi.
 - [ ] **P3 · Cursul 1 — cele 5 lab/boss** — fișierele `.mdx` care cheamă componentele existente, sync DB, verificat în serpentină.
 - [ ] **P4 · Lecția pilot** — standardul complet (termeni clickabili + 5–7 întrebări mixte + python-editor) pe O SINGURĂ lecție, pentru aprobare.
 
@@ -138,3 +138,4 @@ Serpentina le randează deja corect: `lab` → iconiță `Code2` + "Exercițiu �
 |---|---|---|---|
 | 2026-10-09 | — | Audit complet + plan. Structura decisă: 13 cursuri. | — |
 | 2026-10-09 | P1 | `CURRICULUM-STRUCTURE.md` rescris (13 cursuri, 245 lecții, 19 sloturi lab/boss marcate). DB live: `pytorch-core` inserat ca C7 (16 schelete nepublicate), C7–12 → C8–13; 13 cursuri, order 1–13 unic; 131 lecții publicate neatinse. Migrare `20261009120000_insert_pytorch_core_course.sql`. | tsc 0 · lint 0 err (2 warn) · build ✅ (copie izolată) |
+| 2026-10-09 | P2 | 4 fișiere moarte șterse; `.agents/` + skill React Native eliminate (rămâne `.claude/skills/`); `CLAUDE.md` + `PROJECT-STATE.md` la 13 cursuri/245 lecții + priorități noi; `DEPLOY-PLAN.md` arhivat; `COURSE_PALETTE`/`TOTAL_COURSES`/`COURSE_GEOMETRY`/banner+descriere `pytorch-core` pentru 13 cursuri; `@ai-sdk/openai` dezinstalat. **În așteptare aprobare:** 8 candidați de ștergere + split loguri. Singura schimbare vizibilă: a 13-a bulină (corai) în hero-ul `/courses`. | tsc 0 · lint 0 err (2 warn) · build ✅ (copie izolată) |

@@ -7,11 +7,13 @@ import { COURSE_PALETTE } from "@/lib/course-map";
 import { estimateContentHours } from "@/lib/lesson-time";
 
 // Curriculum constants — the full DevPath RO roadmap (see CURRICULUM-STRUCTURE.md).
-// TOTAL_COURSES (12) only sizes the roadmap badge row; courses without content are
-// shown as locked / "În curând". The stat pills never use it: the lesson total and
-// the number of live courses are derived from the DB and passed in as props
-// (`totalLessons`, `publishedCourses`), so they can't go stale or overpromise.
-const TOTAL_COURSES = 12;
+// TOTAL_COURSES (13) only sizes the roadmap badge row — it must not exceed
+// COURSE_PALETTE.length (course-map.ts), or the extra badges render colourless.
+// Courses without content are shown as locked / "În curând". The stat pills never
+// use it: the lesson total and the number of live courses are derived from the DB
+// and passed in as props (`totalLessons`, `publishedCourses`), so they can't go
+// stale or overpromise.
+const TOTAL_COURSES = 13;
 
 type CourseState = "completed" | "started" | "locked";
 
@@ -22,7 +24,7 @@ interface CoursesHeroProps {
   totalLessons: number;
   /** Courses with at least one published lesson (derived from the DB, never hardcoded). */
   publishedCourses: number;
-  /** Per-course state, in course order. Fewer than 12 → remaining badges locked. */
+  /** Per-course state, in course order. Fewer than 13 → remaining badges locked. */
   courseStates: CourseState[];
   continueLessonHref: string | null;
   continueLessonTitle: string | null;
@@ -53,7 +55,7 @@ function GradientWord({ children }: { children: ReactNode }) {
 
 /**
  * Motivational hero for the courses page — communicates the full roadmap
- * (12 courses · one path). Replaces the old mission header; the XP/Level/Streak/
+ * (13 courses · one path). Replaces the old mission header; the XP/Level/Streak/
  * Lessons stat cards now live only on the Profile page.
  */
 export function CoursesHero({

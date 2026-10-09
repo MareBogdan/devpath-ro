@@ -1,35 +1,32 @@
 # DevPath RO — Project State
-Last updated: 2026-08-07
+Last updated: 2026-10-09 (P2 cleanup — see `devpath-docs/MASTER-PLAN.md`)
 
 ## Platform summary
-Romanian gamified learning platform for AI/tech education. Mission: "De la electronul fizic la agenți AI autonomi" (from the physical electron to autonomous AI agents). Target audience: technically curious users aged 20–35 who want to genuinely understand how AI works. Desktop-first Next.js 14 App Router application on Vercel with Supabase backend, delivering a 12-course / 205-lesson curriculum (single content mode, `content_md` only), with gamification, an interactive learning layer, AI coaching, and social features. Content is Romanian-only.
+Romanian gamified learning platform for AI/tech education. Mission: "De la electronul fizic la agenți AI autonomi" (from the physical electron to autonomous AI agents). Target audience: technically curious users aged 20–35 who want to genuinely understand how AI works. Desktop-first Next.js 14 App Router application on Vercel with Supabase backend, delivering a 13-course / 245-lesson curriculum (single content mode, `content_md` only), with gamification, an interactive learning layer, AI coaching, and social features. Content is Romanian-only.
 
-## Curriculum — ML/PyTorch structure (PyTorch pivot, 2026-08-04)
+## Curriculum — 13 courses / 245 lessons
 
-The curriculum was re-pivoted to focus squarely on machine learning / deep learning, with PyTorch as the spine. 12 courses, 205 lessons total. Courses 1-3 (hardware, OS, networking) are unchanged and hold real user data; Courses 4-12 were rewritten for ML/DL/PyTorch and re-slugged. Verified against the live DB on 2026-08-07 (migration + seeder already applied).
+**Source of truth for structure: `devpath-docs/CURRICULUM-STRUCTURE.md`** (every lesson title, the lab/boss slots, written vs planned). **Current plan: `devpath-docs/MASTER-PLAN.md`.** Live state is the DB (verify via Supabase MCP).
 
-| # | slug | title | difficulty | lessons | published |
-|---|------|-------|-----------|---------|-----------|
-| 1 | hardware-fizica | Hardware & Fizică | 2.0 | 30 | 25 |
-| 2 | sisteme-de-operare | Sisteme de Operare | 2.5 | 22 | 19 |
-| 3 | retele-internet | Rețele & Internet | 2.5 | 26 | 0 |
-| 4 | python-matematica-dl | Python & Matematică pentru Deep Learning | 2.0 | 17 | 0 |
-| 5 | data-engineering-ml-clasic | Data Engineering & ML Clasic | 2.5 | 15 | 0 |
-| 6 | pytorch-core | PyTorch Core | 3.0 | 16 | 0 |
-| 7 | computer-vision-cnn | Computer Vision & CNN | 3.0 | 15 | 0 |
-| 8 | sequence-models-rnn | Sequence Models (RNN & LSTM) | 3.5 | 14 | 0 |
-| 9 | transformer-architecture | Arhitectura Transformer | 4.0 | 13 | 0 |
-| 10 | modele-generative | Modele Generative | 4.0 | 13 | 0 |
-| 11 | reinforcement-learning | Reinforcement Learning | 4.0 | 12 | 0 |
-| 12 | pytorch-productie | PyTorch în Producție | 3.5 | 12 | 0 |
+| # | slug | lessons (final) | state |
+|---|------|----------------|-------|
+| 1 | hardware-fizica | 30 | published · 25 written, 5 lab/boss slots to add |
+| 2 | sisteme-de-operare | 22 | published · 19 written, 3 slots |
+| 3 | retele-internet | 26 | published · 24 written, 2 slots |
+| 4 | python-inginerie-software | 29 | published · 26 written, 3 slots |
+| 5 | algoritmi-structuri-date | 19 | published · 16 written, 3 slots |
+| 6 | matematica-ai | 24 | published · 21 written, 3 slots |
+| 7 | pytorch-core | 16 | unpublished skeleton (inserted 2026-10-09) |
+| 8 | computer-vision-cnn | 15 | unpublished skeleton |
+| 9 | sequence-models-rnn | 14 | unpublished skeleton |
+| 10 | transformer-architecture | 13 | unpublished skeleton |
+| 11 | modele-generative | 13 | unpublished skeleton |
+| 12 | reinforcement-learning | 12 | unpublished skeleton |
+| 13 | pytorch-productie | 12 | unpublished skeleton |
 
-**Authoring status:** Only C1 (30 lessons written, 25 published — 5 written-but-unpublished) and C2 (19 written & published) have real content. C3–C12 are seeded placeholders (`content_md = ''`, unpublished). Content authoring for the remaining courses is the active production phase.
+**Authoring status (2026-10-09):** courses 1–6 are published with 131 lessons written (131 `.mdx` in `content/courses/`, all `type: lesson`); 0 lab/boss lessons exist yet in the content (5 are built as code for Course 1 — see MASTER-PLAN P3). Courses 7–13 are seeded placeholders (`content_md = ''`, `is_published = false`, 95 rows) shown as "În curând". The DB holds 13 courses and 226 lesson rows. **Do not work on courses 7–13 until 1–6 are launch quality** (MASTER-PLAN).
 
-**Key pivot facts (PyTorch pivot, 2026-08-04):**
-- Courses 1-3 are INTACT (slug, title, lessons, order) — they hold real user data and were not touched.
-- Courses 4-12 were rewritten for an ML/DL/PyTorch focus and re-slugged. The rename is done in the DB by migration `20260804120000_rename_courses_4_12_slugs.sql`, which must run BEFORE the seeder (otherwise the seeder would insert duplicate new courses instead of updating the existing ones).
-- Old v5 slug → new slug (order 4-12): `python-inginerie-software`→`python-matematica-dl`, `algoritmi-structuri-date`→`data-engineering-ml-clasic`, `matematica-ai`→`pytorch-core`, `baze-date-ingineria-datelor`→`computer-vision-cnn`, `machine-learning`→`sequence-models-rnn`, `deep-learning-computer-vision`→`transformer-architecture`, `ai-generativ-llms`→`modele-generative`, `agentic-ai-mcp`→`reinforcement-learning`, `ai-in-productie`→`pytorch-productie`.
-- Source of truth for the curriculum: `devpath-docs/CURRICULUM-STRUCTURE.md` (parsed by `scripts/seed-curriculum.mjs`).
+**History:** the August PyTorch pivot planned new slugs for C4–6, but decision D1 (2026-09-30) kept the live v5 slugs and content for C4–6. On 2026-10-09 (P1) `pytorch-core` was inserted as Course 7 and the ML courses shifted to 8–13; `data-engineering-ml-clasic` was dropped from the main track. Courses 1–3 hold real user data — never reseed them.
 
 ## Working features
 
@@ -66,7 +63,7 @@ The curriculum was re-pivoted to focus squarely on machine learning / deep learn
 - XP system (16 event types), 10-level Romanian naming (Curios → Maestrul AI)
 - 25 badges (progress/streak/skill/social/secret), streak tracking with milestone bonuses
 - Cosmo mascot — procedural SVG golden retriever, 8 emotions (happy, excited, thinking, encouraging, celebrating, sleeping, waving, sad), idle animations, particle overlays
-- Level-up / XP / badge / streak toasts
+- XP / badge / streak toasts and the celebration overlay (its "LEVEL UP!" card is the level-up moment)
 - Weekly leaderboard (RPC)
 
 ### Social & Portfolio
@@ -77,7 +74,7 @@ The curriculum was re-pivoted to focus squarely on machine learning / deep learn
 - Social share
 
 ### Notifications
-- Email via Resend (weekly progress, streak lost, course completion, referral)
+- Email via Resend (weekly progress, streak lost — the course-completion and referral templates were never wired up and were removed)
 - Web Push API (service worker + subscription flow)
 - Notification preferences (email/push/streak toggles)
 - Vercel cron jobs (streak-check, weekly-email)
@@ -98,7 +95,7 @@ The curriculum was re-pivoted to focus squarely on machine learning / deep learn
 ## Tech stack (real versions from package.json)
 
 **Core:** next 14.2.35, react ^18, typescript ^5 (strict)
-**AI:** ai ^3.4.33, @ai-sdk/anthropic ^0.0.56 (model in src/lib/ai/model.ts; `@ai-sdk/openai` left installed but unused), @ai-sdk/react ^3.0.136 (SDK v3 — API differs from v4/v5)
+**AI:** ai ^3.4.33, @ai-sdk/anthropic ^0.0.56 (model in src/lib/ai/model.ts; `@ai-sdk/openai` was removed 2026-10-09), @ai-sdk/react ^3.0.136 (SDK v3 — API differs from v4/v5)
 **DB/Auth:** @supabase/supabase-js ^2.99.1, @supabase/ssr ^0.9.0
 **MDX:** next-mdx-remote ^6.0.0, react-markdown ^10, remark-gfm, rehype-highlight, gray-matter
 **Math rendering:** katex ^0.16.47, rehype-katex ^7, remark-math ^6
@@ -113,9 +110,9 @@ The curriculum was re-pivoted to focus squarely on machine learning / deep learn
 
 > **No i18n library.** `next-intl` has been fully removed. Platform is Romanian-only, all UI text hardcoded in components. There is no `src/i18n/` directory and no `messages/` directory.
 
-## Database schema (live — verify via Supabase MCP)
+## Database schema (live — verify via Supabase MCP; `schema.sql` is stale)
 
-Content/curriculum: `courses` (12 rows), `lessons` (205 rows; `content_md`, `module_index`, `is_published`, `search_vector`; UNIQUE(course_id, order_index)).
+Content/curriculum: `courses` (13 rows, `order_index` 1–13), `lessons` (226 rows: 131 published + 95 skeletons; `content_md`, `module_index`, `is_published`; UNIQUE(course_id, order_index)).
 
 13 tables reference `lessons.id` (all ON DELETE CASCADE): `user_progress`, `quiz_questions`, `quiz_wrong_answers`, `ai_generated_questions`, `flashcards`, `inline_questions`, `wow_notes`, `lesson_scores`, `lesson_bookmarks`, `lesson_feedback`, `lesson_comments`, `minigame_sessions`, `ai_coach_sessions`.
 
@@ -123,27 +120,27 @@ Other tables: `users`, `xp_events`, `badges`, `user_badges`, `referral_events`, 
 
 **Dropped** (migration `20260627120000_drop_retired_gate_and_dead_columns`): `lesson_gate_questions`, `lesson_gate_attempts`, and `lessons.content_simple_md`. The dual-mode / gate-question system no longer exists.
 
-**Seed infrastructure (July 2026):** `scripts/seed-curriculum.mjs` is the single seed source (the old `seed-curriculum.sql` is deprecated, archived under `devpath-docs/archive/`). It is scoped to the 9 Course 4–12 slugs, uses the atomic `reseed_course_lessons` RPC (delete-then-insert with a 13-table child-row guard), and protects Courses 1–3. UNIQUE(course_id, order_index) is enforced live.
+**Seed infrastructure:** `scripts/seed-curriculum.mjs` seeds/reseeds the unpublished skeleton courses from `devpath-docs/CURRICULUM-STRUCTURE.md` (the old `seed-curriculum.sql` is deprecated, archived under `devpath-docs/archive/`). Its `IN_SCOPE_SLUGS` are the 6 ML slugs (courses 8–13); `pytorch-core` (C7) was inserted by migration `20261009120000_insert_pytorch_core_course.sql` and is not in the seeder's scope. It uses the atomic `reseed_course_lessons` RPC (delete-then-insert with a 13-table child-row guard) and protects the published courses 1–6 (their slugs are in `PROTECTED_SLUGS`). UNIQUE(course_id, order_index) is enforced live.
 
 Trigger: `on_auth_user_created` → auto-inserts into `public.users`.
-RPC functions include: `award_xp_and_check_level`, `get_weekly_leaderboard`, `get_admin_stats`, `reseed_course_lessons`.
+RPC functions used by the app: `award_xp_and_check_level` (service_role only), `get_weekly_leaderboard`, `get_admin_stats`, `get_public_profiles`, `get_top_users`, `get_community_stats`, `get_recent_completions`; plus `reseed_course_lessons` (service_role, seeder only).
 
 ## Application structure
 
-### Pages (24 page.tsx)
+### Pages (28 page.tsx)
 `/`, `/login`, `/register`, `/onboarding`, `/pricing` (+`/success`,`/cancel`), `/u/[username]`, `/verify/[code]`, `/dashboard`, `/courses`, `/courses/[courseSlug]`, `/courses/[courseSlug]/[lessonId]`, `/flashcards`, `/glossar`, `/interview`, `/leaderboard`, `/portfolio`, `/profile`, `/roadmap`, `/settings/notifications`, `/dev/components` (dev-only), and admin: `/admin`, `/admin/users`, `/admin/lessons`, `/admin/minigames`, `/admin/comments`, `/admin/badges`.
 
-### API routes (22 route.ts)
+### API routes (17 route.ts)
 `/api/ai/chat`, `/api/ai/coach-session(s)`, `/api/ai/generate-quiz`, `/api/search`, `/api/certificate/[courseSlug]`, `/api/stripe/{checkout,webhook}`, `/api/push/{subscribe,send}`, `/api/cron/{streak-check,weekly-email}`, `/api/onboarding/welcome-message`, `/api/admin/{seed-glossar,sync-prompt-engineering}`, `/auth/callback`, `/join`.
 
-### Components (src/components/, real counts)
-`ui/` (31), `course/` (28), `dashboard/` (12), `profile/` (9), `minigame/` (8), `onboarding/` (6), `portfolio/` (5), `layout/` (5), `interactive/` (5), `gamification/` (4), `visualiser/` (4), `mdx/` (4), `mascot/` (2), `flashcards/` (2), plus single-file: `admin/`, `glossar/`, `interview/`, `landing/`, `pricing/`, `pdf/`, `roadmap/`, `search/`, `settings/`, and standalone `theme-provider.tsx` / `theme-toggle.tsx`.
+### Components (src/components/, approximate file counts)
+`ui/` (~32), `course/` (~29), `mdx/` (~15 — the MDX component registry `mdx-components.tsx`, `FactBox`/`CosmoHint`/`LabBox`, `games/` incl. the 5 mini-game/boss components, `stubs/`), `dashboard/` (~13), `interactive/` (~11 — inline questions + Wow Notes), `profile/` (9), `minigame/` (8), `onboarding/` (6), `portfolio/` (5), `layout/` (~5), `gamification/` (~4), `visualiser/` (4), `mascot/` (2), `flashcards/` (2), plus single-file: `admin/`, `glossar/`, `interview/`, `landing/`, `pricing/`, `pdf/`, `roadmap/`, `search/`, `settings/`, and standalone `theme-provider.tsx` / `theme-toggle.tsx`.
 
 ### Server Actions (10)
 `(auth)/actions.ts`, `courses/actions.ts`, `courses/inline-actions.ts`, `courses/sync-action.ts`, `flashcards/actions.ts`, `profile/actions.ts`, `settings/notifications/actions.ts`, `onboarding/actions.ts`, `admin/comments/actions.ts`, `admin/users/actions.ts`.
 
 ### Content directory
-`content/courses/` holds the 12 current course slug folders; only `hardware-fizica/` (25 .mdx) and `sisteme-de-operare/` (19 .mdx) have files. The other 10 are empty. (The old `ai-fundamentals/` and `prompt-engineering-practic/` folders no longer exist.) Note: C1 DB has 30 lessons with content but disk has 25 .mdx — 5 C1 lessons carry DB content with no current MDX file (unpublished).
+`content/courses/<slug>/` holds the `.mdx` lessons: `hardware-fizica` 25, `sisteme-de-operare` 19, `retele-internet` 24, `python-inginerie-software` 26, `algoritmi-structuri-date` 16, `matematica-ai` 21 = 131, matching the 131 published lessons in the DB. Leftover empty folders from the old v5 layout (`agentic-ai-mcp`, `ai-generativ-llms`, `ai-in-productie`, `baze-date-ingineria-datelor`, `deep-learning-computer-vision`, `machine-learning`) hold only a `.gitkeep` and are unused (a `content/` cleanup — left untouched by P2 per its scope); courses 7–13 have no content folder yet.
 
 ### Hooks & Lib
 Hooks: `use-pyodide` (worker client), `use-push-notifications`, `use-speech-recognition`. Workers: `src/workers/pyodide.worker.ts`.
@@ -153,19 +150,19 @@ Lib: `supabase/{server,client,middleware,admin}`, `gamification(+constants)`, `s
 - Content gates (free tier limited to early modules)
 - AI Coach rate limit (free tier)
 - Stripe billing portal
-- Content authoring for Courses 3–12 (active production phase)
+- The 19 lab/boss lessons of courses 1–6 (slots listed in `CURRICULUM-STRUCTURE.md`; MASTER-PLAN P3+)
+- Content authoring for courses 7–13 (on hold until courses 1–6 reach launch quality)
 
 ## Installed tools
 
 ### MCPs
-- Supabase MCP — live schema access, queries (read-only)
+- Supabase MCP — live schema access, queries. Use `mcp__claude_ai_Supabase__*` with `project_id="zgofeajewktwmswckgup"` (see CLAUDE.md for the old-project rule)
 - Context7 MCP — live library documentation
 - Playwright MCP, GitHub MCP (bind when `claude` starts from a VS Code integrated terminal)
 
 ## Known issues
 - Free-tier content gating not enforced — all content currently accessible
 - AI Coach has no rate limiting
-- C1: 5 lessons have DB content but no MDX file on disk, and are unpublished (30 written vs 25 published)
 - Performance budget guard hook uses macOS `stat -f%z` syntax — may not work on all platforms
 
 ## Implementation methodology

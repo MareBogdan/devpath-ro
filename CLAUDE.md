@@ -5,7 +5,9 @@
 ---
 
 ## Project Documentation
-- `PROJECT-STATE.md` — Single source of truth (ML/PyTorch pivot: 12 courses / 205 lessons, single content mode). Complete project state + methodology. Read first in any new session.
+- `devpath-docs/MASTER-PLAN.md` — **Current source of truth for what to work on** (post-launch: bring courses 1–6 to launch quality; decisions D1–D7; Phase 0 checklist; JURNAL). Read first in any new session.
+- `devpath-docs/CURRICULUM-STRUCTURE.md` — The curriculum: 13 courses / 245 lessons, every lab/boss slot, which lessons exist vs are planned.
+- `PROJECT-STATE.md` — Project state: features, tech stack, app structure, DB overview, methodology (single content mode, `content_md`).
 - `devpath-docs/devpath-vision.md` — Original platform vision document. The mascot section references "Pixel" — that mascot was retired in Block 1.5 (2026-05-06) and replaced by Cosmo. See "Cosmo Mascot" section below for the current API.
 - `schema.sql` — DB schema reference. For live state, verify via Supabase MCP.
 
@@ -18,7 +20,7 @@
 
 ## Project Overview
 
-**DevPath RO** is a Romanian e-learning platform for IT/AI students. Desktop-first Next.js 14 App Router web application deployed on Vercel. Delivers a 12-course / 205-lesson curriculum (single content mode, `content_md`) with `lesson`, `lab`, and `boss` lesson types.
+**DevPath RO** is a Romanian e-learning platform for IT/AI students. Desktop-first Next.js 14 App Router web application deployed on Vercel. Delivers a 13-course / 245-lesson curriculum (single content mode, `content_md`) with `lesson`, `lab`, and `boss` lesson types. Courses 1–6 are published (131 lessons written, 19 lab/boss slots planned); courses 7–13 (`pytorch-core` … `pytorch-productie`) are unpublished skeletons shown as "În curând".
 
 - **Live stack:** Next.js 14 App Router + React 18 + TypeScript (strict mode)
 - **Auth & DB:** Supabase (PostgreSQL + Auth + Realtime WebSockets)
@@ -49,7 +51,6 @@ From `package.json`:
 |---|---|
 | `ai` (Vercel AI SDK) | ^3.4.33 |
 | `@ai-sdk/anthropic` | ^0.0.56 |
-| `@ai-sdk/openai` | ^0.0.66 (unused — safe to remove) |
 | `@ai-sdk/react` | ^3.0.136 |
 
 ### Database & Auth
@@ -166,13 +167,13 @@ All five high-tech features (F1–F5) are shipped and live in the codebase.
 c:\DevPath RO\
 ├── src/
 │   ├── app/
-│   │   ├── (auth)/               # Login, register, OAuth, locale actions
+│   │   ├── (auth)/               # Login, register, OAuth
 │   │   │   ├── login/page.tsx
 │   │   │   ├── register/page.tsx
 │   │   │   ├── actions.ts        # Server actions: signIn, signUp, signOut
 │   │   │   └── oauth-buttons.tsx
 │   │   ├── (dashboard)/          # Protected app shell (auth guard in layout)
-│   │   │   ├── layout.tsx        # RSC: auth check, sidebar data, Navbar
+│   │   │   ├── layout.tsx        # RSC: auth check, user data, Navbar
 │   │   │   ├── dashboard/        # Main dashboard page
 │   │   │   └── courses/
 │   │   │       ├── [courseSlug]/
@@ -195,13 +196,17 @@ c:\DevPath RO\
 │   │   │   ├── lesson-content.tsx  # Client: MDX renderer
 │   │   │   ├── lesson-presence.tsx # Client: Supabase Realtime presence
 │   │   │   ├── complete-button.tsx # Client: lesson completion
-│   │   │   └── course-card.tsx
+│   │   │   ├── courses-hero.tsx    # Client: /courses hero (roadmap badges, stats)
+│   │   │   └── course-map.tsx      # Client: unified 13-course serpentine (data: lib/course-map.ts)
+│   │   ├── mdx/
+│   │   │   ├── mdx-components.tsx  # Client: the MDX component registry (see "MDX Custom Components")
+│   │   │   └── games/              # Mini-games + boss fights, registered in mdx-components.tsx
 │   │   ├── layout/
 │   │   │   ├── navbar.tsx          # Client: top navigation
-│   │   │   ├── sidebar.tsx         # Client: course/lesson navigation
+│   │   │   ├── bottom-nav.tsx      # Client: mobile bottom navigation
 │   │   │   ├── page-transition.tsx # Client: Framer Motion transitions
 │   │   │   └── client-providers.tsx
-│   │   └── ui/                     # shadcn/ui components
+│   │   └── ui/                     # shadcn/ui + custom UI (serpentine-path.tsx = the course map)
 │   ├── hooks/
 │   │   ├── use-pyodide.ts             # Pyodide worker client (timeout/Stop → terminate worker)
 │   │   └── use-speech-recognition.ts  # Web Speech API STT (push-to-talk) — the only voice hook
@@ -213,11 +218,10 @@ c:\DevPath RO\
 │   │   │   ├── client.ts    # createBrowserClient singleton (Client Components)
 │   │   │   ├── middleware.ts # updateSession
 │   │   │   └── admin.ts     # Service role client (server-only)
-│   │   ├── locale.ts
 │   │   └── utils.ts         # cn() helper
 │   ├── middleware.ts         # Supabase session refresh on every request
 │   └── types/index.ts       # Domain types: User, Course, Lesson, etc.
-├── content/                  # MDX lesson files (12-course ML/PyTorch curriculum; C1/C2 authored)
+├── content/courses/<slug>/   # MDX lesson files — 131 authored, all in courses 1–6
 ├── schema.sql               # Full Supabase schema (reference only; verify live via Supabase MCP)
 ├── seed.sql                 # Seed data for development
 ├── next.config.mjs          # Next config (transpiles next-mdx-remote, image domains)
@@ -372,7 +376,7 @@ interface CosmoMascotProps {
 |---|---|
 | Lesson content / reading mode | `encouraging` |
 | AI Coach streaming response | `thinking` |
-| Lesson-gate wrong answer | `encouraging` (matches "Nu-i bai!" copy) |
+| Inline question wrong answer | `encouraging` (matches "Nu-i bai!" copy) |
 | Returning after 3-6 day absence | `sleeping` |
 | Returning after 7+ day absence | `sad` |
 | Onboarding welcome | `waving` (with `enableInteraction`) |
@@ -381,23 +385,25 @@ interface CosmoMascotProps {
 | Mini-game intro | `excited` |
 | Mini-game perfect / passed | `celebrating` |
 | Mini-game failed | `encouraging` |
-| Level-up toast | `celebrating` |
 | Streak toast | `excited` |
 | Stripe checkout success | `celebrating` |
 | Stripe checkout cancel | `encouraging` ("hai să mai vorbim") |
 | Generic celebration overlay | `celebrating` (level up) / `excited` (XP gain) |
 
-### Where Cosmo is currently deployed (15 sites)
+### Where Cosmo is currently deployed
 
 - Landing page (hero + CTA)
 - Pricing page (cards + success/cancel pages)
 - Onboarding welcome step
-- Dashboard absence banner
-- AI Coach chat (loading state)
-- Lesson gate (wrong-answer banner)
+- Dashboard hero + absence banner
+- AI Coach chat (loading state) and the lesson page client
+- Inline questions (wrong-answer feedback) and the MDX `<CosmoHint>` tag
 - Mini-game modal + result screen
-- Level-up toast + streak toast
-- Mascot celebration overlay (any place that imports it — e.g., post-lesson XP gain)
+- Streak toast
+- Mascot celebration overlay (any place that imports it — e.g., post-lesson XP gain and the level-up moment)
+- Interview loading state
+
+(The old lesson gate and the standalone level-up toast were retired — the level-up moment is the celebration overlay's "LEVEL UP!" card.)
 
 ### Notes
 
@@ -430,14 +436,15 @@ Never skip either step. Edge runtime supports `createSupabaseServerClient()` via
 
 ## Development Priorities
 
-Features F1–F5 are all shipped. The current priority is authoring lesson content for Courses 3–12 (only C1/C2 are authored — see `PROJECT-STATE.md`).
+Features F1–F5 are all shipped and the MVP is deployed. The current priority is **bringing courses 1–6 to launch quality** — Phase 0 foundation (P1 structure ✅, P2 cleanup, P3 Course 1's five lab/boss, P4 pilot lesson), then the Bogdan-led page-by-page pass. **Do not work on courses 7–13 until 1–6 are done.** The plan, decisions D1–D7 and the backlog live in `devpath-docs/MASTER-PLAN.md` (the current source of truth); follow its working rules (one objective per prompt; gate = `tsc` 0 · `lint` 0 · `build` with lint ON in an isolated copy).
 
 ---
 
 ## Implementation Navigation
-- Start every session by reading `PROJECT-STATE.md` (current ML/PyTorch state + methodology).
-- Curriculum source of truth: `devpath-docs/CURRICULUM-STRUCTURE.md` (parsed by `scripts/seed-curriculum.mjs`).
-- Pre-v5 planning docs are archived under `devpath-docs/archive/` — historical only, not the source of truth.
+- Start every session by reading `devpath-docs/MASTER-PLAN.md` (what to do next), then `PROJECT-STATE.md` for project state + methodology.
+- Curriculum source of truth: `devpath-docs/CURRICULUM-STRUCTURE.md` (13 courses / 245 lessons; parsed by `scripts/seed-curriculum.mjs` — keep the `| # | Titlu | Type |` columns and `total_lessons`).
+- `PROGRESS.md` is the history log (newest entries at the bottom): append to it after every prompt; read only its latest entries, not the whole file.
+- Pre-v5 planning docs and finished plans (e.g. `DEPLOY-PLAN.md`) are archived under `devpath-docs/archive/` — historical only, not the source of truth.
 
 ---
 
@@ -448,23 +455,20 @@ Features F1–F5 are all shipped. The current priority is authoring lesson conte
 - `content/` — MDX files, only when working on lesson content specifically
 - `seed.sql` — only when asked about seed data
 - `schema.sql` — use Supabase MCP for schema instead
+- `graphify-out/` — generated knowledge-graph output (gitignored)
+- `devpath-public/` — a separate, gitignored nested repo; not part of this project
+- `devpath-docs/CHANGELOG.md` — very large history log; grep it, never read it whole
 
 ---
 
 ## MDX Custom Components Pattern
 
-Custom MDX components are intercepted in `src/components/course/lesson-content.tsx` via the `components` prop of `react-markdown`. The pattern:
+Lessons are compiled on the server with `next-mdx-remote/serialize` and rendered by `<MDXRemote components={...} />` in `src/components/course/lesson-content.tsx`. **Every custom MDX component is registered in one place: `src/components/mdx/mdx-components.tsx`** (`getMdxComponents`). Two kinds:
 
-1. A code block with a special language tag in the MDX (e.g., ` ```python-editor `) is detected by `className?.includes("language-python-editor")`.
-2. The matched block renders a custom component instead of `<code>`.
-3. The `children` string is the code block content (parsed as JSON config or raw code).
+1. **JSX tags** — `FactBox`, `CosmoHint`, `LabBox`, `InlineQuestion`, `WowNote`, the games/boss fights (`BinaryTranslator`, `TransistorLab`, `RAMGridGame`, `BossFightAlarmaSef`, `BossFightAsambleazaCPU`), plus the `ADCSimulator` stub. To add one: import it in `mdx-components.tsx` and add it to the returned map.
+2. **Fenced code blocks with a special language tag** — ` ```python-editor ` (→ `CodeEditor`, Monaco + Pyodide, loaded with `next/dynamic` `ssr:false`) and ` ```neural-network-viz ` (→ `NeuralNetworkVisualiser`, JSON config in the block). They are intercepted by the `pre`/`code` overrides in the same file via `className?.includes("language-…")`.
 
-To create a new custom MDX component (needed for F3 Neural Network Visualizer):
-- Add a new `if (className?.includes("language-neural-network-viz"))` branch in `lesson-content.tsx`
-- Parse `String(children)` as JSON config
-- Return `<NeuralNetworkVisualiser {...config} />`
-
-MDX lesson frontmatter fields: `title`, `description`, `order`, `type` (`theory|quiz|exercise|project`), `moduleId`. Files in `content/` map to `public.lessons` via `sync-action.ts`.
+MDX lesson frontmatter (as in `content/courses/*/*.mdx`): `title`, `order`, `type` (`lesson|lab|boss`), `module_index`, `duration`, `difficulty`. Files in `content/courses/<course-slug>/` map to `public.lessons` via `sync-action.ts` / `scripts/sync-content.mjs`. Only `lesson|lab|boss` are used by the curriculum; the DB CHECK also still accepts legacy `theory|quiz|exercise|project`.
 
 ---
 
@@ -544,13 +548,11 @@ Never add shadcn components manually — always use `npx shadcn@latest add <comp
 
 ---
 
-## Deploy MVP (in progress — started 2026-09-30)
+## Deployment & live database (MVP deployed — rules that stay true)
 
-Goal: deploy-ready MVP on Vercel, working + tested; visual/text polish is the LAST step and is decided by the owner.
+The MVP is live on Vercel (https://devpath-ro.vercel.app). The deploy checklist and its history are in `PROGRESS.md`; the plan from here is `devpath-docs/MASTER-PLAN.md`. Visual/text polish decisions belong to the owner.
 
-- **Source of truth:** `PROGRESS.md` (8-phase checklist, issues ranked by severity, owner decisions D1–D6). Read it at the start of every session and update it after every prompt.
 - **Supabase project (live):** ref **`zgofeajewktwmswckgup`** (`devpath-ro`, eu-central-1). `.env.local` points to it.
-- **Old project — DO NOT TOUCH:** `umtecpbixdkumfjsvzcl`. The project-bound `mcp__supabase__*` server is bound to the OLD project. For live-DB work use ONLY `mcp__claude_ai_Supabase__*` and always pass `project_id="zgofeajewktwmswckgup"`; confirm the URL first and STOP if it resolves to the old ref.
-- **Live DB ≠ repo:** the live DB has only 2 migrations (`base_schema`, `interactive_layer_and_migrations`) and 2 public functions. `schema.sql`, older repo migrations and PROJECT-STATE.md claims (RPCs, `xp_events`, `module_index`, badges seed) do not reflect it. Never re-run repo migrations blindly; new SQL goes into `supabase/migrations/` and must be shown to the owner before applying.
-- **Baseline (2026-09-30):** `tsc` 0 errors; `npm run build` fails on 1 lint error (`lesson-content.tsx:58`); XP/level/badges/leaderboard broken (missing `xp_events` + RPCs); `users` UPDATE policy allows role/plan escalation.
+- **Old project — DO NOT TOUCH:** `umtecpbixdkumfjsvzcl`. The project-bound `mcp__supabase__*` server was historically bound to the OLD project (the local, gitignored `.claude/settings.json` now names the new ref, but do not rely on it). For live-DB work use ONLY `mcp__claude_ai_Supabase__*` and always pass `project_id="zgofeajewktwmswckgup"`; confirm the URL first and STOP if it resolves to the old ref.
+- **Live DB ≠ `schema.sql`:** `schema.sql` and the repo migrations dated before 2026-09-30 do not reflect the live DB (it was built from `base_schema` + `interactive_layer_and_migrations`). The migrations from `20260930*` onward in `supabase/migrations/` are the ones applied live (gamification core, RLS hardening, the `pytorch-core` insert, …). Never re-run older repo migrations blindly; new SQL goes into `supabase/migrations/` and must be shown to the owner before applying.
 - **Security rules that must stay true (Phase 3, 2026-09-30):** `users` is own-row SELECT only and clients may UPDATE only safe profile columns; XP, badges, streak/`last_active`, referrals and `stripe_*` are written ONLY with the service-role client from server code. `src/lib/gamification.ts` is deliberately NOT a `"use server"` file (its exports would become browser-callable) — never add the directive or import it from a client component. `award_xp_and_check_level` is EXECUTE-able by `service_role` only. Read other users' public data through the `get_public_profiles` / `get_top_users` / `get_community_stats` / `get_recent_completions` RPCs, never by querying `users` directly.

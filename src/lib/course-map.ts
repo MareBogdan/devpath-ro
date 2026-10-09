@@ -1,6 +1,6 @@
 // ─── Course Map Helpers ───────────────────────────────────────────────────────
 // Aggregates every Supabase course + its lessons into ONE continuous
-// LessonNode[] for the unified 12-course SerpentinePath. Each course is one
+// LessonNode[] for the unified 13-course SerpentinePath. Each course is one
 // "world": its lessons are chunked into fixed-size modules, all share that
 // course's single color, and form a contiguous, atmospherically-tinted section
 // of the path.
@@ -37,17 +37,20 @@ export interface RawCourse {
   title: string;
 }
 
-// ─── 12-course palette — spectral sweep violet → gold ─────────────────────────
+// ─── 13-course palette — spectral sweep violet → gold → coral ─────────────────
 //
 // A genuine spectral progression: each hue sits ~19° from its neighbour, so no
 // two adjacent courses look alike and the full path reads as one cohesive
-// rainbow (C1 violet → C12 gold).
+// rainbow (C1 violet → C12 gold → C13 coral).
 //
 // The originally-suggested palette is replaced: it had a hard duplicate (C2 and
 // C7 were both #8B5CF6) and several warm/cool zigzags (C6 blue between emerald
 // and indigo; C11 purple wedged between pink and gold). Red/pink are omitted on
 // purpose — they sit opposite violet on the colour wheel, so including them
 // would force a hue reversal and break the smooth, single-direction sweep.
+// C13 continues the sweep past gold with the Aurora "gold-600" warm accent
+// (#E17055, DESIGN-SYSTEM.md) — orange-coral, still clear of the streak red
+// (#FF6B6B) and of C1's violet, so the palette no longer wraps at 13 courses.
 //
 // Index = course position (course 1 → COURSE_PALETTE[0]).
 export const COURSE_PALETTE = [
@@ -57,15 +60,16 @@ export const COURSE_PALETTE = [
   "#2BA8E0", // C4  Python & Inginerie Soft — sky
   "#1FBFC9", // C5  Algoritmi & Str. Date   — cyan
   "#1ECCA0", // C6  Matematică pentru AI    — teal
-  "#2BCE78", // C7  Computer Vision & CNN   — green
-  "#4FCB54", // C8  Sequence Models & RNN   — spring green
-  "#84C93C", // C9  Transformer             — lime
-  "#AFC52E", // C10 Modele Generative       — yellow-lime
-  "#DCBB2A", // C11 Reinforcement Learning  — amber
-  "#FDCB6E", // C12 PyTorch în Producție    — gold
+  "#2BCE78", // C7  PyTorch Core            — green
+  "#4FCB54", // C8  Computer Vision & CNN   — spring green
+  "#84C93C", // C9  Sequence Models & RNN   — lime
+  "#AFC52E", // C10 Transformer             — yellow-lime
+  "#DCBB2A", // C11 Modele Generative       — amber
+  "#FDCB6E", // C12 Reinforcement Learning  — gold
+  "#E17055", // C13 PyTorch în Producție    — coral (Aurora gold-600)
 ] as const;
 
-/** Course color by 0-based course position, wrapping past 12. */
+/** Course color by 0-based course position, wrapping past 13. */
 export function courseColor(courseIndex: number): string {
   const n = COURSE_PALETTE.length;
   return COURSE_PALETTE[((courseIndex % n) + n) % n];
@@ -84,6 +88,7 @@ export const COURSE_BANNERS: Record<string, string[]> = {
   "python-inginerie-software": ["Sintaxă", "clase", "async", "Pydantic"],
   "algoritmi-structuri-date": ["Big O", "sortare", "grafuri", "DP"],
   "matematica-ai": ["Algebră liniară", "calcul", "statistică"],
+  "pytorch-core": ["Tensori", "Autograd", "nn.Module", "training loop"],
   "computer-vision-cnn": ["CNN", "convoluție", "Torchvision", "transfer learning"],
   "sequence-models-rnn": ["RNN", "LSTM", "embeddings", "secvențe"],
   "transformer-architecture": ["Atenție", "QKV", "multi-head", "Transformer"],
@@ -101,6 +106,7 @@ const COURSE_DESCRIPTIONS: Record<string, string> = {
   "python-inginerie-software": "Minimul de Python cât să citești și scrii cod AI",
   "algoritmi-structuri-date": "Diferența dintre cod care merge și cod care scalează",
   "matematica-ai": "Ecuațiile care stau în spatele inteligenței",
+  "pytorch-core": "Tensori, Autograd și primul training loop, de la zero",
   "computer-vision-cnn": "Cum vede o rețea imaginile",
   "sequence-models-rnn": "Date în care ordinea contează — RNN și LSTM",
   "transformer-architecture": "Mecanismul din spatele AI-ului modern, de la zero",
