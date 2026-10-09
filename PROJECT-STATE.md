@@ -10,7 +10,7 @@ Romanian gamified learning platform for AI/tech education. Mission: "De la elect
 
 | # | slug | lessons (final) | state |
 |---|------|----------------|-------|
-| 1 | hardware-fizica | 30 | published · 25 written, 5 lab/boss slots to add |
+| 1 | hardware-fizica | 30 | published · 30 written (incl. 3 labs + 2 bosses), complete |
 | 2 | sisteme-de-operare | 22 | published · 19 written, 3 slots |
 | 3 | retele-internet | 26 | published · 24 written, 2 slots |
 | 4 | python-inginerie-software | 29 | published · 26 written, 3 slots |
@@ -24,7 +24,7 @@ Romanian gamified learning platform for AI/tech education. Mission: "De la elect
 | 12 | reinforcement-learning | 12 | unpublished skeleton |
 | 13 | pytorch-productie | 12 | unpublished skeleton |
 
-**Authoring status (2026-10-09):** courses 1–6 are published with 131 lessons written (131 `.mdx` in `content/courses/`, all `type: lesson`); 0 lab/boss lessons exist yet in the content (5 are built as code for Course 1 — see MASTER-PLAN P3). Courses 7–13 are seeded placeholders (`content_md = ''`, `is_published = false`, 95 rows) shown as "În curând". The DB holds 13 courses and 226 lesson rows. **Do not work on courses 7–13 until 1–6 are launch quality** (MASTER-PLAN).
+**Authoring status (2026-10-09):** courses 1–6 are published with 136 lessons written (136 `.mdx` in `content/courses/`); Course 1 is complete (30 lessons incl. its 3 labs + 2 bosses, added in P3 on 2026-10-09 — the games are registered in `components/mdx/mdx-components.tsx`); the other 14 lab/boss slots (C2–C6) are still to build. Courses 7–13 are seeded placeholders (`content_md = ''`, `is_published = false`, 95 rows) shown as "În curând". The DB holds 13 courses and 231 lesson rows (136 published + 95 skeletons). **Do not work on courses 7–13 until 1–6 are launch quality** (MASTER-PLAN).
 
 **History:** the August PyTorch pivot planned new slugs for C4–6, but decision D1 (2026-09-30) kept the live v5 slugs and content for C4–6. On 2026-10-09 (P1) `pytorch-core` was inserted as Course 7 and the ML courses shifted to 8–13; `data-engineering-ml-clasic` was dropped from the main track. Courses 1–3 hold real user data — never reseed them.
 
@@ -112,7 +112,7 @@ Romanian gamified learning platform for AI/tech education. Mission: "De la elect
 
 ## Database schema (live — verify via Supabase MCP; `schema.sql` is stale)
 
-Content/curriculum: `courses` (13 rows, `order_index` 1–13), `lessons` (226 rows: 131 published + 95 skeletons; `content_md`, `module_index`, `is_published`; UNIQUE(course_id, order_index)).
+Content/curriculum: `courses` (13 rows, `order_index` 1–13), `lessons` (231 rows: 136 published + 95 skeletons; `content_md`, `module_index`, `is_published`; UNIQUE(course_id, order_index)).
 
 13 tables reference `lessons.id` (all ON DELETE CASCADE): `user_progress`, `quiz_questions`, `quiz_wrong_answers`, `ai_generated_questions`, `flashcards`, `inline_questions`, `wow_notes`, `lesson_scores`, `lesson_bookmarks`, `lesson_feedback`, `lesson_comments`, `minigame_sessions`, `ai_coach_sessions`.
 
@@ -140,7 +140,7 @@ RPC functions used by the app: `award_xp_and_check_level` (service_role only), `
 `(auth)/actions.ts`, `courses/actions.ts`, `courses/inline-actions.ts`, `courses/sync-action.ts`, `flashcards/actions.ts`, `profile/actions.ts`, `settings/notifications/actions.ts`, `onboarding/actions.ts`, `admin/comments/actions.ts`, `admin/users/actions.ts`.
 
 ### Content directory
-`content/courses/<slug>/` holds the `.mdx` lessons: `hardware-fizica` 25, `sisteme-de-operare` 19, `retele-internet` 24, `python-inginerie-software` 26, `algoritmi-structuri-date` 16, `matematica-ai` 21 = 131, matching the 131 published lessons in the DB. Leftover empty folders from the old v5 layout (`agentic-ai-mcp`, `ai-generativ-llms`, `ai-in-productie`, `baze-date-ingineria-datelor`, `deep-learning-computer-vision`, `machine-learning`) hold only a `.gitkeep` and are unused (a `content/` cleanup — left untouched by P2 per its scope); courses 7–13 have no content folder yet.
+`content/courses/<slug>/` holds the `.mdx` lessons: `hardware-fizica` 30, `sisteme-de-operare` 19, `retele-internet` 24, `python-inginerie-software` 26, `algoritmi-structuri-date` 16, `matematica-ai` 21 = 136, matching the 136 published lessons in the DB. Leftover empty folders from the old v5 layout (`agentic-ai-mcp`, `ai-generativ-llms`, `ai-in-productie`, `baze-date-ingineria-datelor`, `deep-learning-computer-vision`, `machine-learning`) hold only a `.gitkeep` and are unused (a `content/` cleanup — left untouched by P2 per its scope); courses 7–13 have no content folder yet.
 
 ### Hooks & Lib
 Hooks: `use-pyodide` (worker client), `use-push-notifications`, `use-speech-recognition`. Workers: `src/workers/pyodide.worker.ts`.
@@ -150,7 +150,7 @@ Lib: `supabase/{server,client,middleware,admin}`, `gamification(+constants)`, `s
 - Content gates (free tier limited to early modules)
 - AI Coach rate limit (free tier)
 - Stripe billing portal
-- The 19 lab/boss lessons of courses 1–6 (slots listed in `CURRICULUM-STRUCTURE.md`; MASTER-PLAN P3+)
+- The 14 remaining lab/boss lessons of courses 2–6 (slots listed in `CURRICULUM-STRUCTURE.md`)
 - Content authoring for courses 7–13 (on hold until courses 1–6 reach launch quality)
 
 ## Installed tools

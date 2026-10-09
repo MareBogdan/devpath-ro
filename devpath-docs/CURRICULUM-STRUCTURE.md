@@ -9,10 +9,10 @@
 - **`#`** = poziția FINALĂ a lecției în curs (ce vede studentul când cursul e complet).
 - **`DB acum`** (doar cursurile 1–6) = `lessons.order_index` real în baza live, azi. `—` = rândul nu există încă în DB.
 - **Stare**:
-  - `✅ scrisă` — rând în DB, `is_published = true`, `content_md` completat, fișier `.mdx` în `content/`.
+  - `✅ scrisă` — rând în DB, `is_published = true`, `content_md` completat, fișier `.mdx` în `content/` (la lab/boss: după `·`, componenta apelată din `.mdx`).
   - `🔲 slot · …` — lab/boss **planificat**, încă inexistent în DB (se creează în P3+). După `·`: starea componentei.
   - `🔲 schelet` — rând în DB (sau creat de migrarea P1 pentru C7), `content_md = ''`, `is_published = false`.
-- Pentru cursurile 1–3, `#` = `DB acum` (sloturile lab/boss sunt exact găurile din numerotare). Pentru cursurile 4–6, lecțiile existente se **vor renumerota** când se inserează sloturile (P3+; progresul e legat de `lesson.id`, nu de `order_index`) — de aceea coloanele diferă.
+- Pentru cursurile 1–3, `#` = `DB acum` (sloturile lab/boss sunt exact găurile din numerotare; în C1 au fost umplute în P3, 2026-10-09). Pentru cursurile 4–6, lecțiile existente se **vor renumerota** când se inserează sloturile (P3+; progresul e legat de `lesson.id`, nu de `order_index`) — de aceea coloanele diferă.
 - **Sursa de adevăr:** structura (ordine, titluri, sloturi) = acest fișier + `MASTER-PLAN.md`; starea (ce e scris/publicat) = DB live.
 
 ## Convenții
@@ -37,8 +37,8 @@ description: De la electronul fizic la primul procesor virtual asamblat de tine
 difficulty: 2.0
 order: 1
 total_lessons: 30
-written: 25
-planned_slots: 5
+written: 30
+planned_slots: 0
 ```
 | # | Titlu | Type | Stare | DB acum |
 |---|---|---|---|---|
@@ -49,28 +49,28 @@ planned_slots: 5
 | 5 | Analogic vs. Digital | lesson | ✅ scrisă | 5 |
 | 6 | Semiconductorii — de la nisip la siliciu | lesson | ✅ scrisă | 6 |
 | 7 | Tranzistorul — robinet electric controlat de tensiune | lesson | ✅ scrisă | 7 |
-| 8 | LAB: Aprinde tranzistorul | lab | 🔲 slot · `TransistorLab.tsx` gata | — |
+| 8 | LAB: Aprinde tranzistorul | lab | ✅ scrisă · `<TransistorLab />` | 8 |
 | 9 | Sistemul Binar | lesson | ✅ scrisă | 9 |
-| 10 | JOC: Traducătorul Binar | lab | 🔲 slot · `BinaryTranslator.tsx` gata | — |
+| 10 | JOC: Traducătorul Binar | lab | ✅ scrisă · `<BinaryTranslator />` | 10 |
 | 11 | Poarta NOT | lesson | ✅ scrisă | 11 |
 | 12 | Poarta AND | lesson | ✅ scrisă | 12 |
 | 13 | Poarta OR | lesson | ✅ scrisă | 13 |
 | 14 | Poarta XOR | lesson | ✅ scrisă | 14 |
 | 15 | NAND — cărămida Lego universală | lesson | ✅ scrisă | 15 |
-| 16 | BOSS: Alarma de Seif | boss | 🔲 slot · `BossFightAlarmaSef.tsx` gata | — |
+| 16 | BOSS: Alarma de Seif | boss | ✅ scrisă · `<BossFightAlarmaSef />` | 16 |
 | 17 | Half-Adder — când porțile încep să calculeze | lesson | ✅ scrisă | 17 |
 | 18 | Full-Adder — primul circuit care înțelege trecutul | lesson | ✅ scrisă | 18 |
 | 19 | Multiplexorul — circuitul care alege | lesson | ✅ scrisă | 19 |
 | 20 | Ceasul de sistem — dirijorul care face ordinea | lesson | ✅ scrisă | 20 |
 | 21 | Flip-Flop — primul bit de memorie | lesson | ✅ scrisă | 21 |
 | 22 | Registrele — cuvintele cu care gândește procesorul | lesson | ✅ scrisă | 22 |
-| 23 | JOC: Grila Memoriei RAM | lab | 🔲 slot · `RAMGridGame.tsx` gata | — |
+| 23 | JOC: Grila Memoriei RAM | lab | ✅ scrisă · `<RAMGridGame />` | 23 |
 | 24 | Unitatea Aritmetică (ALU) — când totul face click | lesson | ✅ scrisă | 24 |
 | 25 | Unitatea de Control: Dirijorul din silicon | lesson | ✅ scrisă | 25 |
 | 26 | Program Counter: indexul degetului care citește codul | lesson | ✅ scrisă | 26 |
 | 27 | Ciclul Fetch-Decode-Execute: bătaia inimii din silicon | lesson | ✅ scrisă | 27 |
 | 28 | Arhitectura Von Neumann: blueprint-ul din 1945 care rulează pe telefonul tău | lesson | ✅ scrisă | 28 |
-| 29 | BOSS: Asamblează CPU | boss | 🔲 slot · `BossFightAsambleazaCPU.tsx` gata | — |
+| 29 | BOSS: Asamblează CPU | boss | ✅ scrisă · `<BossFightAsambleazaCPU />` | 29 |
 | 30 | De la binar la Assembly: prima limbă pe care o înțelege siliciul | lesson | ✅ scrisă | 30 |
 
 ---
@@ -485,7 +485,7 @@ total_lessons: 12
 
 | Curs | Slug | Lecții (final) | Scrise | Sloturi lab/boss de adăugat | Schelete | Lab | Boss | Difficulty |
 |---|---|---|---|---|---|---|---|---|
-| 1 | hardware-fizica | 30 | 25 | 5 | — | 3 | 2 | 2.0 |
+| 1 | hardware-fizica | 30 | 30 | 0 | — | 3 | 2 | 2.0 |
 | 2 | sisteme-de-operare | 22 | 19 | 3 | — | 2 | 1 | 2.5 |
 | 3 | retele-internet | 26 | 24 | 2 | — | 1 | 1 | 2.5 |
 | 4 | python-inginerie-software | 29 | 26 | 3 | — | 2 | 1 | 2.0 |
@@ -498,9 +498,9 @@ total_lessons: 12
 | 11 | modele-generative | 13 | 0 | 0 | 13 | 2 | 1 | 4.0 |
 | 12 | reinforcement-learning | 12 | 0 | 0 | 12 | 2 | 1 | 4.0 |
 | 13 | pytorch-productie | 12 | 0 | 0 | 12 | 2 | 1 | 3.5 |
-| **TOTAL** | | **245** | **131** | **19** | **95** | **26** | **14** | |
+| **TOTAL** | | **245** | **136** | **14** | **95** | **26** | **14** | |
 
-Stare DB live la 2026-10-09 (înainte de migrarea P1): 12 cursuri, 210 rânduri `lessons` = 131 scrise (C1–6) + 79 schelete (C7–12). După migrarea P1: 13 cursuri, 226 rânduri = 131 + 95 schelete. Cele 19 sloturi lab/boss din C1–6 nu au încă rând în DB (prompt P3+).
+Stare DB live la 2026-10-09 (înainte de migrarea P1): 12 cursuri, 210 rânduri `lessons` = 131 scrise (C1–6) + 79 schelete (C7–12). După migrarea P1: 13 cursuri, 226 rânduri = 131 + 95 schelete. După P3 (2026-10-09): 231 rânduri = 136 scrise/publicate + 95 schelete; Cursul 1 are cele 30 de lecții (5 lab/boss inserate). Cele 14 sloturi lab/boss rămase (C2–C6) nu au încă rând în DB.
 
 ---
 

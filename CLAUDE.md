@@ -20,7 +20,7 @@
 
 ## Project Overview
 
-**DevPath RO** is a Romanian e-learning platform for IT/AI students. Desktop-first Next.js 14 App Router web application deployed on Vercel. Delivers a 13-course / 245-lesson curriculum (single content mode, `content_md`) with `lesson`, `lab`, and `boss` lesson types. Courses 1–6 are published (131 lessons written, 19 lab/boss slots planned); courses 7–13 (`pytorch-core` … `pytorch-productie`) are unpublished skeletons shown as "În curând".
+**DevPath RO** is a Romanian e-learning platform for IT/AI students. Desktop-first Next.js 14 App Router web application deployed on Vercel. Delivers a 13-course / 245-lesson curriculum (single content mode, `content_md`) with `lesson`, `lab`, and `boss` lesson types. Courses 1–6 are published (136 lessons written incl. the 5 Course 1 labs/bosses, 14 lab/boss slots planned in C2–C6); courses 7–13 (`pytorch-core` … `pytorch-productie`) are unpublished skeletons shown as "În curând".
 
 - **Live stack:** Next.js 14 App Router + React 18 + TypeScript (strict mode)
 - **Auth & DB:** Supabase (PostgreSQL + Auth + Realtime WebSockets)
@@ -218,7 +218,7 @@ c:\DevPath RO\
 │   │   └── utils.ts         # cn() helper
 │   ├── middleware.ts         # Supabase session refresh on every request
 │   └── types/index.ts       # Domain types: User, Course, Lesson, etc.
-├── content/courses/<slug>/   # MDX lesson files — 131 authored, all in courses 1–6
+├── content/courses/<slug>/   # MDX lesson files — 136 authored, all in courses 1–6
 ├── schema.sql               # Full Supabase schema (reference only; verify live via Supabase MCP)
 ├── seed.sql                 # Seed data for development
 ├── next.config.mjs          # Next config (transpiles next-mdx-remote, image domains)
