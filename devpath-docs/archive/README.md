@@ -18,6 +18,8 @@ referenced by code, scripts, or the build.
 | File | What it is | Superseded by |
 |---|---|---|
 | `DEPLOY-PLAN.md` | MVP deploy plan (2026-10-03) — the deploy is finished | `../MASTER-PLAN.md` |
+| `PROGRESS-deploy-mvp-2026-09-30_to_10-03.md` | The Phase 1–8 MVP-deploy log (checklists + change logs), moved verbatim out of `PROGRESS.md` on 2026-10-09. Its unchecked `[ ]` items are NOT a to-do list | `../../PROGRESS.md` (history), `../MASTER-PLAN.md` (plan/backlog) |
+| `CHANGELOG-2026-04_to_05.md` | April–May 2026 changelog (Block 1 polish, Cosmo, Block 1.5 Pixel→Cosmo, Blocks 2/3 planning); frozen since 2026-05-06 | `../../PROGRESS.md` |
 | `devpath-curriculum-v4-definitiv.md` | v4 "DEFINITIV" curriculum skeleton (12 courses · 321 lessons, old titles/order) | `../CURRICULUM-STRUCTURE.md` (13 courses · 245 lessons) |
 | `seed-curriculum.sql.DEPRECATED` | Broken/retired raw-SQL curriculum seed (column/value mismatch; INSERT-only) | `scripts/seed-curriculum.mjs` |
 | `BLOCK2-3-EXECUTION-PLAN.md` | Dated execution plan (2026-05-06) for the Pixel→Cosmo swap + curriculum work — now largely executed | — (historical record) |

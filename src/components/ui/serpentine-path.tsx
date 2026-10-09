@@ -73,12 +73,6 @@ const MODULE_COLORS = [
   "#F59E0B", // amber
 ];
 
-// Per-course difficulty (1–5), shown on World Gate cards. Index = course
-// position. Values from devpath-docs/CURRICULUM-STRUCTURE.md.
-const COURSE_DIFFICULTY = [
-  2.0, 2.5, 2.5, 2.5, 3.0, 3.0, 3.0, 3.5, 4.0, 4.0, 4.5, 4.0,
-];
-
 // Per-course serpentine geometry, so the 13-course path reads as varied terrain
 // rather than one loop repeated. Hand-tuned (deterministic, not random):
 //   amp       — horizontal swing as a fraction of the max edge span (0–1)
@@ -1180,7 +1174,11 @@ function DesktopMap({
           const keywords = n.courseBullets ?? [];
           const description = n.metadata?.description ?? "";
           const lessonCount = Number(n.metadata?.lessonCount ?? 0);
-          const difficulty = COURSE_DIFFICULTY[courseIdx] ?? 3;
+          // Difficulty (1–5) comes from `courses.difficulty` via the node metadata
+          // (buildAllCoursesNodes); a missing/invalid value falls back to 3.
+          const rawDifficulty = Number(n.metadata?.difficulty);
+          const difficulty =
+            Number.isFinite(rawDifficulty) && rawDifficulty > 0 ? rawDifficulty : 3;
           const estHours = Math.round(((lessonCount * 5) / 60) * 10) / 10;
           // Status badge — derived from this course's lesson nodes.
           const courseLessons = nodes.filter(

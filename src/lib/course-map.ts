@@ -31,10 +31,15 @@ export interface RawLesson {
   order_index: number;
 }
 
+/** Difficulty shown for a course whose `courses.difficulty` is missing/invalid. */
+export const DEFAULT_COURSE_DIFFICULTY = 3;
+
 export interface RawCourse {
   id: string;
   slug: string;
   title: string;
+  /** `courses.difficulty` (1–5). Missing/invalid → DEFAULT_COURSE_DIFFICULTY. */
+  difficulty?: number | null;
 }
 
 // ─── 13-course palette — spectral sweep violet → gold → coral ─────────────────
@@ -243,6 +248,11 @@ export function buildAllCoursesNodes({
         metadata: {
           description: COURSE_DESCRIPTIONS[course.slug] ?? "",
           lessonCount: String(courseTotal),
+          difficulty: String(
+            Number.isFinite(Number(course.difficulty)) && Number(course.difficulty) > 0
+              ? Number(course.difficulty)
+              : DEFAULT_COURSE_DIFFICULTY
+          ),
         },
       });
     }

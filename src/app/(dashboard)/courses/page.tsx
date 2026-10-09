@@ -5,7 +5,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { CoursesHero } from "@/components/course/courses-hero";
 import { CoursesPageClient } from "@/components/course/courses-page-client";
 import type { CourseSelectorOption } from "@/components/course/course-selector";
-import type { RawLesson } from "@/lib/course-map";
+import { DEFAULT_COURSE_DIFFICULTY, type RawLesson } from "@/lib/course-map";
 import { SeedButton } from "@/components/course/seed-button";
 import { SyncButton } from "@/components/course/sync-button";
 import { SyncAllCoursesButton } from "@/components/course/sync-all-button";
@@ -91,7 +91,7 @@ export default async function CoursesPage({ searchParams }: CoursesPageProps) {
       slug: c.slug as string,
       title: c.title as string,
       description: (c.description as string | null) ?? "",
-      difficulty: (c.difficulty as number | null) ?? 2.0,
+      difficulty: (c.difficulty as number | null) ?? DEFAULT_COURSE_DIFFICULTY,
       totalLessons: courseLessons.length,
       completedLessons: completedCount,
       publishedLessons: publishedCount,

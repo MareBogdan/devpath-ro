@@ -26,6 +26,7 @@ export function CoursesPageClient({
       id: c.id,
       slug: c.slug,
       title: c.title,
+      difficulty: c.difficulty,
     }));
     return buildAllCoursesNodes({
       courses: rawCourses,

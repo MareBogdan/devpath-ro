@@ -65,9 +65,6 @@ From `package.json`:
 | `framer-motion` | ^12.38.0 |
 | `@radix-ui/react-avatar` | ^1.1.11 |
 | `@radix-ui/react-dropdown-menu` | ^2.1.16 |
-| `@radix-ui/react-progress` | ^1.1.8 |
-| `@radix-ui/react-separator` | ^1.1.8 |
-| `@radix-ui/react-slot` | ^1.2.4 |
 | `@radix-ui/react-tooltip` | ^1.2.8 |
 | `lucide-react` | ^0.577.0 |
 | `class-variance-authority` | ^0.7.1 |
@@ -336,7 +333,7 @@ The user also works on **edunext-production** (`c:\WORK_SPACE\edunext-production
 
 ## Context7 MCP — Auto-Documentation
 
-Context7 MCP is configured in this project's `.claude/settings.json`. When you need up-to-date documentation for any library used in this project (Next.js, Supabase, Vercel AI SDK, Framer Motion, Radix UI, Zod, etc.), use Context7 tools automatically without waiting to be asked. This is especially important for:
+Context7 MCP is configured for this project (in Claude Code's user config, `~/.claude.json`). When you need up-to-date documentation for any library used in this project (Next.js, Supabase, Vercel AI SDK, Framer Motion, Radix UI, Zod, etc.), use Context7 tools automatically without waiting to be asked. This is especially important for:
 - Vercel AI SDK (`ai`, `@ai-sdk/anthropic`, `@ai-sdk/react`) — API changes frequently
 - Supabase JS v2 (`@supabase/supabase-js`, `@supabase/ssr`) — SSR patterns
 - Next.js 14 App Router — use Context7 instead of relying on training data
@@ -443,7 +440,7 @@ Features F1–F5 are all shipped and the MVP is deployed. The current priority i
 ## Implementation Navigation
 - Start every session by reading `devpath-docs/MASTER-PLAN.md` (what to do next), then `PROJECT-STATE.md` for project state + methodology.
 - Curriculum source of truth: `devpath-docs/CURRICULUM-STRUCTURE.md` (13 courses / 245 lessons; parsed by `scripts/seed-curriculum.mjs` — keep the `| # | Titlu | Type |` columns and `total_lessons`).
-- `PROGRESS.md` is the history log (newest entries at the bottom): append to it after every prompt; read only its latest entries, not the whole file.
+- `PROGRESS.md` is the history log (newest entries at the bottom; older history is in `devpath-docs/archive/`): append to it after every prompt.
 - Pre-v5 planning docs and finished plans (e.g. `DEPLOY-PLAN.md`) are archived under `devpath-docs/archive/` — historical only, not the source of truth.
 
 ---
@@ -457,7 +454,7 @@ Features F1–F5 are all shipped and the MVP is deployed. The current priority i
 - `schema.sql` — use Supabase MCP for schema instead
 - `graphify-out/` — generated knowledge-graph output (gitignored)
 - `devpath-public/` — a separate, gitignored nested repo; not part of this project
-- `devpath-docs/CHANGELOG.md` — very large history log; grep it, never read it whole
+- `devpath-docs/archive/` — archived history (`CHANGELOG-2026-04_to_05.md` 214 KB, `PROGRESS-deploy-mvp-2026-09-30_to_10-03.md` 105 KB): grep it, never read it whole
 
 ---
 
@@ -553,6 +550,6 @@ Never add shadcn components manually — always use `npx shadcn@latest add <comp
 The MVP is live on Vercel (https://devpath-ro.vercel.app). The deploy checklist and its history are in `PROGRESS.md`; the plan from here is `devpath-docs/MASTER-PLAN.md`. Visual/text polish decisions belong to the owner.
 
 - **Supabase project (live):** ref **`zgofeajewktwmswckgup`** (`devpath-ro`, eu-central-1). `.env.local` points to it.
-- **Old project — DO NOT TOUCH:** `umtecpbixdkumfjsvzcl`. The project-bound `mcp__supabase__*` server was historically bound to the OLD project (the local, gitignored `.claude/settings.json` now names the new ref, but do not rely on it). For live-DB work use ONLY `mcp__claude_ai_Supabase__*` and always pass `project_id="zgofeajewktwmswckgup"`; confirm the URL first and STOP if it resolves to the old ref.
+- **Old project — DO NOT TOUCH:** `umtecpbixdkumfjsvzcl`. **The project-bound `mcp__supabase__*` server IS bound to the OLD project** — verified 2026-10-09: Claude Code's user config (`~/.claude.json`, entry for this folder) defines it as `https://mcp.supabase.com/mcp?project_ref=umtecpbixdkumfjsvzcl`. (Its calls currently fail with "You do not have permission", so it cannot even answer which ref it serves — never retry it. The `mcpServers.supabase` block in the gitignored `.claude/settings.json`, which names the new ref, is NOT what is in effect: MCP servers are read from `~/.claude.json`/`.mcp.json`, not from `settings.json`.) For live-DB work use ONLY `mcp__claude_ai_Supabase__*` and always pass `project_id="zgofeajewktwmswckgup"`; confirm the URL first and STOP if it resolves to the old ref.
 - **Live DB ≠ `schema.sql`:** `schema.sql` and the repo migrations dated before 2026-09-30 do not reflect the live DB (it was built from `base_schema` + `interactive_layer_and_migrations`). The migrations from `20260930*` onward in `supabase/migrations/` are the ones applied live (gamification core, RLS hardening, the `pytorch-core` insert, …). Never re-run older repo migrations blindly; new SQL goes into `supabase/migrations/` and must be shown to the owner before applying.
 - **Security rules that must stay true (Phase 3, 2026-09-30):** `users` is own-row SELECT only and clients may UPDATE only safe profile columns; XP, badges, streak/`last_active`, referrals and `stripe_*` are written ONLY with the service-role client from server code. `src/lib/gamification.ts` is deliberately NOT a `"use server"` file (its exports would become browser-callable) — never add the directive or import it from a client component. `award_xp_and_check_level` is EXECUTE-able by `service_role` only. Read other users' public data through the `get_public_profiles` / `get_top_users` / `get_community_stats` / `get_recent_completions` RPCs, never by querying `users` directly.

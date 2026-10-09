@@ -100,7 +100,7 @@ Romanian gamified learning platform for AI/tech education. Mission: "De la elect
 **MDX:** next-mdx-remote ^6.0.0, react-markdown ^10, remark-gfm, rehype-highlight, gray-matter
 **Math rendering:** katex ^0.16.47, rehype-katex ^7, remark-math ^6
 **3D:** three ^0.183, @react-three/fiber ^8.18, @react-three/drei ^9.122
-**UI/Animation:** framer-motion ^12.38, motion ^12.38, next-themes ^0.4.6, Radix UI (avatar, dropdown, progress, separator, slot, switch, tooltip), lucide-react, class-variance-authority, clsx, tailwind-merge, tailwindcss-animate, @tailwindcss/typography, canvas-confetti
+**UI/Animation:** framer-motion ^12.38, motion ^12.38, next-themes ^0.4.6, Radix UI (avatar, dropdown-menu, switch, tooltip), lucide-react, class-variance-authority, clsx, tailwind-merge, tailwindcss-animate, @tailwindcss/typography, canvas-confetti
 **Editor:** @monaco-editor/react ^4.7.0
 **Payments/Email/Push:** stripe ^16.12, resend ^4.8, @react-email/*, web-push ^3.6.7
 **PDF/QR:** @react-pdf/renderer ^4.3.2, qrcode ^1.5.4
@@ -134,7 +134,7 @@ RPC functions used by the app: `award_xp_and_check_level` (service_role only), `
 `/api/ai/chat`, `/api/ai/coach-session(s)`, `/api/ai/generate-quiz`, `/api/search`, `/api/certificate/[courseSlug]`, `/api/stripe/{checkout,webhook}`, `/api/push/{subscribe,send}`, `/api/cron/{streak-check,weekly-email}`, `/api/onboarding/welcome-message`, `/api/admin/{seed-glossar,sync-prompt-engineering}`, `/auth/callback`, `/join`.
 
 ### Components (src/components/, approximate file counts)
-`ui/` (~32), `course/` (~29), `mdx/` (~15 — the MDX component registry `mdx-components.tsx`, `FactBox`/`CosmoHint`/`LabBox`, `games/` incl. the 5 mini-game/boss components, `stubs/`), `dashboard/` (~13), `interactive/` (~11 — inline questions + Wow Notes), `profile/` (9), `minigame/` (8), `onboarding/` (6), `portfolio/` (5), `layout/` (~5), `gamification/` (~4), `visualiser/` (4), `mascot/` (2), `flashcards/` (2), plus single-file: `admin/`, `glossar/`, `interview/`, `landing/`, `pricing/`, `pdf/`, `roadmap/`, `search/`, `settings/`, and standalone `theme-provider.tsx` / `theme-toggle.tsx`.
+`ui/` (~27), `course/` (~28), `mdx/` (~15 — the MDX component registry `mdx-components.tsx`, `FactBox`/`CosmoHint`/`LabBox`, `games/` incl. the 5 mini-game/boss components, `stubs/`), `dashboard/` (~13), `interactive/` (~11 — inline questions + Wow Notes), `profile/` (9), `minigame/` (8), `onboarding/` (6), `portfolio/` (5), `layout/` (4), `gamification/` (~4), `visualiser/` (4), `mascot/` (2), `flashcards/` (2), plus single-file: `admin/`, `glossar/`, `interview/`, `landing/`, `pricing/`, `pdf/`, `roadmap/`, `search/`, `settings/`, and standalone `theme-provider.tsx` / `theme-toggle.tsx`.
 
 ### Server Actions (10)
 `(auth)/actions.ts`, `courses/actions.ts`, `courses/inline-actions.ts`, `courses/sync-action.ts`, `flashcards/actions.ts`, `profile/actions.ts`, `settings/notifications/actions.ts`, `onboarding/actions.ts`, `admin/comments/actions.ts`, `admin/users/actions.ts`.

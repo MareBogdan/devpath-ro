@@ -109,7 +109,7 @@ Serpentina le randează deja corect: `lab` → iconiță `Code2` + "Exercițiu �
 
 - [x] **P1 · Structura adevărată** ✅ 2026-10-09 — rescrie `CURRICULUM-STRUCTURE.md` (13 cursuri, sloturi lab/boss),
       inserează `pytorch-core` ca C7 în DB, reindexează C8–C13. Niciun fișier de conținut atins.
-- [x] **P2 · Curățenie** ✅ 2026-10-09 (cu 2 puncte rămase **în așteptarea aprobării owner-ului**: ștergerea celor 8 fișiere candidate din sweep + split-ul `PROGRESS.md`/`CHANGELOG.md`) — cod mort, fișiere nefolosite, docs/planuri vechi, `CLAUDE.md` + `PROJECT-STATE.md` aduse la zi.
+- [x] **P2 · Curățenie** ✅ 2026-10-09 (inclusiv cele 8 ștergeri din sweep și split-ul `PROGRESS.md`/`CHANGELOG.md`, aprobate de owner) — cod mort, fișiere nefolosite, docs/planuri vechi, `CLAUDE.md` + `PROJECT-STATE.md` aduse la zi.
 - [ ] **P3 · Cursul 1 — cele 5 lab/boss** — fișierele `.mdx` care cheamă componentele existente, sync DB, verificat în serpentină.
 - [ ] **P4 · Lecția pilot** — standardul complet (termeni clickabili + 5–7 întrebări mixte + python-editor) pe O SINGURĂ lecție, pentru aprobare.
 
@@ -121,6 +121,8 @@ Serpentina le randează deja corect: `lab` → iconiță `Code2` + "Exercițiu �
 
 | Zonă | Ce | Mărime |
 |---|---|---|
+| 🔴 Securitate · **blocking-for-marketing** | **P5-02 — Stripe checkout are încredere în `planType` (și `priceId`) trimise de client** (`src/app/api/stripe/checkout/route.ts`): un user poate plăti un preț ieftin și trimite `planType:"lifetime"` (escaladare de privilegii la cumpărare); webhook-ul se bazează pe `metadata.planType`. Latent cât timp Stripe nu e configurat în producție, dar **trebuie reparat înainte să se activeze plățile**. Fix: mapare server-side `planType` → price ID, ignoră `priceId` din client. | 1 prompt |
+| 🔴 Cost · **blocking-for-marketing** | **Fără rate limiting pe rutele AI** — `/api/ai/chat`, `/api/ai/generate-quiz`, `/api/ai/coach-session`, `/api/onboarding/welcome-message` pot fi lovite de oricine pe creditele Anthropic ale owner-ului (verificat 2026-10-09: nu există nicio limitare în `src/app/api`). **Trebuie reparat înainte de orice campanie de marketing.** Fix minim: contor zilnic per user în DB (+ plafon global). | 1 prompt |
 | Conținut | Aplică standardul pe restul de 130 lecții (1 prompt/curs) | 6 prompturi |
 | Conținut | Rescrie headingurile HOOK/CONTEXT/… pe 114 lecții | inclus mai sus |
 | Lab/Boss | Construiește cele 5 lab/boss pentru C2+C3 (simulatoare noi) | 3–5 prompturi |
@@ -138,4 +140,5 @@ Serpentina le randează deja corect: `lab` → iconiță `Code2` + "Exercițiu �
 |---|---|---|---|
 | 2026-10-09 | — | Audit complet + plan. Structura decisă: 13 cursuri. | — |
 | 2026-10-09 | P1 | `CURRICULUM-STRUCTURE.md` rescris (13 cursuri, 245 lecții, 19 sloturi lab/boss marcate). DB live: `pytorch-core` inserat ca C7 (16 schelete nepublicate), C7–12 → C8–13; 13 cursuri, order 1–13 unic; 131 lecții publicate neatinse. Migrare `20261009120000_insert_pytorch_core_course.sql`. | tsc 0 · lint 0 err (2 warn) · build ✅ (copie izolată) |
-| 2026-10-09 | P2 | 4 fișiere moarte șterse; `.agents/` + skill React Native eliminate (rămâne `.claude/skills/`); `CLAUDE.md` + `PROJECT-STATE.md` la 13 cursuri/245 lecții + priorități noi; `DEPLOY-PLAN.md` arhivat; `COURSE_PALETTE`/`TOTAL_COURSES`/`COURSE_GEOMETRY`/banner+descriere `pytorch-core` pentru 13 cursuri; `@ai-sdk/openai` dezinstalat. **În așteptare aprobare:** 8 candidați de ștergere + split loguri. Singura schimbare vizibilă: a 13-a bulină (corai) în hero-ul `/courses`. | tsc 0 · lint 0 err (2 warn) · build ✅ (copie izolată) |
+| 2026-10-09 | P2 | 4 fișiere moarte șterse; `.agents/` + skill React Native eliminate (rămâne `.claude/skills/`); `CLAUDE.md` + `PROJECT-STATE.md` la 13 cursuri/245 lecții + priorități noi; `DEPLOY-PLAN.md` arhivat; `COURSE_PALETTE`/`TOTAL_COURSES`/`COURSE_GEOMETRY`/banner+descriere `pytorch-core` pentru 13 cursuri; `@ai-sdk/openai` dezinstalat. Singura schimbare vizibilă: a 13-a bulină (corai) în hero-ul `/courses`. | tsc 0 · lint 0 err (2 warn) · build ✅ (copie izolată) |
+| 2026-10-09 | P2b | Aprobat și executat: 8 fișiere moarte șterse (sidebar, course-card, sign-out-button, progress-ring, ui/{progress,separator,badge,button}) + 3 pachete Radix neutilizate dezinstalate; `PROGRESS.md` (108→~11 KB) și `CHANGELOG.md` (214 KB) arhivate cu stub, tăietura 2026-10-09; 2 rânduri 🔴 adăugate în BACKLOG (Stripe `planType`, rate limiting AI); `COURSE_DIFFICULTY` hardcodat înlocuit cu `courses.difficulty` din DB (afișajul dificultății se schimbă pe World Gate la pozițiile greșite); `CLAUDE.md`: serverul `mcp__supabase__*` e legat de proiectul VECHI (verificat). | tsc 0 · lint 0 err (2 warn) · build ✅ (copie izolată) |
