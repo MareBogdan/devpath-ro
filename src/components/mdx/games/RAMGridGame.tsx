@@ -666,7 +666,7 @@ function MemoryCell({
           {formatHexAddr(address)}
         </span>
         {filled && (
-          <span className="font-mono text-[8px] leading-none text-white/30">
+          <span className="font-mono text-[9px] leading-none text-white/30">
             ●
           </span>
         )}
@@ -839,7 +839,11 @@ export function RAMGridGame() {
 
   return (
     <div className="my-10">
-      <style>{CSS_STYLES}</style>
+      {/* dangerouslySetInnerHTML: as a text child React HTML-escapes the quotes in
+          `content: ""` on the server (&quot;&quot;) but not on the client → a hydration
+          mismatch that threw away the server HTML of the whole page. CSS_STYLES is a
+          static constant authored in this file (no user input), so this is safe. */}
+      <style dangerouslySetInnerHTML={{ __html: CSS_STYLES }} />
 
       <div
         className="relative border-y border-[#00CEC9]/40 bg-[#080810]"

@@ -145,13 +145,16 @@ function lessonIcon(type: string, orderIndex: number): LucideIcon {
   return THEORY_ICON_CYCLE[(orderIndex - 1) % THEORY_ICON_CYCLE.length] ?? BookOpen;
 }
 
-function checkpointIcon(
-  orderIndex: number,
-  lessonType: string,
-  totalLessons: number
-): LucideIcon {
-  if (lessonType === "project" || lessonType === "boss") return Trophy;
-  if (orderIndex === totalLessons) return Trophy;
+/**
+ * Icon for a lesson that sits on a checkpoint node. The lesson's own TYPE always
+ * wins over its position (a lab on a checkpoint slot keeps Code2, a boss keeps
+ * Trophy); only plain lessons fall through to the position-based icons. The Trophy
+ * is reserved for project/boss lessons — the last lesson of a course earns none.
+ */
+function checkpointIcon(orderIndex: number, lessonType: string): LucideIcon {
+  if (lessonType !== "lesson" && lessonType !== "theory") {
+    return lessonIcon(lessonType, orderIndex);
+  }
   if (orderIndex >= 25) return Bot;
   if (orderIndex >= 20) return GitBranch;
   if (orderIndex >= 15) return Zap;
@@ -258,6 +261,7 @@ export function buildAllCoursesNodes({
     }
 
     let courseCurrentFound = false;
+    let checkpointsSoFar = 0;
     nextLessonByCourse[course.id] = null;
 
     lessons.forEach((lesson, i) => {
@@ -276,19 +280,29 @@ export function buildAllCoursesNodes({
 
       // Fixed-cadence modules — last node of each chunk (and the final node of
       // the course) is a checkpoint, so each course renders as a clean snake.
-      const moduleIndex = Math.floor(i / MODULE_SIZE);
+      // A boss is ALWAYS a checkpoint (the climax of its module, drawn as the large
+      // node), wherever it lands. The module index counts checkpoints so it matches
+      // the module boundaries the serpentine derives from them; for a course without
+      // a boss this is identical to floor(i / MODULE_SIZE).
+      const isBoss = lesson.type === "boss";
       const isCheckpoint =
-        (i + 1) % MODULE_SIZE === 0 || i === courseTotal - 1;
+        isBoss || (i + 1) % MODULE_SIZE === 0 || i === courseTotal - 1;
+      const moduleIndex = checkpointsSoFar;
+      if (isCheckpoint) checkpointsSoFar++;
 
+      // Type wins over position: labs/bosses keep their own icon on a checkpoint.
       const icon = isCheckpoint
-        ? checkpointIcon(lesson.order_index, lesson.type, courseTotal)
+        ? checkpointIcon(lesson.order_index, lesson.type)
         : lessonIcon(lesson.type, lesson.order_index);
 
+      const isLab = lesson.type === "exercise" || lesson.type === "lab";
       let sublabel: string;
-      if (isCheckpoint) {
-        sublabel = course.title;
-      } else if (lesson.type === "exercise" || lesson.type === "lab") {
+      if (isBoss) {
+        sublabel = `Boss Fight · L${lesson.order_index}`;
+      } else if (isLab) {
         sublabel = `Exercițiu · L${lesson.order_index}`;
+      } else if (isCheckpoint) {
+        sublabel = course.title;
       } else {
         sublabel = `Lecția ${lesson.order_index}/${courseTotal}`;
       }

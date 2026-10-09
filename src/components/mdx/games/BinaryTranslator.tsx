@@ -6,7 +6,6 @@ import {
   useMemo,
   useReducer,
   useRef,
-  useState,
   type CSSProperties,
 } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
@@ -23,10 +22,13 @@ import {
   Award,
   RotateCcw,
   ChevronRight,
-  Maximize2,
-  Minimize2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  FullscreenHint,
+  FullscreenToggle,
+  useGameFrame,
+} from "@/components/mdx/game-frame";
 
 // ─── Constants ───────────────────────────────────────────────────────────
 
@@ -745,29 +747,11 @@ export function BinaryTranslator() {
   const reduced = useReducedMotion();
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [showFullscreenHint, setShowFullscreenHint] = useState(true);
-
-  // Sync isFullscreen with the browser (covers ESC and F11 exits).
-  useEffect(() => {
-    const handler = () => {
-      setIsFullscreen(document.fullscreenElement === containerRef.current);
-    };
-    document.addEventListener("fullscreenchange", handler);
-    return () => document.removeEventListener("fullscreenchange", handler);
-  }, []);
-
-  const toggleFullscreen = useCallback(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    setShowFullscreenHint(false);
-    if (document.fullscreenElement) {
-      void document.exitFullscreen();
-    } else {
-      void el.requestFullscreen();
-    }
-  }, []);
+  // Fullscreen is owned by the surrounding <GameFrame> (shared with the other games).
+  const frame = useGameFrame();
+  const isFullscreen = frame?.isFullscreen ?? false;
+  const showFullscreenHint = frame?.hintVisible ?? false;
+  const toggleFullscreen = frame?.toggle;
 
   // Timer interval — only ticks while playing.
   useEffect(() => {
@@ -878,7 +862,6 @@ export function BinaryTranslator() {
 
   return (
     <div
-      ref={containerRef}
       className={cn(
         "bg-[#080810]",
         isFullscreen ? "flex h-screen w-screen items-stretch" : "my-8"
@@ -886,29 +869,11 @@ export function BinaryTranslator() {
     >
       <style>{CSS_STYLES}</style>
 
-      {showFullscreenHint && !isFullscreen && (
-        <div className="mb-3 flex items-center justify-between rounded-lg border border-[#6C5CE7]/30 bg-[#6C5CE7]/10 px-4 py-2">
-          <span className="font-mono text-xs text-[#b0b4c0]">
-            ⛶ Pentru cea mai bună experiență, joacă în fullscreen
-          </span>
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={toggleFullscreen}
-              className="rounded bg-[#6C5CE7] px-3 py-1 font-mono text-xs text-white transition-colors hover:bg-[#7d6ff0]"
-            >
-              Activează fullscreen
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowFullscreenHint(false)}
-              aria-label="Închide sugestia"
-              className="font-mono text-xs text-[#5a5e6e] transition-colors hover:text-[#b0b4c0]"
-            >
-              ✕
-            </button>
-          </div>
-        </div>
+      {showFullscreenHint && !isFullscreen && toggleFullscreen && (
+        <FullscreenHint
+          onActivate={toggleFullscreen}
+          onDismiss={frame?.dismissHint ?? (() => undefined)}
+        />
       )}
 
       <div
@@ -971,18 +936,13 @@ export function BinaryTranslator() {
                 />
               </div>
             )}
-            <button
-              type="button"
-              onClick={toggleFullscreen}
-              aria-label={isFullscreen ? "Ieși din fullscreen" : "Intră în fullscreen"}
-              className="text-[#7a7d8a] transition-colors hover:text-white"
-            >
-              {isFullscreen ? (
-                <Minimize2 className="h-4 w-4" aria-hidden />
-              ) : (
-                <Maximize2 className="h-4 w-4" aria-hidden />
-              )}
-            </button>
+            {toggleFullscreen && (
+              <FullscreenToggle
+                isFullscreen={isFullscreen}
+                onToggle={toggleFullscreen}
+                className="text-[#7a7d8a] transition-colors hover:text-white"
+              />
+            )}
           </div>
         </div>
 

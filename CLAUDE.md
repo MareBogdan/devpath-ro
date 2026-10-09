@@ -197,7 +197,9 @@ c:\DevPath RO\
 │   │   │   └── course-map.tsx      # Client: unified 13-course serpentine (data: lib/course-map.ts)
 │   │   ├── mdx/
 │   │   │   ├── mdx-components.tsx  # Client: the MDX component registry (see "MDX Custom Components")
-│   │   │   └── games/              # Mini-games + boss fights, registered in mdx-components.tsx
+│   │   │   ├── game-frame.tsx      # Client: GameFrame — the ONE wrapper for every interactive game (full-bleed + fullscreen)
+│   │   │   ├── use-fullscreen.ts   # Client: shared fullscreen hook (native API, Popover top-layer fallback, landscape lock)
+│   │   │   └── games/              # Mini-games + boss fights, registered (framed) in mdx-components.tsx
 │   │   ├── layout/
 │   │   │   ├── navbar.tsx          # Client: top navigation
 │   │   │   ├── bottom-nav.tsx      # Client: mobile bottom navigation
@@ -462,7 +464,7 @@ Features F1–F5 are all shipped and the MVP is deployed. The current priority i
 
 Lessons are compiled on the server with `next-mdx-remote/serialize` and rendered by `<MDXRemote components={...} />` in `src/components/course/lesson-content.tsx`. **Every custom MDX component is registered in one place: `src/components/mdx/mdx-components.tsx`** (`getMdxComponents`). Two kinds:
 
-1. **JSX tags** — `FactBox`, `CosmoHint`, `LabBox`, `InlineQuestion`, `WowNote`, the games/boss fights (`BinaryTranslator`, `TransistorLab`, `RAMGridGame`, `BossFightAlarmaSef`, `BossFightAsambleazaCPU`), plus the `ADCSimulator` stub. To add one: import it in `mdx-components.tsx` and add it to the returned map.
+1. **JSX tags** — `FactBox`, `CosmoHint`, `LabBox`, `InlineQuestion`, `WowNote`, the games/boss fights (`BinaryTranslator`, `TransistorLab`, `RAMGridGame`, `BossFightAlarmaSef`, `BossFightAsambleazaCPU`), plus the `ADCSimulator` stub. To add one: import it in `mdx-components.tsx` and add it to the returned map. **Interactive games/labs/bosses must be registered through `withGameFrame(Game)`** (`components/mdx/game-frame.tsx`), never bare: the frame lets the game break out of the 680px prose column (up to 1200px; prose stays 680px), and provides the shared fullscreen mode (native Fullscreen API, falling back to a Popover top-layer overlay on iPhone Safari, plus a landscape lock on phones). A game that draws its own fullscreen button (BinaryTranslator) uses `withGameFrame(Game, "game")` and reads the state via `useGameFrame()`. Games must keep text ≥ 9px (they are phone-playable in landscape fullscreen). Lab/boss lessons also map to the course map via `lib/course-map.ts`: a lab keeps its `Code2` icon and a boss is always a large checkpoint node with a `Trophy` (the last lesson of a course gets no trophy).
 2. **Fenced code blocks with a special language tag** — ` ```python-editor ` (→ `CodeEditor`, Monaco + Pyodide, loaded with `next/dynamic` `ssr:false`) and ` ```neural-network-viz ` (→ `NeuralNetworkVisualiser`, JSON config in the block). They are intercepted by the `pre`/`code` overrides in the same file via `className?.includes("language-…")`.
 
 MDX lesson frontmatter (as in `content/courses/*/*.mdx`): `title`, `order`, `type` (`lesson|lab|boss`), `module_index`, `duration`, `difficulty`. Files in `content/courses/<course-slug>/` map to `public.lessons` via `sync-action.ts` / `scripts/sync-content.mjs`. Only `lesson|lab|boss` are used by the curriculum; the DB CHECK also still accepts legacy `theory|quiz|exercise|project`.

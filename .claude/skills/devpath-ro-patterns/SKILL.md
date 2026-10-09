@@ -144,5 +144,6 @@ Single mode: render **`content_md` only** (compiled server-side with `next-mdx-r
 - **F1 Python:** Pyodide-only in a Web Worker (see §5).
 - **F4 Voice:** browser Web Speech API push-to-talk **input only** — no Whisper, no TTS, no server voice routes.
 - **AI provider:** Anthropic Claude (`claude-haiku-4-5`) behind `src/lib/ai/model.ts`; OpenAI is not used.
+- **Interactive games (labs/bosses/mini-games):** mount them ONLY through `withGameFrame()` in `src/components/mdx/mdx-components.tsx` (`components/mdx/game-frame.tsx`): full-bleed breakout up to 1200px, shared fullscreen (`use-fullscreen.ts`: native API → Popover top-layer fallback → `fixed` overlay), landscape lock on phones. Never use `position: fixed; z-index` for a game overlay — `LessonContent` is `isolate`, so z-index cannot beat later page content; the top layer can. Keep game text ≥ 9px. Games are not themselves responsible for XP/completion (those live in `courses/actions.ts`).
 - **Optional features** (Stripe, Resend, crons, web push, text AI) ship disabled unless their keys exist; each route degrades via `lib/optional-features.ts` (`disabledResponse`).
 - **Packages:** do not install new npm packages without explicit approval.

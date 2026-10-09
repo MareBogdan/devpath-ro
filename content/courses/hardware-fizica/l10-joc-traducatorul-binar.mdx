@@ -7,12 +7,12 @@ duration: 10
 difficulty: 2
 ---
 
-Ai învățat că orice număr se scrie doar cu 0 și 1, iar fiecare bit are o greutate: 128, 64, 32, 16, 8, 4, 2, 1. Acum treci de la teorie la reflex. Primești un număr zecimal și îl construiești în binar, aprinzând biții potriviți înainte să expire timpul. Sunt trei niveluri: la primul ai timp și vieți să greșești, la ultimul ai o singură șansă.
+Ai învățat că orice număr se scrie doar cu 0 și 1, iar fiecare bit are o **greutate**: 128, 64, 32, 16, 8, 4, 2, 1. Acum treci de la teorie la reflex. Primești un număr zecimal și îl construiești în binar, aprinzând biții potriviți înainte să expire timpul. Sunt **trei niveluri**: la primul ai timp și vieți să greșești, la ultimul ai o singură șansă.
 
-Dacă te blochezi, nu ghici — adună greutățile. De exemplu, 169 = 128 + 32 + 8 + 1, deci biții de pe pozițiile 128, 32, 8 și 1 sunt aprinși.
+Dacă te blochezi, nu ghici — adună greutățile. De exemplu, **169 = 128 + 32 + 8 + 1**, deci biții de pe pozițiile 128, 32, 8 și 1 sunt aprinși.
 
 <BinaryTranslator />
 
-După câteva runde, un număr ca 200 nu mai arată ca „două sute”, ci ca „128 + 64 + 8”. E exact pasul pe care îl face orice calculator: tratează un număr ca pe o sumă de puteri ale lui 2. Biții nu sunt un cod misterios, ci o contabilitate foarte simplă.
+După câteva runde, un număr ca 200 nu mai arată ca „două sute”, ci ca „128 + 64 + 8”. E exact pasul pe care îl face orice calculator: tratează un număr ca pe o **sumă de puteri ale lui 2**. Biții nu sunt un cod misterios, ci o contabilitate foarte simplă.
 
-Urmează poarta NOT, primul circuit care face ceva cu acești biți: îi inversează.
+Urmează **poarta NOT**, primul circuit care face ceva cu acești biți: îi inversează.

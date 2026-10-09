@@ -111,7 +111,7 @@ export function LessonContent({
           prose-h3:border-l-[#6C5CE7] prose-h3:pl-3 prose-h3:text-foreground/80
           prose-p:text-[17px] prose-p:leading-[1.8] prose-p:my-5 prose-p:text-foreground/90
           prose-a:text-primary prose-a:no-underline hover:prose-a:underline
-          prose-strong:text-[#E2DDFF] prose-strong:font-semibold
+          prose-strong:text-aurora-primary-900 dark:prose-strong:text-[#E2DDFF] prose-strong:font-semibold
           prose-code:before:content-none prose-code:after:content-none
           prose-code:bg-[#6C5CE7]/[0.15] prose-code:text-[#A78BFA] prose-code:px-1.5
           prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-code:font-mono

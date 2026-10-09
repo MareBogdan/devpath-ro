@@ -13,8 +13,19 @@ import { TransistorLab } from "@/components/mdx/games/TransistorLab";
 import { RAMGridGame } from "@/components/mdx/games/RAMGridGame";
 import { BossFightAlarmaSef } from "@/components/mdx/games/boss-alarms/BossFightAlarmaSef";
 import { BossFightAsambleazaCPU } from "@/components/mdx/games/boss-cpu/BossFightAsambleazaCPU";
+import { withGameFrame } from "@/components/mdx/game-frame";
 import { InlineQuestion } from "@/components/interactive/inline-question";
 import { WowNote } from "@/components/interactive/wow-note";
+
+// Every interactive lab/boss/game is mounted through the SAME frame (full-bleed up to
+// 1200px + shared fullscreen). Created once at module level so component identities
+// stay stable across renders. BinaryTranslator draws its own fullscreen chrome in its
+// header (chrome="game") but still shares the frame's state and behaviour.
+const FramedTransistorLab = withGameFrame(TransistorLab);
+const FramedBinaryTranslator = withGameFrame(BinaryTranslator, "game");
+const FramedRAMGridGame = withGameFrame(RAMGridGame);
+const FramedBossFightAlarmaSef = withGameFrame(BossFightAlarmaSef);
+const FramedBossFightAsambleazaCPU = withGameFrame(BossFightAsambleazaCPU);
 
 // Monaco needs browser globals — never SSR it.
 const CodeEditor = dynamic(
@@ -77,11 +88,11 @@ export function getMdxComponents({
     ADCSimulator,
 
     // ── Mini-games ──────────────────────────────────────────────────
-    BinaryTranslator,
-    TransistorLab,
-    RAMGridGame,
-    BossFightAlarmaSef,
-    BossFightAsambleazaCPU,
+    BinaryTranslator: FramedBinaryTranslator,
+    TransistorLab: FramedTransistorLab,
+    RAMGridGame: FramedRAMGridGame,
+    BossFightAlarmaSef: FramedBossFightAlarmaSef,
+    BossFightAsambleazaCPU: FramedBossFightAsambleazaCPU,
 
     // ── <pre> — bypass the wrapper for custom block types ────────────
     pre: ({ children, ...props }: React.ComponentPropsWithoutRef<"pre">) => {

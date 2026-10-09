@@ -368,7 +368,7 @@ export default function CPUPiece({
         </div>
 
         {/* Full name */}
-        <span className="mt-1 font-mono text-[8.5px] uppercase leading-tight tracking-[0.12em] text-white/50">
+        <span className="mt-1 font-mono text-[9px] uppercase leading-tight tracking-[0.12em] text-white/50">
           {component.fullName}
         </span>
 

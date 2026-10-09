@@ -408,7 +408,7 @@ function PlacedGhost({
       >
         {label}
       </span>
-      <span className="font-mono text-[8.5px] uppercase leading-tight tracking-wider text-white/45">
+      <span className="font-mono text-[9px] uppercase leading-tight tracking-wider text-white/45">
         {fullName}
       </span>
     </div>

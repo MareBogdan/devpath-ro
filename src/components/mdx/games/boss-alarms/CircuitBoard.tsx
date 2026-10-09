@@ -305,7 +305,7 @@ function InputNode({
         <text
           x={0}
           y={42}
-          fontSize="10"
+          fontSize="12"
           fontFamily="ui-monospace, monospace"
           fontWeight={500}
           fill="#7a7d8a"
@@ -377,7 +377,7 @@ function GateSymbol({
       <text
         x={GATE_LABEL_X[type]}
         y={3}
-        fontSize="9"
+        fontSize="12"
         fontFamily="ui-monospace, monospace"
         fontWeight={700}
         fill={isOn ? "#00CEC9" : "#9aa0aa"}
@@ -413,7 +413,7 @@ function OutputNode({
       <text
         x={W / 2}
         y={-H / 2 - 8}
-        fontSize="9"
+        fontSize="12"
         fontFamily="ui-monospace, monospace"
         fontWeight={700}
         fill="#7a7d8a"
@@ -464,7 +464,7 @@ function OutputNode({
       <text
         x={W / 2}
         y={14}
-        fontSize="9"
+        fontSize="12"
         fontFamily="ui-monospace, monospace"
         fontWeight={700}
         fill={isOn ? "#FDCB6E" : "#FF6B6B"}
