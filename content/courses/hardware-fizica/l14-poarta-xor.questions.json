@@ -1,0 +1,44 @@
+{
+  "questions": [
+    {
+      "order": 1,
+      "type": "true_false",
+      "concept": "Reutilizarea cheii OTP: C1 XOR C2 = M1 XOR M2, deoarece cheia se anulează. Condiția «o singură dată» nu e un detaliu. Aplicare a proprietății de anulare.",
+      "content": {
+        "prompt": "Două mesaje diferite sunt criptate cu aceeași cheie One-Time Pad. Cine interceptează ambele texte cifrate poate obține XOR-ul celor două mesaje, fără să cunoască cheia.",
+        "correct": true,
+        "explanation": "Cifrat1 XOR Cifrat2 = (Mesaj1 XOR Cheie) XOR (Mesaj2 XOR Cheie) = Mesaj1 XOR Mesaj2, fiindcă Cheie XOR Cheie = 0 și cheia dispare. Din XOR-ul a două mesaje se pot deduce mult mai ușor ambele (de exemplu prin potriviri de cuvinte probabile), de aceea cheia trebuie folosită o singură dată."
+      }
+    },
+    {
+      "order": 2,
+      "type": "short_answer",
+      "concept": "RAID 5: paritatea e XOR-ul discurilor, iar anularea recuperează discul pierdut. Aplicare cu biți concreți: se produce o valoare.",
+      "content": {
+        "prompt": "Într-un RAID 5 cu trei discuri, Disc2 conține 0110, iar Disc3 stochează paritatea, 1100. Disc1 pică. Ce conținea Disc1?",
+        "accepted": [
+          "1010",
+          "0b1010",
+          "1010b",
+          "1 0 1 0"
+        ],
+        "explanation": "Paritatea e Disc1 XOR Disc2, deci Disc1 = Disc3 XOR Disc2, adică 1100 XOR 0110 = 1010, bit cu bit: 1⊕0=1, 1⊕1=0, 0⊕1=1, 0⊕0=0. Proprietatea de anulare face ca XOR-ul parității cu discul rămas să elimine Disc2 și să lase exact Disc1."
+      }
+    },
+    {
+      "order": 3,
+      "type": "ordering",
+      "concept": "Corecția Hamming(7,4) ca procedură: recalculezi ecuațiile de paritate, combini rezultatele într-un număr, numărul e poziția bitului greșit, inversezi bitul prin XOR cu 1.",
+      "content": {
+        "prompt": "Așază în ordine pașii cu care un cod Hamming(7,4) corectează un bit greșit.",
+        "items": [
+          "Procesorul recalculează cele 3 ecuații de paritate pe cei 7 biți citiți",
+          "Cele 3 rezultate se citesc împreună ca un număr binar",
+          "Numărul indică poziția exactă a bitului corupt",
+          "Se aplică XOR cu 1 pe acel bit, ceea ce îl inversează"
+        ],
+        "explanation": "Mai întâi se recalculează cele 3 parități. Dacă toate dau 0, nu există eroare; altfel rezultatele, citite ca număr binar, sunt chiar adresa bitului greșit. Ultimul pas folosește A ⊕ 1 = NOT(A): XOR cu 1 inversează bitul identificat și corectează eroarea."
+      }
+    }
+  ]
+}

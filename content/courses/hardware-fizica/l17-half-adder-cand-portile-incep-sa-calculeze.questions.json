@@ -1,0 +1,49 @@
+{
+  "questions": [
+    {
+      "order": 1,
+      "type": "short_answer",
+      "concept": "Adunarea binară bit cu bit cu propagarea carry-ului: se produce un număr binar. 1011 + 0110 = 11 + 6 = 17 = 10001. Carry-ul trece prin două poziții.",
+      "content": {
+        "prompt": "Aduni 1011 și 0110 în binar, bit cu bit, cu carry-ul trecut de la o poziție la alta. Ce sumă obții?",
+        "accepted": [
+          "10001",
+          "0b10001",
+          "10001b",
+          "1 0001"
+        ],
+        "explanation": "De la dreapta: 1+0 = 1, fără carry; 1+1 = 0, carry 1; 0+1+carry 1 = 0, carry 1; 1+0+carry 1 = 0, carry 1, care devine bitul 1 din față. Rezultat: 10001 (11 + 6 = 17). Cine uită carry-urile obține 1101 (suma fără transport, XOR-ul celor două numere)."
+      }
+    },
+    {
+      "order": 2,
+      "type": "single_choice",
+      "concept": "Alegerea adderului după context: Ripple-Carry are cost minim și e suficient pe căi necritice sau low-power; CLA/Kogge-Stone cumpără viteză cu siliciu. Capcane: «mai rapid e mereu mai bun» și criteriul asimptotic aplicat fără context.",
+      "content": {
+        "prompt": "Proiectezi sumatorul unui senzor cu baterie, care face câteva adunări pe secundă, pe o cale în care timpul nu e critic. Ce arhitectură alegi?",
+        "options": [
+          "Kogge-Stone, fiindcă este cea mai rapidă arhitectură, iar viteza are mereu prioritate",
+          "Ripple-Carry, fiindcă are consum și siliciu minime, iar viteza nu e esențială",
+          "Carry-Lookahead, fiindcă o întârziere O(log n) este preferabilă oricărei alte variante"
+        ],
+        "correct_index": 1,
+        "explanation": "Kogge-Stone și Carry-Lookahead cumpără viteză cu mult mai mult siliciu și consum. Pe o cale necritică, la un dispozitiv alimentat de baterie, un Ripple-Carry cu cost minim e alegerea potrivită: adunările rare nu au nevoie de întârzierea mică, iar consumul și aria contează mai mult."
+      },
+      "distractors": [
+        "Alege mereu varianta cea mai rapidă, fără să cântărească costul de siliciu și consumul unui adder mare, pe o cale unde viteza nu aduce nimic.",
+        null,
+        "Aplică criteriul asimptotic O(log n) fără context: pentru puține adunări pe o cale necritică, câștigul de viteză nu justifică siliciul și consumul în plus."
+      ]
+    },
+    {
+      "order": 3,
+      "type": "true_false",
+      "concept": "Cauza erorii Patriot: 0,1 nu se reprezintă exact în binar. O valoare cu reprezentare binară exactă (0,125 = 2⁻³) nu produce trunchiere. Aplicare: schimbi pasul și eroarea dispare.",
+      "content": {
+        "prompt": "Dacă ceasul rachetei Patriot ar fi numărat în incremente de 0,125 secunde în loc de 0,1 secunde, trunchierea nu ar mai fi produs nicio eroare acumulată.",
+        "correct": true,
+        "explanation": "0,1 are în binar o fracție infinit repetitivă, deci trunchierea la 24 de biți pierde o fărâmă la fiecare tick, iar pierderile se adună. 0,125 = 2⁻³ are o reprezentare binară exactă, 0,001, care încape fără pierdere în orice număr de biți, deci nu se acumulează nimic. Problema nu era numărul de tick-uri, ci faptul că 0,1 nu se poate reprezenta exact în binar."
+      }
+    }
+  ]
+}

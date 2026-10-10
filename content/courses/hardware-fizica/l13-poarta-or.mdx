@@ -7,137 +7,46 @@ duration: 12
 difficulty: 2
 ---
 
-## Boston, 28 aprilie 1852
+Boston, 28 aprilie 1852. William Channing și Moses Farmer conectează mai multe cutii metalice stradale la un clopot de alarmă dintr-o stație centrală. Dacă un cetățean învârte manivela cutiei 1, clopotul sună; dacă altul învârte manivela cutiei 2, sună; dacă ambii o fac simultan, sună oricum. Nu contează de unde vine semnalul: un singur 1 e suficient.
 
-William Channing și Moses Farmer au conectat mai multe cutii metalice stradale
-la un clopot de alarmă dintr-o stație centrală.
+A fost primul sistem municipal de alarmă de incendiu electric din lume și prima poartă OR la scară metropolitană, cu 86 de ani înainte ca Shannon să formalizeze algebra circuitelor. Channing și Farmer nu știau că construiesc o poartă logică; știau doar că orice fum, de oriunde, trebuie să declanșeze alarma.
 
-Dacă un cetățean învârtea manivela cutiei 1 — clopoțelul suna.
-Dacă altul învârtea manivela cutiei 2 — clopoțelul suna.
-Dacă ambii activau simultan — clopoțelul suna oricum.
+Lecția 12 a răspuns la întrebarea „dacă A ȘI B sunt 1, ce se întâmplă?”. AND e filtrul strict, dar nu toate situațiile cer strictețe: un seif nuclear cere AND, cu ambii ofițeri rotind cheia, iar o alarmă de incendiu cere OR, cu oricare senzor declanșând sirena. Gardianul lasă să treacă doar ce îndeplinește toate condițiile, detectorul alertează la prima condiție validă. Poarta OR e detectorul: tolerantă, incluzivă, redundantă.
 
-Nu conta de unde venea semnalul. Un singur 1 era suficient.
-
-Acesta a fost primul sistem municipal de alarmă de incendiu electric din lume.
-Și prima implementare a unei porți OR la scară metropolitană —
-cu 86 de ani înainte ca Shannon să formalizeze algebra circuitelor.
-
-Channing și Farmer nu știau că construiau o poartă logică.
-Știau că orice fum, de oriunde, trebuie să declanșeze alarma.
-
----
-
-## Ce s-a schimbat față de lecția trecută
-
-C1L12 a răspuns la întrebarea "dacă A ȘI B sunt 1 — ce se întâmplă?"
-AND e filtrul strict: toate condițiile trebuie îndeplinite simultan.
-
-Dar nu toate situațiile cer strictețe.
-
-Un seif nuclear cere AND — ambii ofițeri trebuie să rotească cheia.
-Un sistem de alarmă de incendiu cere OR — oricare senzor activat declanșează sirena.
-
-Aceeași diferență dintre un gardian și un detector.
-Gardianul lasă să treacă doar ce îndeplinește toate condițiile.
-Detectorul alertează la prima condiție validă.
-
-Poarta OR e detectorul.
-Prima poartă tolerantă, incluzivă, redundantă.
-Și, împreună cu AND, formează perechea care construiește orice circuit de decizie.
-
----
-
-## Miezul
-
-### Tabelul de adevăr — un colector de semnale
-
-Poarta OR cu două intrări:
+## OR dă 1 în trei cazuri din patru
 
 | A | B | A OR B |
 |---|---|---|
 | 0 | 0 | 0 |
-| 0 | 1 | **1** |
-| 1 | 0 | **1** |
-| 1 | 1 | **1** |
+| 0 | 1 | 1 |
+| 1 | 0 | 1 |
+| 1 | 1 | 1 |
 
-Trei din patru combinații produc 1. Doar absența totală produce 0.
+Doar absența totală produce 0. Contrastul cu AND e dramatic: `1 AND 0 = 0`, adică AND refuză dacă orice condiție lipsește, dar `1 OR 0 = 1`, adică OR acceptă dacă orice condiție e prezentă.
 
-Contrastul cu AND e dramatic:
-- `1 AND 0 = 0` — AND refuză dacă orice condiție lipsește
-- `1 OR 0 = 1` — OR acceptă dacă orice condiție e prezentă
+## OR inclusiv: ce a decis Jevons în 1864
 
----
+Limbajul natural are o ambiguitate pe care matematicienii au trebuit s-o rezolve. În latina clasică existau două „sau”: *aut…aut*, exclusiv (fie una, fie alta, dar nu ambele), și *vel…vel*, inclusiv (una, alta sau ambele).
 
-### OR inclusiv vs. exclusiv — o decizie din 1864
+Când Boole a formalizat algebra logică în 1854, valoarea lui `1 OR 1` era contestată: unii susțineau că, dacă ambele sunt adevărate, OR e redundant. William Stanley Jevons a închis dezbaterea în 1864, argumentând că o calitate afirmată de două ori rămâne o singură calitate afirmată: `1 OR 1 = 1`, nu 0, nu 2. Asta distinge OR de XOR, din lecția următoare: `1 OR 1 = 1`, dar `1 XOR 1 = 0`.
 
-Există o ambiguitate în limbajul natural pe care matematicienii au trebuit să o rezolve.
+## OR vine din NOR plus NOT, ca AND din NAND
 
-În latină clasică existau două cuvinte pentru "sau":
-- **aut...aut** — exclusiv: fie una, fie alta, dar nu ambele
-- **vel...vel** — inclusiv: una, alta, sau ambele simultan
+Ca AND, poarta OR nu se construiește direct în CMOS. O poartă NOR CMOS are 4 tranzistori: 2 NMOS în paralel în pull-down (dacă oricare conduce, ieșirea e 0) și 2 PMOS în serie în pull-up (ambii trebuie să conducă ca ieșirea să urce la 1). Paralelul NMOS implementează OR, dar ieșirea e inversată, deci avem NOR. Pentru OR adaugi un NOT: NOR + NOT = 6 tranzistori.
 
-Când George Boole a formalizat algebra logică în 1854,
-tabelul de adevăr al lui OR pentru `1 OR 1` era contestat.
-Unii matematicieni argumentau că "dacă ambele sunt adevărate, OR e redundant."
+Arhitectura confirmă ce arătase Shannon în 1938: comutatoarele (sau tranzistorii) în paralel emulează OR, iar cele în serie, AND. El o prevăzuse cu 25 de ani înainte să existe CMOS.
 
-William Stanley Jevons a rezolvat dezbaterea în 1864.
-A argumentat că o calitate afirmată de două ori rămâne o singură calitate afirmată.
-`1 OR 1 = 1` — nu 0, nu 2.
+Primele porți NOR integrate au apărut în 1961–1962, iar SN7402 (Texas Instruments, 1964) e varianta TTL: patru porți NOR cu două intrări, la 5 V. O găsești și azi pe breadboard-urile studenților de electronică, ca seria 7400 (NAND).
 
-Aceasta e distincția critică față de XOR (lecția următoare):
-- `1 OR 1 = 1` — inclusiv, acceptă suprapunerea
-- `1 XOR 1 = 0` — exclusiv, refuză suprapunerea
-
----
-
-### De ce OR e de fapt NOR + NOT
-
-Exact ca AND (care era NAND + NOT), poarta OR nu poate fi construită direct în CMOS.
-
-O poartă NOR CMOS are 4 tranzistori:
-- 2 NMOS **în paralel** în pull-down — dacă oricare conduce, ieșirea e 0
-- 2 PMOS **în serie** în pull-up — ambii trebuie să conducă pentru a ridica ieșirea la 1
-
-{/* ANIMATION: schema CMOS NOR — 2 NMOS paralel (pull-down) + 2 PMOS serie (pull-up) */}
-
-Paralelul NMOS implementează OR în pull-down: A OR B → ieșire trasă la 0.
-Dar ieșirea e inversată — deci avem NOR, nu OR.
-Pentru OR pur, adaugi un NOT la ieșire: **NOR + NOT = OR = 6 tranzistori**.
-
-Această arhitectură confirmă exact ce Claude Shannon demonstrase în 1938 în teza sa de masterat:
-comutatoare (sau tranzistori) **în paralel** emulează operația OR,
-exact cum comutatoarele **în serie** emulează AND.
-Fizica circuitelor CMOS a validat algebra lui Shannon cu 25 de ani înainte de a exista CMOS.
-
-Primul circuit integrat comercial cu porți NOR a apărut în 1964:
-**Texas Instruments SN7402** — patru porți NOR cu două intrări, în logică TTL la 5V.
-La fel ca seria 7400 (NAND), SN7402 e încă în producție după 60 de ani.
-Ambele familii trăiesc pe breadboard-urile studenților de electronică din toată lumea.
-
-**Paradoxul de viteză:**
-NOR e mai lent decât NAND — deși sunt "dualuri" matematice prin De Morgan.
-
-NAND are NMOS în serie (electroni, mobilitate 1.400 cm²/V·s).
-NOR are PMOS în serie (goluri, mobilitate 450 cm²/V·s).
-
-PMOS în serie = rezistență mai mare = timp de comutare mai lung.
-Pentru ca NOR să comute la fel de rapid ca NAND,
-tranzistorii PMOS trebuie proiectați de **4 ori mai lați** fizic pe siliciu.
-
-Consecința: de câte ori poți, folosești NAND în loc de NOR.
-Compilatoarele hardware transformă automat expresiile OR în variante bazate pe NAND.
+NOR e mai lent decât NAND, deși sunt duale prin De Morgan. NAND are NMOS în serie (electroni, mobilitate 1.400 cm²/V·s), iar NOR are PMOS în serie (goluri, 450 cm²/V·s). PMOS în serie înseamnă rezistență mai mare și timp de comutare mai lung: ca NOR să comute la fel de repede, tranzistorii PMOS trebuie proiectați de ~4 ori mai lați. De aceea, de câte ori poți, folosești NAND în loc de NOR, iar sintetizatoarele de logică transformă automat expresiile OR în variante bazate pe NAND.
 
 <FactBox>
-  NAND și NOR sunt amândouă "cărămizi universale" — fiecare poate implementa singură
-  orice funcție logică posibilă. Dar din cauza mobilității diferite a purtătorilor,
-  NAND e de 2-3 ori mai rapidă decât NOR la aceeași dimensiune de tranzistor.
-  De aceea procesoarele moderne sunt construite aproape exclusiv din NAND-uri,
-  nu din NOR-uri — deși matematic sunt echivalente.
+  NAND și NOR sunt amândouă „cărămizi universale”: fiecare poate implementa singură orice funcție logică. Din cauza mobilității diferite, NAND cu două intrări e însă cu ~25% mai rapidă decât NOR cu două intrări, la aceeași dimensiune de tranzistor (<Term def="Măsură a cât de mult încetinește o poartă un semnal, față de un invertor (valoarea 1). Lecția 15 o detaliază.">efort logic</Term> 4/3 față de 5/3). De aceea circuitele moderne folosesc mai mult NAND decât NOR, deși matematic sunt echivalente.
 </FactBox>
 
----
+<InlineQuestion n="1" />
 
-### Proprietățile algebrice ale OR
+## Algebra lui OR: absorbție și De Morgan
 
 ```
 A + B = B + A           (comutativitate)
@@ -148,88 +57,13 @@ A + 1 = 1               (element absorbit)
 A + Ā = 1               (complementaritate — tautologie)
 ```
 
-**Elementul absorbit** `A + 1 = 1` ascunde o vulnerabilitate hardware:
-dacă un micro-scurtcircuit trage un pin de intrare la VDD permanent,
-întregul lanț OR din aval rămâne forțat la 1, indiferent de celelalte semnale.
-OR e vulnerabil la paraziții care ridică tensiunea — AND era vulnerabil la cei care o coboară.
+Elementul absorbit `A + 1 = 1` ascunde o vulnerabilitate hardware: dacă un micro-scurtcircuit trage o intrare la VDD permanent, întregul lanț OR din aval rămâne forțat la 1, indiferent de celelalte semnale. OR e vulnerabil la paraziții care ridică tensiunea, pe când AND era vulnerabil la cei care o coboară.
 
-**De Morgan** leagă OR de AND:
-`NOT(A OR B) = NOT(A) AND NOT(B)`
+Teorema lui De Morgan leagă OR de AND: `NOT(A OR B) = NOT(A) AND NOT(B)`. O poartă NOR e deci un AND cu intrările inversate, iar compilatoarele pot transforma orice OR în NAND-uri, aplicând inversări la intrări.
 
-O poartă NOR e echivalentă cu un AND care primește intrările inversate.
-Asta permite compilatoarelor să transforme orice expresie OR în NAND-uri
-prin aplicarea inversărilor la intrări.
+## Un arbore OR verifică 256 de surse în 8 pași
 
----
-
-### Sisteme de alarmă — OR ca filozofie de design
-
-Monitoarele de terapie intensivă (UCI) declanșează alarma dacă:
-`Frecvență_Cardiacă_Anomală OR SpO2_Critic OR Tensiune_Arterială_Prăbușită → Alertă`
-
-De ce OR și nu AND?
-
-Dacă sistemul ar folosi AND, ar trebui ca pacientul să sufere simultan
-hipoxie severă, tahicardie extremă și hipotensiune pentru a suna alarma.
-Asta nu are sens clinic.
-
-OR acceptă fals-pozitive — alarme declanșate de un senzor desprins.
-OR refuză fals-negative — situația fatală în care pacientul se degradează dar aparatul tace.
-
-**Medicina preferă false pozitive față de false negative.**
-Aceasta e filozofia OR: mai bine alertezi inutil decât să ratezi o urgență reală.
-
-<CosmoHint emotion="thinking">
-  Un airbag auto se declanșează dacă detectează Impact_Frontal OR Impact_Lateral.
-  Nu AND — dacă ar fi AND, un impact pur lateral nu ar declanșa airbag-ul frontal.
-  OR salvează vieți tocmai pentru că e permisiv.
-  Strictețea AND ar fi periculoasă în sisteme de siguranță.
-</CosmoHint>
-
----
-
-### Redundanța — OR ca supraviețuire
-
-RAID 1 (mirroring): datele sunt scrise pe două discuri simultan.
-La citire: `Disc_A_Funcțional OR Disc_B_Funcțional → Date disponibile`.
-Sistemul nu intră în eroare fatală decât dacă ambele discuri cedează simultan.
-
-Alimentare redundantă datacenter:
-`Sursa_A_Funcțională OR Sursa_B_Funcțională → Server activ`.
-Un singur server cu două surse de alimentare independente.
-Poarta OR garantează că o pană de curent nu oprește sistemul.
-
-Protocoale de rutare (OSPF, BGP):
-`Ruta_Principală_Activă OR Ruta_De_Backup_Disponibilă → Trafic redirecționat`.
-Internetul supraviețuiește căderii unui nod pentru că tabelele de rutare
-evaluează continuu această condiție OR.
-
-Când o fibră optică se taie undeva în ocean, protocoalele nu "știu" că s-a tăiat.
-Detectează că condiția OR pentru acea rută a evaluat la 0
-și activează automat ruta de backup în secunde.
-
-Sistemele software de autentificare folosesc o arhitectură hibridă.
-După ce utilizatorul trece de bariera inițială (parolă AND token),
-menținerea sesiunii active e guvernată de OR:
-`Session_Cookie_Valid OR Refresh_Token_Valid → Continuare_Acces`.
-Un token expirat nu deconectează imediat — refresh token-ul e valid, OR rămâne 1.
-Toleranța OR aplicată la experiența utilizatorului.
-
-Toate sistemele de înaltă disponibilitate (HA — High Availability) sunt construite pe OR.
-Redundanța **e** OR implementat în hardware.
-
----
-
-### Arborele OR din APIC — 256 surse în 8 pași
-
-Procesorul tău primește semnale de întrerupere de la tastatură, placă de rețea, timer, USB.
-Un modul hardware numit APIC (Advanced Programmable Interrupt Controller)
-trebuie să detecteze dacă **oricare** din 256 de surse e activă.
-
-Nu poate verifica secvențial — la 3 GHz, o verificare secvențială a 256 de surse
-ar consuma un număr inacceptabil de cicluri înainte de a răspunde.
-
-Soluția: **OR tree** — arbore OR cu O(log n) niveluri.
+Procesorul primește semnale de întrerupere de la tastatură, placa de rețea, timer, USB. Un modul <Term def="Advanced Programmable Interrupt Controller: modulul care primește semnalele de întrerupere de la periferice și îi spune procesorului care dintre ele cere atenție.">APIC</Term> trebuie să detecteze dacă oricare din 256 de surse e activă. La 3 GHz nu o poate face secvențial, fiindcă o verificare una câte una a 256 de surse ar consuma un număr inacceptabil de cicluri înainte de răspuns, așa că folosește un arbore OR cu O(log n) niveluri:
 
 ```
 256 pini → 128 porți OR (nivel 1)
@@ -237,155 +71,71 @@ Soluția: **OR tree** — arbore OR cu O(log n) niveluri.
 64 → 32 → 16 → 8 → 4 → 2 → 1 semnal final
 ```
 
-log₂(256) = **8 niveluri**.
+log₂(256) = 8 niveluri, deci în 8 etape de porți APIC decide dacă oricare din 256 de surse cere atenție. E aceeași idee ca arborele AND din Lecția 12, cu alt operator: AND verifică dacă toate condițiile sunt îndeplinite, OR dacă cel puțin una e activă. Apoi un <Term def="Circuit care primește mai multe semnale active și indică numărul celui cu prioritatea cea mai mare.">priority encoder</Term> alege sursa cea mai prioritară; și el e construit din OR combinat cu AND.
 
-În 8 "tick-uri" de tranzistor, APIC decide dacă oricare din 256 de surse cere atenție.
-Aceeași idee ca AND tree din L12 — arbore logaritmic, operator diferit.
-AND tree verifica dacă toate condițiile sunt îndeplinite.
-OR tree verifică dacă cel puțin una e activă.
-Împreună acoperă cele două întrebări fundamentale ale oricărui sistem logic.
+## Orice funcție logică e o sumă de produse: DNF
 
-Odată ce APIC detectează că există o întrerupere activă,
-un **priority encoder** determină care sursă are prioritatea cea mai înaltă.
-Și priority encoder-ul e tot construit din porți OR combinate cu AND —
-un exemplu concret de DNF (sumă de produse) în acțiune.
+**DNF** (Forma Normală Disjunctivă) exprimă orice funcție logică ca o sumă de produse: OR la nivelul de sus, AND la cel de jos. Primul nivel verifică combinații specifice (AND strict), al doilea acceptă oricare dintre ele (OR tolerant), iar orice tabel de adevăr poate fi convertit în DNF.
 
----
+Exemplu, funcția „1 dacă exact două din trei intrări sunt 1”:
 
-### Forma Normală Disjunctivă — OR ca arhitectură universală
-
-DNF (Disjunctive Normal Form) e o metodă de a exprima orice funcție logică
-ca o sumă de produse: OR la nivel superior, AND la nivel inferior.
-
-Structura: primul nivel verifică combinații specifice (AND strict).
-Al doilea nivel acceptă oricare dintre acele combinații (OR tolerant).
-
-De ce e importantă? Pentru că orice tabel de adevăr poate fi convertit în DNF.
-
-Exemplu: funcția "output = 1 dacă exact două din trei intrări sunt 1":
 ```
 (A AND B AND NOT C) OR (A AND NOT B AND C) OR (NOT A AND B AND C)
 ```
 
-Trei combinații AND, unite de OR.
-Fiecare AND verifică o situație specifică.
-OR-ul colector acceptă oricare situație validă.
+Sunt trei combinații AND, unite de OR: fiecare AND verifică o situație, iar OR-ul colector acceptă oricare situație validă. AND definește ce condiții sunt suficiente, iar OR spune că oricare condiție suficientă declanșează acțiunea. Așa sunt făcute decodificatoarele de instrucțiuni, circuitele de vot majoritar și orice circuit combinațional complex.
 
-Aceasta e arhitectura din spatele decodificatoarelor de instrucțiuni,
-circuitelor de vot majoritar și a oricărui circuit combinațional complex.
-AND definește ce condiții sunt suficiente.
-OR definește că oricare condiție suficientă declanșează acțiunea.
+<InlineQuestion n="2" />
 
 <FactBox>
-  GPU-ul NVIDIA RTX 4090 execută aproximativ 41 de trilioane de operații
-  logice pe secundă (41 × 10¹² ALU operations/s).
-  O parte semnificativă din acestea sunt OR-uri pe canal alfa și masti de transparență —
-  la fiecare frame randat, fiecare pixel verifică dacă trebuie afișat.
-  OR stă la baza a ceea ce vezi pe ecran.
+  GPU-ul NVIDIA RTX 4090 execută ~41 × 10¹² de operații multiply-add pe secundă, adică 82,6 TFLOPS la precizie FP32 (un multiply-add se numără ca două operații în valoarea TFLOPS).
 </FactBox>
 
----
+## Votul majoritar combină AND și OR
 
-### Vot majoritar — AND și OR combinate
-
-Naveta spațială avea 5 computere de bord.
-Decizia de a modifica traiectoria se lua cu vot 3-din-5.
-
-Cum implementezi asta în hardware?
-
-Forma Normală Disjunctivă (DNF): o sumă de produse.
-Fiecare combinație validă de 3 voturi devine un AND.
-Toate combinațiile valide sunt unite printr-un OR colector.
+Naveta spațială avea 5 computere de bord: patru rulau același software și își comparau rezultatele prin vot, iar al cincilea rula un software independent, de rezervă. Să zicem că ai nevoie de un vot 3-din-5. Fiecare combinație validă de 3 voturi devine un AND, iar toate combinațiile sunt unite printr-un OR colector:
 
 ```
-Vot_Majoritar = (A·B·C) OR (A·B·D) OR (A·B·E) OR 
+Vot_Majoritar = (A·B·C) OR (A·B·D) OR (A·B·E) OR
                 (A·C·D) OR (A·C·E) OR (A·D·E) OR
                 (B·C·D) OR (B·C·E) OR (B·D·E) OR
                 (C·D·E)
 ```
 
-10 combinații de AND, unite prin OR.
-Sistemul ignoră un singur computer defect — dar acționează dacă oricare trei sunt de acord.
+Sunt 10 combinații AND unite prin OR. Un astfel de sistem tolerează două computere defecte, dar acționează dacă oricare trei cad de acord: rigoare locală (AND) combinată cu toleranță globală (OR).
 
-Rigoarea locală (AND) combinată cu toleranța globală (OR).
-Asta e DNF — și stă la baza oricărui circuit de decizie complex.
+## Alarmele folosesc OR: mai bine fals-pozitiv decât fals-negativ
 
----
+Monitoarele din terapie intensivă declanșează alarma dacă `Frecvență_Cardiacă_Anomală OR SpO2_Critic OR Tensiune_Arterială_Prăbușită`. De ce OR și nu AND? Cu AND, pacientul ar trebui să sufere simultan hipoxie severă, tahicardie extremă și hipotensiune ca să sune alarma, ceea ce nu are sens clinic.
 
-### Hub-urile Ethernet — OR implementat fizic pe fire
+OR acceptă fals-pozitive (alarme date de un senzor desprins) și refuză fals-negative (pacientul se degradează, iar aparatul tace). Aceasta e filozofia OR: mai bine alertezi inutil decât să ratezi o urgență reală.
 
-Înainte de switch-uri, rețelele foloseau **hub-uri**.
-Un hub e un repetor: dacă oricare port transmite, retransmite pe toate celelalte.
-
-Arhitectura electrică era "wired-OR" — firele de la toate porturile conectate la același bus.
-Dacă Portul 1 SAU Portul 2 trimitea tensiune ridicată, toți ceilalți o primeau.
-
-Problema: dacă două stații transmiteau simultan, semnalele se suprapuneau.
-Coliziune — date corupte.
-
-Switch-ul modern a înlocuit hub-ul tocmai pentru că nu mai folosește OR nediscriminatoriu.
-Fiecare port e izolat. Decizia de a retransmite e luată inteligent, nu prin OR brut.
-
-<CosmoHint emotion="surprised">
-  Internetul timpuriu era literalmente o rețea de porți OR fizice.
-  Fiecare hub era un OR cu N intrări: dacă oricare transmitea, toți auzeau.
-  Tranziția la switch-uri a fost tranziția de la OR la logică selectivă.
-  Un cablu coaxial din anii '90 era mai apropiat de un circuit logic
-  decât de ce înțelegem azi prin "rețea".
+<CosmoHint emotion="thinking">
+  Un sistem de airbaguri activează protecția dacă oricare senzor de impact (frontal, lateral) depășește pragul. Nu AND: altfel un impact pur lateral n-ar declanșa nimic. OR salvează vieți tocmai pentru că e permisiv.
 </CosmoHint>
 
----
+## Redundanța e OR implementat în hardware
 
-### OR și AND fără NOT — o lume incompletă
+<Term def="Redundant Array of Independent Disks, nivelul 1 (mirroring): aceleași date se scriu simultan pe două discuri, ca pierderea unuia să nu însemne pierderea datelor.">RAID 1</Term> scrie datele pe două discuri simultan, iar la citire `Disc_A_Funcțional OR Disc_B_Funcțional` înseamnă date disponibile: sistemul cade doar dacă ambele discuri cedează simultan. Alimentarea redundantă dintr-un datacenter funcționează la fel: `Sursa_A_Funcțională OR Sursa_B_Funcțională` ține serverul pornit: un singur server cu două surse de alimentare independente, la care o pană de curent pe una dintre ele nu oprește sistemul.
 
-Poți combina la infinit porți OR și AND.
-Dar nu poți construi un inversor NOT din ele.
+Pentru <Term def="Programe prin care routerele își comunică ce rute există și aleg drumul pachetelor. OSPF și BGP sunt cele mai folosite.">protocoalele de rutare</Term> (OSPF, BGP), `Ruta_Principală_Activă OR Ruta_De_Backup_Disponibilă` înseamnă trafic redirecționat. Când se taie o fibră în ocean, protocoalele nu „știu” asta; ele detectează că ruta principală nu mai răspunde și activează backup-ul, în secunde până la minute.
 
-Motivul: OR și AND sunt funcții **monotone**.
-Dacă o intrare trece de la 0 la 1, ieșirea poate rămâne neschimbată sau poate crește.
-Dar nu poate scădea de la 1 la 0.
+Autentificarea hibridă folosește același principiu: `Session_Cookie_Valid OR Refresh_Token_Valid` înseamnă acces continuat, deci un token expirat nu deconectează imediat utilizatorul, fiindcă refresh token-ul e încă valid. Toate sistemele de înaltă disponibilitate sunt construite pe OR; redundanța *este* OR implementat în hardware.
 
-Un NOT face exact asta: 1 → 0.
-Fără NOT, nu ai oscilație, nu ai feedback, nu ai memorie.
+## Hub-ul Ethernet: un OR brut între porturi
 
-Conform teoremei de completitudine funcțională a lui Emil Post:
-un set de porți monotone nu poate reprezenta toate funcțiile logice posibile.
+Înainte de switch-uri, rețelele locale foloseau hub-uri. Un hub e un repetor: dacă oricare port transmite, retransmite pe toate celelalte, deci comportamentul seamănă cu un OR. Problema: dacă două stații transmit simultan, semnalele se suprapun, apare o coliziune, iar datele se corup. Switch-ul modern a înlocuit hub-ul tocmai pentru că izolează porturile și retransmite selectiv, nu nediscriminatoriu.
 
-De aceea {AND, OR} nu e suficient.
-{AND, OR, NOT} — sau echivalent, {NAND} singur — acoperă totul.
+<CosmoHint emotion="surprised">
+  Internetul timpuriu semăna cu o rețea de porți OR: într-un hub, dacă oricare stație transmitea, toate auzeau. Trecerea la switch-uri a fost trecerea de la OR brut la logică selectivă.
+</CosmoHint>
 
----
+## AND și OR singure nu pot face un NOT
 
-## Reveal
+Poți combina la infinit porți OR și AND, dar nu poți construi din ele un NOT. Motivul: OR și AND sunt funcții <Term def="O funcție e monotonă dacă, atunci când o intrare trece de la 0 la 1, ieșirea poate rămâne la fel sau poate crește, dar nu poate scădea de la 1 la 0.">monotone</Term>, iar un NOT face exact ce o funcție monotonă nu poate: 1 → 0. Fără NOT nu ai oscilație și nu ai o memorie care să poată fi și ștearsă.
 
-OR e alternativa tolerantă a AND.
+Conform teoremei de completitudine funcțională a lui Emil Post, un set de porți monotone nu poate reprezenta toate funcțiile logice. {AND, OR} nu ajunge; {AND, OR, NOT} sau, echivalent, {NAND} singur, acoperă totul.
 
-AND spune: toate condițiile trebuie îndeplinite.
-OR spune: cel puțin una e suficientă.
+<InlineQuestion n="3" />
 
-Din OR derivă:
-sistemele de alarmă care nu ratează nicio urgență,
-redundanța care menține datacentrele funcționale,
-arborii de întreruperi care răspund în 8 pași la 256 de surse,
-votul majoritar care protejează navete spațiale de computere defecte.
-
-Channing și Farmer nu știau în 1852 că inventau o poartă logică.
-Știau că orice fum trebuie să declanșeze alarma.
-
-Intuiția lor — "cel puțin una" — e aceeași care stă azi în fiecare processor,
-router, și monitor medical din lume.
-
----
-
-## Ce urmează
-
-Ai acum AND și OR — filtrul strict și detectorul tolerant.
-
-Dar există o a treia posibilitate, mai subtilă.
-Ce se întâmplă când vrei să detectezi **diferența** — nu prezența sau absența?
-
-`1 OR 1 = 1` — ambele semnale sunt la 1, OR spune da.
-Dar ce dacă vrei să știi că **sunt diferite** unul de celălalt?
-
-Poarta XOR răspunde exact la această întrebare.
-Și e fundația aritmeticii binare, a criptografiei și a RAID 5.
+Ai acum AND și OR, filtrul strict și detectorul tolerant. Dar există o a treia posibilitate: să detectezi diferența, nu prezența. `1 OR 1 = 1`, însă ce faci dacă vrei să știi că cele două semnale sunt diferite? Poarta XOR răspunde, și e fundația aritmeticii binare, a criptografiei și a RAID 5. Intuiția lui Channing și Farmer, „cel puțin una”, e aceeași care stă azi în fiecare procesor, router și monitor medical.

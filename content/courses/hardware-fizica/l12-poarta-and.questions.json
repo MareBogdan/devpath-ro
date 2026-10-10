@@ -1,0 +1,54 @@
+{
+  "questions": [
+    {
+      "order": 1,
+      "type": "true_false",
+      "concept": "O etapă CMOS e inversoare: rețeaua de pull-down în serie dă NAND, iar AND cere NAND + NOT (6 tranzistori). Capcana: «AND e mai simplu, deci mai ieftin».",
+      "content": {
+        "prompt": "O poartă AND cu două intrări se poate construi în CMOS cu 4 tranzistori, ca NAND-ul, dacă rețeaua de pull-down e aranjată altfel.",
+        "correct": false,
+        "explanation": "O etapă CMOS este inversoare prin construcție: când rețeaua NMOS în serie conduce (A=1 ȘI B=1), ea trage ieșirea la 0, deci ieșirea e 0 la 1·1. Asta e NAND. Aranjând altfel rețeaua obții alte funcții inversoare (NOR), nu AND. Pentru AND ai nevoie de un invertor în plus după NAND, adică 4 + 2 = 6 tranzistori."
+      }
+    },
+    {
+      "order": 2,
+      "type": "short_answer",
+      "concept": "Bit masking: 0 în mască absoarbe, 1 lasă să treacă. Se produce un octet, deci short_answer. Caz nou față de exemplul din lecție (mască cu două grupuri).",
+      "content": {
+        "prompt": "Aplici masca 00111100 pe octetul 11010110, cu AND bit cu bit. Ce octet obții?",
+        "accepted": [
+          "00010100",
+          "10100",
+          "0001 0100",
+          "0b00010100",
+          "0b10100",
+          "00010100b"
+        ],
+        "explanation": "Pe fiecare poziție, AND lasă bitul să treacă doar unde masca are 1 și îl face 0 unde masca are 0. Octetul 11010110 are, pe pozițiile în care masca e 1 (bitele 5, 4, 3, 2), valorile 0, 1, 0, 1; restul pozițiilor devin 0. Rezultatul: 00010100. Cine reține și biții de la capete (11…10) a tratat masca drept OR."
+      }
+    },
+    {
+      "order": 3,
+      "type": "match_pairs",
+      "concept": "Masca de subrețea ca AND octet cu octet: 255 (toți biții 1) lasă octetul să treacă, 0 îl absoarbe. Trei măști → trei adrese de rețea (mapare).",
+      "content": {
+        "prompt": "Potrivește fiecare operație AND cu adresa de rețea pe care o produce.",
+        "pairs": [
+          {
+            "left": "192.168.1.47 AND 255.255.255.0",
+            "right": "192.168.1.0"
+          },
+          {
+            "left": "192.168.1.47 AND 255.255.0.0",
+            "right": "192.168.0.0"
+          },
+          {
+            "left": "10.20.30.40 AND 255.0.0.0",
+            "right": "10.0.0.0"
+          }
+        ],
+        "explanation": "AND se aplică octet cu octet: un octet de 255 (toți biții 1) lasă adresa să treacă nealterată, iar un octet de 0 absoarbe totul și dă 0. Cu 255.255.255.0 rămân primii trei octeți; cu 255.255.0.0, primii doi; cu 255.0.0.0, doar primul. Cu cât masca are mai mulți octeți de 255, cu atât partea de rețea din adresă e mai lungă."
+      }
+    }
+  ]
+}

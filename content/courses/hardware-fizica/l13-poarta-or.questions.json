@@ -1,0 +1,62 @@
+{
+  "questions": [
+    {
+      "order": 1,
+      "type": "single_choice",
+      "concept": "Cum construiești un OR rapid: NOR are PMOS (goluri, lenți) în serie, deci e mai lent; prin De Morgan, OR = NAND cu intrările negate, cu NMOS în serie. Caz de decizie între trei variante.",
+      "content": {
+        "prompt": "Vrei să construiești un OR cât mai rapid în CMOS și ai la dispoziție porți NAND, NOR și NOT. Ce alegi?",
+        "options": [
+          "Alegi NOR urmat de NOT, fiindcă NOR dă direct paralelul care implementează OR",
+          "Alegi NAND cu intrările negate, fiindcă are în serie NMOS, nu PMOS, mai lenți",
+          "Alegi AND urmat de NOT, fiindcă AND e cea mai simplă poartă din tehnologia CMOS"
+        ],
+        "correct_index": 1,
+        "explanation": "Prin De Morgan, A OR B = NAND(NOT A, NOT B). NAND are tranzistorii în serie de tip NMOS, la care purtătorii sunt electroni (1.400 cm²/V·s), pe când NOR are în serie PMOS, cu goluri (450 cm²/V·s), mai lenți. De aceea NAND cu intrări negate bate NOR + NOT. AND nu există direct în CMOS: e el însuși un NAND + NOT."
+      },
+      "distractors": [
+        "Alege soluția «naturală» fără să țină cont de viteză: NOR + NOT merge, dar are PMOS în serie, care sunt lenți.",
+        null,
+        "Crede că AND e cea mai simplă poartă din CMOS, când poarta nativă e NAND/NOR (4 tranzistori), iar AND = NAND + NOT (6)."
+      ]
+    },
+    {
+      "order": 2,
+      "type": "fill_blank",
+      "concept": "DNF: fiecare combinație cu rezultat 1 devine un termen AND; termenii sunt uniți de un OR. Numărul de termeni = numărul de rânduri cu 1 din tabelul de adevăr.",
+      "content": {
+        "prompt": "O funcție de A, B, C are valoarea 1 doar pentru combinațiile 011 și 101. Scrisă în DNF, ea are {{1}} termeni AND, uniți de o poartă {{2}}.",
+        "blanks": [
+          {
+            "accepted": [
+              "2",
+              "doi",
+              "două",
+              "doua",
+              "2 termeni"
+            ]
+          },
+          {
+            "accepted": [
+              "or",
+              "sau",
+              "OR",
+              "SAU"
+            ]
+          }
+        ],
+        "explanation": "În DNF fiecare rând al tabelului de adevăr cu rezultat 1 devine un termen AND care verifică exact acea combinație: aici (NOT A AND B AND C) pentru 011 și (A AND NOT B AND C) pentru 101. Cele două situații valide sunt acceptate de un OR colector. Două combinații cu 1 înseamnă deci doi termeni AND și un OR."
+      }
+    },
+    {
+      "order": 3,
+      "type": "true_false",
+      "concept": "Monotonie: AND și OR nu pot scădea 1 → 0 când o intrare crește, deci nu pot genera un NOT; {AND, OR} nu e funcțional complet.",
+      "content": {
+        "prompt": "Cu un număr suficient de porți AND și OR, fără nicio poartă NOT, poți construi un inversor.",
+        "correct": false,
+        "explanation": "AND și OR sunt monotone: când o intrare crește de la 0 la 1, ieșirea poate rămâne la fel sau crește, dar nu scade niciodată de la 1 la 0. Un inversor face exact asta, deci nu se poate obține prin nicio combinație de AND și OR. Pentru completitudine ai nevoie de NOT (sau de NAND, care îl conține)."
+      }
+    }
+  ]
+}

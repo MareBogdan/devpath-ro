@@ -3,70 +3,28 @@ title: "Poarta XOR"
 order: 14
 type: lesson
 module_index: 3
-duration: 12
+duration: 11
 difficulty: 3
 ---
 
-## Weekendul care a schimbat criptografia
+Richard Hamming lucra la Bell Labs în jurul anului 1950. Programa calculatoarele vineri seara și le lăsa să ruleze peste weekend, iar luni dimineața le găsea oprite. Motivul: o singură gaură greșit perforată într-o cartelă. Un singur bit greșit arunca tot calculul.
 
-Richard Hamming lucra la Bell Labs în jurul anului 1950.
-Programa calculatoarele vineri seara și le lăsa să ruleze peste weekend.
-Luni dimineața găsea mașinile oprite.
+Hamming era furios: „Dacă mașina poate detecta eroarea, de ce nu o poate corecta?” A inventat un sistem bazat pe o singură operație, XOR, care putea localiza exact bitul corupt și îl putea inversa automat, fără intervenție umană. Astăzi, același principiu stă în memoriile RAM cu ECC din servere, în discurile RAID din datacentere și în cifrurile care îți protejează mesajele: detectorul de diferență.
 
-Motivul: o singură gaură greșit perforată într-o cartelă.
-Un singur bit greșit arunca tot calculul.
+Lecția 13 a lăsat o întrebare: `1 OR 1 = 1`, ambele semnale la 1, iar OR spune da, dar ce faci dacă vrei să știi că sunt diferite? Dar nici OR, nici AND nu răspund la „sunt egale sau diferite?”. XOR e detectorul de diferență, activ când intrările sunt asimetrice și inactiv când sunt identice. Din această proprietate aparent simplă derivă aritmetica binară și criptografia modernă.
 
-Hamming era furios. "Dacă mașina poate detecta eroarea, de ce nu o poate corecta?"
-
-A inventat un sistem bazat pe o singură operație matematică — XOR —
-care putea localiza exact bitul corupt și îl putea inversa automat.
-
-Fără intervenție umană. Fără retransmisie. Fără weekend pierdut.
-
-Astăzi, același principiu protejează memoriile RAM din serverele Google,
-datele de pe discurile RAID din orice datacenter și mesajele tale criptate pe WhatsApp.
-
-Totul din aceeași operație: detectorul de diferență.
-
----
-
-## Ce s-a schimbat față de lecțiile trecute
-
-C1L13 a lăsat o întrebare: `1 OR 1 = 1` — ambele semnale la 1, OR spune da.
-Dar ce dacă vrei să știi că **sunt diferite** unul de celălalt?
-
-OR spune "cel puțin una e activă".
-AND spune "toate sunt active".
-
-Dar niciuna nu răspunde la "sunt egale sau diferite?"
-
-XOR răspunde exact la această întrebare.
-E detectorul de diferență — activ când intrările sunt **asimetrice**, inactiv când sunt identice.
-Și din această proprietate aparent simplă derivă aritmetica binară și criptografia modernă.
-
----
-
-## Miezul
-
-### Tabelul de adevăr — detectorul de asimetrie
+## XOR dă 1 când intrările diferă
 
 | A | B | A ⊕ B |
 |---|---|---|
-| 0 | 0 | 0 — identice, nu există diferență |
-| 0 | 1 | **1** — asimetrice |
-| 1 | 0 | **1** — asimetrice |
-| 1 | 1 | 0 — identice, ambele active |
+| 0 | 0 | 0 — identice |
+| 0 | 1 | 1 — asimetrice |
+| 1 | 0 | 1 — asimetrice |
+| 1 | 1 | 0 — identice |
 
-Ultima linie e distincția față de OR: `1 OR 1 = 1`, dar `1 XOR 1 = 0`.
-XOR exclude cazul de redundanță maximă — de aceea se numește "SAU Exclusiv".
+Ultima linie e distincția față de OR: `1 OR 1 = 1`, dar `1 XOR 1 = 0`. XOR exclude cazul de redundanță maximă, de aceea se numește „SAU Exclusiv”. Pentru N intrări, XOR este 1 dacă și numai dacă numărul de intrări la 1 este impar, definiție care stă la baza calculelor de <Term def="Un bit adăugat unui șir de date, ales ca numărul total de 1 să fie par (sau impar). Dacă la citire numărul nu mai e par, înseamnă că un bit s-a schimbat.">paritate</Term> din telecomunicații.
 
-Definiția generalizată pentru N intrări:
-**XOR = 1 dacă și numai dacă numărul de intrări la 1 este impar.**
-Această definiție stă la baza tuturor calculelor de paritate din telecomunicații.
-
----
-
-### Proprietățile algebrice — invertorul programabil
+## XOR e un invertor programabil
 
 ```
 A ⊕ B = B ⊕ A        (comutativitate)
@@ -77,97 +35,19 @@ A ⊕ A = 0            (auto-inversare — nilpotență)
 A ⊕ B ⊕ A = B        (anulare — fundația criptografiei)
 ```
 
-Proprietatea `A ⊕ 1 = NOT(A)` e una din cele mai elegante din logica digitală.
+Proprietatea `A ⊕ 1 = NOT(A)` e una dintre cele mai elegante din logica digitală: o singură poartă XOR e și <Term def="Circuit care repetă la ieșire exact ce primește la intrare, fără să schimbe semnalul.">buffer</Term>, și inversor, controlată de a doua intrare. Cu 0, semnalul trece nemodificat; cu 1, e inversat bit cu bit. În AES, pasul AddRoundKey folosește fiecare bit al cheii ca să decidă dacă bitul corespunzător din date se inversează: 128 de porți XOR, 128 de decizii simultane.
 
-O singură poartă XOR poate fi atât buffer cât și inversor — controlat de a doua intrare.
-Dacă a doua intrare e 0: semnalul trece nemodificat.
-Dacă a doua intrare e 1: semnalul e inversat bit cu bit.
+Proprietatea de anulare, `A ⊕ B ⊕ A = B`, spune că aplicând XOR cu aceeași valoare de două ori revii la original. Pe ea se bazează decriptarea: `Mesaj XOR Cheie = Cifrat`, iar `Cifrat XOR Cheie = Mesaj`.
 
-În AES, fiecare bit al cheii de criptare controlează dacă bitul corespunzător din date
-se inversează sau nu. 128 de porți XOR, 128 de decizii simultane, o rundă de criptare.
+## One-Time Pad: securitate perfectă prin XOR
 
-**Proprietatea de anulare:** `A ⊕ B ⊕ A = B`
-Dacă aplici XOR cu aceeași valoare de două ori, revii la original.
-Aceasta e fundația matematică a decriptării:
-`Mesaj XOR Cheie = Cifrat` → `Cifrat XOR Cheie = Mesaj`
+În 1917, Gilbert Vernam, la AT&T, a construit un cifru telegrafic în care relee combină impulsurile mesajului cu cele ale unei benzi perforate cu o cheie. Joseph Mauborgne a observat apoi că, dacă banda e cu adevărat aleatoare și folosită o singură dată, cifrul nu mai poate fi spart: One-Time Pad (OTP). În 1949, Claude Shannon a demonstrat în „Communication Theory of Secrecy Systems” că OTP are **securitate perfectă** demonstrabilă, cu trei condiții obligatorii:
 
----
-
-### XOR nu e distributiv față de AND
-
-O eroare frecventă: presupunerea că XOR se comportă ca OR față de AND.
-
-OR e distributiv: `A OR (B AND C) = (A OR B) AND (A OR C)` ✓
-XOR **nu** e distributiv: `A XOR (B AND C) ≠ (A XOR B) AND (A XOR C)` ✗
-
-Această lipsă de distributivitate restricționează optimizările compilatoarelor
-și forțează extinderea completă a expresiilor în DNF.
-Un detaliu cu consecințe concrete în proiectarea microprocesoarelor.
-
----
-
-### Half Adder — XOR + AND = adunare binară
-
-Vrei să aduni doi biți: A și B.
-
-**Suma** = A ⊕ B (detectorul de diferență — 1 dacă exact unul e 1)
-**Transport (Carry)** = A AND B (1 doar dacă ambii sunt 1)
-
-| A | B | Suma (A⊕B) | Carry (A∧B) |
-|---|---|---|---|
-| 0 | 0 | 0 | 0 |
-| 0 | 1 | 1 | 0 |
-| 1 | 0 | 1 | 0 |
-| 1 | 1 | 0 | **1** |
-
-Acesta e **Half Adder** — sumatorul pe jumătate.
-Se numește "pe jumătate" pentru că nu are intrare pentru transportul din etapa anterioară.
-
-{/* ANIMATION: schema Half Adder — A și B intră în XOR (Suma) și AND (Carry) */}
-
----
-
-### Full Adder — trei biți, XOR de două ori
-
-**Full Adder** adaugă un al treilea pin: **Cin** (transport de intrare).
-
-```
-Suma  = A ⊕ B ⊕ Cin
-Cout  = (A AND B) OR (Cin AND (A XOR B))
-```
-
-XOR apare de **exact 2 ori** într-un Full Adder.
-Un Full Adder optim necesită **9 porți NAND** = 36 de tranzistori.
-
-<FactBox>
-  Un Ripple-Carry Adder pe 8 biți înlănțuie 8 Full Adder-e.
-  Necesită 16 porți XOR și ~288 de tranzistori — doar pentru a aduna două numere de 8 biți.
-  La 64 de biți, suma nu poate fi calculată până când transportul nu "ondulează"
-  prin toți biții anteriori — motiv pentru care procesoarele folosesc
-  Carry-Lookahead Adders care anticipează transportul în paralel.
-  Fundamentul sumei rămâne același: XOR.
-</FactBox>
-
----
-
-### One-Time Pad — securitatea perfectă demonstrată matematic
-
-**1917.** Gilbert Vernam, AT&T, Prima Conferință Mondială.
-Configurează relee care suprapun impulsurile unui mesaj telegrafic
-cu impulsuri de pe o bandă perforată cu caractere aleatorii.
-Rezultat: transmisie de neînțeles pentru inamic.
-
-Vernam a creat One-Time Pad (OTP) — fără să știe că e perfect matematic.
-
-**1949.** Claude Shannon demonstrează în "Communication Theory of Secrecy Systems"
-că OTP e singurul sistem de criptare cu **securitate perfectă** demonstrabilă.
-
-Trei condiții obligatorii:
 1. Cheia trebuie să fie cel puțin la fel de lungă ca mesajul
-2. Cheia trebuie să fie cu adevărat aleatoare (nu pseudo-aleatoare)
+2. Cheia trebuie să fie cu adevărat aleatoare, nu pseudo-aleatoare
 3. Cheia trebuie folosită o singură dată și distrusă complet
 
-Cum funcționează în practică — un exemplu pe 3 biți:
+Un exemplu pe 3 biți:
 
 ```
 Mesaj:   1 0 1
@@ -181,182 +61,102 @@ Cheie:   0 1 1
 Mesaj:   1 0 1   (același XOR reconstituie originalul)
 ```
 
-Proprietatea de anulare garantează că aplicarea cheii de două ori revine la mesajul original.
-Fără cheie, cifrul de 3 biți `1 1 0` ar putea fi orice mesaj de 3 biți — toate sunt la fel de probabile.
-Aceasta e securitatea perfectă: atacatorul nu câștigă nicio informație din textul cifrat.
-
-De ce e impractică: pentru a trimite un film de 2GB criptat cu OTP,
-trebuie să livrezi fizic destinatarului un hard disk cu 2GB de cheie aleatoare.
-Înainte de a trimite filmul.
+Anularea garantează că aplicarea cheii a doua oară revine la mesajul original. Fără cheie, cifrul `1 1 0` ar putea fi orice mesaj de 3 biți, toate la fel de probabile: atacatorul nu câștigă nicio informație din textul cifrat. De ce e impractic: pentru un film de 2 GB trebuie să livrezi fizic destinatarului, în prealabil, un hard disk cu 2 GB de cheie aleatoare.
 
 <CosmoHint emotion="thinking">
-  Dacă OTP e perfect matematic, de ce nu îl folosim pentru tot?
-  Problema e că distribuirea cheii e la fel de grea ca distribuirea mesajului original.
-  De aceea criptografia modernă folosește chei mici (256 biți)
-  și algoritmi care generează un keystream pseudo-aleator lung — ChaCha20, AES.
-  Securitate practică în loc de securitate perfectă.
+  Dacă OTP e perfect matematic, de ce nu îl folosim pentru tot? Distribuirea cheii e la fel de grea ca distribuirea mesajului. De aceea criptografia modernă folosește chei mici (256 de biți) și algoritmi care generează un flux pseudo-aleator lung, ca ChaCha20 și AES: securitate practică în loc de securitate perfectă.
 </CosmoHint>
 
----
+<InlineQuestion n="1" />
 
-### ChaCha20 — XOR în HTTPS
+## ChaCha20 folosește XOR în HTTPS
 
-Când accesezi orice site HTTPS, conexiunea ta e criptată cu TLS 1.3.
-Mulți servere folosesc **ChaCha20-Poly1305** — inventat de Daniel Bernstein în 2008.
+Conexiunile HTTPS folosesc <Term def="Transport Layer Security, versiunea 1.3: protocolul care criptează conexiunea dintre browser și un site.">TLS 1.3</Term>, iar unul dintre cifrurile lui este ChaCha20-Poly1305, creat de Daniel Bernstein (ChaCha, 2008) și des ales pe dispozitive fără accelerare hardware pentru AES. Paradigma lui e **ARX**: adunare (modulară, pe 32 de biți, care amestecă biții prin transport), rotație circulară (mută biții în alte poziții) și XOR (combină rezultatele și dispersează influența cheii).
 
-Paradigma ChaCha20: **ARX** — Addition, Rotation, XOR.
-Fiecare operație din această trilogie e deliberat aleasă pentru viteză și securitate:
-- **Addition** (adunare modulară pe 32 biți) — amestecă biții prin transport
-- **Rotation** (rotație circulară a biților) — mișcă biții în alte poziții
-- **XOR** — combină rezultatele, dispersând influența cheii
+Starea internă e o matrice de 16 cuvinte pe 32 de biți (512 biți): 4 constante fixe, 8 cuvinte din cheie, un contor de 32 de biți și un <Term def="Număr folosit o singură dată pentru fiecare mesaj, care face ca aceeași cheie să producă fluxuri de cifrare diferite.">nonce</Term> de 96 de biți. Un *quarter round* modifică 4 din cele 16 cuvinte (`<<<` e rotație circulară la stânga):
 
-Starea internă ChaCha20 e o matrice de 16 cuvinte pe 32 biți (512 biți total):
-4 constante fixe, 8 cuvinte din cheie, un contor de 32 biți și un nonce de 96 biți.
-
-Un **quarter round** modifică 4 din cele 16 cuvinte astfel:
 ```
 a += b; d ^= a; d <<<= 16;
 c += d; b ^= c; b <<<= 12;
 a += b; d ^= a; d <<<= 8;
 c += d; b ^= c; b <<<= 7;
 ```
-(`<<<` = rotație circulară la stânga cu N biți)
 
-XOR apare de **4 ori** într-un singur quarter round.
-ChaCha20 rulează **20 de runde** per bloc de 64 octeți.
-La final, starea transformată e XOR-ată cu datele originale → trafic criptat.
+XOR apare de 4 ori într-un singur quarter round, iar ChaCha20 rulează 20 de runde per bloc de 64 de octeți. Rezultatul e un <Term def="Șir lung de biți imprevizibili, produs din cheie, care se combină prin XOR cu datele de cifrat.">keystream</Term> care se combină prin XOR cu datele, iar Poly1305 adaugă un cod de autentificare, deci confidențialitate (XOR) plus integritate într-un singur algoritm.
 
-Adăugând Poly1305 pentru autentificare, obții AEAD —
-confidențialitate (XOR) + integritate (hash) într-un singur algoritm.
+## Half Adder și Full Adder: XOR și AND adună
 
----
+Vrei să aduni doi biți, A și B. Suma este A ⊕ B (1 dacă exact unul e 1), iar transportul (carry) este A AND B (1 doar dacă ambii sunt 1).
 
-### RAID 5 — XOR salvează discuri
+| A | B | Suma (A⊕B) | Carry (A∧B) |
+|---|---|---|---|
+| 0 | 0 | 0 | 0 |
+| 0 | 1 | 1 | 0 |
+| 1 | 0 | 1 | 0 |
+| 1 | 1 | 0 | 1 |
 
-Trei discuri. Unul pică. Datele se recuperează.
+Acesta e **Half Adder**, „pe jumătate” fiindcă nu are intrare pentru transportul din etapa anterioară. **Full Adder** adaugă un al treilea pin, Cin (transport de intrare):
 
-Cum?
+```
+Suma  = A ⊕ B ⊕ Cin
+Cout  = (A AND B) OR (Cin AND (A XOR B))
+```
+
+XOR apare de exact 2 ori într-un Full Adder, iar unul optim necesită 9 porți NAND, adică 36 de tranzistori.
+
+<FactBox>
+  Un Ripple-Carry Adder pe 8 biți înlănțuie 8 Full Adder-e: 16 porți XOR și ~288 de tranzistori, doar pentru a aduna două numere de 8 biți. La 64 de biți, suma nu poate fi calculată până când transportul nu „ondulează” prin toți biții anteriori, motiv pentru care procesoarele folosesc Carry-Lookahead Adders, care anticipează transportul în paralel. Fundamentul sumei rămâne același: XOR.
+</FactBox>
+
+## RAID 5: XOR recuperează un disc pierdut
+
+Trei discuri, unul pică, datele se recuperează. Cum? Paritatea este XOR-ul celorlalte:
 
 ```
 Disc1 XOR Disc2 = Disc3_Paritate
 ```
 
-Dacă Disc1 pică:
-```
-Disc3_Paritate XOR Disc2 = Disc1_Recuperat
-```
-
-Proprietatea de anulare face totul posibil.
+Dacă Disc1 pică, `Disc3_Paritate XOR Disc2 = Disc1_Recuperat`. Anularea face totul posibil.
 
 <FactBox>
-  Un disc de 4TB = 32 de trilioane de biți.
-  La 200 MB/s citire, reconstrucția teoretică durează ~5,5 ore.
-  În practică, firmware-ul limitează reconstrucția la 30% din capacitate
-  pentru a nu afecta sistemele active — reconstrucția reală durează 24–48 de ore.
-  În tot acest timp, sistemul e vulnerabil: dacă mai pică un disc, toate datele dispar.
-  RAID nu e backup. E toleranță la o singură defecțiune.
+  Un disc de 4 TB are 3,2 × 10¹³ biți. La 200 MB/s, citirea lui durează ~5,5 ore, dar reconstrucția reală, limitată de firmware ca să nu afecteze sistemele active, durează adesea 24–48 de ore. În tot acest timp sistemul e vulnerabil: dacă mai pică un disc, toate datele dispar. RAID nu e backup, ci toleranță la o singură defecțiune.
 </FactBox>
 
----
+<InlineQuestion n="2" />
 
-### Codul Hamming — XOR localizează eroarea
+## XOR în programare: trucuri și optimizări
 
-Schema **Hamming(7,4)**: 4 biți de date + 3 biți de paritate = 7 biți total.
+Paritatea unui șir e XOR-ul tuturor biților: `1 XOR 0 XOR 1 XOR 1 = 1`. Ea detectează erori singulare, dar nu le poate corecta, fiindcă nu știe care bit e greșit.
 
-Biții de paritate sunt plasați la pozițiile puteri ale lui 2 (1, 2, 4).
-Fiecare bit de paritate supraveghează un subset specific din biții de date — prin XOR.
+În assembly, registrul se zeroizează idiomatic cu `XOR EAX, EAX`, nu cu `MOV EAX, 0`: instrucțiunea ocupă 2 octeți în loc de 5 și rulează cu latență zero pe procesoare moderne. Procesorul detectează că XOR cu sine dă 0 și, prin <Term def="Tehnică prin care procesorul mapează registrele logice din cod pe registre fizice diferite, ca instrucțiunile să nu aștepte unele după altele.">redenumirea registrelor</Term>, îl mapează pe un registru fizic ținut constant la zero, fără niciun calcul.
 
-La citire, procesorul recalculează cele 3 ecuații de paritate.
-Dacă toate sunt 0: nicio eroare.
-Dacă nu: rezultatul celor 3 biți formează un număr binar = **adresa exactă a bitului corupt**.
-
-Procesorul aplică XOR cu 1 pe acel bit → eroarea e corectată automat.
-
-Astăzi, memoriile RAM ECC din servere folosesc extensii ale codului Hamming
-pentru a detecta și corecta erorile cauzate de radiații cosmice.
-
----
-
-### XOR în programare — trucuri și optimizări
-
-**Bitul de paritate:**
-```
-1 XOR 0 XOR 1 XOR 1 = 1
-```
-Paritatea unui șir = XOR-ul tuturor biților.
-Detectează erori singulare. Nu le poate corecta (nu știe care bit e greșit).
-
-**Zeroing register — idiomatic în assembly:**
-```assembly
-XOR EAX, EAX   ; setează EAX la 0
-```
-Nu `MOV EAX, 0` (5 octeți, constanta în instrucțiune).
-`XOR EAX, EAX` ocupă 2 octeți și rulează cu **latență zero cicluri** pe procesoare moderne.
-
-De ce? Register renaming: procesorul detectează că XOR cu sine = 0
-și redirecționează pointerul logic la un registru fizic ținut constant la zero.
-Niciun calcul nu are loc — redenumire de registru în etapa de dispatch.
-
-**Swap fără variabilă temporară (elegant dar lent):**
-```
-a = a XOR b
-b = a XOR b  (= a)
-a = a XOR b  (= b)
-```
-Funcționează datorită proprietății de anulare.
-Dar pe procesoarele superscalare moderne, creează dependențe de date în lanț.
-Compilatoarele moderne nu îl generează — swap direct cu registru temporar e mai rapid.
+Un swap fără variabilă temporară, `a = a XOR b; b = a XOR b; a = a XOR b`, funcționează datorită anulării, dar pe procesoarele superscalare creează dependențe de date în lanț, iar compilatoarele moderne preferă un registru temporar.
 
 <CosmoHint emotion="surprised">
-  `XOR EAX, EAX` are latență zero pe Intel și AMD moderne.
-  Procesorul nu calculează nimic — detectează pattern-ul și redenumiește registrul.
-  E probabil singura operație pe un CPU modern cu cost de execuție absolut zero.
-  Și e un XOR.
+  `XOR EAX, EAX` e una dintre puținele operații cu cost de execuție aproape zero pe procesoarele moderne, și e un XOR.
 </CosmoHint>
 
-**Elementul unic dintr-un array:**
+Elementul unic dintr-un array în care toate celelalte apar de două ori se găsește într-o singură trecere, cu o singură variabilă:
+
 ```python
-# Toate elementele apar de 2 ori, unul singur apare o dată
 result = 0
 for x in array:
     result ^= x
 # result = elementul unic
 ```
-Funcționează pentru că `A XOR A = 0` și `A XOR 0 = A`.
-Toate perechile se anulează. Rămâne elementul unic.
-O singură trecere prin array. O singură variabilă. Zero memorie extra.
 
----
+Funcționează fiindcă `A XOR A = 0` și `A XOR 0 = A`: toate perechile se anulează și rămâne elementul unic.
 
-## Reveal
+## Codul Hamming: XOR localizează eroarea
 
-XOR e detectorul de diferență al logicii binare.
+Schema **Hamming(7,4)** are 4 biți de date și 3 biți de paritate, deci 7 în total. Biții de paritate stau pe pozițiile puteri ale lui 2 (1, 2, 4), iar fiecare supraveghează prin XOR un subset din biții de date.
 
-Din proprietatea sa simplă — 1 când intrările sunt asimetrice — derivă:
-sumatorul binar (Suma = XOR, Carry = AND),
-criptografia perfectă (anulare cu aceeași cheie),
-RAID 5 (reconstrucție din paritate),
-codul Hamming (localizarea bitului corupt),
-și zeroing registers cu latență zero în assembly.
+La citire, procesorul recalculează cele 3 ecuații de paritate. Dacă toate dau 0, nu există eroare. Altfel, cele 3 rezultate formează un număr binar, adică adresa exactă a bitului corupt, iar procesorul aplică XOR cu 1 pe acel bit și eroarea se corectează automat. Memoriile RAM ECC din servere folosesc extensii ale codului Hamming, ca să detecteze și să corecteze erorile cauzate de radiații cosmice.
 
-Vernam l-a construit fizic în 1917 cu relee.
-Shannon l-a dovedit perfect matematic în 1949.
-Hamming l-a folosit pentru a corecta erori în 1950.
-Bernstein l-a pus în HTTPS în 2008.
+<InlineQuestion n="3" />
 
-Același operator. Proprietăți diferite exploatate diferit.
+## XOR leagă secole de matematică de internetul de azi
 
-XOR e poarta care demonstrează că din logică simplă pot ieși sisteme complexe.
+Vernam a construit cifrul în 1917, Shannon a dovedit în 1949 că OTP e perfect, Hamming a corectat erori cu XOR în 1950, iar ChaCha20 (2008) a ajuns în HTTPS prin 2014–2016: același operator, cu proprietăți diferite exploatate diferit.
 
----
-
-## Ce urmează
-
-Ai acum NOT, AND, OR și XOR — cele patru porți fundamentale.
-
-Dar există o singură poartă din care le poți construi pe toate celelalte.
-O singură poartă care e suficientă pentru orice circuit digital posibil.
-
-Aceasta e **NAND** — cărămida universală.
-Și demonstrarea că un singur tip de poartă poate înlocui toate celelalte
-e subiectul lecției următoare.
+Ai acum NOT, AND, OR și XOR, cele patru porți fundamentale. Dar există o singură poartă din care le poți construi pe toate celelalte: NAND, cărămida universală, subiectul lecției următoare.

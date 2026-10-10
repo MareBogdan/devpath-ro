@@ -1,0 +1,62 @@
+{
+  "questions": [
+    {
+      "order": 1,
+      "type": "short_answer",
+      "concept": "Structura CMOS a lui NAND generalizată: n NMOS în serie + n PMOS în paralel = 2n tranzistori; AND = NAND + inversor (2). Pentru n=3: 6 + 2 = 8. Se produce un număr.",
+      "content": {
+        "prompt": "Câți tranzistori are, în CMOS, o poartă AND cu 3 intrări?",
+        "accepted": [
+          "8",
+          "opt",
+          "8 tranzistori",
+          "opt tranzistori"
+        ],
+        "explanation": "AND nu există direct în CMOS: se face dintr-un NAND urmat de un inversor. NAND cu 3 intrări are 3 NMOS în serie (pull-down) și 3 PMOS în paralel (pull-up), adică 6 tranzistori, iar inversorul adaugă încă 2. Total: 8. Cine răspunde 6 numără doar NAND-ul, fără etajul de inversie."
+      }
+    },
+    {
+      "order": 2,
+      "type": "match_pairs",
+      "concept": "Construcții din NAND: NOT = NAND cu intrările legate; AND = NAND urmat de NAND-ca-inversor; OR = NAND-uri pe intrări negate (De Morgan). Mapare poartă → construcție.",
+      "content": {
+        "prompt": "Potrivește fiecare poartă cu felul în care se construiește exclusiv din NAND.",
+        "pairs": [
+          {
+            "left": "NOT",
+            "right": "O poartă NAND cu ambele intrări legate la același semnal"
+          },
+          {
+            "left": "AND",
+            "right": "Un NAND urmat de un al doilea NAND cu intrările legate"
+          },
+          {
+            "left": "OR",
+            "right": "Trei NAND: două inversează câte o intrare, al treilea le combină"
+          }
+        ],
+        "explanation": "Cu intrările legate, A NAND A = NOT(A). AND este NOT(NAND), deci un NAND urmat de un NAND folosit ca inversor (2 porți). Pentru OR se folosește De Morgan, A∨B = NOT(NOT A · NOT B): două NAND-uri inversează intrările, iar al treilea le combină (3 porți)."
+      }
+    },
+    {
+      "order": 3,
+      "type": "single_choice",
+      "concept": "SR latch din NAND (active-low): un puls pe S̄ setează Q=1, iar revenirea la 1,1 memorează valoarea. Capcane: revenirea la starea veche și starea interzisă.",
+      "content": {
+        "prompt": "Un latch SR din NAND (active-low) are S̄=1, R̄=1 și Q=0. Duci S̄ la 0 pentru o clipă, apoi îl readuci la 1. Ce ține latch-ul după aceea?",
+        "options": [
+          "Q=0, fiindcă readucerea lui S̄ la valoarea 1 anulează setarea făcută de puls",
+          "Q=1, fiindcă pulsul l-a setat, iar bucla de feedback îl păstrează acum",
+          "Starea invalidă, fiindcă S̄ și R̄ au fost schimbate rând pe rând, nu simultan"
+        ],
+        "correct_index": 1,
+        "explanation": "S̄=0 (cu R̄=1) forțează Q=1: aceasta e comanda Set. Când S̄ revine la 1, latch-ul intră în starea de memorare (1,1) și își păstrează ultima valoare, adică Q=1. Starea interzisă ar apărea doar dacă S̄ și R̄ ar fi ambii 0 în același timp."
+      },
+      "distractors": [
+        "Crede că setarea durează doar cât ține pulsul, ca la un întrerupător fără memorie, când bucla de feedback păstrează valoarea după ce pulsul dispare.",
+        null,
+        "Confundă ordinea intrărilor cu starea interzisă: aceea apare numai când ambele intrări sunt active (0) simultan, nu când sunt schimbate pe rând."
+      ]
+    }
+  ]
+}
