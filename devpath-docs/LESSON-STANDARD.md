@@ -168,11 +168,13 @@ Pilot terms (position in the lesson): *tip P* (24%), *nodurile* (28%), *electron
 ### 5.1 Placement — at concept boundaries, never clustered at the end
 Put `<InlineQuestion n="1" />` (**string form**, on its own line) **right after the section it tests**:
 
-| Slot | Where | Type (usual) | What it tests |
+| Slot | Where | Type (a starting point, not a default) | What it tests |
 |---|---|---|---|
 | **Q1** | after the **first real concept** (≈ 20–40% of the lesson) | `true_false` or `single_choice` | a distinction the reader just met |
 | **Q2** | after the **main mechanism** (≈ 40–70%) | `fill_blank`, `ordering` or `match_pairs` | the mechanism itself — a sequence, a mapping, the missing term |
 | **Q3** | second half (≈ 50–95%), **right after the last concept it tests**, before the wrap-up | `short_answer`, or a *hard* `single_choice` | applying the idea to a new case |
+
+**Choose the type per concept, not per slot (owner rule, 2026-10-11).** The "usual" types above are where to start, not what to reach for out of habit. For each question ask which type tests *this* concept best: a case to classify (`single_choice` / `true_false`), a sequence or mapping (`ordering` / `match_pairs` / `fill_blank`), a number or term to produce (`short_answer`). Use all six across the course; state in the lesson report, in one clause, why each type fits its concept; two lessons in a row with the identical Q1/Q2/Q3 pattern are a signal to re-check the choice. The validator no longer warns on slot types (`D2-SLOT` retired).
 
 The validator enforces: every question has exactly one anchor in the string form, in order, no orphans; **no two questions closer than 10% of the lesson** (error); warnings if Q1 > 45%, Q2 outside 30–75%, Q3 < 50%. **These spacing numbers are deliberately loose — do not "fix" them back to something stricter.** An earlier draft used 12% / Q3 ≥ 60%. In the pilot the mechanism ends at 47% and the power section at 58%, 11% apart; obeying the stricter numbers would have meant parking Q3 after the *next* subsection (asking about power after velocity saturation) or dragging Q2 away from the mechanism it tests. A question belongs **immediately after the concept it tests**; the percentages only exist to catch genuine clustering (two questions back-to-back, or all three at the end). So: if the validator flags a spacing or window problem, restructure only when the questions really are clustered; **never move an anchor away from its concept to satisfy a number**, and never tighten these thresholds in the script or here. If this paragraph and any other copy of the numbers disagree, this paragraph wins.
 

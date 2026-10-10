@@ -22,7 +22,7 @@
  * Rules (ids appear in the output):
  *   FORMAT        file/JSON shape, per-type content shape (mirror of src/lib/inline-question-schema.ts)
  *   D2-COUNT      exactly 3 questions on a lesson; 0 on lab/boss
- *   D2-SLOT       (warn) Q1 true_false|single_choice · Q2 fill_blank|ordering|match_pairs · Q3 short_answer|single_choice
+ *   D2-SLOT       retired 2026-10-11: the type is chosen per concept (CLAUDE.md, "Question-type selection"); any of the six types fits any slot
  *   D3-1 COUNT    single_choice has exactly 3 options
  *   D3-2 LENGTH   every option within 15% of the longest (shortest >= 0.85 × longest, by characters)
  *   D3-3 LONGEST  the correct option is not the single longest (warn: also tied-longest / most words)
@@ -241,7 +241,6 @@ function anchorOffsets(mdx) {
 
 // ── Question validation ──────────────────────────────────────────────────────
 const TYPES = ["single_choice", "true_false", "short_answer", "fill_blank", "ordering", "match_pairs"];
-const SLOT_TYPES = { 1: ["true_false", "single_choice"], 2: ["fill_blank", "ordering", "match_pairs"], 3: ["short_answer", "single_choice"] };
 const isStr = (v) => typeof v === "string" && v.trim().length > 0;
 
 function checkContentShape(f, qn, q) {
@@ -382,8 +381,6 @@ function validateQuestionsFile(file, lessonType, mdx) {
     if (!TYPES.includes(q.type)) return err(file, qn, "FORMAT", `unknown type "${q.type}" (essay_ai is reserved)`);
     checkContentShape(file, qn, q);
     if (!isStr(q.concept)) warn(file, qn, "FORMAT", 'missing "concept" note (what this question tests)');
-    const slot = SLOT_TYPES[qn];
-    if (slot && !isGame && !slot.includes(q.type)) warn(file, qn, "D2-SLOT", `Q${qn} is usually ${slot.join(" | ")}, this is ${q.type}`);
     if (q.type === "single_choice") checkSingleChoice(file, qn, q);
     if (q.type === "true_false") checkTrueFalse(file, qn, q);
   });
