@@ -1,0 +1,80 @@
+{
+  "questions": [
+    {
+      "order": 1,
+      "type": "single_choice",
+      "concept": "De ce o imagine neagră economisește pe OLED, dar nu și pe LCD: backlight-ul LCD rămâne aprins (negrul = filtre care blochează lumina), pe când un pixel OLED negru e oprit complet.",
+      "content": {
+        "prompt": "Pe două telefoane, unul cu ecran LCD și unul cu OLED, rulează aceeași imagine, aproape toată neagră. Ce diferență de consum apare?",
+        "options": [
+          "Ambele economisesc la fel de mult, fiindcă pixelii negri primesc mai puțină tensiune",
+          "LCD-ul consumă aproape la fel ca pe alb, iar OLED-ul semnificativ mai puțin",
+          "OLED-ul consumă mai mult, fiindcă pixelii negri rămân gata să se aprindă"
+        ],
+        "correct_index": 1,
+        "explanation": "Un LCD are backlight mereu aprins: pixelii negri doar blochează lumina cu filtre, deci consumul rămâne aproape același. Pe OLED, un pixel negru e oprit complet — nu emite fotoni și nu consumă —, așa că o imagine în mare parte neagră costă mult mai puțin. (Cât de mare e economia depinde de luminozitate: mare la luminozitate maximă, mică la una medie.)"
+      },
+      "distractors": [
+        "Tratează LCD-ul ca pe un OLED: crede că orice ecran economisește pe negru, fără să țină cont că backlight-ul LCD rămâne aprins și doar filtrele blochează lumina.",
+        null,
+        "Crede că un pixel OLED oprit tot consumă energie în așteptare, când pe OLED negrul înseamnă pixel oprit complet, fără fotoni și fără consum."
+      ]
+    },
+    {
+      "order": 2,
+      "type": "match_pairs",
+      "concept": "Modelul condensatorului pentru touch: degetul e a doua placă doar dacă e conductor și suficient de aproape; un izolator subțire nu o strică, un obiect izolator nu o înlocuiește, iar capacitanța crește deja la apropiere.",
+      "content": {
+        "prompt": "Potrivește fiecare situație cu ce se întâmplă în ecran.",
+        "pairs": [
+          {
+            "left": "O linguriță de plastic apăsată pe ecran",
+            "right": "Nu conduce electric, deci nu poate fi a doua placă a condensatorului"
+          },
+          {
+            "left": "Un deget atins prin folia de protecție a ecranului",
+            "right": "Izolatorul e doar puțin mai gros, iar capacitanța tot crește destul cât s-o simtă cipul"
+          },
+          {
+            "left": "Un deget ținut la 1 mm deasupra ecranului",
+            "right": "Capacitanța crește deja, chiar dacă degetul nu a atins sticla"
+          }
+        ],
+        "explanation": "Ecranul simte un condensator: degetul e a doua placă doar fiindcă conduce electric, deci o linguriță de plastic nu poate lua locul lui. Folia subțire doar îngroașă puțin izolatorul, iar capacitanța crește oricum destul cât s-o măsoare cipul. Iar capacitanța crește pe măsură ce degetul se apropie, nu abia la atingere."
+      }
+    },
+    {
+      "order": 3,
+      "type": "short_answer",
+      "concept": "Cele 9 milioane de numere: 3 sub-pixeli per pixel și recalcularea tuturor la fiecare cadru. Capcana: cine uită cei 3 sub-pixeli ajunge la 120 de milioane.",
+      "content": {
+        "prompt": "Un ecran de 1.000 × 2.000 de pixeli se reîmprospătează de 60 de ori pe secundă. Câte numere între 0 și 255 trebuie calculate într-o secundă?",
+        "accepted": [
+          "360000000",
+          "360.000.000",
+          "360 000 000",
+          "360,000,000",
+          "360 milioane",
+          "360 de milioane",
+          "360 milioane de numere",
+          "360 de milioane de numere",
+          "360000000 de numere",
+          "360000000 numere",
+          "360.000.000 de numere",
+          "360.000.000 numere",
+          "360 mil",
+          "360 mil.",
+          "360m",
+          "360 m",
+          "3,6 × 10⁸",
+          "3,6x10^8",
+          "3,6 x 10^8",
+          "3,6 * 10^8",
+          "3,6e8",
+          "3.6e8"
+        ],
+        "explanation": "Fiecare pixel are 3 sub-pixeli, iar fiecare sub-pixel primește câte un număr: 1.000 × 2.000 × 3 = 6 milioane de numere pe cadru. La 60 de cadre pe secundă, toate se recalculează de 60 de ori: 6.000.000 × 60 = 360 de milioane. Cine uită cei 3 sub-pixeli ajunge la doar 120 de milioane."
+      }
+    }
+  ]
+}
