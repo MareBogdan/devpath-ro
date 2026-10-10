@@ -25,7 +25,7 @@ Push-ul se face manual de Bogdan (PowerShell): `cd "C:\DevPath RO"` → `del ".g
 **rollout în loturi atomice de 2–3 lecții, în ordine, începând cu Cursul 1, lecția 1**, aplicând `devpath-docs/LESSON-STANDARD.md` + `scripts/validate-questions.mjs` ca poartă (aceeași calitate ca L7: headinguri reale, termeni `<Term>`, 3 întrebări D2/D3, `<Sub>`, diagrame/tabele fără placeholdere, erorile factuale corectate și raportate).
 Orice alt punct din „UNDE AM RĂMAS” / „BACKLOG” (python-editor rulabil, C2/C3 labs, dashboard, rate limiting, Stripe…) **NU se începe** până nu spune owner-ul. Ordinea din roadmap veche NU mai contează.
 
-- **Cadență curentă (override owner, 2026-10-11): LOTURI DE 5 LECȚII** (era 2; regula despre tipurile de întrebări alese pe concept e în `CLAUDE.md`), în sesiunea Claude Code, cu „go” al owner-ului între loturi (regula e în `CLAUDE.md`, „Workflow conversie lecții — rollout fără arhitect”) — suprascrie „lot de 3”. Permisiune permanentă (doar pentru acest workflow): commit + `sync-content` real (după `--dry-run`) + tranzacția din `questions-to-sql` via Supabase MCP pe `zgofeajewktwmswckgup`. `git push` = în loturi, la cererea owner-ului (~8–10 lecții), **cu excepția** unei lecții care cere o componentă MDX nouă (push imediat; niciun conținut sincronizat nu referă o componentă absentă de pe `origin/main`). Fără `<WowNote>`. Fără limită de timp. Lotul următor: **C1 L12, L13, L14, L15, L17**.
+- **Cadență curentă (override owner, 2026-10-11): LOTURI DE 5 LECȚII** (era 2; regula despre tipurile de întrebări alese pe concept e în `CLAUDE.md`), în sesiunea Claude Code, cu „go” al owner-ului între loturi (regula e în `CLAUDE.md`, „Workflow conversie lecții — rollout fără arhitect”) — suprascrie „lot de 3”. Permisiune permanentă (doar pentru acest workflow): commit + `sync-content` real (după `--dry-run`) + tranzacția din `questions-to-sql` via Supabase MCP pe `zgofeajewktwmswckgup`. `git push` = în loturi, la cererea owner-ului (~8–10 lecții), **cu excepția** unei lecții care cere o componentă MDX nouă (push imediat; niciun conținut sincronizat nu referă o componentă absentă de pe `origin/main`). Fără `<WowNote>`. Fără limită de timp. Lotul următor: **C1 L18, L19, L20, L21, L22**.
 - Lot = 3 lecții (Claude Pro) · scriitori paraleli (1/lecție) + 1 recenzor independent (obligatoriu primele 3 loturi, apoi ~25%) · nicio scriere în DB până nu trece validatorul pe tot lotul · un singur SQL/sync arătat owner-ului · Claude Code comite, NU face push.
 - Lab/boss din C1 (poz. 8, 10, 16, 23, 29) se sar — sunt gata. L7 e gata.
 - Ordinea loturilor C1 (pozițiile se verifică în DB înainte de fiecare lot): L1–3 · L4–6 · L9, L11, L12 · L13–15 · L17–19 · L20–22 · L24–26 · L27, L28, L30. După C1 → C2 → … → C6, același ritm.
@@ -37,16 +37,18 @@ Orice alt punct din „UNDE AM RĂMAS” / „BACKLOG” (python-editor rulabil,
 |---|---|---|
 | C1-A | 1, 2, 3 | L1 ✅ (sincronizat 2026-10-11, pushed) · L2 ✅ · L3 ✅ (sincronizate 2026-10-11; așteaptă „go” de la owner) |
 | C1-B | 4, 5, 6 | L4 ✅ · L5 ✅ · L6 ✅ (sincronizate 2026-10-11; așteaptă „go”) |
-| C1-C | 9, 11, 12 | L9 ✅ · L11 ✅ (sincronizate 2026-10-11) · L12 ▶️ în lotul următor |
-| C1-D | 13, 14, 15 | 🔲 |
-| C1-E | 17, 18, 19 | 🔲 |
+| C1-C | 9, 11, 12 | L9 ✅ · L11 ✅ · L12 ✅ (sincronizate 2026-10-11) |
+| C1-D | 13, 14, 15 | L13 ✅ · L14 ✅ · L15 ✅ (sincronizate 2026-10-11) |
+| C1-E | 17, 18, 19 | L17 ✅ (sincronizată 2026-10-11) · **L18, L19 ▶️ în lotul următor** |
 | C1-F | 20, 21, 22 | 🔲 |
 | C1-G | 24, 25, 26 | 🔲 |
 | C1-H | 27, 28, 30 | 🔲 |
 
 ---
 
-## ⏸️ UNDE AM RĂMAS — citește asta primul (2026-10-11, după C1 L1–L6, L9, L11)
+## ⏸️ UNDE AM RĂMAS — citește asta primul (2026-10-11, după C1 L1–L6, L9, L11–L15, L17)
+
+**Actualizare 2026-10-11 (al doilea lot de 5):** **L12, L13, L14, L15, L17** sunt convertite (−15,0…−20,0% densitate, validator 0/0), **sincronizate în DB și live**, cu 3 întrebări fiecare (tipuri: L12 true_false/short_answer/match_pairs · L13 single_choice/fill_blank/true_false · L14 true_false/short_answer/ordering · L15 short_answer/match_pairs/single_choice · L17 short_answer/single_choice/true_false; fill_blank apare acum în 2 lecții, ordering în 5). Peste 40 de erori factuale corectate și raportate în `PROGRESS.md` (de ex. L12 cheile de lansare la 12 picioare, nu 8, iar azi rămân fizice; L13 naveta avea 4+1 computere, nu vot 3-din-5; L14 Vernam ≠ OTP (Mauborgne a adăugat cheia aleatoare); L15 efortul logic e de la Sutherland și Sproull, nu de la Stanford; L17 Pentium FDIV: eroare de la a 4-a zecimală, nu a 14-a). În L13 și L14 secțiunile au fost **reordonate** ca ancorele întrebărilor să cadă în ferestrele standardului. Nicio componentă nouă; nimic pushat de componente. **Următorul lot: C1 L18, L19, L20, L21, L22** (L21–L22 folosesc și `devpath-docs/archive/l07-memory-section-for-c1-l21-23.md`, vezi backlog), după „go”.
 
 **Actualizare 2026-10-11 (lotul de 5):** lotul a crescut de la 2 la 5 lecții, iar tipul fiecărei întrebări se alege acum pe concept (regula e în `CLAUDE.md`; avertismentul `D2-SLOT` din validator a fost retras). **L4, L5, L6, L9, L11** sunt convertite (−15,0…−18,3% densitate, validator 0/0), **sincronizate în DB și live**, cu 3 întrebări fiecare (tipuri: L4 true_false/single_choice/short_answer · L5 single_choice/short_answer/ordering · L6 match_pairs/fill_blank/single_choice · L9 short_answer/match_pairs/true_false · L11 ordering/true_false/single_choice). Peste 50 de erori factuale corectate și raportate în `PROGRESS.md` (de ex. L11 „sub-picosecunde” → 3–4 ps, L9 „genomul încape pe un CD” → 800 MB vs 700 MB, L5 cablurile transatlantice erau telegrafice). L5 păstrează stub-ul `<ADCSimulator />` („🚧 în curând”) — de decis: construit sau șters. L1–L3 și L7 au tipuri de întrebări dinaintea regulii (L1 și L7 au același tipar single_choice/match_pairs/short_answer) și **nu au fost schimbate**. **Următorul lot: C1 L12, L13, L14, L15, L17**, după „go”.
 
