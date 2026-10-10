@@ -34,8 +34,10 @@
  *   MDX-ANCHOR    every question has exactly one <InlineQuestion n="k" /> (string form), in order, no orphans
  *   MDX-PLACE     question spacing / position along the lesson (error when two are < 10% apart; warn on slot windows: Q1 ≤ 45%, Q2 30–75%, Q3 ≥ 50%)
  *   MDX-TERMS     6–10 <Term> on a lesson (an inline gloss belongs in a card — LESSON-STANDARD.md §4), each def 1–2 sentences,
- *                 ≤ 320 chars, well-formed, not in headings, not nested, no bold inside; (warn) ≤ 1 per paragraph, at least
- *                 one in the second half, more than 1 per 120 words
+ *                 ≤ 320 chars, well-formed, not in headings, not nested, no bold inside, never starting with a preposition or
+ *                 article (the term wraps the concept, §4c); (warn) ≤ 1 per paragraph, at least one in the second half, more
+ *                 than 1 per 120 words, and the other half of a contrasting pair (minoritar/majoritar) left bare in the same
+ *                 paragraph as a term that covers one half (§4c)
  *   MDX-BOLD      bold budget: at most 1 **bold** span per 100 prose words (error above, counts every span outside code and
  *                 comments); (error) bold in a heading or inside a <Term>; (warn) a bold span of more than 6 words
  *   MDX-HEADING   the five generic headings are forbidden (HOOK / CONTEXT / MIEZUL / REVEAL / ÎNCHEIERE, also with a suffix);
@@ -122,6 +124,10 @@ function firstWordKind(option) {
   if (/(eaza|esc|este|aste|ind|ând|ind|ie|am|ati|ez|uie|ește|ăște|ește)$/.test(t) || /(ează|ește|ăște|ește|esc|ează)$/.test(option.split(/\s+/)[0]?.toLowerCase() ?? "")) return "verb";
   return "noun/other";
 }
+
+const LEADING_FUNCTION_WORDS = new Set(["cel", "cea", "cei", "cele", "al", "a", "ai", "ale", "lui", "the"]);
+// Contrasting pairs: a <Term> that covers one half must not leave the other half bare in the same paragraph (§4c).
+const TERM_PAIRS = [["minoritar", "majoritar"], ["intrinsec", "extrinsec"]];
 
 const countWords = (s) => (s.match(/\S+/g) ?? []).length;
 
@@ -407,6 +413,8 @@ function checkTermsAndHeadings(file, mdx, lessonType) {
       if (def.length > 320) err(file, null, "MDX-TERMS", `definition is ${def.length} chars (max 320)`, clip(def));
       if (/<|>|\{\{/.test(def)) err(file, null, "MDX-TERMS", "definition must be plain text", clip(def));
     }
+    const lead = tokens(t[2])[0] ?? "";
+    if (PREPOSITIONS.has(lead) || DETERMINERS.has(lead) || LEADING_FUNCTION_WORDS.has(lead)) err(file, null, "MDX-TERMS", `a <Term> must wrap the concept, not a leading preposition or article ("${lead}") — move it out of the tag`, clip(t[2].trim()));
     if (/\*\*/.test(t[2])) err(file, null, "MDX-BOLD", "bold inside a <Term> — the term is already the emphasis (standard §4a)", clip(t[2].trim()));
     else if (/\n/.test(t[2])) warn(file, null, "MDX-TERMS", "a <Term> wraps a single plain word or short phrase", clip(t[2].trim()));
     if (/<Term\b/.test(t[2])) err(file, null, "MDX-TERMS", "a <Term> inside another <Term>", clip(t[2].trim()));
@@ -448,6 +456,13 @@ function checkTermsAndHeadings(file, mdx, lessonType) {
     if (!t || /^(\||[-*]\s|\d+\.\s|<|\{\/\*|#)/.test(t)) continue;
     const n = countWords(t.replace(/<Term\s+def="[^"]*"\s*>/g, "").replace(/<\/Term>/g, ""));
     if (n > 90) warn(file, null, "MDX-RHYTHM", `a paragraph of ${n} words (aim ≤ 90) — split it`, clip(t, 70));
+    const paraTerms = [...t.matchAll(/<Term\s+def="[^"]*"\s*>([\s\S]*?)<\/Term>/g)].map((m) => strip(m[1]));
+    const bare = strip(t.replace(/<Term\s+def="[^"]*"\s*>[\s\S]*?<\/Term>/g, " "));
+    for (const [x, y] of TERM_PAIRS) {
+      for (const [have, other] of [[x, y], [y, x]]) {
+        if (paraTerms.some((pt) => pt.includes(have)) && bare.includes(other)) warn(file, null, "MDX-TERMS", `a <Term> covers "${have}" but "${other}" is left bare in the same paragraph — reword so the card covers the pair, or make both a term (§4c)`, clip(t, 90));
+      }
+    }
     const termsInPara = (t.match(/<Term\b/g) ?? []).length;
     if (termsInPara > 1) warn(file, null, "MDX-TERMS", `${termsInPara} <Term> in one paragraph (aim ≤ 1)`, clip(t, 70));
   }
