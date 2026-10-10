@@ -25,7 +25,7 @@ Push-ul se face manual de Bogdan (PowerShell): `cd "C:\DevPath RO"` → `del ".g
 **rollout în loturi atomice de 2–3 lecții, în ordine, începând cu Cursul 1, lecția 1**, aplicând `devpath-docs/LESSON-STANDARD.md` + `scripts/validate-questions.mjs` ca poartă (aceeași calitate ca L7: headinguri reale, termeni `<Term>`, 3 întrebări D2/D3, `<Sub>`, diagrame/tabele fără placeholdere, erorile factuale corectate și raportate).
 Orice alt punct din „UNDE AM RĂMAS” / „BACKLOG” (python-editor rulabil, C2/C3 labs, dashboard, rate limiting, Stripe…) **NU se începe** până nu spune owner-ul. Ordinea din roadmap veche NU mai contează.
 
-- **Cadență curentă (override owner, 2026-10-10): O LECȚIE PE RÂND**, în sesiunea Claude Code, cu „go” al owner-ului între lecții (regula e în `CLAUDE.md`, „Workflow conversie lecții — rollout fără arhitect”) — suprascrie „lot de 3” până spune altfel. Lecția următoare: **C1 L2**.
+- **Cadență curentă (override owner, 2026-10-11): LOTURI DE 2 LECȚII**, în sesiunea Claude Code, cu „go” al owner-ului între loturi (regula e în `CLAUDE.md`, „Workflow conversie lecții — rollout fără arhitect”) — suprascrie „lot de 3”. Permisiune permanentă (doar pentru acest workflow): commit + `sync-content` real (după `--dry-run`) + tranzacția din `questions-to-sql` via Supabase MCP pe `zgofeajewktwmswckgup`. `git push` = în loturi, la cererea owner-ului (~8–10 lecții), **cu excepția** unei lecții care cere o componentă MDX nouă (push imediat; niciun conținut sincronizat nu referă o componentă absentă de pe `origin/main`). Fără `<WowNote>`. Fără limită de timp. Lotul următor: **C1 L4 + L5**.
 - Lot = 3 lecții (Claude Pro) · scriitori paraleli (1/lecție) + 1 recenzor independent (obligatoriu primele 3 loturi, apoi ~25%) · nicio scriere în DB până nu trece validatorul pe tot lotul · un singur SQL/sync arătat owner-ului · Claude Code comite, NU face push.
 - Lab/boss din C1 (poz. 8, 10, 16, 23, 29) se sar — sunt gata. L7 e gata.
 - Ordinea loturilor C1 (pozițiile se verifică în DB înainte de fiecare lot): L1–3 · L4–6 · L9, L11, L12 · L13–15 · L17–19 · L20–22 · L24–26 · L27, L28, L30. După C1 → C2 → … → C6, același ritm.
@@ -35,8 +35,8 @@ Orice alt punct din „UNDE AM RĂMAS” / „BACKLOG” (python-editor rulabil,
 
 | Lot | Lecții (poz.) | Stare |
 |---|---|---|
-| C1-A | 1, 2, 3 | L1 ✅ (fișiere; DB nesincronizat, neaprobat de owner încă) · **L2 ▶️ următoarea** · L3 🔲 |
-| C1-B | 4, 5, 6 | 🔲 |
+| C1-A | 1, 2, 3 | L1 ✅ (sincronizat 2026-10-11, pushed) · L2 ✅ · L3 ✅ (sincronizate 2026-10-11; așteaptă „go” de la owner) |
+| C1-B | 4, 5, 6 | **L4 + L5 ▶️ următorul lot** · L6 🔲 |
 | C1-C | 9, 11, 12 | 🔲 |
 | C1-D | 13, 14, 15 | 🔲 |
 | C1-E | 17, 18, 19 | 🔲 |
@@ -46,7 +46,9 @@ Orice alt punct din „UNDE AM RĂMAS” / „BACKLOG” (python-editor rulabil,
 
 ---
 
-## ⏸️ UNDE AM RĂMAS — citește asta primul (2026-10-10, după C1 L1)
+## ⏸️ UNDE AM RĂMAS — citește asta primul (2026-10-11, după C1 L1–L3)
+
+**Actualizare 2026-10-11:** `origin/main` conține acum P8, P9 și L1 (L7 se randa defect live — conținutul folosea `<MosfetDiagram>`/`<Sub>` nepushate). **L1** corectată (13 `<WowNote>` scoase; „3 nm = dimensiune fizică” corectat: nume comercial, pas de poartă ~45 nm), sincronizată + 3 întrebări seed. **L2 (Ce este electricitatea?)** și **L3 (Circuitul închis)** convertite (−15,1% / −15,9% densitate, 8 / 9 termeni, validator 0/0), **sincronizate în DB și live**; erori factuale corectate și raportate în `PROGRESS.md` (L2: unghii, <1 ns, trilioane, 26 de ani, curent statico; L3: borna negativă, LED la 1,5 V, Morse 61 km). Nepushate: commit-urile cu regulile din `CLAUDE.md` și L2+L3 (nicio componentă nouă). **Următorul lot: C1 L4 + L5**, după „go”.
 
 **Actualizare C1 L1 (2026-10-10):** **L1 (`hardware-fizica`, „Cum funcționează ecranul telefonului tău?”) e convertită** după modelul L7 — 1.444 → 1.219 cuvinte (−15,6% densitate), 9 termeni, 1 bold, 3 întrebări (35% / 47% / 58%), validator 0 erori / 0 review; 11 erori factuale corectate și raportate (vezi `PROGRESS.md`). **Doar fișiere** (`.mdx` + `.questions.json`): DB neatins — `sync-content` și seed-ul întrebărilor se arată owner-ului separat. **Următoarea: C1 L2**, abia după „go” de la owner (o lecție pe rând).
 
