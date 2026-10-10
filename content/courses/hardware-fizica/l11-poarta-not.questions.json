@@ -1,0 +1,49 @@
+{
+  "questions": [
+    {
+      "order": 1,
+      "type": "ordering",
+      "concept": "Comutarea invertorului CMOS ca secvență: intrarea urcă → o clipă ambii tranzistori conduc parțial (singurul moment cu consum) → NMOS preia, ieșirea merge la 0 → stare stabilă fără curent static.",
+      "content": {
+        "prompt": "Intrarea unui invertor CMOS trece de la 0 la 1. Așază în ordine ce se întâmplă.",
+        "items": [
+          "Intrarea urcă de la 0 la 1",
+          "Pentru o clipă, ambii tranzistori conduc parțial și circuitul consumă energie",
+          "NMOS conduce complet, PMOS se blochează, iar ieșirea coboară la GND (0)",
+          "Starea e stabilă și nu mai trece curent între VDD și GND"
+        ],
+        "explanation": "Când intrarea urcă, tranzistorii nu comută instantaneu: pentru o fracțiune de nanosecundă ambii conduc parțial, și atunci circuitul consumă energie. Apoi NMOS preia complet, PMOS se blochează și ieșirea e trasă la 0. În starea stabilă unul dintre tranzistori e blocat, deci nu există cale de curent între VDD și GND."
+      }
+    },
+    {
+      "order": 2,
+      "type": "true_false",
+      "concept": "Inelul de inversoare oscilează doar cu număr impar: cu un număr par bucla e consistentă în două stări stabile (ca celula SRAM, 2 inversoare), deci nu oscilează, ci memorează.",
+      "content": {
+        "prompt": "Patru inversoare legate în inel, cu ieșirea ultimului la intrarea primului, oscilează la fel ca trei, dar la o frecvență mai mică.",
+        "correct": false,
+        "explanation": "Cu un număr par de inversoare, semnalul face un număr par de inversări pe ocolul buclei și se întoarce identic la intrare, deci bucla are două stări stabile și nu oscilează: memorează un bit, exact ca perechea de inversoare dintr-o celulă SRAM. Doar un număr impar de inversoare ajunge mereu la contradicție și forțează oscilația."
+      }
+    },
+    {
+      "order": 3,
+      "type": "single_choice",
+      "concept": "Scrierea într-o celulă SRAM: un impuls extern mai puternic decât feedbackul răstoarnă bucla, iar feedbackul pozitiv menține noua stare după ce impulsul dispare. Capcane: revenirea la starea veche și oscilația (confuzie cu inelul impar).",
+      "content": {
+        "prompt": "O celulă SRAM, formată din două inversoare în buclă, ține valoarea 1. Forțezi scurt ieșirea primului inversor la 0, cu un impuls puternic, apoi îl retragi. Ce ține celula după aceea?",
+        "options": [
+          "Celula ține tot 1, fiindcă bucla revine singură la starea de dinainte de impuls",
+          "Celula ține 0, fiindcă impulsul a răsturnat bucla, iar feedbackul o menține așa",
+          "Celula devine instabilă, fiindcă impulsul a pus cele două inversoare în oscilație"
+        ],
+        "correct_index": 1,
+        "explanation": "Un impuls mai puternic decât feedbackul răstoarnă bucla: primul inversor are acum 0, al doilea îl inversează în 1, iar acel 1 revine la intrarea primului și îl confirmă. Când impulsul dispare, bucla rămâne în noua stare, fiindcă feedbackul pozitiv o autoconfirmă, așa se scrie un bit în SRAM. Oscilația ar apărea doar la un număr impar de inversoare."
+      },
+      "distractors": [
+        "Crede că bucla are o stare «preferată» la care revine: ambele stări sunt la fel de stabile, iar cea nouă se menține singură după impuls.",
+        null,
+        "Confundă bucla de două inversoare cu inelul de trei: un număr par de inversări se întoarce identic la intrare, deci bucla se așază într-o stare, nu oscilează."
+      ]
+    }
+  ]
+}

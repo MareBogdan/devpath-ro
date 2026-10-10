@@ -1,0 +1,82 @@
+{
+  "questions": [
+    {
+      "order": 1,
+      "type": "match_pairs",
+      "concept": "Trei stări ale siliciului (pur, dopat cu Grupa V, dopat cu Grupa III) și ce domină în fiecare: perechi electron–gol puține și egale; electroni în exces cu ioni pozitivi fixi; goluri în exces cu ioni negativi fixi.",
+      "content": {
+        "prompt": "Potrivește fiecare bucată de siliciu cu ce poartă curentul în ea și cu ce rămâne fix în rețea.",
+        "pairs": [
+          {
+            "left": "Siliciu pur, la 300 K",
+            "right": "Electroni liberi și goluri în număr egal, foarte puțini"
+          },
+          {
+            "left": "Siliciu dopat cu fosfor (Grupa V)",
+            "right": "Electroni liberi în exces, ioni pozitivi fixi în rețea"
+          },
+          {
+            "left": "Siliciu dopat cu bor (Grupa III)",
+            "right": "Goluri libere în exces, ioni negativi fixi în rețea"
+          }
+        ],
+        "explanation": "În siliciul pur, fiecare electron scăpat din legătură lasă în urmă un gol, deci cele două populații sunt egale și mici. Fosforul (5 electroni de valență) donează un electron liber și rămâne ion pozitiv fix. Borul (3 electroni de valență) lasă o vacanță în care cad electronii vecini, devine ion negativ fix, iar golul liber apare în rețea."
+      }
+    },
+    {
+      "order": 2,
+      "type": "fill_blank",
+      "concept": "Echilibrul joncțiunii p-n: curentul de difuzie egalează curentul de drift (sub câmpul intern), iar fluxul net e zero. Termenii lipsă sunt chiar mecanismul.",
+      "content": {
+        "prompt": "La echilibru, într-o joncțiune p-n, curentul de {{1}} (răspândirea purtătorilor din zona aglomerată) egalează curentul de {{2}} (mișcarea sub câmpul electric intern), iar fluxul net de purtători e {{3}}.",
+        "blanks": [
+          {
+            "accepted": [
+              "difuzie",
+              "difuzia",
+              "difuziune"
+            ]
+          },
+          {
+            "accepted": [
+              "drift",
+              "deriva",
+              "derivă",
+              "derivare"
+            ]
+          },
+          {
+            "accepted": [
+              "zero",
+              "0",
+              "nul",
+              "nula",
+              "nulă"
+            ]
+          }
+        ],
+        "explanation": "Purtătorii difuzează peste graniță, lăsând ioni fixi care creează un câmp electric intern. Acest câmp îi împinge înapoi, adică produce un curent de drift. Când cele două curente se echilibrează, fluxul net e zero și curentul nu trece spontan, deși bariera de ~0,7 V rămâne."
+      }
+    },
+    {
+      "order": 3,
+      "type": "single_choice",
+      "concept": "Polarizarea inversă a diodei: plus la N, minus la P → zona de dezertare se lărgește și trece doar curentul de saturație inversă. Capcane: confuzia directă/inversă și ideea că bariera «dispare».",
+      "content": {
+        "prompt": "Legi o diodă de siliciu la o baterie de 5 V, cu plusul la partea N și minusul la partea P. Ce se întâmplă în ea?",
+        "options": [
+          "Zona de dezertare se îngustează, iar curentul crește exponențial peste ~0,7 V aplicat",
+          "Zona de dezertare se lărgește, iar trece doar un curent de scurgere de câțiva picoamperi",
+          "Zona de dezertare dispare, iar dioda conduce în ambele sensuri, la fel ca un fir de cupru"
+        ],
+        "correct_index": 1,
+        "explanation": "Plusul la N și minusul la P înseamnă polarizare inversă: câmpul extern se adaugă câmpului intern, trage purtătorii majoritari spre capete și lărgește zona de dezertare. Trece doar curentul de saturație inversă, adică perechile electron–gol create termic în zonă, de ordinul unui picoamper. La 5 V nu se atinge încă breakdown-ul."
+      },
+      "distractors": [
+        "Inversează polarizările: descrie comportamentul în sens direct (plus la P), când câmpul extern se opune celui intern și bariera scade.",
+        null,
+        "Crede că o tensiune mare «strică» bariera de la sine: breakdown-ul cere zeci de volți la diodele slab dopate sau o diodă Zener special dopată, nu 5 V la o diodă obișnuită."
+      ]
+    }
+  ]
+}

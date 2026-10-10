@@ -1,0 +1,52 @@
+{
+  "questions": [
+    {
+      "order": 1,
+      "type": "short_answer",
+      "concept": "Conversia binar → zecimal prin valorile pozițiilor (de la dreapta): se produce un număr, deci short_answer. Șirul nu e palindrom, ca citirea de la stânga să dea alt rezultat (11).",
+      "content": {
+        "prompt": "Un senzor trimite șirul de biți 110100. Ce număr zecimal reprezintă?",
+        "accepted": [
+          "52",
+          "52 (zecimal)",
+          "cincizeci si doi",
+          "cincizeci și doi"
+        ],
+        "explanation": "Numărate de la dreapta, începând cu poziția 0, bitele 1 sunt pe pozițiile 2, 4 și 5, cu valorile 4, 16 și 32. Suma: 4 + 16 + 32 = 52. Cine pornește cu poziția 0 din stânga obține 1 + 2 + 8 = 11: regula cere ca bitul cel mai puțin semnificativ să fie cel din dreapta."
+      }
+    },
+    {
+      "order": 2,
+      "type": "match_pairs",
+      "concept": "Același șir de biți, interpretări diferite: 11111111 e 255 fără semn, −1 în complement față de 2, FF în hex. Reprezentarea și interpretarea sunt lucruri diferite — o mapare.",
+      "content": {
+        "prompt": "Aceiași 8 biți, 11111111, apar în trei contexte. Potrivește fiecare context cu ce înseamnă.",
+        "pairs": [
+          {
+            "left": "Număr pe 8 biți, fără semn",
+            "right": "255"
+          },
+          {
+            "left": "Număr pe 8 biți, în complement față de 2",
+            "right": "−1"
+          },
+          {
+            "left": "Scris în hexazecimal",
+            "right": "FF"
+          }
+        ],
+        "explanation": "Fără semn, toate cele 8 poziții se adună: 128 + 64 + 32 + 16 + 8 + 4 + 2 + 1 = 255. În complement față de 2, 11111111 inversat dă 00000000, la care aduni 1, deci valoarea e −1. În hex, fiecare grup de 4 biți (1111) devine F, deci FF. Biții sunt aceiași; contextul decide ce număr reprezintă."
+      }
+    },
+    {
+      "order": 3,
+      "type": "true_false",
+      "concept": "Cauza 2038: bitul de semn consumă unul din cei 32 de biți. Cu 32 de biți fără semn, limita ar fi 2³² secunde ≈ 136 de ani → 2106, nu 2038. Aplicare: schimbi interpretarea și limita se mută.",
+      "content": {
+        "prompt": "Dacă ceasul Unix ar număra secundele de la 1970 pe 32 de biți fără semn, primul overflow ar apărea tot în 2038.",
+        "correct": false,
+        "explanation": "În 2038 se întâmplă overflow pentru că un integer cu semn pe 32 de biți folosește unul dintre biți pentru semn și poate număra doar până la 2³¹ − 1 secunde (~68 de ani). Fără semn, toți cei 32 de biți numără: 2³² secunde sunt ~136 de ani, deci overflow-ul ar apărea abia în 2106."
+      }
+    }
+  ]
+}

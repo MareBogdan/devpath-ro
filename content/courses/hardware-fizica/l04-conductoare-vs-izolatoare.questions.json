@@ -1,0 +1,62 @@
+{
+  "questions": [
+    {
+      "order": 1,
+      "type": "true_false",
+      "concept": "Temperatura schimbă bugetul termic (kT), nu banda interzisă: dublarea lui (0,026 → 0,052 eV) e neglijabilă față de 5,5 eV, deci un izolator bun rămâne izolator. Capcana: «încălzit, orice izolator conduce».",
+      "content": {
+        "prompt": "Încălzești un diamant (banda interzisă de 5,5 eV) de la 300 K la 600 K. Bugetul termic al electronilor se dublează, așa că diamantul ajunge să conducă aproape ca un metal.",
+        "correct": false,
+        "explanation": "Bugetul termic se dublează, dar de la 0,026 eV la doar 0,052 eV, iar banda interzisă a diamantului rămâne de 5,5 eV, de peste o sută de ori mai mare. Probabilitatea ca un electron să sară rămâne practic zero. Temperatura nu strânge banda interzisă; ea schimbă doar câți electroni au energia s-o traverseze, iar aici sunt tot practic niciunul."
+      }
+    },
+    {
+      "order": 2,
+      "type": "single_choice",
+      "concept": "Paradoxul diamantului aplicat: căldura se poate transporta prin fononi, fără electroni liberi. Un izolator electric poate fi un conductor termic excelent. Capcane: cuprul (conduce și curentul) și cauciucul (izolator electric, deci «și termic»).",
+      "content": {
+        "prompt": "Vrei ca un procesor să fie izolat electric de radiator, dar să-i transmită bine căldura. Ce material pui între ele?",
+        "options": [
+          "Cupru, fiindcă electronii lui liberi duc căldura cel mai bine dintre metale",
+          "Cauciuc, fiindcă banda lui interzisă mare blochează și curentul, și căldura",
+          "Diamant, fiindcă fononii duc căldura bine chiar și fără electroni liberi"
+        ],
+        "correct_index": 2,
+        "explanation": "Cuprul conduce căldura bine, dar și curentul, deci ar scurtcircuita procesorul. Cauciucul izolează electric, dar are rețea moale și dezordonată, care duce prost căldura. Diamantul are legături carbon–carbon rigide și atomi ușori, așa că fononii duc căldura aproape fără rezistență, iar banda interzisă de 5,5 eV îl ține izolator electric."
+      },
+      "distractors": [
+        "Alege conductorul termic cel mai cunoscut fără să observe că aceiași electroni liberi îl fac și conductor electric, deci nu izolează procesorul.",
+        "Presupune că izolația electrică înseamnă automat izolație termică, când căldura poate fi dusă de vibrațiile rețelei, nu doar de electroni.",
+        null
+      ]
+    },
+    {
+      "order": 3,
+      "type": "short_answer",
+      "concept": "Dopajul în cifre: numărul de purtători adăugați = atomii de siliciu / raportul de diluție (aici 5 × 10²² / 10⁸ = 5 × 10¹⁴). Un caz nou față de FactBox (1 la 10 milioane).",
+      "content": {
+        "prompt": "Un cm³ de siliciu 9N are 5 × 10²² atomi. Îl dopezi cu un atom de fosfor la fiecare 100 de milioane de atomi de siliciu, iar fiecare atom de fosfor eliberează un electron. Câți electroni liberi suplimentari apar în acel cm³?",
+        "accepted": [
+          "5e14",
+          "5 × 10^14",
+          "5×10^14",
+          "5x10^14",
+          "5 x 10^14",
+          "5*10^14",
+          "5 * 10^14",
+          "5 × 10¹⁴",
+          "5×10¹⁴",
+          "5x10¹⁴",
+          "5 x 10¹⁴",
+          "5e14 electroni",
+          "5 × 10^14 electroni",
+          "5×10^14 electroni",
+          "5x10^14 electroni",
+          "500000000000000",
+          "500.000.000.000.000"
+        ],
+        "explanation": "Raportul e 1 la 10⁸, deci numărul de atomi de fosfor, și de electroni eliberați, este 5 × 10²² ÷ 10⁸ = 5 × 10¹⁴ pe cm³. Cine uită că 100 de milioane înseamnă 10⁸ (nu 10⁶) ajunge la 5 × 10¹⁶; cine împarte invers obține un număr fără sens."
+      }
+    }
+  ]
+}

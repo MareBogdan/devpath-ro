@@ -1,0 +1,65 @@
+{
+  "questions": [
+    {
+      "order": 1,
+      "type": "single_choice",
+      "concept": "Amplificatorul nu face diferența dintre semnal și zgomot: le înmulțește pe amândouă cu același factor, deci raportul semnal/zgomot nu se îmbunătățește (nici măcar la un amplificator ideal). Capcana: «mai tare = mai curat».",
+      "content": {
+        "prompt": "Un semnal de 1 mV are 10 µV de zgomot. Trece printr-un amplificator ideal, care înmulțește tot cu 1.000 și nu adaugă zgomot propriu. Ce se întâmplă cu raportul semnal/zgomot?",
+        "options": [
+          "Raportul crește de 1.000 de ori, fiindcă semnalul ajunge de la 1 mV la 1 V",
+          "Raportul rămâne același, fiindcă și zgomotul este înmulțit cu același factor",
+          "Raportul scade, fiindcă amplificatorul înmulțește zgomotul mai mult decât semnalul"
+        ],
+        "correct_index": 1,
+        "explanation": "Amplificatorul nu știe ce e semnal util și ce e zgomot: le înmulțește pe amândouă cu 1.000, deci 1 V de semnal vine cu 10 mV de zgomot, același raport ca înainte. Un amplificator real face și mai rău, fiindcă își adaugă propriul zgomot, iar într-o cascadă acesta se acumulează la fiecare etaj."
+      },
+      "distractors": [
+        "Confundă un semnal mai puternic cu un semnal mai curat: crede că amplificarea ridică semnalul deasupra zgomotului, când zgomotul crește cu exact același factor.",
+        null,
+        "Crede că amplificatorul favorizează zgomotul, când un amplificator ideal tratează la fel tot ce intră în el; zgomotul în plus apare doar din propriul zgomot al etajului."
+      ]
+    },
+    {
+      "order": 2,
+      "type": "short_answer",
+      "concept": "Marja de zgomot ca număr: diferența dintre nivelul garantat la ieșire și pragul cerut la intrare. Caz nou față de tabelul LVTTL din lecție (3,0 V vs 2,2 V → 0,8 V).",
+      "content": {
+        "prompt": "O familie logică garantează la ieșire minimum 3,0 V pentru un „1”, iar intrarea următoare recunoaște un „1” de la 2,2 V în sus. Câți volți poate pierde semnalul pe drum, cel mult, ca poarta să-l citească tot ca „1”?",
+        "accepted": [
+          "0,8",
+          "0.8",
+          "0,8 v",
+          "0.8 v",
+          "0,8v",
+          "0.8v",
+          "0,8 volt",
+          "0.8 volt",
+          "0,8 volti",
+          "0.8 volti",
+          "0,8 volți",
+          "800 mv",
+          "800mv",
+          "800 milivolti"
+        ],
+        "explanation": "Marja de zgomot e diferența dintre ce garantează ieșirea și ce cere intrarea: 3,0 V − 2,2 V = 0,8 V. Dacă semnalul pierde pe drum până la 0,8 V, ajunge la 2,2 V și poarta îl citește tot ca „1”; peste 0,8 V pierdere intră în zona în care nivelul nu mai e garantat."
+      }
+    },
+    {
+      "order": 3,
+      "type": "ordering",
+      "concept": "Conversia analog–digital ca lanț: senzor → tensiune continuă → eșantionare → cuantizare → codare → afișaj. Un termometru digital parcurge exact acești pași.",
+      "content": {
+        "prompt": "Așază în ordine ce se întâmplă într-un termometru digital de bucătărie, de la căldură la cifrele de pe afișaj.",
+        "items": [
+          "Termistorul își schimbă rezistența cu temperatura, iar circuitul produce o tensiune variabilă",
+          "ADC-ul ia „poze” ale tensiunii la intervale regulate",
+          "Fiecare poză e rotunjită la cea mai apropiată treaptă fixă",
+          "Fiecare treaptă primește un număr binar",
+          "Afișajul arată o aproximare discretă, de exemplu 23°C"
+        ],
+        "explanation": "Senzorul analogic produce întâi o tensiune care variază continuu. ADC-ul o eșantionează (ia poze la intervale regulate), apoi o cuantizează (rotunjește fiecare poză la o treaptă fixă) și în final o codează (dă fiecărei trepte un număr binar). Abia după aceea afișajul arată o valoare discretă, o aproximare a temperaturii reale, care e continuă."
+      }
+    }
+  ]
+}
