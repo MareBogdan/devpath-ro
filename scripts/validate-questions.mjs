@@ -43,6 +43,10 @@
  *   MDX-HEADING   the five generic headings are forbidden (HOOK / CONTEXT / MIEZUL / REVEAL / ÎNCHEIERE, also with a suffix);
  *                 (warn) Introducere / Concluzie / Rezumat / Ce urmează, > 10 words, ALL CAPS, `---` rules; (error) a body `# H1`
  *   MDX-RHYTHM    (warn) a paragraph over 90 words
+ *   DURATION      (warn) a lesson's frontmatter `duration` differs from the computed reading time (prose words / 160 wpm +
+ *                 0.5 min per question, mirror of src/lib/reading-time.ts) by more than max(2 min, 25%). sync-content.mjs writes
+ *                 `duration` to lessons.estimated_minutes for converted lessons, and the page badge shows it — set it to the
+ *                 estimate printed by --stats.
  *   D5-CUT        with --baseline: the DENSITY cut must be 15–20% (error outside the band). Density = words trimmed from text
  *                 that stays; a whole off-topic section archived on purpose is a STRUCTURAL cut, declared in
  *                 <lesson>.cuts.json and reported separately (see below) — it never counts toward the band.
@@ -138,8 +142,18 @@ function wordsOf(mdx) {
   body = body.replace(/\{\/\*[\s\S]*?\*\/\}/g, " ");
   body = body.replace(/<InlineQuestion[^>]*\/>/g, " ").replace(/<WowNote[^>]*\/>/g, " ");
   body = body.replace(/<Term\s+def="[^"]*"\s*>/g, " ").replace(/<\/Term>/g, " ");
+  body = body.replace(/<\/?Sub>/g, ""); // inline subscript: V<Sub>GS</Sub> reads as one word (standard §4d)
+  body = body.replace(/&(?:lt|gt|amp);/g, " ");
   body = body.replace(/<\/?[A-Za-z][^>]*>/g, " ");
   return (body.match(/\S+/g) ?? []).filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
+}
+
+const WORDS_PER_MINUTE = 160; // mirror of src/lib/reading-time.ts
+const MINUTES_PER_INLINE_QUESTION = 0.5;
+/** Computed reading time of a lesson: prose words (code fences skipped) / 160 wpm + a small allowance per question. */
+function readingMinutes(mdx, questions) {
+  const noCode = mdx.replace(/\r\n/g, "\n").replace(/(```|~~~)[\s\S]*?\1/g, " ");
+  return Math.max(1, Math.ceil(wordsOf(noCode) / WORDS_PER_MINUTE + questions * MINUTES_PER_INLINE_QUESTION));
 }
 
 /** Structural cuts declared in <lesson>.cuts.json: archived sections whose verbatim text lives in an archive file. */
@@ -178,6 +192,8 @@ function anchorOffsets(mdx) {
       .replace(/<WowNote[^>]*\/>/g, " ")
       .replace(/<Term\s+def="[^"]*"\s*>/g, " ")
       .replace(/<\/Term>/g, " ")
+      .replace(/<\/?Sub>/g, "")
+      .replace(/&(?:lt|gt|amp);/g, " ")
       .replace(/<\/?[A-Za-z][^>]*>/g, " ");
   const count = (s) => (clean(s).match(/\S+/g) ?? []).filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
   while ((m = re.exec(body))) {
@@ -504,8 +520,16 @@ for (const mdxFile of lessonFiles) {
     if (REQUIRE) err(mdxFile, null, "D2-COUNT", "no questions file (expected " + path.basename(qfile) + ")");
     else pending++;
   }
+  if (mdx && !isGame && fs.existsSync(qfile)) {
+    const nq = (() => { try { return JSON.parse(fs.readFileSync(qfile, "utf-8")).questions?.length ?? 0; } catch { return 0; } })();
+    const est = readingMinutes(mdx, nq);
+    const dur = fm.duration;
+    if (Number.isInteger(dur) && Math.abs(dur - est) > Math.max(2, est * 0.25)) {
+      warn(mdxFile, null, "DURATION", `frontmatter duration is ${dur} min but the computed reading time is ${est} min — set \`duration: ${est}\` (it is what the lesson badge shows)`, `${wordsOf(mdx)} prose words / ${WORDS_PER_MINUTE} wpm + ${nq} questions`);
+    }
+  }
   if (STATS && mdx) {
-    let line = `${rel(mdxFile)}: ${wordsOf(mdx)} words`;
+    let line = `${rel(mdxFile)}: ${wordsOf(mdx)} words${isGame ? "" : ` · reading time ${readingMinutes(mdx, fs.existsSync(qfile) ? 3 : 0)} min (frontmatter duration ${fm.duration ?? "—"})`}`;
     if (BASELINE) {
       try {
         const old = execFileSync("git", ["show", `${BASELINE}:${rel(mdxFile)}`], { cwd: ROOT, encoding: "utf-8", maxBuffer: 1 << 24 });

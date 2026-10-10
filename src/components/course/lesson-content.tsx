@@ -45,7 +45,7 @@ interface LessonContentProps {
   /** Desktop gutter switch (threaded from page.tsx; single source of truth). */
   hasWowNotes?: boolean;
   /** Lifts the Variant-A inline gating signal up to LessonPageClient. */
-  onGatingChange?: (allAnswered: boolean) => void;
+  onGatingChange?: (allAnswered: boolean, remaining: number) => void;
   /** Called once when an embedded lab/boss game reports it was finished (game-contract.ts). */
   onGameComplete?: () => void;
 }
@@ -117,7 +117,7 @@ export function LessonContent({
           prose-a:text-primary prose-a:no-underline hover:prose-a:underline
           prose-strong:text-aurora-primary-900 dark:prose-strong:text-[#E2DDFF] prose-strong:font-semibold
           prose-code:before:content-none prose-code:after:content-none
-          prose-code:bg-[#6C5CE7]/[0.15] prose-code:text-[#A78BFA] prose-code:px-1.5
+          prose-code:bg-[#6C5CE7]/[0.15] prose-code:text-aurora-primary-700 dark:prose-code:text-[#A78BFA] prose-code:px-1.5
           prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-code:font-mono
           prose-pre:bg-[#0d1117] prose-pre:border prose-pre:border-border
           prose-pre:rounded-xl prose-pre:p-0 prose-pre:overflow-hidden
@@ -125,10 +125,10 @@ export function LessonContent({
           prose-hr:from-transparent prose-hr:via-[#6C5CE7]/30 prose-hr:to-transparent
           [&_blockquote_p]:before:content-none [&_blockquote_p]:after:content-none
           [&_thead]:bg-[#6C5CE7]/25
-          [&_th]:px-4 [&_th]:py-3 [&_th]:text-left [&_th]:font-bold [&_th]:text-[#E2DDFF]
-          [&_th]:border [&_th]:border-[#6C5CE7]/[0.15]
-          [&_td]:px-4 [&_td]:py-2.5 [&_td]:border [&_td]:border-[#6C5CE7]/[0.15]
-          [&_tbody_tr:nth-child(odd)]:bg-white/[0.02]
+          [&_th]:px-4 [&_th]:py-3 [&_th]:text-left [&_th]:font-bold [&_th]:text-aurora-text-primary
+          [&_th]:border [&_th]:border-aurora-border-medium
+          [&_td]:px-4 [&_td]:py-2.5 [&_td]:border [&_td]:border-aurora-border-medium
+          [&_tbody_tr:nth-child(odd)]:bg-white/60 dark:[&_tbody_tr:nth-child(odd)]:bg-white/[0.02]
           [&_tbody_tr:nth-child(even)]:bg-[#6C5CE7]/[0.05]
           prose-li:text-[17px] prose-li:leading-[1.8] prose-li:text-foreground/90 prose-li:marker:text-primary`}
       >

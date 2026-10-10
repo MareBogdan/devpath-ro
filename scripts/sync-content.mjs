@@ -11,7 +11,13 @@
  *   title, type, order (→ order_index), module_index, published (→ is_published,
  *   default true; write `published: false` to keep a drafted file invisible),
  *   and the body (→ content_md, CRLF normalised, trimmed).
- * Not touched: estimated_minutes, is_free, video_url, starter/solution code, ids.
+ *   `duration` (→ estimated_minutes, the reading time shown in the lesson header) — ONLY for a converted
+ *   lesson: type lesson/theory with a sibling <lesson>.questions.json. Every one of the 136 files carries a
+ *   template `duration` (mostly 12), 1.1–1.9× the real prose reading time; syncing those would replace a
+ *   computed estimate with a placeholder. A converted lesson's duration is set from the validator's
+ *   estimate (validate-questions.mjs --stats), so it is deliberate. The other lessons keep estimated_minutes
+ *   NULL and the page computes ~160 wpm over their prose (src/lib/reading-time.ts).
+ * Not touched: is_free, video_url, starter/solution code, ids.
  *
  * Idempotent: every row is diffed against the DB first and only the columns that
  * differ are written, so a second run (or a run on an already-synced course) is a
@@ -89,8 +95,20 @@ function parseLesson(file, dir) {
   if (fm.module_index !== undefined && !isInt(fm.module_index)) {
     return { error: `invalid module_index "${fm.module_index}"` };
   }
+  // Authored reading time — converted lessons only (see the header).
+  const converted =
+    (fm.type === "lesson" || fm.type === "theory") &&
+    fs.existsSync(path.join(dir, file.replace(/\.mdx$/, ".questions.json")));
+  let estimated_minutes; // undefined → not synced
+  if (converted && fm.duration !== undefined) {
+    if (!Number.isInteger(fm.duration) || fm.duration < 1 || fm.duration > 120) {
+      return { error: `invalid duration "${fm.duration}" (whole minutes, 1–120)` };
+    }
+    estimated_minutes = fm.duration;
+  }
   return {
     fm,
+    placeholderDuration: !converted && (fm.type === "lesson" || fm.type === "theory") && fm.duration !== undefined,
     row: {
       title: String(fm.title),
       type: fm.type,
@@ -98,6 +116,7 @@ function parseLesson(file, dir) {
       module_index: fm.module_index, // undefined → keep the DB value (insert needs it)
       is_published: fm.published === false ? false : true,
       content_md: content.trim(),
+      estimated_minutes,
     },
   };
 }
@@ -112,7 +131,7 @@ const QUIZ_FIELDS = (qs) =>
 
 // ── One course ───────────────────────────────────────────────────────────────
 async function syncCourse(slug) {
-  const stats = { files: 0, unchanged: 0, inserted: 0, updated: 0, errors: [], orphans: [] };
+  const stats = { files: 0, unchanged: 0, inserted: 0, updated: 0, errors: [], orphans: [], placeholderDurations: 0 };
 
   const { data: course, error: courseErr } = await supabase
     .from("courses")
@@ -137,7 +156,7 @@ async function syncCourse(slug) {
 
   const { data: existingRows, error: exErr } = await supabase
     .from("lessons")
-    .select("id, order_index, title, type, module_index, is_published, content_md")
+    .select("id, order_index, title, type, module_index, is_published, content_md, estimated_minutes")
     .eq("course_id", course.id);
   if (exErr) {
     stats.errors.push(`reading lessons: ${exErr.message}`);
@@ -155,6 +174,7 @@ async function syncCourse(slug) {
         continue;
       }
       const { fm, row } = parsed;
+      if (parsed.placeholderDuration) stats.placeholderDurations++;
       if (seenOrders.has(row.order_index)) {
         stats.errors.push(`${tag}: duplicate order ${row.order_index}`);
         continue;
@@ -183,7 +203,7 @@ async function syncCourse(slug) {
         stats.inserted++;
       } else {
         const patch = {};
-        for (const col of ["title", "type", "module_index", "is_published", "content_md"]) {
+        for (const col of ["title", "type", "module_index", "is_published", "content_md", "estimated_minutes"]) {
           if (row[col] !== undefined && row[col] !== existing[col]) patch[col] = row[col];
         }
         const changed = Object.keys(patch);
@@ -255,6 +275,9 @@ async function main() {
     console.log(
       `    ${s.files} files · ${s.unchanged} unchanged · ${s.updated} ${DRY_RUN ? "to update" : "updated"} · ${s.inserted} ${DRY_RUN ? "to insert" : "inserted"}`
     );
+    if (s.placeholderDurations > 0) {
+      console.log(`    ℹ️  ${s.placeholderDurations} unconverted lesson(s) carry a template \`duration\` — not synced (the page computes their reading time)`);
+    }
     if (s.orphans.length > 0) {
       console.log(`    ℹ️  in DB but no file (left alone): ${s.orphans.join("; ")}`);
     }

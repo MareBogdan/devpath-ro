@@ -34,6 +34,7 @@ import { ProjectSubmissionForm } from "@/components/course/project-submission-fo
 import { cn } from "@/lib/utils";
 import { getNextLesson } from "@/lib/next-lesson";
 import { escapeStrayAngleBrackets } from "@/lib/mdx-sanitize";
+import { estimateReadingMinutes } from "@/lib/reading-time";
 import type { Lesson } from "@/types";
 
 interface PageProps {
@@ -271,12 +272,24 @@ export default async function LessonPage({ params }: PageProps) {
           .order("id")
       : { data: [] };
 
-  // Reading time estimate (technical wpm)
+  // Reading time: the authored value (lessons.estimated_minutes, synced from the frontmatter
+  // `duration` of converted lessons) wins; otherwise ~160 wpm over the PROSE only (no JSX, Term
+  // definitions, comments or code) plus a small allowance per inline question. lab/boss/quiz keep
+  // their flat values (the badge is only shown for theory-like lessons anyway).
   const readingTime = isTheoryLike
-    ? Math.max(1, Math.ceil(lesson.content_md.split(/\s+/).length / 100))
+    ? estimateReadingMinutes({
+        contentMd: lesson.content_md ?? "",
+        authoredMinutes: lesson.estimated_minutes as number | null | undefined,
+        inlineQuestions: interactiveState?.questions.length ?? 0,
+      })
     : lesson.type === "quiz"
     ? 5
     : 15;
+
+  // A lesson that already carries curated inline questions does not offer the AI practice quiz:
+  // the two would compete, and the AI route is the costly one. Driven by the presence of
+  // inline_questions rows, so the offer disappears by itself as each lesson is converted.
+  const hasCuratedQuestions = (interactiveState?.questions.length ?? 0) > 0;
 
   const TypeIcon = lessonTypeIcon[lesson.type] ?? FileText;
   const typeBg = lessonTypeBg[lesson.type] ?? lessonTypeBg.theory;
@@ -379,7 +392,7 @@ export default async function LessonPage({ params }: PageProps) {
                   interactiveState={interactiveState}
                   wowNotes={wowNotes}
                   hasWowNotes={hasWowNotes}
-                  showAiQuiz={lesson.is_published === true}
+                  showAiQuiz={lesson.is_published === true && !hasCuratedQuestions}
                 />
               )}
 

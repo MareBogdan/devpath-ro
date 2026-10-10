@@ -58,7 +58,7 @@ Fundația: un substrat de siliciu dopat <Term def="Siliciu dopat cu atomi (bor) 
 
 Fără tensiune pe poartă, tranzistorul e blocat: între Sursă și Drenă stau două joncțiuni p-n spate-în-spate și orice tensiune aplicată o blochează pe una dintre ele.
 
-La V_GS > 0 (tensiunea poartă–sursă), câmpul electric traversează oxidul și pătrunde în substratul p.
+La V<Sub>GS</Sub> > 0 (tensiunea poartă–sursă), câmpul electric traversează oxidul și pătrunde în substratul p.
 
 **Faza 1:** câmpul respinge golurile din zona de sub oxid. Se formează o zonă de dezertare — ionii negativi de bor rămân expuși.
 
@@ -66,11 +66,11 @@ La V_GS > 0 (tensiunea poartă–sursă), câmpul electric traversează oxidul �
 
 Acest <Term def="Stratul subțire de sub oxid în care electronii au ajuns mai numeroși decât golurile: materialul local și-a schimbat tipul, din P în N. Cât există, e canalul prin care curge curentul.">strat de inversie</Term> — canalul — conectează direct Sursa cu Drena, iar curentul poate trece.
 
-### Tensiunea de prag (V_th)
+### Tensiunea de prag (V<Sub>th</Sub>)
 
 Momentul în care canalul devine conductiv se numește **tensiunea de prag**.
 
-| Epocă | Tensiune alimentare (V_DD) | Tensiune de prag (V_th) |
+| Epocă | Tensiune alimentare (V<Sub>DD</Sub>) | Tensiune de prag (V<Sub>th</Sub>) |
 |---|---|---|
 | NMOS/CMOS clasic (anii '70–'80) | 5 V | 1,0–2,0 V |
 | CMOS submicron (anii '90) | 3,3 V | 0,6–0,8 V |
@@ -80,11 +80,11 @@ Tensiunea de prag nu e un parametru fix al materialului: inginerii o reglează p
 
 ### Cele trei regiuni de operare
 
-**Sub-prag (Cut-off):** V_GS < V_th. Tranzistorul e "oprit", iar curentul e zero — în teorie. În realitate, energia termică lasă câțiva electroni să sară peste barieră: scurgerea sub-prag scade exponențial, nu brusc, și crește dramatic la temperaturi mai ridicate. De aceea procesoarele fierbinți consumă mai mult chiar și în repaus.
+**Sub-prag (Cut-off):** V<Sub>GS</Sub> < V<Sub>th</Sub>. Tranzistorul e "oprit", iar curentul e zero — în teorie. În realitate, energia termică lasă câțiva electroni să sară peste barieră: scurgerea sub-prag scade exponențial, nu brusc, și crește dramatic la temperaturi mai ridicate. De aceea procesoarele fierbinți consumă mai mult chiar și în repaus.
 
-**Liniară (Triodă):** V_GS > V_th, V_DS (tensiunea drenă–sursă) mic. Canalul e complet format și tranzistorul funcționează ca un rezistor variabil, cu conductanța controlată de poartă.
+**Liniară (Triodă):** V<Sub>GS</Sub> > V<Sub>th</Sub>, V<Sub>DS</Sub> (tensiunea drenă–sursă) mic. Canalul e complet format și tranzistorul funcționează ca un rezistor variabil, cu conductanța controlată de poartă.
 
-**Saturație:** V_DS mare. La capătul dinspre Drenă, câmpul distruge parțial canalul: curentul se plafonează, devine aproape independent de V_DS și e controlat exclusiv de V_GS.
+**Saturație:** V<Sub>DS</Sub> mare. La capătul dinspre Drenă, câmpul distruge parțial canalul: curentul se plafonează, devine aproape independent de V<Sub>DS</Sub> și e controlat exclusiv de V<Sub>GS</Sub>.
 
 {/* TABLE: Ecuațiile IDS în cele trei regiuni — cut-off, liniar, saturație */}
 

@@ -17,6 +17,7 @@ import { withGameFrame } from "@/components/mdx/game-frame";
 import { InlineQuestion } from "@/components/interactive/inline-question";
 import { WowNote } from "@/components/interactive/wow-note";
 import { Term } from "@/components/interactive/term";
+import { Sub } from "@/components/mdx/sub";
 
 // Every interactive lab/boss/game is mounted through the SAME frame (full-bleed up to
 // 1200px + shared fullscreen). Created once at module level so component identities
@@ -85,6 +86,7 @@ export function getMdxComponents({
     InlineQuestion,
     WowNote,
     Term,
+    Sub,
 
     // ── Stub components (placeholders — real component not built yet) ──
     ADCSimulator,
@@ -175,8 +177,8 @@ export function getMdxComponents({
       children,
       ...props
     }: React.ComponentPropsWithoutRef<"table">) => (
-      <div className="my-6 overflow-x-auto rounded-xl border border-[#6C5CE7]/[0.15]">
-        <table {...props} className="min-w-full border-collapse text-[15px]">
+      <div className="my-6 overflow-x-auto rounded-xl border border-aurora-border-medium">
+        <table {...props} className="my-0 min-w-full border-collapse text-[15px]">
           {children}
         </table>
       </div>

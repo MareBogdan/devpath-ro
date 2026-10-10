@@ -8,7 +8,7 @@
 ## 0. The job in one paragraph
 
 Input: `content/courses/<slug>/<lesson>.mdx` (a ~2,000-word wall of text under generic headings). Output, for that one lesson only:
-1. the **same lesson, restructured**: real headings, broken-up paragraphs, a **15–20% density cut** (§3), **6–10 `<Term>`** (§4) and a **bold budget** (§3a), three `<InlineQuestion n="k" />` anchors at concept boundaries;
+1. the **same lesson, restructured**: real headings, broken-up paragraphs, a **15–20% density cut** (§3), **6–10 `<Term>`** (§4) and a **bold budget** (§3a), real subscripts via `<Sub>` (§4d), a frontmatter `duration` that matches the computed reading time (§7), three `<InlineQuestion n="k" />` anchors at concept boundaries;
 2. a sibling **`<lesson>.questions.json`** with exactly **3** questions;
 3. **`node scripts/validate-questions.mjs <lesson>.mdx --stats --baseline HEAD` exits 0** with no review items you can't justify.
 
@@ -150,6 +150,13 @@ A reader who doesn't already know terms are clickable must find them. The trigge
 - **A term wraps the concept, never a leading preposition or article.** The clickable region starts at the first word of the concept: „un substrat de siliciu dopat <Term>tip P</Term>”, not „un substrat de siliciu <Term>de tip P</Term>”. If the natural phrasing puts a preposition in front, reword the sentence so the concept stands on its own (pilot: „dopat tip P”). Validator: **error** when a term starts with a Romanian preposition, determiner or *cel/al/a/ai/ale*.
 - **When a term's definition is about a contrasting pair, don't leave the other half of the pair bare in the same sentence.** A reader who opens the *minoritari* card learns the majority/minority pair and then meets a bare *majoritari* two words later with no affordance. Either make one term cover the pair, or reword so the card covers both and the bare word leaves the sentence. Pilot choice: the card for *electronii minoritari* now states both halves (holes are the majority in P; in the N⁺ Source the electrons are), and the sentence reads „atrage electronii minoritari din substrat și pe cei din Sursă” — chosen over a two-word term because the two populations come from different places in the sentence, so a single contiguous term would have wrapped half the sentence. Validator: **review item** when a term covers *minoritar/majoritar* (or *intrinsec/extrinsec*) and the other half is bare in the same paragraph.
 
+### 4d. Subscripts — `<Sub>` (binding)
+Physics and maths notation uses a real subscript: **V<Sub>GS</Sub>**, written `V<Sub>GS</Sub>` in the MDX — in prose, headings, table cells and FactBoxes alike. A literal `V_GS` renders with the underscore ("(V_DD)" in a table header looks like a typo).
+- **Explicit tag, never an automatic `X_Y` transform.** A regex over the prose would mangle code blocks, file names and identifiers (`content_md`, `order_index`). Underscores stay as they are inside code and identifiers.
+- Use it for every subscripted quantity of the lesson (V<Sub>GS</Sub>, V<Sub>DS</Sub>, V<Sub>th</Sub>, V<Sub>DD</Sub>, I<Sub>DS</Sub>, x<Sub>i</Sub>, w<Sub>ij</Sub>), not only the first occurrence. Superscripts are Unicode (V², 10⁷) or KaTeX where the lesson already uses it.
+- The validator counts `V<Sub>GS</Sub>` as one word (the tags are inline), so wrapping notation never changes the word count.
+- **Known gap:** question text (`inline_questions.content`) is plain strings, so a subscript there still shows the underscore (L7's Q2 reads "V_GS sub V_th"). Question content is not touched by a formatting pass; a renderer-level fix is in the backlog.
+
 Pilot terms (position in the lesson): *tip P* (24%), *nodurile* (28%), *electronii minoritari* (37%), *strat de inversie* (39%), *funcția de lucru* (45%), *factorul de activitate* (56%), *velocity saturation* (68%), *DIBL* (75%), *tunelarea cuantică* (85%). (*cache-ul* left with the archived memory section.)
 
 ---
@@ -269,7 +276,7 @@ A fenced block can become runnable: ` ```python-editor … ``` ` instead of ` ``
 4. **Cut and break paragraphs** (§3) section by section; re-run `--stats --baseline HEAD`; stop with the *density* figure inside −15…−20%. Ration bold (§3a). If the owner ordered a structural cut, archive it (§3) first.
 5. **Terms** (§4): convert every inline gloss (§4a), pick 6–10 in all, spread over the whole lesson, wrap, write the defs.
 6. **Questions** (§5): choose the three concepts (first concept / main mechanism / application), write them in `<lesson>.questions.json`, put the anchors in the `.mdx`.
-7. `node scripts/validate-questions.mjs <lesson>.mdx --stats --baseline HEAD` → **exit 0**; every REVIEW item fixed or justified in the report.
+7. `node scripts/validate-questions.mjs <lesson>.mdx --stats --baseline HEAD` → **exit 0**; set the frontmatter `duration` to the **reading time** the `--stats` line prints (`DURATION` warns when it is far off) — it is what the lesson badge shows once synced; every REVIEW item fixed or justified in the report.
 8. Re-read the finished lesson once as a student: is anything missing that a question or later section needs? Is every fact still there?
 9. Report (§8). **Do not** run `questions-to-sql`, `sync-content` (without `--dry-run`), or touch the DB.
 
@@ -294,7 +301,8 @@ Pitfalls that burn time: `n={1}` instead of `n="1"` (silently renders nothing); 
 1. Review the `.mdx` and `.questions.json` diff.
 2. `node scripts/sync-content.mjs <slug> --dry-run` → expect exactly the touched lesson(s) `[content_md]` → run without `--dry-run` (content first, so the anchors exist).
 3. `node scripts/questions-to-sql.mjs <lesson>.mdx` prints one guarded transaction (lesson resolved by course+order+title, refuses if the lesson already has questions, post-checks equality) → shown to the owner → run via the Supabase MCP on project `zgofeajewktwmswckgup` only.
-4. Note: `inline_questions.content` — including the correct answer — is sent to the browser with the page (the server grades, but the payload is readable). Acceptable for now; a known property, not something to work around in content.
+4. **What the sync and the page do with a converted lesson** (nothing to configure): `sync-content.mjs` writes the frontmatter `duration` to `lessons.estimated_minutes` — only for a lesson that has a `.questions.json` (all 136 existing files carry a template `duration`, mostly 12, which overstates the real reading time by 1.1–1.9×, so unconverted lessons are deliberately not synced) — and the lesson header shows it. Without it the page computes ~160 words/minute over the prose only (no JSX, Term definitions, comments or code) plus 0.5 min per question. And **once the lesson has `inline_questions` rows the page no longer offers the AI practice quiz** ("Testează-te cu un quiz"): the curated questions replace it, with no per-lesson flag to maintain.
+5. Note: `inline_questions.content` — including the correct answer — is sent to the browser with the page (the server grades, but the payload is readable). Acceptable for now; a known property, not something to work around in content.
 
 ## 10. Reference: the pilot
 `hardware-fizica` L7 — first pass 2,054 → 1,742 words (−15.2%); after the owner's review (bold budget, inline glosses → 9 terms, memory section archived) **1,501 words: −26.9% total = −17.4% density + −9.5% structural**, 41 → 13 bold spans, 9 terms (see §4); 3 questions, first at 23% / 47% / 58%, now at 22% / 54% / 63% (Q3 moved to right after the Gelsinger FactBox): Q1 `single_choice` (BJT vs MOSFET: why 10⁸ BJTs left open would consume far more — the options are three "Fiecare BJT…" claims, 69/71/74 characters, correct one in the middle), Q2 `match_pairs` (V_GS/V_DS situation ↔ region behaviour, deliberately not by region name), Q3 `short_answer` (V halved and f doubled → power ÷2); longest paragraph 60 words. The validator passes with 0 errors and 0 review items. It was reviewed by an independent agent before sign-off — its findings drove most of the rules marked "(pilot…)" above.

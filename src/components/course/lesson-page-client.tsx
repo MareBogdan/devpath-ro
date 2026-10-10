@@ -115,6 +115,16 @@ export function LessonPageClient({
     .filter((q) => q.type !== "essay_ai")
     .every((q) => (interactiveState?.attempts[q.id]?.attempts ?? 0) >= 1);
   const [inlineComplete, setInlineComplete] = useState(initialInlineComplete);
+  const inlineTotal = (interactiveState?.questions ?? []).filter((q) => q.type !== "essay_ai").length;
+  const [inlineRemaining, setInlineRemaining] = useState(
+    (interactiveState?.questions ?? []).filter(
+      (q) => q.type !== "essay_ai" && (interactiveState?.attempts[q.id]?.attempts ?? 0) < 1
+    ).length
+  );
+  const handleGatingChange = useCallback((allAnswered: boolean, remaining: number) => {
+    setInlineComplete(allAnswered);
+    setInlineRemaining(remaining);
+  }, []);
 
   // ─── Celebration state ────────────────────────────────────────────────────
   const [celebrationState, setCelebrationState] =
@@ -192,7 +202,7 @@ export function LessonPageClient({
           interactiveState={interactiveState}
           wowNotes={wowNotes}
           hasWowNotes={hasWowNotes}
-          onGatingChange={setInlineComplete}
+          onGatingChange={handleGatingChange}
           onGameComplete={isGameLesson ? handleGameComplete : undefined}
         />
       </LessonErrorBoundary>
@@ -228,6 +238,8 @@ export function LessonPageClient({
           isReadingComplete={effectiveReadingComplete}
           isInlineComplete={effectiveInlineComplete}
           isGameComplete={!isGameLesson || gameFinished}
+          inlineTotal={inlineTotal}
+          inlineRemaining={inlineRemaining}
           onCompleted={handleLessonComplete}
         />
       </div>

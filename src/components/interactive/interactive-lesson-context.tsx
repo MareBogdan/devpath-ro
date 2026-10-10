@@ -50,8 +50,8 @@ export function emptyInteractiveState(): LessonInteractiveState {
 
 interface InteractiveLessonProviderProps {
   interactiveState: LessonInteractiveState;
-  /** Lifts the Variant-A gating signal (all non-essay questions attempted). */
-  onGatingChange?: (allAnswered: boolean) => void;
+  /** Lifts the Variant-A gating signal (all non-essay questions attempted) and how many are still unattempted. */
+  onGatingChange?: (allAnswered: boolean, remaining: number) => void;
   children: ReactNode;
 }
 
@@ -100,14 +100,15 @@ export function InteractiveLessonProvider({
   // Variant A: inline-complete when EVERY non-essay_ai question has attempts >= 1
   // (answered at all — correct or wrong). essay_ai is excluded from the
   // denominator so a reserved/un-answerable question can't brick completion.
-  const allInlineAnswered = useMemo(() => {
+  const inlineRemaining = useMemo(() => {
     const answerable = interactiveState.questions.filter((q) => q.type !== "essay_ai");
-    return answerable.every((q) => (attempts[q.id]?.attempts ?? 0) >= 1);
+    return answerable.filter((q) => (attempts[q.id]?.attempts ?? 0) < 1).length;
   }, [interactiveState.questions, attempts]);
+  const allInlineAnswered = inlineRemaining === 0;
 
   useEffect(() => {
-    onGatingChange?.(allInlineAnswered);
-  }, [allInlineAnswered, onGatingChange]);
+    onGatingChange?.(allInlineAnswered, inlineRemaining);
+  }, [allInlineAnswered, inlineRemaining, onGatingChange]);
 
   const value = useMemo<InteractiveLessonContextValue>(
     () => ({ getByOrder, getAttempt, onAnswered, scoreResult }),

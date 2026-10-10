@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, Loader2, ArrowRight, BookOpen, Brain, Gamepad2 } from "lucide-react";
 import { motion } from "framer-motion";
@@ -22,6 +22,9 @@ interface CompleteButtonProps {
   isInlineComplete?: boolean;  // defaults true when no inline questions (Variant A: all attempted)
   /** Lab/boss lessons: false until the embedded game reports it was finished. Defaults true. */
   isGameComplete?: boolean;
+  /** Answerable inline questions in the lesson / how many are still unattempted (for the visible gate reason). */
+  inlineTotal?: number;
+  inlineRemaining?: number;
   onCompleted?: (result: MarkCompleteResult) => void;
 }
 
@@ -34,8 +37,11 @@ export function CompleteButton({
   isReadingComplete = true,
   isInlineComplete = true,
   isGameComplete = true,
+  inlineTotal = 0,
+  inlineRemaining = 0,
   onCompleted,
 }: CompleteButtonProps) {
+  const hintId = useId();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [isCompleted, setIsCompleted] = useState(initialCompleted);
@@ -44,10 +50,12 @@ export function CompleteButton({
 
   const isUnlocked = isReadingComplete && isInlineComplete && isGameComplete;
 
-  let tooltipText = "";
-  if (!isReadingComplete) tooltipText = "Citește lecția mai întâi 📖";
-  else if (!isInlineComplete) tooltipText = "Răspunde la întrebările din lecție";
-  // (game gate: the visible hint below the button says it — no hover tooltip)
+  // Why the button is locked — VISIBLE text under it, never a hover tooltip (a phone has no hover:
+  // the student would see a grey button and no reason). One line per gate that is still blocking.
+  const reasons: { key: string; text: string }[] = [];
+  if (!isReadingComplete) reasons.push({ key: "read", text: "Citește lecția până la capăt." });
+  if (!isInlineComplete) reasons.push({ key: "inline", text: inlineReason(inlineTotal, inlineRemaining) });
+  if (!isGameComplete) reasons.push({ key: "game", text: "Termină jocul ca să poți marca lecția ca finalizată." });
 
   function fireConfetti() {
     safeConfetti(() =>
@@ -113,6 +121,7 @@ export function CompleteButton({
       <motion.button
         onClick={handleComplete}
         disabled={isPending || !isUnlocked}
+        aria-describedby={reasons.length > 0 ? hintId : undefined}
         animate={
           isUnlocked && !isPending
             ? {
@@ -151,22 +160,29 @@ export function CompleteButton({
         )}
       </motion.button>
 
-      {/* Visible hint (not hover-only): a lab/boss is completed by finishing its game. */}
-      {isReadingComplete && isInlineComplete && !isGameComplete && (
-        <p
-          data-testid="game-gate-hint"
-          className="mt-2 max-w-[18rem] text-xs leading-snug text-muted-foreground sm:text-right"
+      {reasons.length > 0 && (
+        <div
+          id={hintId}
+          data-testid="complete-gate-hint"
+          aria-live="polite"
+          className="mt-2 max-w-[18rem] space-y-0.5 text-xs leading-snug text-muted-foreground sm:text-right"
         >
-          Termină jocul ca să poți marca lecția ca finalizată.
-        </p>
-      )}
-
-      {/* Tooltip when disabled */}
-      {tooltipText && (
-        <div className="absolute right-0 bottom-full mb-2 w-52 text-xs bg-popover border border-border rounded-lg shadow-lg px-3 py-2 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 text-center">
-          {tooltipText}
+          {reasons.map((r) => (
+            <p key={r.key} data-testid={r.key === "game" ? "game-gate-hint" : `${r.key}-gate-hint`}>
+              {r.text}
+            </p>
+          ))}
         </div>
       )}
     </div>
   );
+}
+
+/** "Răspunde la cele 3 întrebări din lecție" — or, once some are answered, how many are left. */
+function inlineReason(total: number, remaining: number): string {
+  if (total <= 0) return "Răspunde la întrebările din lecție.";
+  if (total === 1) return "Răspunde la întrebarea din lecție.";
+  if (remaining >= total) return `Răspunde la cele ${total} întrebări din lecție.`;
+  if (remaining === 1) return "Mai ai de răspuns la o întrebare din lecție.";
+  return `Mai ai de răspuns la ${remaining} din cele ${total} întrebări din lecție.`;
 }
