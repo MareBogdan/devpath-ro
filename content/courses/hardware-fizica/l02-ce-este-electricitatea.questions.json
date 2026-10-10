@@ -1,0 +1,59 @@
+{
+  "questions": [
+    {
+      "order": 1,
+      "type": "single_choice",
+      "concept": "Gazul de electroni: un electron liber per atom de cupru. Capcane: să confunzi densitatea pe metru cub cu numărul din bucata dată, sau să crezi că doar atomii de la suprafață eliberează electroni.",
+      "content": {
+        "prompt": "O bucată de fir de cupru conține 4 × 10²² atomi. Aproximativ câți electroni liberi are?",
+        "options": [
+          "Cam 4 × 10²⁸, fiindcă un metru cub de cupru are 8,5 × 10²⁸ electroni liberi",
+          "Cam 4 × 10²², fiindcă fiecare atom de cupru eliberează câte un electron",
+          "Cam 4 × 10²⁰, fiindcă doar atomii de la suprafață își eliberează electronul"
+        ],
+        "correct_index": 1,
+        "explanation": "În cupru, electronul din stratul exterior al fiecărui atom e liber: tabelul spune un electron liber per atom. O bucată cu 4 × 10²² atomi are deci cam 4 × 10²² electroni liberi. Cifra de 8,5 × 10²⁸ e densitatea pe metru cub, nu numărul dintr-o bucată mică, iar electronii liberi vin din tot volumul metalului, nu doar de la suprafață."
+      },
+      "distractors": [
+        "Preia numărul pe metru cub (8,5 × 10²⁸) ca și cum ar fi totalul din orice bucată de fir, fără să țină cont de câți atomi are bucata.",
+        null,
+        "Crede că electronii liberi vin doar de la suprafață, când gazul de electroni umple întreaga rețea cristalină, din interior până la margini."
+      ]
+    },
+    {
+      "order": 2,
+      "type": "ordering",
+      "concept": "Mecanismul becului instantaneu: câmpul se propagă rapid prin electronii deja prezenți, iar electronii înșiși se mișcă abia după ce îl primesc, cu viteza de derivă.",
+      "content": {
+        "prompt": "Așază în ordine ce se întâmplă din clipa în care apeși întrerupătorul.",
+        "items": [
+          "Apare un câmp electric în firul de cupru",
+          "Câmpul se propagă prin electronii deja prezenți în fir, cu două treimi din viteza luminii",
+          "Electronii din tot firul, filamentul inclus, încep să înainteze lent, cu viteza de derivă",
+          "Filamentul se încălzește și luminează, deși niciun electron de la întrerupător nu a ajuns la bec"
+        ],
+        "explanation": "Întâi apare câmpul electric. El se propagă aproape instantaneu, fiindcă nu trimite electroni de la întrerupător, ci pune în mișcare electronii deja existenți. Cei din filament încep să se miște de îndată ce câmpul îi atinge, dar înaintează de-abia 0,12 mm/s, așa că becul luminează înainte ca vreun electron de la întrerupător să ajungă la el."
+      }
+    },
+    {
+      "order": 3,
+      "type": "single_choice",
+      "concept": "Câmpul electric într-un izolator subțire: aceeași tensiune dă câmpuri imense pe nanometri. Tensiunea mare dintr-o scânteie statică nu strică un om, dar tensiunea mică străpunge oxidul unui tranzistor.",
+      "content": {
+        "prompt": "Scânteia de 5.000 V de la mânerul unei uși nu te rănește, dar o descărcare de 30 V poate străpunge oxidul de poartă al unui tranzistor. Ce explică diferența?",
+        "options": [
+          "Fiindcă 30 V pe 5 nm creează un câmp electric de peste 10⁹ V/m, peste limita oxidului",
+          "Fiindcă prin cip trece un curent mai mare, având rezistență mai mică decât a corpului",
+          "Fiindcă cei 30 V durează mai mult decât scânteia de 5.000 V și livrează mai multă energie"
+        ],
+        "correct_index": 0,
+        "explanation": "Ce străpunge izolatorul e câmpul electric, adică tensiunea raportată la grosime: 30 V peste doar 5 nm dau un câmp de peste 10⁹ V/m, mai mult decât suportă oxidul. Scânteia de 5.000 V e inofensivă pentru tine fiindcă transportă o sarcină și o energie minuscule. Nu rezistența cipului sau durata descărcării fac diferența."
+      },
+      "distractors": [
+        null,
+        "Aplică regula „ucide curentul” fără să ia în calcul grosimea izolatorului: crede că oxidul se strică fiindcă trece curent mare prin el, când oxidul e izolator și cedează sub un câmp prea puternic.",
+        "Confundă tensiunea cu energia: crede că o descărcare mai mică în volți poate livra mai multă energie dacă ține mai mult, când descărcările statice durează o fracțiune de microsecundă."
+      ]
+    }
+  ]
+}

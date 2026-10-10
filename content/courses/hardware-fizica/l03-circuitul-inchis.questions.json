@@ -1,0 +1,70 @@
+{
+  "questions": [
+    {
+      "order": 1,
+      "type": "single_choice",
+      "concept": "Bateria ca pompă, nu rezervor: la circuit deschis reacția chimică se oprește singură, blocată de bariera electrostatică a electronilor acumulați la anod. Capcane: rezervorul de electroni și ideea că tensiunea dispare.",
+      "content": {
+        "prompt": "O baterie nouă stă luni întregi într-un sertar, cu circuitul deschis, și rămâne aproape plină. De ce nu se golește?",
+        "options": [
+          "Fiindcă electronii rămân închiși în baterie, iar circuitul deschis le blochează ieșirea",
+          "Fiindcă tensiunea dintre borne devine zero când circuitul e deschis, deci pompa se oprește",
+          "Fiindcă reacția chimică se oprește singură, blocată de electronii adunați la anod"
+        ],
+        "correct_index": 2,
+        "explanation": "Bateria nu e un rezervor de electroni, ci o pompă electrochimică. Cât timp circuitul e deschis, electronii acumulați la anod creează o barieră electrostatică ce blochează reacția, așa că aceasta se oprește singură și bateria nu se consumă. Tensiunea dintre borne rămâne de 1,5 V; când închizi circuitul, bariera scade și reacția reîncepe."
+      },
+      "distractors": [
+        "Aplică imaginea rezervorului: crede că bateria ține electroni gata de plecare și doar nu au pe unde să iasă, când bateria generează mișcarea chimic, nu o stochează.",
+        "Confundă circuitul deschis cu lipsa tensiunii: bateria are 1,5 V și la borne, chiar dacă nu curge curent.",
+        null
+      ]
+    },
+    {
+      "order": 2,
+      "type": "ordering",
+      "concept": "Mecanismul firului tăiat: câmpul împinge electronii spre capăt, ei se înghesuie, se resping și trimit un val de presiune înapoi, iar când valul ajunge la baterie câmpul net devine zero.",
+      "content": {
+        "prompt": "Legi un fir de cupru la borna negativă a unei baterii, cu celălalt capăt liber în aer. Așază în ordine ce se întâmplă.",
+        "items": [
+          "Câmpul bateriei împinge electronii din fir spre capătul liber",
+          "Electronii se opresc la capăt, unde aerul izolator îi blochează, și se înghesuie",
+          "Respingerea dintre electronii înghesuiți trimite înapoi prin fir un val de presiune",
+          "Valul ajunge la baterie, câmpul net din fir devine zero și mișcarea se oprește"
+        ],
+        "explanation": "Câmpul bateriei împinge întâi electronii spre capăt. Acolo aerul izolator îi oprește, iar fiindcă toți au sarcină negativă se resping, iar respingerea trimite înapoi un val de presiune. Când valul ajunge la baterie, câmpul net din fir devine zero și circuitul se oprește, totul în picosecunde."
+      }
+    },
+    {
+      "order": 3,
+      "type": "short_answer",
+      "concept": "Curentul e identic în orice punct al unui circuit serie; se consumă energia (tensiunea), nu sarcina. Capcana: să crezi că scade după rezistor, sau să împarți tensiunea la a doua rezistență.",
+      "content": {
+        "prompt": "Într-un circuit serie, prin primul rezistor (100 Ω) trec 15 mA. Câți miliamperi trec prin al doilea rezistor (200 Ω), aflat după primul?",
+        "accepted": [
+          "15",
+          "15 ma",
+          "15ma",
+          "15 ma.",
+          "15 miliamperi",
+          "15 miliamper",
+          "15 mili amperi",
+          "15 miliamperi.",
+          "0,015",
+          "0.015",
+          "0,015 a",
+          "0.015 a",
+          "0,015 amperi",
+          "0.015 amperi",
+          "tot 15",
+          "tot 15 ma",
+          "tot 15 miliamperi",
+          "la fel",
+          "la fel, 15 ma",
+          "la fel 15 ma"
+        ],
+        "explanation": "Într-un circuit serie, curentul e identic în orice punct: electronii nu dispar în rezistor, ci doar cedează energie. Prin al doilea rezistor trec tot 15 mA. Cine răspunde mai puțin crede că curentul se consumă, iar cine împarte tensiunea la 200 Ω uită că al doilea rezistor primește exact același curent."
+      }
+    }
+  ]
+}

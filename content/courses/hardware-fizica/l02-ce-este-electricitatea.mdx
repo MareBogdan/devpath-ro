@@ -3,204 +3,109 @@ title: "Ce este electricitatea?"
 order: 2
 type: lesson
 module_index: 1
-duration: 12
+duration: 10
 difficulty: 2
 ---
 
-Un melc de grădină se mișcă cu aproximativ 0,05 km/h. E lent — știi asta instinctiv.
+Un melc de grădină se mișcă cu aproximativ 0,05 km/h. Un electron dintr-un fir de cupru, sub curent casnic obișnuit, se mișcă cu 0,00043 km/h: de 116 ori mai lent.
 
-Un electron dintr-un fir de cupru sub curent casnic obișnuit se mișcă cu **0,00043 km/h.**
-De 116 ori mai lent decât melcul. Mai lent decât creșterea unghiilor.
+Și totuși, când apeși întrerupătorul, becul din celălalt capăt al casei se aprinde practic instantaneu.
 
-Și totuși, când apeși întrerupătorul, becul din celălalt capăt al casei se aprinde în mai
-puțin de o nanosecundă.
+Ambele sunt adevărate simultan, deci modelul intuitiv pe care îl ai despre electricitate e, aproape sigur, complet greșit.
 
-Asta nu e o aproximare. Electronii chiar se mișcă atât de lent. Și becul chiar se aprinde
-atât de repede. Ambele lucruri sunt adevărate simultan — și asta înseamnă că modelul intuitiv
-pe care îl ai despre electricitate e, aproape sigur, complet greșit.
+Lecția anterioară a arătat că ecranul telefonului tău e controlat de 19 miliarde de tranzistori, fiecare spunând DA sau NU după cum tensiunea trece sau nu de un prag. Dar ce e tensiunea? Ce se mișcă prin fir și de ce efectul e instantaneu, dacă particulele sunt mai lente decât un melc? Răspunsul pregătește tot ce urmează în curs, de la semiconductori la AI.
 
----
+## 1897: Thomson descoperă o particulă mai mică decât atomul
 
-Lecția anterioară a arătat că ecranul telefonului tău e controlat de 19 miliarde de
-tranzistori care răspund la tensiunea electrică. Fiecare tranzistor spune DA sau NU în
-funcție de dacă tensiunea depășește un anumit prag. Dar nimeni nu a explicat ce e
-tensiunea. Ce se mișcă prin acel fir? Ce forță pune tranzistorul în mișcare? Și de ce
-efectul e aproape instantaneu dacă particulele sunt mai lente decât un melc?
+În 1897, fizicianul britanic J.J. Thomson lucra la Laboratorul Cavendish din Cambridge cu un tub vidat prin care trecea un fascicul de <Term def="Fascicul de electroni care zboară de la catod spre anod într-un tub din care s-a scos aerul. În 1897 nimeni nu știa încă din ce e făcut.">raze catodice</Term>. Experimentele anterioare (Hertz, 1883) nu văzuseră nicio deviere a fasciculului în câmp electric.
 
-Răspunsul nu e intuitiv. Restructurează complet modelul pe care îl ai — și pregătește tot
-ce urmează în curs, de la semiconductori la porți logice la AI.
-
----
-
-## Ce e electronul, de fapt
-
-În 1897, fizicianul britanic J.J. Thomson lucra la Laboratorul Cavendish din Cambridge cu
-un tub vidat prin care trecea un fascicul de raze catodice. Era convins că fasciculul nu
-poate fi deviat de câmpuri electrice — toți colegii săi credeau același lucru.
-
-A greșit. Sub vid suficient de înalt, fasciculul se curba clar în câmpuri electrice și
-magnetice. Thomson a echilibrat cele două câmpuri, a calculat raportul masă-sarcină al
-particulelor și a obținut un rezultat care a șocat fizica mondială: existau particule de
-**peste 1.000 de ori mai ușoare decât atomul de hidrogen** — cel mai mic obiect material
-cunoscut atunci.
+Sub un vid suficient de înalt, Thomson l-a văzut totuși curbându-se clar în câmpuri electrice și magnetice. A echilibrat cele două câmpuri, a calculat raportul masă-sarcină al particulelor și a găsit particule de peste 1.000 de ori mai ușoare decât atomul de hidrogen, cel mai mic obiect material cunoscut atunci.
 
 Era prima dovadă că atomul e divizibil. Thomson tocmai descoperise electronul.
 
 | Proprietate | Valoare exactă | Context |
 |---|---|---|
 | Masa electronului | 9,109 × 10⁻³¹ kg | De 1.836 de ori mai ușor decât protonul |
-| Sarcina electrică | 1,602 × 10⁻¹⁹ C | Cea mai mică sarcină liberă din natură |
-| Electroni în 1 Amper/secundă | 6,242 × 10¹⁸ | 6,2 miliarde de miliarde per Coulomb |
+| Sarcina electrică | 1,602 × 10⁻¹⁹ <Term def="Unitate de sarcină electrică: cât trece printr-un fir în fiecare secundă când curentul este de 1 amper.">coulombi</Term> | Cea mai mică sarcină liberă din natură |
+| Electroni într-un coulomb (1 A × 1 s) | 6,242 × 10¹⁸ | 6,2 miliarde de miliarde |
 | Electroni liberi în cupru | 8,5 × 10²⁸ /m³ | Un electron liber per atom de cupru |
 
-Atomul însuși e aproape complet gol. Nucleul are raza de 10⁻¹⁵ metri, atomul are raza de
-10⁻¹⁰ metri. Dacă nucleul ar fi cât o minge de golf, electronul s-ar afla la câțiva
-kilometri distanță. Tot ce e între ei — spațiu gol.
+Atomul însuși e aproape complet gol. Nucleul are raza de 10⁻¹⁵ metri, atomul de 10⁻¹⁰ metri: dacă nucleul ar fi cât o minge de golf, electronul s-ar afla la circa 2 kilometri distanță.
 
----
+## Cuprul conduce pentru că electronii lui exteriori sunt liberi
 
-## De ce cuprul conduce — și de ce alte materiale nu
+Într-un metal ca cuprul, atomii formează o rețea cristalină rigidă, cu nucleele fixe. Dar electronii din stratul exterior, câte unul per atom, nu sunt legați de niciun nucleu anume: plutesc liber prin întreaga rețea, într-un <Term def="Electronii liberi ai unui metal, priviți împreună: se mișcă prin toată rețeaua de atomi ca moleculele unui gaz, fără să aparțină vreunui atom anume.">gaz de electroni</Term>.
 
-Într-un metal ca cuprul, atomii sunt aranjați într-o rețea cristalină rigidă. Nucleele
-stau fixe. Dar electronii din stratul exterior — câte unul per atom de cupru — nu sunt
-legați de niciun nucleu specific. Ei plutesc liber prin întreaga rețea, formând ceea ce
-fizicienii numesc **„gaz de electroni."**
+Densitatea lui: 8,5 × 10²⁸ electroni liberi per metru cub. Dacă i-ai număra câte un milion pe secundă, ți-ar lua 2,7 milioane de miliarde de ani, de circa 200.000 de ori vârsta universului.
 
-Densitatea acestui gaz: **8,5 × 10²⁸ electroni liberi per metru cub de cupru.** Un număr
-atât de mare încât, dacă ai număra câte un milion pe secundă, ți-ar lua 2,7 trilioane de
-ani să ajungi la capăt — de 200 de ori mai mult decât vârsta universului.
-
-Într-un izolator ca sticla sau plasticul, electronii sunt ferm legați de atomi. Nu există
-gaz de electroni. Nu există conductivitate.
+Într-un izolator ca sticla sau plasticul, electronii sunt ferm legați de atomi.
 
 <CosmoHint emotion="thinking">
-  Diferența dintre un conductor și un izolator nu e o chestiune de material magic — e o
-  chestiune de dacă electronii din stratul exterior sunt liberi să se miște sau nu. Cuprul
-  îi eliberează. Sticla îi ține captivi. Asta e tot.
+  Diferența dintre un conductor și un izolator nu ține de un material magic, ci de faptul dacă electronii din stratul exterior sunt liberi să se miște. Cuprul îi eliberează; sticla îi ține captivi.
 </CosmoHint>
 
----
+<InlineQuestion n="1" />
 
-## Cât de lent se mișcă, de fapt, electronii
+## Electronii se mișcă mai lent decât un melc
 
-Când aplici o tensiune pe un fir de cupru, câmpul electric împinge electronii liberi
-într-o direcție. Dar ei nu se mișcă lin — se ciocnesc constant de atomii din rețeaua
-cristalină, schimbând direcția de mii de miliarde de ori pe secundă.
+Când aplici o tensiune pe un fir de cupru, <Term def="Zona din jurul unei sarcini sau al unei tensiuni în care orice altă sarcină electrică simte o forță: o împinge sau o trage, fără să fie atinsă.">câmpul electric</Term> împinge electronii liberi într-o direcție. Dar ei nu înaintează lin: se ciocnesc constant de atomii rețelei și își schimbă direcția de mii de miliarde de ori pe secundă.
 
-Rezultatul net e o viteză medie minusculă în direcția câmpului — **viteza de derivă**
-(drift velocity). Pentru un curent casnic tipic de 2,5 A printr-un fir de 1,5 mm²:
+Rezultatul net e o viteză medie minusculă în direcția câmpului, <Term def="În engleză, drift velocity. Fiecare electron zigzagă printre atomi; media tuturor zigzagurilor, pe direcția câmpului, e viteza de derivă.">viteza de derivă</Term>. Pentru un curent casnic tipic de 2,5 A printr-un fir de 1,5 mm²:
 
-> **0,12 mm/s** — mai lentă decât creșterea unghiilor, de 116 ori mai lentă decât un
-> melc. La această viteză, un electron ar parcurge 1 metru de fir în aproximativ 2,3 ore.
+> 0,12 mm/s, de 116 ori mai lentă decât un melc. La această viteză, un electron ar parcurge 1 metru de fir în aproximativ 2,3 ore.
 
-Dacă electricitatea ar fi mișcarea fizică a electronilor de la centrală la tine acasă,
-becul s-ar aprinde după câteva sute de ani.
+Dacă electricitatea ar fi mișcarea fizică a electronilor de la centrală până la tine acasă, becul s-ar aprinde abia după vreo 26 de ani, pentru o centrală aflată la 100 km.
 
----
+## Becul se aprinde repede fiindcă electronii sunt deja în fir
 
-## De ce becul se aprinde instantaneu — paradoxul rezolvat
+Ia o conductă de 100 de metri, plină cu apă: împingi la un capăt și apa iese aproape instantaneu la celălalt, nu fiindcă moleculele au parcurs 100 de metri într-o secundă, ci fiindcă presiunea s-a propagat prin apa deja existentă.
 
-Răspunsul e în analogia perfectă: **o conductă plină cu apă.**
-
-Dacă ai o conductă lungă de 100 de metri, complet plină cu apă, și împingi la un capăt —
-apa iese la celălalt capăt aproape instantaneu. Nu pentru că moleculele de apă au parcurs
-100 de metri în o secundă. Ci pentru că presiunea s-a propagat prin toată coloana de apă
-deja existentă.
-
-Același mecanism funcționează în fir. Cuprul e deja plin de 8,5 × 10²⁸ electroni liberi
-per metru cub. Când aplici tensiunea, nu trimiți electroni de la întrerupător la bec.
-Trimiți o **undă de presiune electrostatică** — câmpul electric — care se propagă prin
-toți electronii deja prezenți în fir.
+Același mecanism funcționează în fir. Cuprul e deja plin cu 8,5 × 10²⁸ electroni liberi pe metru cub. Când aplici tensiunea, nu trimiți electroni de la întrerupător la bec, ci o **undă de presiune electrostatică**, adică câmpul electric, care se propagă prin toți electronii prezenți.
 
 <LabBox>
-  **Experiment cu monede — fă asta acum.**
-  Pune 5 monede de 10 bani în linie, lipite una de alta pe masă. Lovește prima monedă cu
-  o a șasea. **Moneda de la celălalt capăt sare instantaneu** — în timp ce celelalte rămân
-  aproape nemișcate. Exact asta face tensiunea electrică cu electronii din firul de cupru.
-  Electronii care aprind becul se aflau deja acolo — au primit doar comanda să se miște.
+  Pune 5 monede de 10 bani în linie, lipite, și lovește prima cu o a șasea: moneda de la celălalt capăt sare instantaneu, iar celelalte rămân nemișcate. Electronii care aprind becul se aflau deja în filament și au primit doar comanda să se miște.
 </LabBox>
 
-Câmpul electric se propagă prin fir cu **2/3 din viteza luminii** — aproximativ 200.000 km
-pe secundă. Electronii care aprind becul se aflau deja în filament.
+În cablurile obișnuite, câmpul electric se propagă cu aproximativ două treimi din viteza luminii, circa 200.000 km pe secundă: 20 de metri în 100 de nanosecunde.
 
-> Centrala electrică nu trimite nici măcar un singur electron în casa ta. Generatoarele
-> doar induc o undă de presiune care pune în mișcare electronii deja existenți în
-> cablurile tale.
+> Centrala electrică nu trimite nici măcar un electron în casa ta: doar pune în mișcare electronii din cablurile tale.
 
----
+<InlineQuestion n="2" />
 
-## Curentul alternativ — electronii care nu merg nicăieri
+## În curentul alternativ, electronii nu merg nicăieri
 
-Curentul din priza ta e curent alternativ (AC) la 50 Hz. Polaritatea se inversează de
-100 de ori pe secundă.
+Curentul din priză e <Term def="Curent care își schimbă sensul periodic, înainte și înapoi, în loc să curgă mereu într-o singură direcție, ca la o baterie. Se prescurtează AC.">curent alternativ</Term> la 50 Hz: polaritatea se inversează de 100 de ori pe secundă. Electronii din firele casei oscilează înainte-înapoi pe o distanță de fracțiuni de milimetru, deci viteza lor netă pe termen lung e zero.
 
-Electronii din firele casei tale nu merg nicăieri. Oscilează înainte-înapoi pe o distanță
-de fracțiuni de milimetru, de 100 de ori pe secundă. Viteza lor netă medie pe termen
-lung: **zero.**
+Și totuși transportă energie. Electronii care oscilează prin rezistența unui bec sau a unui motor cedează energie prin fricțiune, ca lama unui ferăstrău care taie lemnul fără să „meargă” nicăieri.
 
-Și totuși transportă energie — prin aceeași logică cu conducta: oscilația produce o undă
-de presiune continuă. La fel cum lama unui ferăstrău mecanic taie lemnul mișcându-se
-scurt înainte-înapoi fără să „meargă" nicăieri, electronii care oscilează prin rezistența
-unui bec sau a unui motor transferă energie prin fricțiune — fără niciun transfer net de
-materie.
+## Unde se rupe analogia cu apa
 
----
+Modelul hidraulic ajută intuiția, dar cedează în trei locuri:
 
-## Analogia cu apa — și exact unde se rupe
+1. Curentul alternativ e nepractic cu apă. O conductă care oscilează de 50 de ori pe secundă s-ar distruge din cauza inerției apei, pe când electronul, cu masa de 9,109 × 10⁻³¹ kg, are inerție practic nulă.
+2. Câmpurile electromagnetice nu există la apă. Un fir purtând curent generează câmpuri care se extind la metri distanță prin aer și transferă energie fără contact fizic, principiul motorului electric și al transformatorului.
+3. Viteza de propagare diferă. O undă de presiune în apă face ~1.500 m/s, iar un câmp electric în fir ~200.000.000 m/s: cinci ordine de mărime.
 
-Modelul hidraulic e util pentru intuiție, dar cedează în trei locuri clare:
+## Mii de volți nu te omoară, zeci distrug un cip
 
-**1. Curentul alternativ e imposibil cu apă.** O conductă care oscilează de 50 de ori pe
-secundă s-ar distruge prin inerția apei. Electronul are masa de 9,109 × 10⁻³¹ kg —
-practic zero inerție. Inversează direcția de 100 de ori pe secundă fără nicio problemă.
+Mergând pe covor cu șosete, acumulezi pe corp între 1.000 și 10.000 de volți de electricitate statică. Atingi mânerul ușii, simți scânteia, dar nu te doare mai mult de o secundă. De ce nu ești mort?
 
-**2. Câmpurile electromagnetice nu există la apă.** Un fir purtând curent generează câmpuri
-care se extind la metri distanță prin aer, permițând transferul de energie fără contact
-fizic — principiul motorului electric și al transformatorului. Apa nu face asta.
+Tensiunea singură nu ucide; ucide un curent susținut. La electricitatea statică, impulsul durează o fracțiune de microsecundă: la vârf poate atinge amperi, dar sarcina totală e sub un microcoulomb, iar energia, de cel mult câțiva milijouli.
 
-**3. Viteza de propagare.** O undă de presiune în apă: ~1.500 m/s. Un câmp electric în
-fir: ~200.000.000 m/s. Cinci ordine de mărime diferență.
+Tranzistorii moderni au un strat izolator, <Term def="Stratul izolator foarte subțire dintre poarta unui tranzistor și restul lui. Lecția 7 îl explică în detaliu.">oxidul de poartă</Term>, gros de doar câțiva nanometri. La 5 nanometri între electrozi, o descărcare de câteva zeci de volți creează un câmp electric de peste 10⁹ V/m, care străpunge izolatorul instantaneu și ireversibil.
 
----
+Aceiași mii de volți din șosetele tale distrug un cip modern care costă câteva sute de euro, iar un cip se poate strica și de o descărcare sub ~3.000 V, pe care tu nici n-o simți.
 
-## Paradoxul final: de ce mii de volți din șosete nu te omoară, dar 10 volți omoară un cip
-
-Când mergi pe covor cu șosete, acumulezi pe corp între **1.000 și 10.000 de volți** de
-electricitate statică. Atingi mânerul ușii — simți scânteia. Nu te doare mai mult de o
-secundă.
-
-De ce nu ești mort?
-
-Tensiunea singură nu ucide. Ucide **curentul** — câți electroni trec prin corp pe secundă.
-La electricitatea statică, curentul durează câteva nanosecunde și e de fracțiuni de
-microamper. Energia totală: neglijabilă.
-
-Tranzistorii moderni au un strat izolator — oxidul de poartă — de câțiva atomi grosime.
-La 5 nanometri între electrozi, orice descărcare de câteva zeci de volți creează un câmp
-electric de peste **10⁹ V/m.** Câmpul ăsta evaporă izolatorul. Instantaneu. Ireversibil.
-
-Mii de volți din șosetele tale nu te omoară. Aceiași mii de volți distrug un cip de 5nm
-care costă câteva sute de euro — fără să simți nimic.
+<InlineQuestion n="3" />
 
 <FactBox>
-  **Cel mai mic curent electric măsurat vreodată: zeptoamperi (10⁻²¹ A)** — aproximativ
-  un electron rătăcit la câteva minute. Cel mai mare potențial artificial creat în laborator:
-  30 milioane de volți, la acceleratoarele Van de Graaff de la Daresbury Laboratory, UK.
-  Benjamin Franklin a demonstrat că fulgerul e electricitate în 1752 — nu prin a fi lovit
-  de trăsnet (ar fi murit), ci colectând sarcină statică din nori într-o butelie de Leyden.
-  Georg Wilhelm Richmann a murit încercând să repete experimentul — în 1753.
+  Cel mai mic curent electric măsurat: zeptoamperi (10⁻²¹ A), aproximativ un electron la câteva minute. Acceleratoarele Van de Graaff tandem ating zeci de milioane de volți: cel de la Daresbury Laboratory (UK) a funcționat la circa 20 de milioane. Benjamin Franklin a arătat în 1752 că fulgerul e electricitate, nu prin a fi lovit de trăsnet (ar fi murit), ci colectând sarcină statică din nori într-o <Term def="Primul condensator: un borcan de sticlă căptușit cu folie metalică, în care se putea strânge sarcină electrică statică și apoi descărca dintr-odată.">butelie de Leyden</Term>. Georg Wilhelm Richmann a murit încercând să repete experimentul, în 1753.
 </FactBox>
 
----
+## Unda are nevoie de o cale continuă
 
-Electricitatea nu e un fluid care curge dintr-un loc în altul. E o undă de presiune în
-gazul de electroni al unui conductor — propagată la viteza luminii, în timp ce electronii
-individuali se mișcă mai lent decât un melc.
-
-Dar unda asta are o condiție: are nevoie de o cale continuă. Întrerupe calea — și totul
-se oprește instantaneu. De ce?
+Electricitatea nu e un fluid care curge, ci o undă în gazul de electroni al unui conductor, propagată rapid în timp ce electronii se mișcă mai lent decât un melc. Unda are însă nevoie de o cale continuă: întrerupe-o și totul se oprește instantaneu. De ce?
 
 <CosmoHint emotion="excited">
-  Pune un fir de cupru între două baterii fără să închizi circuitul. Nu se întâmplă nimic.
-  Lecția 3 explică de ce — și e mai contraintuitiv decât te-ai aștepta.
+  Pune un fir de cupru între două baterii fără să închizi circuitul: nu se întâmplă nimic. Lecția 3 explică de ce, și e mai contraintuitiv decât te-ai aștepta.
 </CosmoHint>
