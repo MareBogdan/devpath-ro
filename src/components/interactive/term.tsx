@@ -8,9 +8,11 @@
 //  • Click / tap / Enter / Space opens the card; click or tap outside, Esc, or scrolling
 //    a container that holds the term closes it. Only one card is open at a time.
 //    No hover state anywhere, so it behaves identically on touch.
-//  • Looks like text, not a button: a dotted underline in the Aurora violet, a faint
-//    tint on hover/open. It wraps across lines like any inline text (it is a <span>,
-//    not a <button> — a button would be an unbreakable inline-block).
+//  • Findable by eye (standard §4a), still text rather than a button: a 2px dotted underline at
+//    full violet, a permanently visible faint tint (so it reads as a region, not a stray
+//    underline) and a small dot after the word as the affordance marker. It wraps across lines
+//    like any inline text (it is a <span>, not a <button> — a button would be an unbreakable
+//    inline-block); box-decoration-break:clone repeats the tint padding on every line.
 //  • The card is portalled to <body> and positioned in document coordinates, so it
 //    is never clipped by a table's overflow-x wrapper and never changes the layout of
 //    the paragraph, list item or table cell the term sits in.
@@ -96,7 +98,7 @@ export function Term({ def, children }: TermProps) {
         data-open={open ? "true" : undefined}
         onClick={toggle}
         onKeyDown={onKeyDown}
-        className="cursor-pointer rounded-[3px] underline decoration-[#6C5CE7]/60 decoration-dotted decoration-1 underline-offset-[5px] transition-colors hover:bg-[#6C5CE7]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6C5CE7]/60 data-[open=true]:bg-[#6C5CE7]/15 dark:decoration-[#A78BFA]/70"
+        className="cursor-pointer rounded-[3px] bg-[#6C5CE7]/[0.06] pl-[0.15em] pr-[0.08em] underline decoration-[#6C5CE7] decoration-dotted decoration-2 underline-offset-[5px] [box-decoration-break:clone] transition-colors after:ml-[0.16em] after:inline-block after:h-[0.4em] after:w-[0.4em] after:rounded-full after:bg-[#6C5CE7] after:align-[0.5em] after:content-[''] hover:bg-[#6C5CE7]/[0.14] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6C5CE7]/60 data-[open=true]:bg-[#6C5CE7]/[0.2] dark:bg-[#A78BFA]/[0.08] dark:decoration-[#A78BFA] dark:after:bg-[#A78BFA] dark:hover:bg-[#A78BFA]/[0.16] dark:data-[open=true]:bg-[#A78BFA]/[0.22]"
       >
         {children}
       </span>

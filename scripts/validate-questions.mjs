@@ -33,15 +33,25 @@
  *   TF-TELL       (warn) true_false prompt with an absolute word (întotdeauna / niciodată / orice …)
  *   MDX-ANCHOR    every question has exactly one <InlineQuestion n="k" /> (string form), in order, no orphans
  *   MDX-PLACE     question spacing / position along the lesson (error when two are < 10% apart; warn on slot windows: Q1 ≤ 45%, Q2 30–75%, Q3 ≥ 50%)
- *   MDX-TERMS     3–5 <Term> on a lesson, each def 1–2 sentences, ≤ 320 chars, well-formed, not in headings, not nested,
- *                 (warn) ≤ 1 per paragraph and at least one in the second half
+ *   MDX-TERMS     6–10 <Term> on a lesson (an inline gloss belongs in a card — LESSON-STANDARD.md §4), each def 1–2 sentences,
+ *                 ≤ 320 chars, well-formed, not in headings, not nested, no bold inside; (warn) ≤ 1 per paragraph, at least
+ *                 one in the second half, more than 1 per 120 words
+ *   MDX-BOLD      bold budget: at most 1 **bold** span per 100 prose words (error above, counts every span outside code and
+ *                 comments); (error) bold in a heading or inside a <Term>; (warn) a bold span of more than 6 words
  *   MDX-HEADING   the five generic headings are forbidden (HOOK / CONTEXT / MIEZUL / REVEAL / ÎNCHEIERE, also with a suffix);
  *                 (warn) Introducere / Concluzie / Rezumat / Ce urmează, > 10 words, ALL CAPS, `---` rules; (error) a body `# H1`
  *   MDX-RHYTHM    (warn) a paragraph over 90 words
- *   D5-CUT        with --baseline: the prose word count must drop by 15–20% (error outside the band)
+ *   D5-CUT        with --baseline: the DENSITY cut must be 15–20% (error outside the band). Density = words trimmed from text
+ *                 that stays; a whole off-topic section archived on purpose is a STRUCTURAL cut, declared in
+ *                 <lesson>.cuts.json and reported separately (see below) — it never counts toward the band.
+ *   STRUCT-CUT    <lesson>.cuts.json = { "structural": [ { "archive": "devpath-docs/archive/….md", "why": "…" } ] }. The archive
+ *                 file holds the removed text verbatim between <!-- verbatim:start --> and <!-- verbatim:end -->; its prose words
+ *                 are the structural cut. (error) a declared archive that is missing/empty/unmarked, or whose first paragraph is
+ *                 still in the lesson. A structural cut with no archive is not allowed: content is moved, never deleted.
  *
- * --stats     print the lesson's prose word count (see wordsOf) — and, with --baseline <rev>, the change vs. that git revision.
- *             The D5-CUT band is enforced whenever --baseline is given. <Term> definitions are not counted (they sit behind a click).
+ * --stats     print the lesson's prose word count (see wordsOf) — and, with --baseline <rev>, the change vs. that git revision,
+ *             split as: total = density + structural, each as a % of the baseline words. The band is enforced on density only
+ *             whenever --baseline is given. <Term> definitions are not counted (they sit behind a click).
  * --require   a lesson without a questions file is an ERROR (default: reported as PENDING, exit unaffected)
  */
 
@@ -124,6 +134,28 @@ function wordsOf(mdx) {
   body = body.replace(/<Term\s+def="[^"]*"\s*>/g, " ").replace(/<\/Term>/g, " ");
   body = body.replace(/<\/?[A-Za-z][^>]*>/g, " ");
   return (body.match(/\S+/g) ?? []).filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
+}
+
+/** Structural cuts declared in <lesson>.cuts.json: archived sections whose verbatim text lives in an archive file. */
+function structuralCuts(mdxFile, mdx) {
+  const cf = mdxFile.replace(/\.mdx$/, ".cuts.json");
+  if (!fs.existsSync(cf)) return { words: 0, items: [] };
+  let data;
+  try { data = JSON.parse(fs.readFileSync(cf, "utf-8")); } catch (e) { err(cf, null, "STRUCT-CUT", `invalid JSON: ${e.message}`); return { words: 0, items: [] }; }
+  const items = [];
+  for (const it of data.structural ?? []) {
+    const af = path.resolve(ROOT, it.archive ?? "");
+    if (!it.archive || !fs.existsSync(af)) { err(cf, null, "STRUCT-CUT", "declared archive file does not exist — content is moved, never deleted", String(it.archive)); continue; }
+    const txt = fs.readFileSync(af, "utf-8").replace(/\r\n/g, "\n");
+    const m = txt.match(/<!-- verbatim:start -->\n([\s\S]*?)\n<!-- verbatim:end -->/);
+    if (!m) { err(cf, null, "STRUCT-CUT", "archive has no <!-- verbatim:start --> … <!-- verbatim:end --> block", it.archive); continue; }
+    const words = wordsOf(m[1]);
+    if (words === 0) { err(cf, null, "STRUCT-CUT", "archive verbatim block is empty", it.archive); continue; }
+    const firstPara = m[1].split(/\n\s*\n/).map((x) => x.trim()).find((x) => x && !x.startsWith("#"));
+    if (firstPara && mdx.replace(/\r\n/g, "\n").includes(firstPara)) err(cf, null, "STRUCT-CUT", "the archived text is still in the lesson — it must leave the lesson, not be copied", clip(firstPara));
+    items.push({ archive: it.archive, words, why: it.why });
+  }
+  return { words: items.reduce((a, b) => a + b.words, 0), items };
 }
 
 /** Same walk, but returns the word offset of each <InlineQuestion n="k" /> (for placement checks). */
@@ -351,9 +383,11 @@ function checkTermsAndHeadings(file, mdx, lessonType) {
     err(file, null, "MDX-TERMS", `${rawTerms} <Term> tag(s) in the file but only ${terms.length} well-formed — check for a straight " inside def, a missing def="…", or an unclosed tag`);
   }
   if (!isGame) {
-    if (terms.length < 3 || terms.length > 5) {
-      (terms.length === 0 ? warn : err)(file, null, "MDX-TERMS", `a lesson has 3–5 <Term> (D1/standard), found ${terms.length}`);
+    if (terms.length < 6 || terms.length > 10) {
+      (terms.length === 0 ? warn : err)(file, null, "MDX-TERMS", `a lesson has 6–10 <Term> (standard §4), found ${terms.length}`);
     }
+    const proseWords = wordsOf(mdx);
+    if (terms.length > 0 && proseWords / terms.length < 120) warn(file, null, "MDX-TERMS", `${terms.length} terms in ${proseWords} words (one per ${Math.round(proseWords / terms.length)}) — denser than 1 per 120 words reads as noise`);
     const names = terms.map((t) => strip(t[2]).trim());
     if (new Set(names).size !== names.length) warn(file, null, "MDX-TERMS", "the same term is defined more than once", names.join(", "));
     // spread: at least one term in the second half of the prose
@@ -373,8 +407,19 @@ function checkTermsAndHeadings(file, mdx, lessonType) {
       if (def.length > 320) err(file, null, "MDX-TERMS", `definition is ${def.length} chars (max 320)`, clip(def));
       if (/<|>|\{\{/.test(def)) err(file, null, "MDX-TERMS", "definition must be plain text", clip(def));
     }
-    if (/\n|\*\*/.test(t[2])) warn(file, null, "MDX-TERMS", "a <Term> wraps a single plain word or short phrase", clip(t[2].trim()));
+    if (/\*\*/.test(t[2])) err(file, null, "MDX-BOLD", "bold inside a <Term> — the term is already the emphasis (standard §4a)", clip(t[2].trim()));
+    else if (/\n/.test(t[2])) warn(file, null, "MDX-TERMS", "a <Term> wraps a single plain word or short phrase", clip(t[2].trim()));
     if (/<Term\b/.test(t[2])) err(file, null, "MDX-TERMS", "a <Term> inside another <Term>", clip(t[2].trim()));
+  }
+
+  // Bold budget (standard §3a): bold is for a key term defined in the sentence, nothing else.
+  if (!isGame) {
+    const noCode = body.replace(/```[\s\S]*?```/g, " ").replace(/\{\/\*[\s\S]*?\*\/\}/g, " ");
+    const spans = [...noCode.matchAll(/\*\*([^*\n]+?)\*\*/g)].map((m) => m[1].trim());
+    const budget = Math.floor(wordsOf(mdx) / 100);
+    if (spans.length > budget) err(file, null, "MDX-BOLD", `${spans.length} bold spans for ${wordsOf(mdx)} words — budget is 1 per 100 words (${budget}); bold only a key term defined in the sentence`, clip(spans.join(" · "), 160));
+    for (const sp of spans) if ((sp.match(/\p{L}{3,}/gu) ?? []).length > 6) warn(file, null, "MDX-BOLD", "a bold span of more than 6 words is a sentence, not a term", clip(sp));
+    for (const l of noCode.split("\n")) if (/^#{1,6}\s.*\*\*/.test(l)) err(file, null, "MDX-BOLD", "bold in a heading — headings are already emphasised", clip(l.trim()));
   }
 
   // Line-based checks: headings, H1, rules.
@@ -452,9 +497,14 @@ for (const mdxFile of lessonFiles) {
         const w0 = wordsOf(old);
         const w1 = wordsOf(mdx);
         line += `  (baseline ${BASELINE}: ${w0} → ${w1 >= w0 ? "+" : ""}${Math.round(((w1 - w0) / w0) * 1000) / 10}%)`;
-        const cut = (w0 - w1) / w0;
-        if (cut < 0.15) err(mdxFile, null, "D5-CUT", `the lesson is ${Math.round(cut * 1000) / 10}% shorter than ${BASELINE} — the standard asks for 15–20%`, `${w0} → ${w1} words`);
-        else if (cut > 0.2) err(mdxFile, null, "D5-CUT", `the lesson is ${Math.round(cut * 1000) / 10}% shorter than ${BASELINE} — more than 20% means teaching was cut`, `${w0} → ${w1} words`);
+        const st = structuralCuts(mdxFile, mdx);
+        const pct = (x) => Math.round(x * 1000) / 10;
+        const total = (w0 - w1) / w0;
+        const structural = st.words / w0;
+        const density = (w0 - w1 - st.words) / w0;
+        line += `\n         cut vs ${BASELINE}: total -${pct(total)}% = density -${pct(density)}% + structural -${pct(structural)}% (${st.words} words archived${st.items.length ? " → " + st.items.map((i) => i.archive).join(", ") : ""})`;
+        if (density < 0.15) err(mdxFile, null, "D5-CUT", `density cut is ${pct(density)}% — the standard asks for 15–20% of trimmed text (a structural cut does not count toward it)`, `${w0} → ${w1} words, ${st.words} archived`);
+        else if (density > 0.2) err(mdxFile, null, "D5-CUT", `density cut is ${pct(density)}% — more than 20% means teaching was cut`, `${w0} → ${w1} words, ${st.words} archived`);
       } catch {
         line += `  (no baseline at ${BASELINE})`;
       }

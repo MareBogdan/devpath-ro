@@ -8,7 +8,7 @@
 ## 0. The job in one paragraph
 
 Input: `content/courses/<slug>/<lesson>.mdx` (a ~2,000-word wall of text under generic headings). Output, for that one lesson only:
-1. the **same lesson, restructured**: real headings, broken-up paragraphs, **15–20% fewer words**, **3–5 `<Term>`**, three `<InlineQuestion n="k" />` anchors at concept boundaries;
+1. the **same lesson, restructured**: real headings, broken-up paragraphs, a **15–20% density cut** (§3), **6–10 `<Term>`** (§4) and a **bold budget** (§3a), three `<InlineQuestion n="k" />` anchors at concept boundaries;
 2. a sibling **`<lesson>.questions.json`** with exactly **3** questions;
 3. **`node scripts/validate-questions.mjs <lesson>.mdx --stats --baseline HEAD` exits 0** with no review items you can't justify.
 
@@ -29,7 +29,7 @@ The lesson's **teaching content**: the mechanisms, the examples, the names, date
   4. **If you suspect an error but cannot verify it** (a disputed historical figure, a convention that differs between sources), do **not** change it: report it as `SUSPECTED · line · why · what would settle it`.
   5. **If the text contradicts itself or states an idealisation that is wrong at a finer level** (pilot: "no static consumption" next to the sub-threshold-leakage paragraph), do not resolve it yourself: report it as `TENSION · lines · what clashes` for the owner.
 
-  Pilot fixes (hardware-fizica L7): ~10⁷ cm/s is 360.000 km/h, not 100.000 (body **and** CosmoHint); "7.740 de kilometri — de la București la Beijing și înapoi" → "mai mult decât distanța de la București la Beijing" (one way is ~7.060 km, so a round trip is ~14.000); a "TTL" row in a MOS threshold-voltage table → "NMOS/CMOS clasic" (TTL is bipolar and has no MOS threshold); "electronii masivi" → "majoritari" (the term the course uses); "1 V under 100 nm → 10.000–100.000 V/cm" → 100.000–1.000.000 V/cm (1 V over 100 nm is already 10⁵ V/cm). Left and reported: SUSPECTED the point-contact gain "de o sută de ori"; TENSION the static-power claims.
+  Pilot fixes (hardware-fizica L7): ~10⁷ cm/s is 360.000 km/h, not 100.000 (body **and** CosmoHint); "7.740 de kilometri — de la București la Beijing și înapoi" → "mai mult decât distanța de la București la Beijing" (one way is ~7.060 km, so a round trip is ~14.000); a "TTL" row in a MOS threshold-voltage table → "NMOS/CMOS clasic" (TTL is bipolar and has no MOS threshold); "electronii masivi" → "majoritari" (the term the course uses); "1 V under 100 nm → 10.000–100.000 V/cm" → 100.000–1.000.000 V/cm (1 V over 100 nm is already 10⁵ V/cm). The hook's "curentul … de o sută de ori mai mare" (the 1947 point-contact demo) → "semnalul … amplificat de ordinul a o sută de ori": Brattain's own account, as quoted by the Computer History Museum, gives "the order of magnitude of 100 amplification", but the sources do not say whether that was voltage, current or power (a *current* gain of 100 is implausible for a point-contact device), so the sentence no longer names the quantity. Left and reported: TENSION the static-power claims.
 - Keep `{/* ANIMATION … */}` and `{/* TABLE … */}` placeholder comments exactly where they are (they are the owner's TODOs for visuals that don't exist yet); mention them in the report.
 - Keep `<FactBox>`, `<CosmoHint>`, tables, lists, code blocks, formulas and bold terms. You may tighten the sentences *inside* a FactBox/CosmoHint, never drop its fact.
 - Keep the frontmatter (`title`, `order`, `type`, `module_index`, `duration`, `difficulty`) untouched.
@@ -56,15 +56,29 @@ The lesson's **teaching content**: the mechanisms, the examples, the names, date
 | `sisteme-de-operare/c2-l7-deadlockuri.mdx` | `## HOOK` (the 2003 blackout: a race condition, not a deadlock, took down the grid) | `## Blackout-ul din 2003 nu a fost un deadlock` | The heading now carries the hook's claim. |
 | `sisteme-de-operare/c2-l9-fragmentarea-memoriei.mdx` | `## HOOK` (Redis: 8 GB free, yet "out of memory") | `## 8 GB liberi și totuși fără memorie` | States the paradox the section opens. |
 | `sisteme-de-operare/c2-l7-deadlockuri.mdx` | `## MIEZUL` wrapping nine `###`: *Definiție formală · Cele 4 condiții Coffman · Resource Allocation Graph · Strategiile de gestionare · Deadlock ABBA: cod complet · Deadlock în Kernel Linux · … PostgreSQL · Livelock și Starvation · … Limbaje moderne* | `## Ce este un deadlock — definiția, condițiile, graful` (first three) · `## Cum îl gestionezi` (strategii) · `## Deadlock-ul în cod real` (ABBA, kernel, PostgreSQL, limbaje) · `## Livelock și starvation: frații mai puțin vizibili` | The wrapper disappears; the nine parts are grouped by what the reader is doing (understand → handle → see it in real code → meet the cousins). |
-| `hardware-fizica/l07-…mdx` (pilot) | `## O folie de aur pe o pană de plastic` (a scene) · `## Miezul` (wrapper over 11 `###`) · `## Reveal` · `## Ce urmează` | `## 1947: un semnal mic comandă un curent mare` · `## Cum comandă poarta curentul` · `## Prețul comutării: puterea și viteza` · `## Cum s-a micșorat tranzistorul — și unde se oprește` · `## Memoria care nu se micșorează odată cu logica` · `## Robinetul comandat de câmp, după 51 de ani` | The scene becomes a claim; the wrapper is gone and the 11 parts are grouped under 4 claims; *Reveal* + *Ce urmează* merge into one short closing section. (A first draft, "Micșorarea fără sfârșit", said the opposite of its section — the review caught it.) |
+| `hardware-fizica/l07-…mdx` (pilot) | `## O folie de aur pe o pană de plastic` (a scene) · `## Miezul` (wrapper over 11 `###`) · `## Reveal` · `## Ce urmează` | `## 1947: un semnal mic comandă un curent mare` · `## Cum comandă poarta curentul` · `## Prețul comutării: puterea și viteza` · `## Cum s-a micșorat tranzistorul — și unde se oprește` · `## Robinetul comandat de câmp, după 51 de ani` | The scene becomes a claim; the wrapper is gone and the 11 parts are grouped under 3 claims (a fourth, on memory, was later archived as a structural cut — §3); *Reveal* + *Ce urmează* merge into one short closing section. (A first draft, "Micșorarea fără sfârșit", said the opposite of its section — the review caught it.) |
 | `sisteme-de-operare/c2-l9-…mdx` | `## CONTEXT` (84 words: "Știi deja că … Lecția asta explică …") | *(heading deleted)* — one sentence at the end of the hook, or cut | A recap of earlier lessons is restatement (§3); keep at most one sentence that connects, with no heading. |
 | `sisteme-de-operare/c2-l7-…mdx` | `## ÎNCHEIERE` ("Lecția următoare intră direct în …") | *(heading deleted)* — the last 1–2 sentences close the final section | A pointer to the next lesson is not a section. |
 
 ---
 
-## 3. Length — cut 15–20% (D5)
+## 3. Length — a density cut of 15–20% (D5), reported apart from structural cuts
 
-**Measure with the validator, not by eye:** `node scripts/validate-questions.mjs <lesson>.mdx --stats --baseline HEAD`. (`HEAD` means "the lesson as committed before you started"; once you have committed the rewrite, point `--baseline` at the *original* revision instead — for the pilot that is `49cbe30`.) It counts prose words — frontmatter, `{/* comments */}`, `<Term def="…">` attributes, JSX tag markup, `<InlineQuestion />` anchors and markdown punctuation don't count; headings, FactBox/CosmoHint text, table cells and list items do. **Target: −15% to −20%** (pilot: 2,054 → 1,742 words, −15.2%). With `--baseline` the validator **enforces** the band (`D5-CUT`): under −15% means you stopped early, over −20% means you are cutting teaching. Note the `<Term>` definitions (~130 words in the pilot) are not counted — they sit behind a click — so the *visible-on-load* text shrinks by the full cut; if you count the cards the net change is smaller.
+**Measure with the validator, not by eye:** `node scripts/validate-questions.mjs <lesson>.mdx --stats --baseline HEAD`. (`HEAD` means "the lesson as committed before you started"; once you have committed the rewrite, point `--baseline` at the *original* revision instead — for the pilot that is `49cbe30`.) It counts prose words — frontmatter, `{/* comments */}`, `<Term def="…">` attributes, JSX tag markup, `<InlineQuestion />` anchors and markdown punctuation don't count; headings, FactBox/CosmoHint text, table cells and list items do. **Target: −15% to −20% density** (pilot, first pass: 2,054 → 1,742 words, −15.2%). With `--baseline` the validator **enforces** the band (`D5-CUT`) on the *density* cut: under −15% means you stopped early, over −20% means you are cutting teaching. A structural cut (next subsection) is reported separately and never counts toward the band. Note the `<Term>` definitions (~130 words in the pilot) are not counted — they sit behind a click — so the *visible-on-load* text shrinks by the full cut; if you count the cards the net change is smaller.
+
+### Two kinds of cut — count them separately
+- **Density cut (the 15–20% band):** words removed from text that *stays in the lesson* — restatement, throat-clearing, over-long analogies (the list below), and glosses moved behind a `<Term>` (§4a). Padding comes out; every idea stays.
+- **Structural cut:** a whole section that does not belong in this lesson — off-topic for it, or sitting after its natural conclusion — removed *on purpose*. It is **not density** and **does not count toward the band**. Pilot: L7's 195-word memory section (DRAM, 1T1C, SRAM, the SRAM scaling paradox) is a good section in the wrong lesson: it is about C1 L21–L23's subject and followed the lesson's real ending (the physical limit of silicon).
+
+Rules for a structural cut:
+1. **Never delete — move.** The text goes *verbatim* into `devpath-docs/archive/<lesson>-<topic>-for-<destination>.md`, between `<!-- verbatim:start -->` and `<!-- verbatim:end -->` markers, under a note saying where it belongs and what must be re-checked when it is folded in (terms, figures).
+2. **Declare it** in `<lesson>.cuts.json`: `{ "structural": [ { "archive": "devpath-docs/archive/….md", "why": "…" } ] }`. The validator counts the words between the markers as the structural cut and errors if the archive is missing, empty, unmarked, or its text is still in the lesson (`STRUCT-CUT`).
+3. Add a backlog row in `MASTER-PLAN.md` so it is folded into its destination lesson later.
+4. Grep the later lessons of the course for references that assumed the removed section taught something; **report, don't fix** other lessons.
+5. **Whose call:** the owner's. A prompt that orders a structural cut tells you which section; you carry it out and do not refuse it because the total passes 20%. Without that order, you *propose* a structural cut in the report (section, ~words, destination) and leave the text in.
+6. Terms and questions that lived in the removed section leave with it (pilot: the *cache-ul* card); a question may never be left without its concept.
+
+**Reading the numbers.** The validator prints `total = density + structural`, each as a % of the baseline words, and enforces the band on density = (baseline − now − archived) / baseline. Pilot: **−26.9% total = −17.4% density + −9.5% structural**. After a structural cut the total will sit well beyond −20% — that is correct. **Never add words back to pull the total into the band** (that is padding to hit a number), and never read a total above 20% as over-cutting: look at the density figure.
 
 ### Cut (in this order of preference)
 1. **Restatement** — a sentence that says again what the previous one said; "recap" sections (`CONTEXT`, `REVEAL`, `ÎNCHEIERE`) that list what the lesson just covered; the same claim made in the hook, the middle and the wrap-up (pilot: "no static consumption" was said four times — kept where it earns its place).
@@ -72,6 +86,7 @@ The lesson's **teaching content**: the mechanisms, the examples, the names, date
 3. **Over-long analogies and run-on scene setting** — keep the analogy's point, drop its extra steps (pilot: the three-step Gelsinger escalation reactor → rocket nozzle → Sun became reactor → Sun).
 4. **Citation trivia that carries no argument** — patent numbers, "X followed in year Y" side facts. (A number that *carries* the argument — a measurement, a ratio, a date that orders events — is never trivia.)
 5. **Hedging stacks and doubled adjectives.**
+6. **An inline gloss** that can live in a `<Term>` card (§4a) — the sentence keeps the claim, the card takes the explanation.
 
 ### Never cut
 - **The concrete example** (the story, the code, the case study, the worked calculation).
@@ -81,6 +96,12 @@ The lesson's **teaching content**: the mechanisms, the examples, the names, date
 - Any step of a mechanism or any item of a list that a later sentence or a question depends on.
 
 **Do the cut before restoring qualifiers, then re-measure.** Every restored qualifier ("echivalentă", "fizică", "mai mult") costs words; budget for them. (Pilot: the first cut reached −14.9%, the review sent back eleven restored qualifiers and glosses, and the lesson then needed 30 more words of real padding removed to stay inside the band.)
+
+### 3a. Bold is a budget, not a style (binding)
+Bold marks **a key term being defined right there in the sentence** (MOSFET, BJT, tensiunea de prag, FinFET) — and nothing else. Not ordinary nouns (Sursa, Drena, tip P, poartă, canal, curent), not people's names, not numbers or figures, not a phrase you want the reader to notice. A bold lead-in over a parallel set (**Faza 1:**, **Sub-prag (Cut-off):**) counts as a span; use it only when the label is itself the term, and write a list's item labels as plain text.
+- **Why:** when 30 words are bold none is emphasised — and bold is louder than the clickable `<Term>`, so the eye lands exactly where there is nothing to click.
+- **Budget: at most 1 bold span per 100 prose words** (validator `MDX-BOLD`: error above; bold in a heading or inside a `<Term>` is an error; a span of more than 6 words warns, formulas excepted). A word that is a `<Term>` is never bold — the term is its own emphasis.
+- Pilot: **41 → 13 spans** (−68%; −64% on the text that stayed), 13 in 1,501 words, budget 15. Kept: *tranzistorul*, *BJT*, *MOSFET*, *tensiunea de prag*, the three region lead-ins, the two phase lead-ins, the formula, *FinFET*, *Gate-All-Around*, *CFET*.
 
 ### Rhythm — this matters as much as length
 In Markdown, **a single newline does not start a new paragraph** — consecutive lines merge. The old lessons write one sentence per line and render as one wall of text. In a finished lesson:
@@ -99,10 +120,10 @@ sandwich de siliciu <Term def="Siliciu în care s-au introdus intenționat, în 
 
 The definition lives **in the MDX, next to the word** — not in `glossar_terms` (that table only feeds the glossary page). The reader taps the word → a small card opens; tap outside / `Esc` closes it.
 
-**3–5 per lesson** (validator: error outside 3–5; lab/boss lessons: none needed).
+**6–10 per lesson** (pilot: 9; validator: error outside 6–10, warning denser than one per 120 words; lab/boss lessons: none needed). The count is higher than a first instinct because §4a moves inline glosses into cards — that is the mechanism that lightens the page.
 
-**A word qualifies when all three hold:** (a) a reader at this point of the course plausibly doesn't know it; (b) the lesson doesn't already explain it in the sentence or paragraph where it first appears; (c) knowing it changes how they read the passage.
-**A word does not qualify:** common words; terms the sentence already defines ("tunelare cuantică" — the lesson explains it in-line); terms from an earlier lesson that the course has taught (unless the lesson depends on it and a reader returning after a week would stall); acronyms that are expanded right there ("DIBL (Drain-Induced Barrier Lowering)"); a term that is only decoration.
+**A word qualifies when** (a) a reader at this point of the course plausibly doesn't know it, **or the lesson currently explains it in-line** (§4a); and (b) knowing it changes how they read the passage.
+**A word does not qualify:** common words; terms from an earlier lesson that the course has taught, *unless the sentence re-explains them in-line* (then the explanation moves into the card — pilot: *tip P*, taught in L6, became a card because L7 re-glossed it as „dominat de goluri”); a term that is only decoration.
 
 Rules:
 - **First occurrence only**, never repeated; never in a heading; never inside another `<Term>`; spread them through the lesson (not all in one paragraph); at most one per paragraph.
@@ -113,7 +134,17 @@ Rules:
 
 **Check the earlier lessons before choosing.** "A reader at this point of the course" means: grep the lessons of the same course that come *before* this one (`grep -rli "<word>" content/courses/<slug>/`) — a word that an earlier lesson already teaches does not qualify, even if it feels technical. (Pilot: the first five terms included *dopat*, *goluri* and *zonă de dezertare*; lesson 6 teaches all three and uses *zonă de dezertare* eight times — the review caught it and they were replaced.) Also: a def may not lean on another term the reader hasn't met, and **spread the terms** — at least one in the second half, where the jargon usually is (validator warns).
 
-Pilot terms (position in the lesson): *nodurile* (26%), *electronii minoritari* (34%), *funcția de lucru* (41%), *factorul de activitate* (50%), *cache-ul* (88%).
+### 4a. A definition written inline is a candidate term (binding)
+If the prose explains a word in the sentence where it appears — "X — adică Y", "X (expansion)", "X: explanation", a clause that only defines — **move the explanation into the card and let the sentence breathe.** The sentence keeps what the argument needs (the *effect*: "curentul curge chiar și când poarta e „închisă”"); the card takes the *mechanism or expansion*. Inline explaining is exactly what makes a page dense; behind a click it costs the reader nothing unless they want it.
+- Pilot: *DIBL* (the acronym was expanded mid-sentence), *tunelarea cuantică* (the section's key concept, explained in prose), *strat de inversie* and *de tip P* (re-glossed in prose), *velocity saturation* (an English heading never translated — the heading became „Viteza maximă a electronilor în canal”, the term moved into the body, its card says it is not the saturation of the operating regions).
+- Never put a term in a heading: retitle the heading in plain Romanian and put the term in the body.
+- Don't strip a sentence of its claim to make it a "term" — and the card must still be true if read alone.
+- **Spread them through the whole lesson**, not the first half.
+
+### 4b. The trigger must be findable by eye (binding)
+A reader who doesn't already know terms are clickable must find them. The trigger (`components/interactive/term.tsx`) is: a **2px dotted underline at full violet** (#6C5CE7; #A78BFA in dark), a **permanently visible faint tint** (~6% violet; ~8% in dark) so it reads as a region rather than a stray underline, and a **small dot after the word** (~0.4em) as the affordance marker. Quiet enough to read through; with at most ~10 per lesson and bold rationed (§3a) the terms are the most distinct thing on the page. Do not weaken it per lesson. (Checked at 9 terms, light and dark, 1440 and 390: not busy. If a future lesson feels cluttered, drop the dot and keep the tint — the owner decides — rather than thinning the underline.)
+
+Pilot terms (position in the lesson): *de tip P* (24%), *nodurile* (28%), *electronii minoritari* (37%), *strat de inversie* (39%), *funcția de lucru* (45%), *factorul de activitate* (56%), *velocity saturation* (68%), *DIBL* (75%), *tunelarea cuantică* (85%). (*cache-ul* left with the archived memory section.)
 
 ---
 
@@ -132,7 +163,7 @@ Put `<InlineQuestion n="1" />` (**string form**, on its own line) **right after 
 
 The validator enforces: every question has exactly one anchor in the string form, in order, no orphans; **no two questions closer than 10% of the lesson** (error); warnings if Q1 > 45%, Q2 outside 30–75%, Q3 < 50%. **These spacing numbers are deliberately loose — do not "fix" them back to something stricter.** An earlier draft used 12% / Q3 ≥ 60%. In the pilot the mechanism ends at 47% and the power section at 58%, 11% apart; obeying the stricter numbers would have meant parking Q3 after the *next* subsection (asking about power after velocity saturation) or dragging Q2 away from the mechanism it tests. A question belongs **immediately after the concept it tests**; the percentages only exist to catch genuine clustering (two questions back-to-back, or all three at the end). So: if the validator flags a spacing or window problem, restructure only when the questions really are clustered; **never move an anchor away from its concept to satisfy a number**, and never tighten these thresholds in the script or here. If this paragraph and any other copy of the numbers disagree, this paragraph wins.
 
-The anchor goes right after the section that *taught* the thing the question tests — not at the end of the H2 that happens to contain it (pilot: Q3 was first parked after the next subsection and the review rightly objected). Once a lesson has questions the page locks "Marchează completat" until each has been *attempted* once (right or wrong) — so anchors must exist for every question.
+The anchor goes right after the section that *taught* the thing the question tests — not at the end of the H2 that happens to contain it (pilot: Q3 was first parked after the next subsection and the review rightly objected). **Don't let a list or a sub-topic wedge itself between a concept and its question.** Pilot: Q3 (dynamic power) first sat after the cooling-limits list, but the concept ends at the Gelsinger FactBox; the list that follows belongs *after* the anchor. Anchor = right after the last paragraph or box that completes the concept. (Anchor position lives only in the MDX — `inline_questions` has no position column — so moving an anchor needs no re-seed.) Once a lesson has questions the page locks "Marchează completat" until each has been *attempted* once (right or wrong) — so anchors must exist for every question.
 
 ### 5.2 The difficulty bar — the "cover test"
 A good question **cannot be answered by common sense plus the question's own wording**. Write it, then cover the lesson and ask: could a smart reader who skipped the lesson get it? If yes, rewrite.
@@ -229,8 +260,8 @@ A fenced block can become runnable: ` ```python-editor … ``` ` instead of ` ``
 1. Read the lesson fully. Note the **concepts in order**, the main mechanism, the numbers and examples (these are your *never-cut* list), and anything that looks factually wrong (verify it, then fix or report per §1).
 2. Run the baseline: `node scripts/validate-questions.mjs <lesson>.mdx --stats` → record the word count.
 3. **Headings:** delete the generic ones and any `# H1`/wrapper; write the new heading structure (§2) before touching prose.
-4. **Cut and break paragraphs** (§3) section by section; re-run `--stats --baseline HEAD`; stop inside −15…−20%.
-5. **Terms** (§4): pick 3–5, wrap, write the defs.
+4. **Cut and break paragraphs** (§3) section by section; re-run `--stats --baseline HEAD`; stop with the *density* figure inside −15…−20%. Ration bold (§3a). If the owner ordered a structural cut, archive it (§3) first.
+5. **Terms** (§4): convert every inline gloss (§4a), pick 6–10 in all, spread over the whole lesson, wrap, write the defs.
 6. **Questions** (§5): choose the three concepts (first concept / main mechanism / application), write them in `<lesson>.questions.json`, put the anchors in the `.mdx`.
 7. `node scripts/validate-questions.mjs <lesson>.mdx --stats --baseline HEAD` → **exit 0**; every REVIEW item fixed or justified in the report.
 8. Re-read the finished lesson once as a student: is anything missing that a question or later section needs? Is every fact still there?
@@ -242,7 +273,7 @@ Pitfalls that burn time: `n={1}` instead of `n="1"` (silently renders nothing); 
 
 ## 8. What to report back (per lesson)
 
-- Word count before → after and the %.
+- Word count before → after, and the cut as **total = density + structural** (the validator prints it); bold spans before → after; for a structural cut: the archive path, the destination lesson, and what later lessons assumed it.
 - Heading map: old → new.
 - The terms (word → one-line def) and why each qualifies.
 - The three questions with their `distractors` notes and where each anchor sits (% through the lesson, from the validator).
@@ -260,4 +291,4 @@ Pitfalls that burn time: `n={1}` instead of `n="1"` (silently renders nothing); 
 4. Note: `inline_questions.content` — including the correct answer — is sent to the browser with the page (the server grades, but the payload is readable). Acceptable for now; a known property, not something to work around in content.
 
 ## 10. Reference: the pilot
-`hardware-fizica` L7 — 2,054 → 1,742 words (−15.2%); 5 terms (see §4); 3 questions at 23% / 47% / 58%: Q1 `single_choice` (BJT vs MOSFET: why 10⁸ BJTs left open would consume far more — the options are three "Fiecare BJT…" claims, 69/71/74 characters, correct one in the middle), Q2 `match_pairs` (V_GS/V_DS situation ↔ region behaviour, deliberately not by region name), Q3 `short_answer` (V halved and f doubled → power ÷2); longest paragraph 60 words. The validator passes with 0 errors and 0 review items. It was reviewed by an independent agent before sign-off — its findings drove most of the rules marked "(pilot…)" above.
+`hardware-fizica` L7 — first pass 2,054 → 1,742 words (−15.2%); after the owner's review (bold budget, inline glosses → 9 terms, memory section archived) **1,501 words: −26.9% total = −17.4% density + −9.5% structural**, 41 → 13 bold spans, 9 terms (see §4); 3 questions, first at 23% / 47% / 58%, now at 22% / 54% / 63% (Q3 moved to right after the Gelsinger FactBox): Q1 `single_choice` (BJT vs MOSFET: why 10⁸ BJTs left open would consume far more — the options are three "Fiecare BJT…" claims, 69/71/74 characters, correct one in the middle), Q2 `match_pairs` (V_GS/V_DS situation ↔ region behaviour, deliberately not by region name), Q3 `short_answer` (V halved and f doubled → power ÷2); longest paragraph 60 words. The validator passes with 0 errors and 0 review items. It was reviewed by an independent agent before sign-off — its findings drove most of the rules marked "(pilot…)" above.
