@@ -102,3 +102,209 @@
 - **Other:** the five subagents' diffs were reviewed (prop + 2 refs + 1 effect each, plus a `useRef` import where needed); a stray `XP_VALUES` import removed (lint).
 - **Files:** new `src/components/mdx/game-contract.ts`; changed `mdx/game-frame.tsx`, the five `mdx/games/*`, `course/{lesson-content,lesson-page-client,complete-button}.tsx`, `(dashboard)/courses/actions.ts`, `lib/{course-map,gamification-constants}.ts`, `ui/serpentine-path.tsx`, `scripts/sync-content.mjs`, 20 C1 `.mdx` (frontmatter `module_index` only), `CLAUDE.md`, `MASTER-PLAN.md`. No packages installed. No schema change; the only DB writes were the approved 5-row content UPDATE and the temporary test user (created + removed).
 - Gate: `tsc` 0 · `lint` 0 errors (the same 2 pre-existing warnings) · `build` passes with lint ON (fresh isolated copy in %TEMP%, deleted; :3000 untouched). Committed locally, **not pushed**.
+
+### MASTER-PLAN P6 — pilot lesson: `<Term>`, validator, LESSON-STANDARD.md, hardware-fizica L7 live (2026-10-10) ✅
+
+- **Built.** `src/components/interactive/term.tsx` — `<Term def="…">word</Term>`: click/tap/Enter/Space opens a card, click-outside / `Esc` closes, one card at a time, no hover state (works on touch), a `<span role="button">` so it wraps across lines, card **portalled to `<body>`** (a table's `overflow-x` wrapper can't clip it; no layout change in the paragraph/list/cell), server and first client render identical (no hydration risk). It reuses WowNote's **visual language** — `KIND_STYLE.term` is now exported — but not its mechanism (WowNote is a DB-backed, always-visible margin card; it cannot become an inline click-to-open definition). Chip colour darkened in light mode only. No Radix popover is installed, none added. `scripts/validate-questions.mjs` (D2/D3 mechanically + lesson structure + the D5 cut band with `--baseline`), `scripts/questions-to-sql.mjs` (prints one guarded transaction, never connects), `devpath-docs/LESSON-STANDARD.md`.
+- **L7 (`hardware-fizica`, "Tranzistorul — robinet electric controlat de tensiune").** 2,054 → **1,745 prose words (−15.0%)**; 8 `##` headings that name claims (`1947: un semnal mic comandă un curent mare` · `De la firele de aur la MOSFET, în 12 ani` · `Cum comandă poarta curentul` · `Prețul comutării: puterea și viteza` · `Cum s-a micșorat tranzistorul — și unde se oprește` · `Memoria care nu se micșorează odată cu logica` …); 5 terms at 26 / 34 / 41 / 50 / 88% (*nodurile, electronii minoritari, funcția de lucru, factorul de activitate, cache-ul*); 3 questions at 23 / 47 / 58% — Q1 `single_choice` (BJT vs MOSFET: why 10⁸ BJTs left open consume far more), Q2 `match_pairs` (V_GS/V_DS situation ↔ region behaviour), Q3 `short_answer` (V halved and f doubled → power ÷2). Validator: 0 errors, 0 review items. Longest paragraph 60 words. Term defs (not counted in the 15%) add ~130 words behind a click.
+- **Q1 rewrite (owner).** The first rewrite still failed the cover test: the prompt already asserted that the chip consumes more, so one option ("BJT disipă energie doar la comutare") contradicted the premise and another gave a BJT an oxide-isolated gate (no BJT has one) — both eliminable by logic, B wins without the lesson. Final options (owner's wording; every one a plausible mechanism for higher consumption): "BJT-ul are rezistență internă mai mare, deci încălzește mai tare" · **"BJT-ul cere curent continuu în bază tot timpul cât rămâne deschis"** · "BJT-ul are tensiunea de prag mai mare, deci comutarea costă mai mult" (64/65/68 chars; correct one in the middle). Distractor notes name the confusion: option 1 = blames internal (ohmic) resistance, not how the device is driven; option 3 = confuses the threshold voltage with energy cost. I also added "(baza)" at the first mention of the BJT's middle layer so the option's term exists in the lesson.
+- **Factual corrections in L7 (owner: errors are fixed, not preserved).** Each verified by recomputation: ~10⁷ cm/s = **360.000 km/h** (was 100.000) — body **and** CosmoHint; "7.740 de kilometri — de la București la Beijing și înapoi" → "…mai mult decât distanța de la București la Beijing" (great-circle Bucharest–Beijing ≈ 7.060 km, so a round trip is ≈ 14.100; the 7.740 km itself checks out: √(167 mm² × (6·10⁸)²) = 7.754 km); the table row "TTL clasic (anii '70–'80)" → "NMOS/CMOS clasic" (TTL is bipolar, no MOS threshold); "electronii masivi din Sursă" → "majoritari" (the course's term, L6); and, from the same review finding, "1 V sub 100 nm → 10.000–100.000 V/cm" → **100.000–1.000.000 V/cm** (1 V over 100 nm is already 10⁵ V/cm). **Left, reported:** the static-power tension ("zero consum static" vs the sub-threshold-leakage paragraph and gate tunnelling at ~1 nm oxide — owner: leave for now) and the hook's "de o sută de ori mai mare" (the 1947 gain figure is disputed — voltage vs current gain — not verified). LESSON-STANDARD §1 now says: a verified factual error is fixed with the smallest edit everywhere it appears and reported as `FIX · line · before → after · how verified`; an unverifiable suspicion is `SUSPECTED`, an internal clash `TENSION` — never preserved.
+- **Spacing rules (owner: keep).** Question spacing minimum **10%** (was 12%) and Q3 window from **50%** (was 60%). Reason, now written into §5.1 *and* a comment in the validator so nobody tightens them: in the pilot the mechanism ends at 47% and the power section at 58% (11% apart); the stricter numbers would have forced Q3 to be parked after the *next* subsection or Q2 away from the mechanism it tests. A question goes immediately after the concept it tests; the percentages only catch genuine clustering.
+- **Independent review** (a separate agent with no part in writing the lesson; read-only; given the standard, the finished lesson, the questions and the original). Its report, complete and unedited:
+
+> **VALIDATOR OUTPUT (D)**
+> INFO ...l07-...mdx: 1744 words (baseline HEAD: 2054 → -15.1%)
+> ✅ 1 lesson(s), 1 questions file(s) checked · 0 error(s) · 0 review item(s)
+> It exits 0, but that proves very little here. The validator cannot test the cover test, term redundancy, heading quality, paragraph length, or the 15–20% band (the band is INFO only, never an error). Details in finding 14.
+>
+> **FINDINGS, MOST SEVERE FIRST**
+>
+> **1. BLOCKER. Q3 fails the cover test completely (questions.json, order 3).**
+> Quote: "În formula P = α × C × V² × f, tensiunea de alimentare V scade la jumătate, iar α, C și f rămân neschimbate. De câte ori scade puterea disipată?"
+> - The prompt hands over the formula, and V² is right there. Anyone who has never opened the lesson computes (1/2)² = 1/4 and answers 4. It is arithmetic, not lesson knowledge.
+> - Guessability: very high, effectively 100% for any student who can square a fraction.
+> - The lesson also contains an almost identical worked example: "de la 5 V la 1 V, puterea scade de 25 de ori". So it is also recall of an adjacent example, not "a new case" as §5.1 requires for Q3.
+> - Suggested fix: do not print the formula, and change the case. Example: "Un inginer reduce tensiunea de alimentare de la 1,2 V la 0,6 V și dublează frecvența. Cum se schimbă puterea dinamică?" Answer: scade de 2 ori. This needs "V²" and "f liniar", which only someone who read the lesson knows. Then rebuild `accepted` as in finding 3.
+> - Placement nit: the anchor sits after the velocity-saturation subsection and the CosmoHint on parallelism. The power concept ended two blocks earlier, so the question is not "right after the section it tests" (§5.1).
+>
+> **2. BLOCKER / HIGH SHOULD-FIX. Q1 is easy, and its distractors are weak.**
+> - Answering with the prompt only: "Poarta unui MOSFET e separată de canal printr-un strat de oxid. Ce consecință practică are asta…?"
+>   - I pick B, "Poarta absoarbe curent zero, deci menținerea stării e gratuită". Oxid = izolator, so no current, so no cost.
+>   - The prompt wording "consecință practică … milioane de tranzistoare lăsate deschise" signals "power saving".
+>   - B is the only option phrased as a benefit.
+>   - Guessability: high.
+> - Odd-one-out effect:
+>   - B and C share the template "…, deci …".
+>   - A is the odd one out ("doar cât timp … impulsuri").
+>   - Elimination leaves B vs C.
+>   - C ("Sarcina de pe poartă se scurge, deci starea cere reîmprospătare") is DRAM vocabulary.
+> - The answer is the sentence directly above the anchor. The lesson says: "oxidul blochează orice electron, deci curentul pe poartă e zero absolut." The question restates it, and it was already said in the hook and in the BJT paragraph. This is a Ctrl-F answer.
+> - Length: A/B/C are 65/62/63 characters, so there is no length tell. But the correct answer is the shortest, so "never pick the longest" always eliminates A. Across lessons that becomes a learnable tell (see finding 15).
+> - Distractor A does not match its own note.
+>   - The option says "impulsuri de curent".
+>   - The note says the student "crede că poarta trebuie alimentată continuu cu curent".
+>   - A BJT needs continuous base current, not "impulses", so the option reads as filler.
+> - Distractor C is a forward reference. DRAM, 1T1C and refresh come at the very end of the lesson, about 85% in, but Q1 sits at 23%. A reader who has not met DRAM cannot be tempted by it. The explanation also teaches "Reîmprospătarea apare la DRAM", which the lesson never states as such.
+> - "menținerea stării e gratuită" contradicts the lesson's own subthreshold paragraph: "scurgerea sub-prag… procesoarele fierbinți consumă mai mult chiar și în repaus". See also finding 11.
+> - Suggested fix: write a scenario with numbers. Examples:
+>   - Two chips, both holding 10⁶ gates "on". Chip X is built from BJTs, chip Y from MOSFETs. Which keeps the state with less static power, and why?
+>   - A gate's driver is disconnected and the gate is left floating, with no current path. What keeps the channel open?
+> - The three options should be real neighbouring confusions drawn from the lesson's own concepts:
+>   - "poarta are nevoie de curent permanent" (BJT)
+>   - "scurgerea sub-prag" (leakage)
+>   - "tensiunea de prag" (threshold)
+> - Do not use DRAM here.
+>
+> **3. SHOULD-FIX. Q3 `accepted` list wrongly rejects reasonable answers. The grader is stricter than the standard says.**
+> - inline-scoring.ts `normalizeText` does: NFD, strip diacritics, lowercase, collapse whitespace to ONE space, trim, then exact equality.
+> - So spaces are not removed, and punctuation is not stripped. The standard's "spacing-insensitive" overstates this.
+> - Listed: "4", "de 4 ori", "de 4", "4 ori", "4x", "x4", "patru", "de patru ori", "patru ori", "de 4 ori mai mica", "de 4 ori mai mică".
+> - Wrongly rejected:
+>   - "scade de 4 ori" and "scade de patru ori". This is the most likely answer, since it echoes "De câte ori scade".
+>   - "de patru ori mai mică" and "4 ori mai mică/mica/mic".
+>   - "4 x" (the space survives) and "4×" / "×4". The lesson itself writes "×".
+>   - "1/4", "un sfert", "0,25", "0.25", "25%", "P/4". The explanation itself says "1/4 din putere", so these students are defensibly right.
+>   - "de 4 ori." (any trailing period), "împărțită la 4", "/4", "÷4".
+> - Fix: add these variants. Better, fix the normaliser to strip punctuation and all spaces, or add a numeric type. Also correct the standard's claim.
+> - Arithmetic and explanation: (1/2)² = 1/4 is correct, and 5 V→1 V = 25× is correct. No error there.
+>
+> **4. SHOULD-FIX. The CosmoHint lost a fact the standard says is never dropped (§1: "never drop its fact").**
+> - Original: "Electronii din canalul tranzistorului tău se mișcă la 100.000 km/h. Dar procesorul pare să calculeze instant — pentru că miliarde de tranzistoare lucrează în paralel…"
+> - Finished: "Procesorul pare să calculeze instant — pentru că miliarde de tranzistoare lucrează în paralel, nu unul singur extrem de rapid."
+> - The premise (electrons are fast) and the contrast ("Dar") are gone. "nu unul singur extrem de rapid" now answers a claim the hint no longer makes.
+> - Possibly this was deliberate, to avoid repeating the wrong figure (finding 11). But it is a silent cut, and the wrong figure still sits in the body.
+> - Fix: restore the sentence, or restate it as "au viteza maximă din paragraful de mai sus" and report it.
+>
+> **5. SHOULD-FIX. The only gloss of V_GS was removed.**
+> - Original: "Aplici o tensiune pozitivă pe poartă (V_GS > 0)."
+> - Finished: "La V_GS > 0, câmpul electric traversează oxidul…"
+> - V_GS is now never defined. V_DS never is either, and V_GS/V_DS drive the whole "Cele trei regiuni" section.
+> - grep of l01–l06 shows neither symbol was taught earlier. Only Q2's prompt re-glosses it ("tensiunea pozitivă de pe poartă (V_GS > 0)").
+> - Fix: restore "(tensiunea poartă–sursă)" at first use, or make V_GS/V_DS a Term (see finding 7).
+>
+> **6. SHOULD-FIX. The qualifier "echivalentă" was dropped from the FactBox, which creates a contradiction.**
+> - Original: "Oxidul de poartă la nodurile moderne are o grosime echivalentă de ~1 nm. Asta înseamnă aproximativ 4–6 atomi de HfO₂"
+> - Finished: "Oxidul de poartă modern are ~1 nm: 4–6 atomi de HfO₂ puși unul peste altul."
+> - Equivalent oxide thickness is not physical thickness. Dropping the word turns an EOT statement into a physical-thickness claim. The body text just above still says "grosime echivalentă sub 1 nm", so the page now disagrees with itself.
+> - This is exactly the qualifier case in §3 "Never cut". The original was already shaky (1 nm EOT of HfO₂ is not 4–6 atomic layers), but the rewrite made it worse. Restore "echivalentă".
+>
+> **7. SHOULD-FIX. Term selection. Three of five Terms are concepts the previous lesson (l06) already teaches, and the best candidates are missing.**
+> - Evidence from l06:
+>   - "Dopaj tip P — goluri în exces… Materialul se numește semiconductor de tip P — dominat de goluri."
+>   - "Golurile conduc curent la fel ca electronii".
+>   - "Se formează o **zonă de dezertare** — o fâșie golită complet de purtători liberi", used about 8 times.
+> - This violates §4 (a)/(b): "terms from an earlier lesson the course has taught" do not qualify.
+> - Per term:
+>   - "dopat" and "goluri": known from l06. Both are mere refreshers.
+>   - "zonă de dezertare": the weakest. The sentence already explains it ("câmpul respinge golurile… ionii negativi de bor rămân expuși"), and the def repeats that ("câmpul a alungat purtătorii… rămân doar ionii fixi"). That breaks the rule "must not repeat the sentence it sits in".
+>     - Also check the Romanian: l06 uses the same word, so it is at least consistent. Whether "dezertare" is the best calque of "depletion" I could not verify.
+>   - "dopat" def uses "goluri" before the "goluri" Term appears. That is rule (ii): defining a term with another undefined term.
+>   - "goluri" def is a dictionary entry, not lesson-specific.
+>   - "nodurile": good. Not taught in l01–l06 (only "3 nanometri" in l01), and the def is accurate and in context.
+>   - "factorul de activitate": good. The sentence only names α ("α e factorul de activitate (~0,1)"), and the def gives the meaning with an example. It is accurate.
+> - All five sit in roughly the first 50% of the lesson. The second half has none, though that is where the jargon is.
+> - Swap these three:
+>   - V_GS / V_DS: never defined, and needed by the regions section. If it goes in a Term, use "tensiunea poartă–sursă".
+>   - "funcția de lucru" (in "prin funcția de lucru a metalului de poartă"): pure jargon for a first-year student.
+>   - "cache" ("cache-ul procesorului", used with no gloss): grep shows it is not in l01–l06.
+> - Other candidates:
+>   - "electronii minoritari" (and l06 uses "majoritari", while this lesson says "electronii masivi").
+>   - "capacitanța circuitului" (only touched in l01 for touchscreens).
+> - Candidates to drop: dopat, goluri, zonă de dezertare.
+>
+> **8. SHOULD-FIX. Headings: the "swap" and "spoiler" tests fail in places.**
+> - "## Micșorarea fără sfârșit" says the opposite of its section. The section's argument is that shrinking ends ("### Sfârșitul drumului pe siliciu", "limita fizică fundamentală", "tranzistorul nu mai poate fi oprit"). A reader skimming headings learns the wrong thing. Suggest "## Cum s-a micșorat tranzistorul — și unde se oprește".
+> - "## Ce rămâne din robinet — și ce urmează" is a metaphor, not a claim. The "Ce urmează" half is the generic tail the standard wants removed, and the section has the closing summary plus a pointer to the lab.
+> - "## O folie de aur pe o pană de plastic" is a hook image with no claim, and it is 9 words (limit "≤ ~8"). The standard's own examples state a claim. The heading was carried over unchanged from the original.
+> - "## De la point-contact la MOSFET în 12 ani": "point-contact" is never explained in the body.
+> - "### Putere dinamică — de ce căldura a oprit frecvența" and the other `###` are fine. They name topics, not claims.
+> - "## Cum comandă poarta curentul" (and the other H2s) have no prose of their own, only `###` children. That is the pattern §2 rule 5 prohibits. See finding 13 for why the standard is ambiguous here.
+>
+> **9. SHOULD-FIX (medium). Q2 is guessable, and 2↔3 is defensible to swap.**
+> - Items: field traverses the oxide / field repels holes, boron ions exposed / electrons attracted and accumulate / electrons outnumber holes, zone changes P→N / channel connects S and D, current can pass.
+> - Guessability: medium-high.
+>   - Item 1 is the obvious first, item 5 the obvious last, and 4 follows 3 ("depășesc" requires prior accumulation).
+>   - That leaves one real decision (2 vs 3). "Repels the positive holes first" is natural for a student who has never seen the lesson.
+> - Physics objection on 2↔3: the same field repels holes and attracts electrons at the same time. The lesson separates them only through "câmpul crește", and item 3 omits that cue. An informed student can argue for 3 before 2.
+> - 4↔5 is nearly synonymous in the lesson: "strat de inversie — sau canal".
+> - The items are paraphrases of five consecutive sentences, so the question tests the order of the text, not application.
+> - Fix: add "când câmpul crește peste…" to item 3, or add the threshold step. Alternatively replace ordering with a case, for example V_GS vs V_th with current/no current, tied to the regions.
+> - No numbers or "apoi" cues leak the order, which is good.
+> - Placement: the anchor is after the regions subsection and the TABLE placeholder, while the mechanism tested ended two subsections earlier. It is acceptable (it is the end of the H2) but not "right after the section".
+>
+> **10. SHOULD-FIX / NIT. Smaller cuts that dropped a qualifier or a link in the argument. Judgment per item:**
+> - "Orice reproducere era diferită." Cut from the Brattain contrast. It is the only support for the later "BJT era robust, reproductibil". The text still has "imposibil de fabricat", so I mark this a nit.
+> - "lungime fizică a canalului" → "lungime de canal". The word "fizică" distinguishes the 2–3 nm physical length from the marketing node names ("3 nm", "N3E") used elsewhere. It is on the standard's never-cut list. Restore "fizică".
+> - SRAM: "dar costă mai mult spațiu" → "dar costă spațiu". Loses the comparison with DRAM. Restore "mai mult".
+> - Atalla: "A descoperit că oxidarea termică… crește un strat de SiO₂" → the attribution of the discovery is gone, so it now reads as a general fact. Minor.
+> - Gelsinger FactBox: "director tehnic Intel" and the middle step (2010 rocket nozzle) removed. The standard allows cutting the escalation. The role "director tehnic" is a small loss of credibility context.
+> - GAA: "TSMC și Intel urmează…" and "Samsung a introdus primul GAA comercial în 2022" were cut. The Samsung year remains in the heading. These are padding.
+> - "Poarta controlează doar printr-un câmp electric." adds the word "doar", a new absolute. Nit.
+> - After the V_th table: "Nu e un parametru fix al materialului: inginerii o reglează…". The "Nu" with the dropped subject is now disconnected after a table. Restore "Tensiunea de prag".
+> - "Rezultatul: electronii nu se mai accelerează liniar cu câmpul." (the explicit step of velocity saturation) was dropped, together with the word "independentă". Nit.
+>
+> **11. NOTE. Factual errors already in the original, not introduced by the rewrite (report only). These are the items §1 says to report, not fix.**
+> - (a) "~10⁷ cm/s … echivalentul a 100.000 km/h". 10⁷ cm/s = 100 km/s = 360.000 km/h. This is the known issue. The CosmoHint carried it too; the rewrite dropped that copy but the body copy remains.
+> - (b) Static power. The lesson says "fără să consume nimic în stare statică" and "curentul pe poartă e zero absolut" and "Puterea se disipă doar la comutare". It also says "scurgerea sub-prag… procesoarele fierbinți consumă mai mult chiar și în repaus". Gate tunneling at a ~1 nm HfO₂ oxide is nonzero as well. This is an internal contradiction in the original. Q1 option B ("curent zero… gratuită") and Q1's explanation ("starea se menține fără consum") now carry it into the assessment.
+> - (c) FactBox: "7.740 de kilometri — de la București la Beijing și înapoi". Bucharest–Beijing is about 7,000–7,500 km one-way, so "și înapoi" is wrong, or the distance is. The 7,740 km figure is consistent with 167 mm² at 6×10⁸ (about 12.9 mm side). I did not verify the great-circle distance beyond a rough estimate.
+> - (d) "Sub 100 nm, chiar și 1 V creează… câmp electric… 10.000–100.000 V/cm". 1 V over 100 nm = 10⁵ V/cm, and over 10 nm = 10⁶ V/cm. For "sub 100 nm" the field should be ≥10⁵ V/cm; the 10⁴ lower end corresponds to 1 µm.
+> - (e) The V_th table row "TTL clasic (anii '70–'80): 5 V, V_th 1,0–2,0 V". TTL is bipolar and has no MOS threshold. The row describes NMOS/CMOS of that era.
+> - (f) "electronii masivi din Sursă" (Romanian "majoritari", as used in l06) is a terminology error.
+> - (g) Hook: "de o sută de ori mai mare". The figure for the first point-contact demo is disputed in sources. I did not verify it. Low priority.
+> - Not an error: "12 ani" (1947→1959) and "51 de ani" (1971→2022) are correct. The M4 arithmetic 28×10⁹ × 3×10⁹ × 0,1 = 8,4×10¹⁸ is correct. 1,8 m / 3 nm = 6×10⁸ is correct.
+>
+> **12. Did the rewrite introduce new factual errors? Mostly no; the issues are lost qualifiers.**
+> - Item 6 (echivalentă) is the only case where a dropped qualifier creates a new inconsistency.
+> - The Term defs and the questions are otherwise accurate.
+> - "nodurile" def says "Numărul mai mic înseamnă, în general, tranzistoare mai dense". This is a new claim but compatible with the text.
+> - Placeholders: all four {/* ANIMATION … */} and {/* TABLE … */} comments are preserved verbatim and in place, as in the original. Frontmatter is unchanged.
+> - Paragraph rhythm is good. The longest paragraph (DRAM) is about 60 words and the subthreshold one about 50, so there are no walls of text.
+>
+> **13. NIT. The standard contradicts itself on wrapper `##`.**
+> - §2 rule 5 says "Never a `##` that only wraps `###` children… delete the wrapper", but the same rule allows grouping them under 2–4 descriptive `##`.
+> - The pilot's four middle H2s consist only of `###` children with no intro prose. Two agents could read this differently.
+> - Clarify: a descriptive H2 over several H3s is allowed, but a bare wrapper H2 is not.
+>
+> **14. SHOULD-FIX (validator and standard). Rules that are too lenient or too strict, so "exit 0" overstates compliance.**
+> - The −15…−20% band is INFO only, never an error. This pilot is at −15.1%, right at the floor.
+> - The measure excludes Term defs (about 130 words) and counts headings. Student-visible text is closer to −8%.
+> - Not checked at all:
+>   - paragraph length (≤ ~90 words)
+>   - `# H1` in the body
+>   - `---` rules (both are listed in §2)
+>   - heading length and caps
+>   - heading quality (spoiler/swap)
+>   - Term rules: at most one per paragraph, first occurrence only, not in headings, not nested, def repeats its sentence, spread across the lesson
+>   - the cover test
+> - MDX-HEADING only matches the five bare words. "## Hook: …" or "## Ce urmează" slip through.
+> - The Term regex uses `def="([^"]*)"`. A straight `"` inside a def silently ends the match. The Term is then lost from the count, and the leftover text may not be flagged.
+> - D3-4 only checks that a note is ≥12 characters. It cannot check that the note matches the option (see Q1 distractor A).
+> - D3-3 plus D3-2 push the correct answer toward the shortest option. Across lessons "never the longest" becomes a tell (finding 2).
+> - D3-5 antonym list is odd: ["curent","tensiune"], ["de","ori"], ["cu","fara"].
+> - BANNED regex `(a si b|b si c|a si c)` can false-positive on ordinary text like "aria a și b".
+> - The "exactly 3 options" rule means a blind guess is 33%, and one odd-one-out makes it 50%.
+> - Typical-case slot types (Q1 SC/TF, Q2 ordering/fill, Q3 short_answer) make every lesson's question shape predictable.
+> - Standard §5.5 says short_answer matching is "case-, spacing- and diacritic-insensitive". The grader only collapses spaces and does not strip punctuation. Authors cannot know what to list.
+> - Standard §4 asks for Terms that a reader "at this point of the course" plausibly doesn't know, but there is no mechanism to check previous lessons. The pilot's own terms show the ambiguity: three of five were taught in l06.
+>
+> **WHAT IS GENUINELY GOOD**
+> - Paragraph breaking is excellent: short paragraphs, bold lead-ins for Faza 1 / Faza 2, a clear structure. The lesson reads far better than the original.
+> - Most cuts are real padding: restatement, throat-clearing, the patent number, one-sentence-per-line narration. The key numbers survive: 17.468 tubes, 4–6 atoms, the 25× figure, 192–216 M/mm², 8,4×10¹⁸, 0,021 µm², 51 years, 2.300→80 B. All four visual placeholders are intact.
+> - The Term defs for "nodurile" and "factorul de activitate" are accurate, contextual, short and genuinely useful. The popup mechanism leaves the prose uncluttered.
+> - Q1's options are length-matched (65/62/63) with the validator's checks satisfied, and the Q1 `distractors` notes are the right idea (named confusions).
+> - Q2's explanation teaches the mechanism rather than restating the answer. Q3's explanation correctly links to the 25× example.
+> - Anchors are on their own lines in string form and at plausible boundaries (23% / 47% / 63%). Question spacing meets the 12% rule.
+> - Terms themselves obey the formal rules (3–5, ≤320 characters, no straight quotes, plain text).
+>
+> **NOT VERIFIED**
+> - The Bucharest–Beijing distance (c) and the 100× gain (g) were not checked against sources.
+> - Whether "zonă de dezertare" is the standard Romanian term, beyond its consistent use in l06.
+> - I did not run any scripts beyond validate-questions.mjs, and did not render the page or check how Term cards display.
+
+- **How each finding was handled** (disagreements marked). 1/2/9 **accepted** — Q3 and Q1 rewritten, Q2 ordering replaced by `match_pairs` on conditions (not region names); *residual:* Q1 still tests the lesson's central BJT/MOSFET distinction, so it can't be made fully unguessable. 3 **accepted** (29 variants; the grader is unchanged, the standard now describes it exactly). 4–6, 10 **accepted** (restored: CosmoHint sentence, V_GS/V_DS glosses, *echivalentă*, *fizică*, *mai mult*, *Tensiunea de prag*, *director tehnic Intel*, the discoverer's attribution; removed the stray "doar" sentence). **Not restored:** "Orice reproducere ieșea diferită", the middle Gelsinger step, the GAA adoption sentences (judged padding). 7 **accepted** (3 terms replaced; spread 26→88%). 8 **accepted for 4 headings**; **disagree** that the descriptive H2s over H3s are the prohibited wrapper — standard §2 now separates a bare wrapper (forbidden) from a descriptive H2 (fine). 11 → owner decision, see "Factual corrections". 13 **accepted**. 14 **mostly accepted**: the D5 band is now an error with `--baseline`; new checks for `# H1`, `---`, paragraph length, heading length/caps/soft-generic, malformed or nested Terms, one term per paragraph, a second-half term; `a și b` regex tightened, two odd antonym pairs removed. **Not done:** checking that a distractor note matches its option, and the cover test (both need a human). The reviewer's "Q1 correct answer is the shortest" point is handled in the standard (§5.3: put it in the middle).
+- **DB (owner-approved).** `sync-content.mjs hardware-fizica` → L07 `[content_md]` only; L7 md5 `80551d30…` (14,353 chars) → `1b2d29ee…` (12,804, = the file body); the other 29 aggregate md5 `92339aa1…` unchanged; a second run = no-op. Then `questions-to-sql.mjs` → one transaction (guards: lesson found by course+order+title+type+published, none existing; post-checks: 3 rows and jsonb equality with the file) → `inline_questions` 0 → 3. Project ref confirmed before each write.
+- **Verification — real login, real lesson page, real server actions (temporary user `qa-p6-…@example.invalid`, created with the admin API, deleted afterwards: 0 rows in `auth.users`, `public.users`, `inline_attempts`, `lesson_scores`, `xp_events`; 3 questions kept).** *RLS (never exercised before):* with the anon key, an anonymous client reads **0** rows of `inline_questions`, a signed-in user reads **3** (types and lesson correct). *Behaviour:* the page renders 5 terms, 8 headings, the 3 questions; Q1 wrong → "Mai încearcă" + `inline_attempts` (1 attempt, best 0) + a `lesson_scores` row (0 correct); Q1 right → explanation; Q2 wrong then right; Q3 `4` rejected, then `Scade de 2 ori` (capital, a phrasing the first list would have rejected) accepted; final DB: 3 attempts × 2, best 100, `lesson_scores.correct_questions = 3`. *Gate:* Complete is locked by the existing read-to-the-end gate until the bottom is reached, and — isolated by deleting the user's attempts, reloading and reading to the end — **stays locked with the "Răspunde la întrebările din lecție" hint until every question is attempted**. *Layout:* 1440 and 390 true CSS px (DPR 1) × light and dark: no horizontal scroll, nothing overflowing the lesson column, 5 terms present, 3 question cards, **0 console errors**. *Term component (fixture + real page):* open by click, close by outside-click and `Esc`, focus returns to the term, one open at a time, Enter/Space, real **touch** events through CDP (`pointerdown:touch → click:touch`), card 320 px inside a 390 px viewport, inside a paragraph (term wrapping across lines), list item, bold and table cell (not clipped), near the page bottom.
+- **`python-editor` runnable per block — investigation (nothing changed).** *Why it is read-only today:* `LessonContent` computes `isExercise = lessonType === "exercise" || "project"` once per lesson and `mdx-components.tsx` passes `mode={isExercise ? "exercise" : "display"}` to every `python-editor` block; `CodeEditor` shows Run, the editable Monaco and the OutputPanel **only** when `mode === "exercise"` (and labels it "exercițiu"). `lab`/`boss` aren't in that list, so planned Pyodide labs would be read-only too. *What the pipeline allows:* the fence's info string is **dropped** — I compiled the three forms through `next-mdx-remote` with the app's plugins: ` ```python-editor run ` and ` ```python-editor ` both reach the component as `className="hljs language-python-editor"` (no meta), while ` ```python-editor-run ` reaches it as `language-python-editor-run`. So a block-level switch costs **no new package**: a distinct fence tag (the existing `className.includes("language-python-editor")` checks already match it). *What else a runnable block / lab needs (read from `code-editor.tsx`, `use-pyodide.ts`, `pyodide.worker.ts`):* (1) **Namespace** — every run goes through `runPythonAsync` in one shared global namespace; only the helper names are deleted, so variables leak between blocks and a timeout (worker terminated and re-created) wipes them — D4's "self-contained block" rule needs a fresh dict per run. (2) **Error output** — on an exception the hook returns `stdout: ""`, so everything printed before the error is lost; a lab needs stdout + traceback together. (3) **Verification** — nothing today can run checks: a lab needs a starter block plus hidden assertions executed in the worker, a pass/fail panel, and a call into `useGameCompletionHandler()` (the P5 contract: lab/boss lessons already gate Complete and pay 25/50 XP on it — only the block has to fire `onComplete`). (4) **Loading** — the worker is created lazily on the first Run click (a visible wait for the CDN download of Pyodide+NumPy+matplotlib); warm it when a lesson has runnable blocks. (5) **Phones** — Monaco is heavy and awkward on a touch keyboard, and each runnable block mounts its own instance (3–5 per lesson); consider a lighter editor or lazy-mount below `md`. (6) **Packages** — only `micropip`, `numpy`, `matplotlib` are preloaded; D4's scope (stdlib + NumPy + matplotlib) is covered, anything else needs an allow-list. (7) **No persistence** — edits live in component state; a lab that a student leaves and returns to starts over (localStorage would be the cheap fix). (8) `input()`/stdin, files, sockets, threads are unavailable (as the standard already says). *Sizing:* **three small prompts** — (A) runnable per block (`python-editor-run`), decouple the "exercițiu" badge from "runnable", fresh namespace per run, stdout kept on error, standard §6 updated, Playwright on a lesson page; (B) lab with starter + hidden checks → `onComplete`, authoring format for the checks, one real lab as the pilot (C4 L12); (C) robustness — warm-up, mobile editor, Monaco cost, optional persistence. A is a prerequisite for D4 on lessons; B is a prerequisite for the nine labs/bosses of C4–C6; C can follow.
+- **Other findings (reported, untouched).** Light-mode table headers are near-white text on a light tint (`[&_th]:text-[#E2DDFF]` in `lesson-content.tsx`) — barely readable on every table; the correct answer of a question is in the page payload (server grades, payload readable); `normalizeText` ignores case, diacritics and repeated spaces but not punctuation or inner spaces.
+- **Files:** new `src/components/interactive/term.tsx`, `scripts/validate-questions.mjs`, `scripts/questions-to-sql.mjs`, `devpath-docs/LESSON-STANDARD.md`, `content/courses/hardware-fizica/l07-….questions.json`; changed `src/components/interactive/wow-note.tsx` (exports `KIND_STYLE`), `src/components/mdx/mdx-components.tsx` (registers `Term`), `content/courses/hardware-fizica/l07-….mdx`, `CLAUDE.md`, `MASTER-PLAN.md`. No packages installed. DB writes: the L7 `content_md` update and 3 `inline_questions` inserts (both approved) + the temporary test user (created and deleted).
+- Gate: `tsc` 0 · `lint` 0 errors (the same 2 pre-existing warnings) · `build` passes with lint ON (fresh isolated copy in %TEMP%, deleted; :3000 untouched). Committed locally, **not pushed**.

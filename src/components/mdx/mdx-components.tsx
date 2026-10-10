@@ -16,6 +16,7 @@ import { BossFightAsambleazaCPU } from "@/components/mdx/games/boss-cpu/BossFigh
 import { withGameFrame } from "@/components/mdx/game-frame";
 import { InlineQuestion } from "@/components/interactive/inline-question";
 import { WowNote } from "@/components/interactive/wow-note";
+import { Term } from "@/components/interactive/term";
 
 // Every interactive lab/boss/game is mounted through the SAME frame (full-bleed up to
 // 1200px + shared fullscreen). Created once at module level so component identities
@@ -83,6 +84,7 @@ export function getMdxComponents({
     LabBox,
     InlineQuestion,
     WowNote,
+    Term,
 
     // ── Stub components (placeholders — real component not built yet) ──
     ADCSimulator,

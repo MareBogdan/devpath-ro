@@ -1,0 +1,87 @@
+{
+  "questions": [
+    {
+      "order": 1,
+      "type": "single_choice",
+      "concept": "De ce BJT-ul (controlat de curent) consumă permanent într-un cip cu milioane de tranzistoare deschise, iar MOSFET-ul comandat prin câmp nu — distincția static vs. dinamic și poarta izolată.",
+      "content": {
+        "prompt": "Un cip are 100 de milioane de tranzistoare, majoritatea lăsate deschise ore întregi. De ce ar consuma mult mai mult dacă ar fi făcute din BJT, nu din MOSFET?",
+        "options": [
+          "BJT-ul are rezistență internă mai mare, deci încălzește mai tare",
+          "BJT-ul cere curent continuu în bază tot timpul cât rămâne deschis",
+          "BJT-ul are tensiunea de prag mai mare, deci comutarea costă mai mult"
+        ],
+        "correct_index": 1,
+        "explanation": "BJT-ul e controlat de curent: rămâne deschis doar cât timp i se injectează curent în stratul din mijloc, deci consumă permanent — într-un cip cu milioane de tranzistoare, de nesuportat. MOSFET-ul se comandă printr-un câmp, peste un oxid izolator: curentul pe poartă e zero, iar puterea se disipă în principal la comutare."
+      },
+      "distractors": [
+        "Pune consumul pe seama rezistenței interne (pierderi ohmice, ca la un fir subțire), nu pe felul în care se comandă tranzistorul: ignoră că problema e curentul de comandă ținut permanent.",
+        null,
+        "Confundă tensiunea de prag cu costul energetic: crede că un prag mai înalt înseamnă consum mai mare, când pragul spune doar când începe să conducă tranzistorul — consumul în repaus vine din curentul de comandă."
+      ]
+    },
+    {
+      "order": 2,
+      "type": "match_pairs",
+      "concept": "Cele trei regiuni de operare ale MOSFET-ului, recunoscute după V_GS și V_DS, nu după nume.",
+      "content": {
+        "prompt": "Potrivește fiecare situație cu ce face MOSFET-ul între Sursă și Drenă.",
+        "pairs": [
+          {
+            "left": "V_GS sub V_th",
+            "right": "Trece doar curent de scurgere sub-prag, care scade exponențial"
+          },
+          {
+            "left": "V_GS peste V_th, V_DS mic",
+            "right": "Se comportă ca un rezistor variabil, comandat de poartă"
+          },
+          {
+            "left": "V_GS peste V_th, V_DS mare",
+            "right": "Curentul se plafonează și e controlat aproape numai de V_GS"
+          }
+        ],
+        "explanation": "Sub prag canalul nu există: trece doar scurgerea sub-prag. Peste prag, cu V_DS mic canalul e complet format și tranzistorul se comportă ca un rezistor variabil; cu V_DS mare, câmpul distruge parțial canalul la capătul dinspre Drenă, iar curentul se plafonează (saturație) și depinde aproape numai de V_GS."
+      }
+    },
+    {
+      "order": 3,
+      "type": "short_answer",
+      "concept": "Puterea dinamică P = α·C·V²·f aplicată într-un caz nou: V la jumătate (÷4) și f dublă (×2) → net ÷2. Capcana: cine nu știe că V intră la pătrat spune că puterea rămâne la fel.",
+      "content": {
+        "prompt": "Un inginer reduce tensiunea de alimentare a unui procesor de la 1,2 V la 0,6 V și dublează frecvența; celelalte mărimi rămân la fel. De câte ori scade puterea dinamică?",
+        "accepted": [
+          "2",
+          "de 2 ori",
+          "de 2",
+          "2 ori",
+          "2x",
+          "2 x",
+          "x2",
+          "2×",
+          "×2",
+          "doua",
+          "de doua ori",
+          "doua ori",
+          "scade de 2 ori",
+          "scade de doua ori",
+          "de 2 ori mai mica",
+          "de doua ori mai mica",
+          "2 ori mai mica",
+          "scade la jumatate",
+          "la jumatate",
+          "jumatate",
+          "se injumatateste",
+          "o jumatate",
+          "1/2",
+          "0,5",
+          "0.5",
+          "50%",
+          "/2",
+          "÷2",
+          "impartita la 2"
+        ],
+        "explanation": "Puterea depinde de V la pătrat și de f: V la jumătate dă un V² de 4 ori mai mic, iar frecvența dublă înmulțește cu 2, deci puterea scade de 4 / 2 = 2 ori. Cine uită că V intră la pătrat ar spune că puterea rămâne la fel (jumătate × dublu)."
+      }
+    }
+  ]
+}

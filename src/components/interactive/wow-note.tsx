@@ -50,8 +50,9 @@ export function WowNote({ n }: { n: number | string }) {
 }
 
 // Per-kind visual config. Literal Tailwind class strings (JIT-safe — no dynamic
-// interpolation of color tokens).
-const KIND_STYLE: Record<
+// interpolation of color tokens). Exported so <Term>'s definition card reuses the
+// "term" kind instead of defining a second look.
+export const KIND_STYLE: Record<
   WowNoteKind,
   { label: string; Icon: LucideIcon; wrap: string; glow: string; chip: string }
 > = {
