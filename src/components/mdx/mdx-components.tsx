@@ -18,6 +18,7 @@ import { InlineQuestion } from "@/components/interactive/inline-question";
 import { WowNote } from "@/components/interactive/wow-note";
 import { Term } from "@/components/interactive/term";
 import { Sub } from "@/components/mdx/sub";
+import { MosfetDiagram } from "@/components/mdx/mosfet-diagram";
 
 // Every interactive lab/boss/game is mounted through the SAME frame (full-bleed up to
 // 1200px + shared fullscreen). Created once at module level so component identities
@@ -87,6 +88,7 @@ export function getMdxComponents({
     WowNote,
     Term,
     Sub,
+    MosfetDiagram,
 
     // ── Stub components (placeholders — real component not built yet) ──
     ADCSimulator,

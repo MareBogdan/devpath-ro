@@ -43,6 +43,8 @@
  *   MDX-HEADING   the five generic headings are forbidden (HOOK / CONTEXT / MIEZUL / REVEAL / ÎNCHEIERE, also with a suffix);
  *                 (warn) Introducere / Concluzie / Rezumat / Ce urmează, > 10 words, ALL CAPS, `---` rules; (error) a body `# H1`
  *   MDX-RHYTHM    (warn) a paragraph over 90 words
+ *   PLACEHOLDER   (error) a leftover MDX comment that starts with ANIMATION or TABLE (the owner's TODO markers): a placeholder must not ship — resolve it into
+ *                 a table, a <figure> diagram or delete it (LESSON-STANDARD.md §6a)
  *   DURATION      (warn) a lesson's frontmatter `duration` differs from the computed reading time (prose words / 160 wpm +
  *                 0.5 min per question, mirror of src/lib/reading-time.ts) by more than max(2 min, 25%). sync-content.mjs writes
  *                 `duration` to lessons.estimated_minutes for converted lessons, and the page badge shows it — set it to the
@@ -50,6 +52,9 @@
  *   D5-CUT        with --baseline: the DENSITY cut must be 15–20% (error outside the band). Density = words trimmed from text
  *                 that stays; a whole off-topic section archived on purpose is a STRUCTURAL cut, declared in
  *                 <lesson>.cuts.json and reported separately (see below) — it never counts toward the band.
+ *                 ADDED content is excluded as well: a Markdown table whose header row is NOT in the baseline (a table that resolves a
+ *                 placeholder is new enrichment, not retained prose) — and the <small> footnote right under it — is counted separately
+ *                 and left out of the band. Tables that already existed in the baseline stay in the count like any prose.
  *   STRUCT-CUT    <lesson>.cuts.json = { "structural": [ { "archive": "devpath-docs/archive/….md", "why": "…" } ] }. The archive
  *                 file holds the removed text verbatim between <!-- verbatim:start --> and <!-- verbatim:end -->; its prose words
  *                 are the structural cut. (error) a declared archive that is missing/empty/unmarked, or whose first paragraph is
@@ -176,6 +181,35 @@ function structuralCuts(mdxFile, mdx) {
     items.push({ archive: it.archive, words, why: it.why });
   }
   return { words: items.reduce((a, b) => a + b.words, 0), items };
+}
+
+/** Words of the Markdown tables in `mdx` whose header row is not a header row of `oldMdx` (new tables), plus the <small>
+ *  footnote paragraph directly under each. These are enrichment added after the baseline, so they do not count as retained prose. */
+function addedTableWords(mdx, oldMdx) {
+  // V_DD (baseline) and V<Sub>DD</Sub> (finished lesson) are the same header.
+  const headerOf = (l) => l.replace(/<\/?Sub>/g, "").replace(/_/g, "").trim().replace(/\s+/g, " ").toLowerCase();
+  const tables = (txt) => {
+    const lines = txt.replace(/\r\n/g, "\n").split("\n");
+    const out = [];
+    let fence = false;
+    for (let i = 0; i < lines.length; i++) {
+      if (/^\s*(```|~~~)/.test(lines[i])) { fence = !fence; continue; }
+      if (fence || !/^\s*\|/.test(lines[i])) continue;
+      const start = i;
+      while (i + 1 < lines.length && /^\s*\|/.test(lines[i + 1])) i++;
+      if (i - start >= 1 && /^\s*\|[\s:|-]+\|\s*$/.test(lines[start + 1])) {
+        let end = i;
+        let j = i + 1;
+        while (j < lines.length && lines[j].trim() === "") j++;
+        if (j < lines.length && /^\s*<small>/.test(lines[j])) end = j;
+        out.push({ header: headerOf(lines[start]), text: lines.slice(start, end + 1).join("\n") });
+      }
+    }
+    return out;
+  };
+  const known = new Set(tables(oldMdx).map((t) => t.header));
+  const added = tables(mdx).filter((t) => !known.has(t.header));
+  return { words: added.reduce((a, t) => a + wordsOf("---\n---\n" + t.text), 0), count: added.length };
 }
 
 /** Same walk, but returns the word offset of each <InlineQuestion n="k" /> (for placement checks). */
@@ -436,6 +470,12 @@ function checkTermsAndHeadings(file, mdx, lessonType) {
     if (/<Term\b/.test(t[2])) err(file, null, "MDX-TERMS", "a <Term> inside another <Term>", clip(t[2].trim()));
   }
 
+  // Placeholders must not ship (standard §6a): every one is a TODO that renders as nothing.
+  for (const m of body.matchAll(/\{\/\*\s*(ANIMATION|TABLE)\b[\s\S]*?\*\/\}/gi)) {
+    const line = body.slice(0, m.index).split("\n").length;
+    err(file, null, "PLACEHOLDER", `a ${m[1].toUpperCase()} placeholder comment is still in the lesson (line ${line}) — turn it into a table / figure or delete it`, clip(m[0], 90));
+  }
+
   // Bold budget (standard §3a): bold is for a key term defined in the sentence, nothing else.
   if (!isGame) {
     const noCode = body.replace(/```[\s\S]*?```/g, " ").replace(/\{\/\*[\s\S]*?\*\/\}/g, " ");
@@ -538,10 +578,12 @@ for (const mdxFile of lessonFiles) {
         line += `  (baseline ${BASELINE}: ${w0} → ${w1 >= w0 ? "+" : ""}${Math.round(((w1 - w0) / w0) * 1000) / 10}%)`;
         const st = structuralCuts(mdxFile, mdx);
         const pct = (x) => Math.round(x * 1000) / 10;
+        const add = addedTableWords(mdx, old);
         const total = (w0 - w1) / w0;
         const structural = st.words / w0;
-        const density = (w0 - w1 - st.words) / w0;
-        line += `\n         cut vs ${BASELINE}: total -${pct(total)}% = density -${pct(density)}% + structural -${pct(structural)}% (${st.words} words archived${st.items.length ? " → " + st.items.map((i) => i.archive).join(", ") : ""})`;
+        const added = add.words / w0;
+        const density = (w0 - (w1 - add.words) - st.words) / w0;
+        line += `\n         cut vs ${BASELINE}: total ${total >= 0 ? "-" : "+"}${pct(Math.abs(total))}% = density -${pct(density)}% + structural -${pct(structural)}% − added +${pct(added)}% (${st.words} words archived${st.items.length ? " → " + st.items.map((i) => i.archive).join(", ") : ""}; ${add.words} words in ${add.count} new table(s) excluded from the band)`;
         if (density < 0.15) err(mdxFile, null, "D5-CUT", `density cut is ${pct(density)}% — the standard asks for 15–20% of trimmed text (a structural cut does not count toward it)`, `${w0} → ${w1} words, ${st.words} archived`);
         else if (density > 0.2) err(mdxFile, null, "D5-CUT", `density cut is ${pct(density)}% — more than 20% means teaching was cut`, `${w0} → ${w1} words, ${st.words} archived`);
       } catch {

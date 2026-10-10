@@ -125,9 +125,9 @@ export function LessonContent({
           prose-hr:from-transparent prose-hr:via-[#6C5CE7]/30 prose-hr:to-transparent
           [&_blockquote_p]:before:content-none [&_blockquote_p]:after:content-none
           [&_thead]:bg-[#6C5CE7]/25
-          [&_th]:px-4 [&_th]:py-3 [&_th]:text-left [&_th]:font-bold [&_th]:text-aurora-text-primary
+          [&_th]:px-4 max-sm:[&_th]:px-2.5 [&_th]:py-3 [&_th]:text-left [&_th]:font-bold [&_th]:text-aurora-text-primary
           [&_th]:border [&_th]:border-aurora-border-medium
-          [&_td]:px-4 [&_td]:py-2.5 [&_td]:border [&_td]:border-aurora-border-medium
+          [&_td]:px-4 max-sm:[&_td]:px-2.5 [&_td]:py-2.5 [&_td]:border [&_td]:border-aurora-border-medium
           [&_tbody_tr:nth-child(odd)]:bg-white/60 dark:[&_tbody_tr:nth-child(odd)]:bg-white/[0.02]
           [&_tbody_tr:nth-child(even)]:bg-[#6C5CE7]/[0.05]
           prose-li:text-[17px] prose-li:leading-[1.8] prose-li:text-foreground/90 prose-li:marker:text-primary`}

@@ -43,7 +43,7 @@ Avantajul față de BJT: oxidul blochează orice electron, deci curentul pe poar
 
 ### Structura fizică a MOSFET-ului
 
-{/* ANIMATION: secțiune transversală MOSFET n-channel — substrat p, sursă n+, drenă n+, oxid SiO₂, poartă metalică */}
+<MosfetDiagram frame="structure" caption="Observă oxidul subțire dintre poartă și substrat: poarta nu atinge siliciul, iar între Sursă și Drenă e doar substrat." />
 
 Fundația: un substrat de siliciu dopat <Term def="Siliciu dopat cu atomi (bor) care lasă locuri goale pentru electroni: purtătorii majoritari sunt golurile, nu electronii. Tipul N e invers, dominat de electroni.">tip P</Term>. În el stau două insule puternic dopate de tip N⁺, Sursa și Drena, la distanța L — lungimea canalului.
 
@@ -62,9 +62,13 @@ La V<Sub>GS</Sub> > 0 (tensiunea poartă–sursă), câmpul electric traverseaz�
 
 **Faza 1:** câmpul respinge golurile din zona de sub oxid. Se formează o zonă de dezertare — ionii negativi de bor rămân expuși.
 
+<MosfetDiagram frame="off" caption="Observă zona goală de sub poartă și golurile rămase în substrat: câmpul le-a împins, dar încă nu există canal." />
+
 **Faza 2:** câmpul crește și atrage <Term def="Electronii din substratul de tip P, unde sunt puțini: acolo purtătorii majoritari sunt golurile. În Sursa de tip N⁺ e invers, electronii sunt majoritari — și ei sunt trași spre interfață.">electronii minoritari</Term> din substrat și pe cei din Sursă spre interfața siliciu-oxid, unde se acumulează într-un strat de câțiva nanometri.
 
 Acest <Term def="Stratul subțire de sub oxid în care electronii au ajuns mai numeroși decât golurile: materialul local și-a schimbat tipul, din P în N. Cât există, e canalul prin care curge curentul.">strat de inversie</Term> — canalul — conectează direct Sursa cu Drena, iar curentul poate trece.
+
+<MosfetDiagram frame="channel" caption="Observă banda plină de electroni de sub oxid: ea leagă Sursa de Drenă și lasă curentul să treacă." />
 
 ### Tensiunea de prag (V<Sub>th</Sub>)
 
@@ -86,7 +90,13 @@ Tensiunea de prag nu e un parametru fix al materialului: inginerii o reglează p
 
 **Saturație:** V<Sub>DS</Sub> mare. La capătul dinspre Drenă, câmpul distruge parțial canalul: curentul se plafonează, devine aproape independent de V<Sub>DS</Sub> și e controlat exclusiv de V<Sub>GS</Sub>.
 
-{/* TABLE: Ecuațiile IDS în cele trei regiuni — cut-off, liniar, saturație */}
+| Regiune | Condiție | Comportament | I<Sub>DS</Sub> |
+|---|---|---|---|
+| Sub‑prag | V<Sub>GS</Sub> < V<Sub>th</Sub> | întrerupător deschis | ≈ 0 (în afară de scurgerea sub-prag) |
+| Liniară | V<Sub>GS</Sub> > V<Sub>th</Sub>, V<Sub>DS</Sub> mic | rezistență reglabilă | ∝ (V<Sub>GS</Sub> − V<Sub>th</Sub>)·V<Sub>DS</Sub> |
+| Saturație | V<Sub>GS</Sub> > V<Sub>th</Sub>, V<Sub>DS</Sub> mare | sursă de curent | ≈ ½·k·(V<Sub>GS</Sub> − V<Sub>th</Sub>)², practic independent de V<Sub>DS</Sub> |
+
+<small>k = constantă a tranzistorului: crește cu lățimea canalului și scade cu lungimea lui.</small>
 
 <InlineQuestion n="2" />
 
@@ -141,8 +151,6 @@ Arhitectura planară a colapsat sub 28 nm. La canale scurte, Sursa și Drena sun
 
 **CFET** (estimat ~2031 — IMEC A7): tranzistoarele n și p stivuite vertical, unul deasupra celuilalt. Ocupă doar înălțime, nu suprafață laterală, și reduc aria cu ~50% față de GAA clasic.
 
-{/* ANIMATION: evoluția arhitecturii — planar → FinFET → GAA Nanosheet → CFET stivuit */}
-
 ### Sfârșitul drumului pe siliciu
 
 La ~2–3 nm lungime fizică a canalului — câteva zeci de atomi — apare <Term def="Efect de mecanică cuantică: electronii se comportă și ca unde, iar o undă poate traversa o barieră foarte subțire fără să urce peste ea. O parte din electroni trec deci prin barieră, chiar dacă nu au energia s-o sară.">tunelarea cuantică</Term>: electronii din Sursă ajung direct în Drenă indiferent de tensiunea de pe poartă, iar tranzistorul nu mai poate fi „oprit”.
@@ -153,7 +161,15 @@ E limita fizică fundamentală a MOSFET-ului pe siliciu — nu a ingineriei, ci 
 
 Gordon Moore a observat în 1965 că numărul de tranzistoare per cip se dubla aproximativ la fiecare 12–18 luni. Industria a făcut din ea un obiectiv auto-împlinit.
 
-{/* TABLE: Intel 4004 (1971) 2.300 tr / 10µm → Pentium (1993) 3,1M / 800nm → Apple M1 (2020) 16B / 5nm TSMC → Apple M4 (2024) 28B / 3nm TSMC N3E → NVIDIA H100 (2022) 80B / 4nm TSMC */}
+| Cip | An | Tranzistoare | Nod |
+|---|---|---|---|
+| Intel 4004 | 1971 | 2.300 | 10 µm |
+| Intel Pentium | 1993 | 3,1 milioane | 800 nm |
+| Apple M1 | 2020 | 16 miliarde | 5 nm TSMC |
+| NVIDIA H100 | 2022 | 80 miliarde | 4 nm TSMC |
+| Apple M4 | 2024 | 28 miliarde | 3 nm TSMC N3E |
+
+<small>nm = denumire comercială a nodului, nu o dimensiune fizică măsurabilă</small>
 
 La nodul TSMC N3E, densitatea atinge 192–216 milioane de tranzistoare per mm².
 
