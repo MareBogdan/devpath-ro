@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
@@ -130,6 +130,16 @@ export function LessonPageClient({
   const [postGameNextId, setPostGameNextId] = useState<string | null>(null);
 
   const isTheory = lessonType === "theory" || lessonType === "lesson";
+
+  // Lab / boss lessons are earned by finishing their game: Complete stays locked
+  // until the embedded game fires its `onComplete` (see mdx/game-contract.ts). Not a
+  // sequential lock — the student can still leave without completing.
+  const isGameLesson = lessonType === "lab" || lessonType === "boss";
+  const [gameFinished, setGameFinished] = useState(false);
+  const handleGameComplete = useCallback(() => setGameFinished(true), []);
+  // Nothing to review on a ~150-word lab/boss page: no AI quiz generated from it.
+  const aiQuizVisible = showAiQuiz && !isGameLesson;
+
   // Game-only lessons (single self-closing MDX component, no prose) skip the
   // scroll-to-end read gate — there's nothing to read.
   const effectiveReadingComplete =
@@ -183,12 +193,13 @@ export function LessonPageClient({
           wowNotes={wowNotes}
           hasWowNotes={hasWowNotes}
           onGatingChange={setInlineComplete}
+          onGameComplete={isGameLesson ? handleGameComplete : undefined}
         />
       </LessonErrorBoundary>
 
       {/* Opt-in AI practice quiz — before the completion row, because completing
           the lesson navigates to the next one. A failure here is dropped silently. */}
-      {showAiQuiz && (
+      {aiQuizVisible && (
         <GamificationBoundary>
           <AdaptiveQuizSection key={lessonId} lessonId={lessonId} />
         </GamificationBoundary>
@@ -216,6 +227,7 @@ export function LessonPageClient({
           nextCourseSlug={nextCourseSlug}
           isReadingComplete={effectiveReadingComplete}
           isInlineComplete={effectiveInlineComplete}
+          isGameComplete={!isGameLesson || gameFinished}
           onCompleted={handleLessonComplete}
         />
       </div>

@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, Loader2, ArrowRight, BookOpen, Brain } from "lucide-react";
+import { CheckCircle2, Loader2, ArrowRight, BookOpen, Brain, Gamepad2 } from "lucide-react";
 import { motion } from "framer-motion";
 import {
   markLessonComplete,
@@ -20,6 +20,8 @@ interface CompleteButtonProps {
   nextCourseSlug?: string | null;
   isReadingComplete?: boolean; // defaults true for quiz/exercise/project
   isInlineComplete?: boolean;  // defaults true when no inline questions (Variant A: all attempted)
+  /** Lab/boss lessons: false until the embedded game reports it was finished. Defaults true. */
+  isGameComplete?: boolean;
   onCompleted?: (result: MarkCompleteResult) => void;
 }
 
@@ -31,6 +33,7 @@ export function CompleteButton({
   nextCourseSlug: initialNextCourseSlug,
   isReadingComplete = true,
   isInlineComplete = true,
+  isGameComplete = true,
   onCompleted,
 }: CompleteButtonProps) {
   const router = useRouter();
@@ -39,11 +42,12 @@ export function CompleteButton({
   const [nextLessonId, setNextLessonId] = useState(initialNextId);
   const [nextCourseSlug, setNextCourseSlug] = useState(initialNextCourseSlug);
 
-  const isUnlocked = isReadingComplete && isInlineComplete;
+  const isUnlocked = isReadingComplete && isInlineComplete && isGameComplete;
 
   let tooltipText = "";
   if (!isReadingComplete) tooltipText = "Citește lecția mai întâi 📖";
   else if (!isInlineComplete) tooltipText = "Răspunde la întrebările din lecție";
+  // (game gate: the visible hint below the button says it — no hover tooltip)
 
   function fireConfetti() {
     safeConfetti(() =>
@@ -134,6 +138,11 @@ export function CompleteButton({
             <Brain className="h-4 w-4" />
             Marchează completat
           </>
+        ) : !isGameComplete ? (
+          <>
+            <Gamepad2 className="h-4 w-4" />
+            Marchează completat
+          </>
         ) : (
           <>
             <CheckCircle2 className="h-4 w-4" />
@@ -141,6 +150,16 @@ export function CompleteButton({
           </>
         )}
       </motion.button>
+
+      {/* Visible hint (not hover-only): a lab/boss is completed by finishing its game. */}
+      {isReadingComplete && isInlineComplete && !isGameComplete && (
+        <p
+          data-testid="game-gate-hint"
+          className="mt-2 max-w-[18rem] text-xs leading-snug text-muted-foreground sm:text-right"
+        >
+          Termină jocul ca să poți marca lecția ca finalizată.
+        </p>
+      )}
 
       {/* Tooltip when disabled */}
       {tooltipText && (

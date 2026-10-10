@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useReducer, useState } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   Award,
@@ -16,6 +16,7 @@ import {
   Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import type { GameCompletionProps } from "@/components/mdx/game-contract";
 
 // ─── Constants ────────────────────────────────────────────────────────────
 
@@ -789,9 +790,19 @@ function StarsRow({ count }: { count: number }) {
 
 // ─── Main component ──────────────────────────────────────────────────────
 
-export function RAMGridGame() {
+export function RAMGridGame({ onComplete }: GameCompletionProps) {
   const [state, dispatch] = useReducer(reducer, undefined, startingState);
   const reduced = useReducedMotion() ?? false;
+
+  // Completion signal: fires once per mount, on reaching the "victory" phase.
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
+  const completedRef = useRef(false);
+  useEffect(() => {
+    if (state.phase !== "victory" || completedRef.current) return;
+    completedRef.current = true;
+    onCompleteRef.current?.();
+  }, [state.phase]);
 
   // Label fade for round 2.
   useEffect(() => {

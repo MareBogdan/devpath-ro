@@ -12,6 +12,7 @@ import {
 import { Maximize2, Minimize2, RotateCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useFullscreen, usePortraitPhone } from "./use-fullscreen";
+import { useGameCompletionHandler, type GameCompletionProps } from "./game-contract";
 
 /**
  * GameFrame — the ONE wrapper every interactive lab/boss/game block is mounted in.
@@ -211,16 +212,22 @@ export function GameFrame({
   );
 }
 
-/** Wrap a game component so every mount site gets the same frame. */
+/**
+ * Wrap a game component so every mount site gets the same frame, and so the game's
+ * `onComplete` (see game-contract.ts) is wired to the surrounding lesson.
+ */
 export function withGameFrame(
-  Game: ComponentType,
+  Game: ComponentType<GameCompletionProps>,
   chrome: "frame" | "game" = "frame"
 ): ComponentType {
-  const Framed = () => (
-    <GameFrame chrome={chrome}>
-      <Game />
-    </GameFrame>
-  );
+  const Framed = () => {
+    const onComplete = useGameCompletionHandler();
+    return (
+      <GameFrame chrome={chrome}>
+        <Game onComplete={onComplete ?? undefined} />
+      </GameFrame>
+    );
+  };
   Framed.displayName = `GameFrame(${Game.displayName ?? Game.name ?? "Game"})`;
   return Framed;
 }

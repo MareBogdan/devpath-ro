@@ -5,6 +5,7 @@ import {
   useEffect,
   useMemo,
   useReducer,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -19,6 +20,7 @@ import {
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import type { GameCompletionProps } from "@/components/mdx/game-contract";
 import { CircuitBoard } from "./CircuitBoard";
 import {
   CIRCUIT_WAVE_1,
@@ -731,10 +733,20 @@ function TruthRow({
 
 // ─── Main component ──────────────────────────────────────────────────────
 
-export function BossFightAlarmaSef() {
+export function BossFightAlarmaSef({ onComplete }: GameCompletionProps = {}) {
   const [state, dispatch] = useReducer(reducer, undefined, initialState);
   const reduced = useReducedMotion() ?? false;
   const [vaultOpened, setVaultOpened] = useState(false);
+
+  // Completion signal: fires once per mount when the boss is beaten.
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
+  const completedRef = useRef(false);
+  useEffect(() => {
+    if (state.phase !== "all-waves-solved" || completedRef.current) return;
+    completedRef.current = true;
+    onCompleteRef.current?.();
+  }, [state.phase]);
 
   // Auto-advance after wave-solved.
   useEffect(() => {

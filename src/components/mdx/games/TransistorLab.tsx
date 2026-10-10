@@ -12,6 +12,7 @@ import {
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { AlertTriangle, Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
+import type { GameCompletionProps } from "@/components/mdx/game-contract";
 
 // ─── Constants ────────────────────────────────────────────────────────────
 
@@ -258,7 +259,10 @@ function Oscilloscope({ isOn, reduced }: { isOn: boolean; reduced: boolean }) {
 
 // ─── Main component ──────────────────────────────────────────────────────
 
-export function TransistorLab() {
+export function TransistorLab({ onComplete }: GameCompletionProps) {
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
+  const completionFiredRef = useRef(false);
   const [voltage, setVoltage] = useState<number>(0);
   const reduced = useReducedMotion() ?? false;
   const uid = useId();
@@ -362,6 +366,13 @@ export function TransistorLab() {
       setChallengeCompleted(true);
     }
   }, [voltage, challengeCompleted]);
+
+  // Completion signal: fires once, when the "MISIUNE COMPLETĂ" state is entered.
+  useEffect(() => {
+    if (!challengeCompleted || completionFiredRef.current) return;
+    completionFiredRef.current = true;
+    onCompleteRef.current?.();
+  }, [challengeCompleted]);
 
   return (
     <div className="relative left-1/2 my-10 w-[90vw] max-w-[1200px] -translate-x-1/2 rounded-lg border border-[#6C5CE7]/30">

@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { MDXRemote, type MDXRemoteSerializeResult } from "next-mdx-remote";
 import "highlight.js/styles/github-dark.css";
 import { getMdxComponents } from "@/components/mdx/mdx-components";
+import { GameCompletionContext } from "@/components/mdx/game-contract";
 import {
   InteractiveLessonProvider,
   emptyInteractiveState,
@@ -45,6 +46,8 @@ interface LessonContentProps {
   hasWowNotes?: boolean;
   /** Lifts the Variant-A inline gating signal up to LessonPageClient. */
   onGatingChange?: (allAnswered: boolean) => void;
+  /** Called once when an embedded lab/boss game reports it was finished (game-contract.ts). */
+  onGameComplete?: () => void;
 }
 
 export function LessonContent({
@@ -53,6 +56,7 @@ export function LessonContent({
   interactiveState,
   wowNotes,
   onGatingChange,
+  onGameComplete,
 }: LessonContentProps) {
   const isExercise = lessonType === "exercise" || lessonType === "project";
 
@@ -133,7 +137,9 @@ export function LessonContent({
           onGatingChange={onGatingChange}
         >
           <WowNotesProvider notes={wowNotes?.notes ?? null}>
-            <MDXRemote {...mdxSource} components={components} />
+            <GameCompletionContext.Provider value={onGameComplete ?? null}>
+              <MDXRemote {...mdxSource} components={components} />
+            </GameCompletionContext.Provider>
           </WowNotesProvider>
         </InteractiveLessonProvider>
       </div>

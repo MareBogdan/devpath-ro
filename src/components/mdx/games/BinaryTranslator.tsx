@@ -29,6 +29,7 @@ import {
   FullscreenToggle,
   useGameFrame,
 } from "@/components/mdx/game-frame";
+import type { GameCompletionProps } from "@/components/mdx/game-contract";
 
 // ─── Constants ───────────────────────────────────────────────────────────
 
@@ -742,9 +743,19 @@ function CorrectAnswerStrip({
 
 // ─── Main component ─────────────────────────────────────────────────────
 
-export function BinaryTranslator() {
+export function BinaryTranslator({ onComplete }: GameCompletionProps = {}) {
   const [state, dispatch] = useReducer(reducer, undefined, initialState);
   const reduced = useReducedMotion();
+  // Completion signal: fires once per mount when the final "victory" screen is reached.
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
+  const completedRef = useRef(false);
+  useEffect(() => {
+    if (state.phase === "victory" && !completedRef.current) {
+      completedRef.current = true;
+      onCompleteRef.current?.();
+    }
+  }, [state.phase]);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   // Fullscreen is owned by the surrounding <GameFrame> (shared with the other games).

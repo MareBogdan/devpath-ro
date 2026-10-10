@@ -163,6 +163,34 @@ function checkpointIcon(orderIndex: number, lessonType: string): LucideIcon {
   return Trophy;
 }
 
+/**
+ * Which lessons of a course (already sorted) are checkpoints — the large nodes
+ * that close a module. Candidates, strongest first:
+ *   1. a boss (always the climax of its module),
+ *   2. the course's final lesson,
+ *   3. every MODULE_SIZE-th lesson (the arithmetic cadence).
+ * A module closes with exactly one large node, so a weaker candidate directly
+ * next to a kept stronger one is dropped to an ordinary node: a boss absorbs the
+ * neighbouring cadence checkpoint (or final lesson), and the final lesson absorbs
+ * a cadence checkpoint right before it. Resolved strongest-first, so a dropped
+ * node never blocks a weaker neighbour.
+ */
+function resolveCheckpoints(lessons: RawLesson[]): boolean[] {
+  const last = lessons.length - 1;
+  const rank = lessons.map((l, i) =>
+    l.type === "boss" ? 3 : i === last ? 2 : (i + 1) % MODULE_SIZE === 0 ? 1 : 0
+  );
+  const kept = lessons.map(() => false);
+  for (const r of [3, 2, 1]) {
+    rank.forEach((candidate, i) => {
+      if (candidate !== r) return;
+      if (r < 3 && (kept[i - 1] || kept[i + 1])) return; // a boss is never dropped
+      kept[i] = true;
+    });
+  }
+  return kept;
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface CourseSection {
@@ -260,6 +288,9 @@ export function buildAllCoursesNodes({
       });
     }
 
+    const checkpointAt = resolveCheckpoints(lessons);
+    const lastCheckpoint = checkpointAt.lastIndexOf(true);
+
     let courseCurrentFound = false;
     let checkpointsSoFar = 0;
     nextLessonByCourse[course.id] = null;
@@ -278,16 +309,19 @@ export function buildAllCoursesNodes({
         status = "available";
       }
 
-      // Fixed-cadence modules — last node of each chunk (and the final node of
-      // the course) is a checkpoint, so each course renders as a clean snake.
-      // A boss is ALWAYS a checkpoint (the climax of its module, drawn as the large
-      // node), wherever it lands. The module index counts checkpoints so it matches
-      // the module boundaries the serpentine derives from them; for a course without
-      // a boss this is identical to floor(i / MODULE_SIZE).
+      // Which nodes are checkpoints is decided per course by resolveCheckpoints
+      // (a module closes with exactly one large node). The module index counts
+      // checkpoints so it matches the module boundaries the serpentine derives
+      // from them; for a course without a boss it is floor(i / MODULE_SIZE).
       const isBoss = lesson.type === "boss";
-      const isCheckpoint =
-        isBoss || (i + 1) % MODULE_SIZE === 0 || i === courseTotal - 1;
-      const moduleIndex = checkpointsSoFar;
+      const isCheckpoint = checkpointAt[i];
+      // Ordinary nodes after the course's last checkpoint (e.g. the lesson after a
+      // closing boss) belong to that checkpoint's module — the serpentine lays them
+      // out there rather than opening a one-node module of their own.
+      const moduleIndex =
+        i > lastCheckpoint && lastCheckpoint >= 0
+          ? checkpointsSoFar - 1
+          : checkpointsSoFar;
       if (isCheckpoint) checkpointsSoFar++;
 
       // Type wins over position: labs/bosses keep their own icon on a checkpoint.

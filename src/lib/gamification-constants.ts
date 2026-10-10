@@ -38,6 +38,22 @@ export const XP_VALUES: Record<XPEventType, number> = {
   comment_upvoted: 10,
 };
 
+/**
+ * Flat XP for completing a lesson, by lesson type — not score-dependent. Unlisted
+ * (legacy) types earn the plain lesson amount. Awarded as a `lesson_complete`
+ * event with this amount as the override, so no DB change is needed.
+ */
+export const LESSON_COMPLETE_XP: Record<string, number> = {
+  lesson: 15,
+  theory: 15,
+  lab: 25,
+  boss: 50,
+};
+
+export function lessonCompleteXP(lessonType: string | null | undefined): number {
+  return (lessonType && LESSON_COMPLETE_XP[lessonType]) || XP_VALUES.lesson_complete;
+}
+
 // ─── Level System ─────────────────────────────────────────────────────────────
 
 // XP required to REACH each level (cumulative). Source: devpath-docs/devpath-vision.md

@@ -9,8 +9,8 @@ import { getNextLesson } from "@/lib/next-lesson";
 import {
   type AwardedBadge,
   type XPEventType,
-  XP_VALUES,
   LEVEL_NAMES,
+  lessonCompleteXP,
 } from "@/lib/gamification-constants";
 
 // ─── Mini-game Types ──────────────────────────────────────────────────────────
@@ -114,20 +114,24 @@ export async function markLessonComplete(
     .eq("id", user.id)
     .single();
 
-  // ─── Lesson XP ────────────────────────────────────────────────────────────
-  const xpEventType: XPEventType = "lesson_complete";
-
-  const xpResult = alreadyCompleted
-    ? null
-    : await awardXP(user.id, xpEventType, undefined, lessonId).catch(() => null);
-  const xpAwarded = xpResult?.awarded === true;
-
-  // Fetch lesson data (for badge check + next lesson)
+  // Fetch lesson data (XP amount by type + badge check + next lesson)
   const { data: lessonData } = await supabase
     .from("lessons")
     .select("course_id, order_index, type, module_index")
     .eq("id", lessonId)
     .single();
+
+  // ─── Lesson XP ────────────────────────────────────────────────────────────
+  // Flat per lesson type (lesson 15 · lab 25 · boss 50), read from the DB row —
+  // never from the client. Still the `lesson_complete` event, written with the
+  // service role; the refId keeps it to one award per lesson.
+  const xpEventType: XPEventType = "lesson_complete";
+  const lessonXP = lessonCompleteXP(lessonData?.type);
+
+  const xpResult = alreadyCompleted
+    ? null
+    : await awardXP(user.id, xpEventType, lessonXP, lessonId).catch(() => null);
+  const xpAwarded = xpResult?.awarded === true;
 
   // Badge check for lesson completion (first completion only)
   const newBadges: AwardedBadge[] = alreadyCompleted
@@ -205,7 +209,7 @@ export async function markLessonComplete(
     success: true,
     nextLessonId: nextLesson?.lessonId ?? null,
     nextCourseSlug: nextLesson?.courseSlug ?? null,
-    xpEarned: xpAwarded ? XP_VALUES[xpEventType] : 0,
+    xpEarned: xpAwarded ? lessonXP : 0,
     newTotalXP: xpResult?.newXP ?? userData?.xp_points ?? 0,
     leveledUp: xpResult?.leveledUp ?? false,
     newLevel: xpResult?.newLevel ?? userData?.level ?? 1,

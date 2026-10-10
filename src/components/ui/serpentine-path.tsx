@@ -102,6 +102,12 @@ const CP_SIZES = { completed: 50, current: 52, available: 48, locked: 44 } as co
 /** Minimum center-to-center distance between a checkpoint and adjacent lesson nodes */
 const CP_MIN_GAP = 50;
 
+/** Tail nodes (ordinary nodes after a course's last checkpoint) hang this far
+ *  below the checkpoint / the previous tail node, and drift this far toward the
+ *  centre per step. The module reserves TAIL_GAP of height per tail node. */
+const TAIL_GAP = 62;
+const TAIL_DRIFT = 24;
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function ntype(n: LessonNode): NodeType { return n.type ?? "lesson"; }
@@ -127,10 +133,45 @@ function computeRealPositions(nodes: LessonNode[]): { x: number; y: number }[] {
   // ── Detect modules (each checkpoint ends a module) + their course ──
   const lessonsPerMod: number[] = [];
   const modCourse: number[] = []; // course index each module belongs to
+  const modOfNode: number[] = []; // module each node is laid out in
+  // "Tail" nodes: ordinary nodes after a course's last checkpoint (e.g. the lesson
+  // that follows a closing boss). They join that checkpoint's module — hanging just
+  // below it — instead of opening a module of their own, which would reserve a
+  // whole module's height for a single node.
+  const isTail = nodes.map(() => false);
+  {
+    let groupStart = 0;
+    for (let i = 1; i <= nodes.length; i++) {
+      const sameCourse =
+        i < nodes.length &&
+        (nodes[i].courseIndex == null ||
+          nodes[i].courseIndex === nodes[groupStart].courseIndex);
+      if (sameCourse) continue;
+      let lastCp = -1;
+      for (let k = groupStart; k < i; k++) {
+        if (ntype(nodes[k]) === "checkpoint") lastCp = k;
+      }
+      if (lastCp >= 0) for (let k = lastCp + 1; k < i; k++) isTail[k] = true;
+      groupStart = i;
+    }
+  }
   let tmp = 0;
   let curCourse = nodes[0]?.courseIndex ?? 0;
-  for (const n of nodes) {
+  for (let i = 0; i < nodes.length; i++) {
+    const n = nodes[i];
+    if (isTail[i]) {
+      modOfNode.push(lessonsPerMod.length - 1);
+      continue;
+    }
+    // A course without any checkpoint must not hand its lessons to the next
+    // course's first module.
+    if (n.courseIndex != null && n.courseIndex !== curCourse && tmp > 0) {
+      lessonsPerMod.push(tmp);
+      modCourse.push(curCourse);
+      tmp = 0;
+    }
     if (n.courseIndex != null) curCourse = n.courseIndex;
+    modOfNode.push(lessonsPerMod.length);
     if (ntype(n) === "checkpoint") {
       lessonsPerMod.push(tmp);
       modCourse.push(curCourse);
@@ -144,6 +185,10 @@ function computeRealPositions(nodes: LessonNode[]): { x: number; y: number }[] {
     modCourse.push(curCourse);
   }
   const numMods = lessonsPerMod.length;
+  const tailsInMod: number[] = lessonsPerMod.map(() => 0);
+  nodes.forEach((_, i) => {
+    if (isTail[i]) tailsInMod[modOfNode[i]]++;
+  });
 
   // Module index WITHIN each course — drives per-course direction alternation.
   const modLocalIdx: number[] = [];
@@ -190,27 +235,40 @@ function computeRealPositions(nodes: LessonNode[]): { x: number; y: number }[] {
       : (sy + ey) / 2 + modH * 0.06 + Math.cos(m * 1.7) * 8;
 
     curves.push({ s: { x: sx, y: sy }, c: { x: cx, y: cy }, e: { x: ex, y: ey } });
-    yCursor += modH;
+    yCursor += modH + tailsInMod[m] * TAIL_GAP;
   }
 
   // ── Place each node along its module's bézier ──
-  let modIdx = 0;
   let lessonInMod = 0;
+  let prevMod = -1;
+  let tailAnchor = -1; // index of the checkpoint the current tail hangs from
+  let tailStep = 0;
 
   for (let i = 0; i < nodes.length; i++) {
     const isCP = ntype(nodes[i]) === "checkpoint";
-    const mi = Math.min(modIdx, curves.length - 1);
+    const mi = Math.min(modOfNode[i], curves.length - 1);
+    if (mi !== prevMod) {
+      lessonInMod = 0;
+      prevMod = mi;
+    }
     const curve = curves[mi];
     const nLessons = lessonsPerMod[mi] || 1;
 
     let x: number, y: number;
 
-    if (isCP) {
+    if (isTail[i]) {
+      // Hang below the module's checkpoint, drifting toward the centre — the
+      // direction the path takes into the next course.
+      const cp = pos[tailAnchor];
+      tailStep++;
+      x = cp.x + Math.sign(MID - cp.x) * TAIL_DRIFT * tailStep;
+      y = cp.y + TAIL_GAP * tailStep;
+    } else if (isCP) {
+      tailAnchor = i;
+      tailStep = 0;
       // Checkpoint at curve endpoint with tiny jitter
       x = curve.e.x + Math.sin(i * 1.3) * 6;
       y = curve.e.y + Math.cos(i * 0.9) * 4;
-      modIdx++;
-      lessonInMod = 0;
     } else {
       // Lessons spread from t=0 to t=0.88 along the bézier
       const t = nLessons <= 1
@@ -226,7 +284,11 @@ function computeRealPositions(nodes: LessonNode[]): { x: number; y: number }[] {
       lessonInMod++;
     }
 
-    pos.push({ x: Math.max(30, Math.min(470, x)), y: Math.max(30, y) });
+    // Rounded to 0.01: Math.sin/cos can differ in the last bit between Node (SSR)
+    // and the browser, which would otherwise surface as a hydration mismatch on
+    // the SVG path strings. Everything downstream is exact arithmetic on these.
+    const r2 = (v: number) => Math.round(v * 100) / 100;
+    pos.push({ x: r2(Math.max(30, Math.min(470, x))), y: r2(Math.max(30, y)) });
   }
 
   // ── Post-process: enforce minimum gap around checkpoints ──

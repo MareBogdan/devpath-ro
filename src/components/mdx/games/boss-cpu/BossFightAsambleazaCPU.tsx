@@ -14,6 +14,7 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Lightbulb, RotateCcw, Trophy, Zap } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import type { GameCompletionProps } from "@/components/mdx/game-contract";
 import AssemblyBoard from "./AssemblyBoard";
 import CPUPiece, { CPUIcon } from "./CPUPiece";
 import {
@@ -1012,9 +1013,13 @@ function FactOverlay({
 
 // ─── Main component ──────────────────────────────────────────────────────
 
-export function BossFightAsambleazaCPU() {
+export function BossFightAsambleazaCPU({ onComplete }: GameCompletionProps) {
   const [state, dispatch] = useReducer(reducer, undefined, initialState);
   const reduced = useReducedMotion() ?? false;
+
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
+  const completedRef = useRef(false);
 
   const [hintIdle, setHintIdle] = useState(false);
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1102,6 +1107,13 @@ export function BossFightAsambleazaCPU() {
     );
     return () => clearTimeout(t);
   }, [state.phase, reduced]);
+
+  // Completion signal: fires once, on entering the "victory" phase (CPU booted)
+  useEffect(() => {
+    if (state.phase !== "victory" || completedRef.current) return;
+    completedRef.current = true;
+    onCompleteRef.current?.();
+  }, [state.phase]);
 
   // ── Memoized derivations ────────────────────────────────────────────
 
