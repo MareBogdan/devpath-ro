@@ -3,46 +3,29 @@ title: "De la binar la Assembly: prima limbă pe care o înțelege siliciul"
 order: 30
 type: lesson
 module_index: 5
-duration: 13
+duration: 8
 difficulty: 2
 ---
 
-Există un moment în care totul face click.
-
-Ai construit porți logice din tranzistori. Ai înlănțuit porți în ALU. Ai adăugat registre, ceas, flip-flop-uri, Program Counter, Unitate de Control. Ai văzut cum ciclul Fetch-Decode-Execute transformă biți statici în execuție dinamică. Ai înțeles de ce arhitectura Von Neumann din 1945 rulează pe telefonul tău.
-
-Acum privești prima instrucțiune pe care o poate citi un om:
+Ai construit porți din tranzistori, un ALU, registre, ceas, Program Counter și Unitate de Control, și ai văzut cum ciclul Fetch-Decode-Execute pune totul în mișcare. Acum privești prima instrucțiune pe care o poate citi un om:
 
 ```asm
 MOV EAX, 5
 ```
 
-Asta e assembly. Un singur pas deasupra binarului. Și tot ce ai construit până acum devine brusc vizibil.
-
----
+Asta e assembly: un pas deasupra binarului, cu tot ce ai construit acum vizibil.
 
 ## Scara abstractizărilor
 
-CPU-ul execută tensiuni. Grupate conceptual, tensiunile devin biți. Grupați în secvențe, biții devin **machine code** — șiruri binare pe care procesorul le decodează direct în ciclul Fetch-Decode-Execute.
+CPU-ul execută tensiuni; ele devin biți, iar biții în secvențe devin machine code, șiruri binare pe care procesorul le decodează direct. Problema: `10111000 00000101 00000000 00000000 00000000` e greu de scris și imposibil de depanat pentru un om.
 
-Problema: `10111000 00000101 00000000 00000000 00000000` este greu de scris și imposibil de debuguit de un om.
+Prima soluție e hexadecimalul (o cifră hex are 4 biți): `B8 05 00 00 00`, mai scurt, dar tot fără sens. A doua e assembly-ul: `B8` devine <Term def="Nume scurt pentru o operație a procesorului (MOV, ADD, JMP), ales ca să descrie ce face instrucțiunea, în loc de codul ei binar.">mnemonicul</Term> `MOV EAX`. Proprietatea fundamentală: o instrucțiune assembly corespunde unei instrucțiuni machine code, relație 1:1, deterministă (macro-urile fac excepție).
 
-Prima soluție: **hexadecimal**. Un digit hex = 4 biți. Același șir devine `B8 05 00 00 00`. Mai scurt, dar tot fără sens semantic.
-
-A doua soluție: **assembly language**. `B8` devine `MOV EAX` — un mnemonic care descrie exact acțiunea. Instrucțiunea spune ce face. Și proprietatea fundamentală a assembly-ului: **1 instrucțiune assembly = 1 instrucțiune machine code**. Relație 1:1, bidirecțională, deterministă.
-
-Limbajele de nivel înalt rup această relație: o linie de Python sau C se poate expanda în zeci sau sute de instrucțiuni machine code. Câștigul e productivitate; prețul e că nu mai controlezi direct hardware-ul.
-
-**De ce mai contează assembly-ul în 2026?**
-Compilatoarele îl generează automat. Cercetătorii de securitate îl citesc când analizează malware fără cod sursă. Programatorii embedded îl scriu când microcontrollerele au 2 KB de RAM și fiecare ciclu contează. Și oricine vrea să înțeleagă *cu adevărat* ce face procesorul nu are altă cale.
+Limbajele de nivel înalt rup relația: o linie de Python sau C se poate expanda în zeci de instrucțiuni machine code. Câștigi productivitate, pierzi controlul direct asupra hardware-ului. Assembly-ul contează și în 2026: compilatoarele îl generează, cercetătorii de securitate îl citesc când analizează malware fără cod sursă, iar programatorii embedded îl scriu când microcontrollerul are 2 KB de RAM.
 
 ## Anatomia unei instrucțiuni
 
-Structura de bază: `OPCODE DESTINAȚIE, SURSĂ`
-
-Există două sintaxe pentru x86 — aceeași arhitectură, două tradiții:
-
-{/* TABLE */}
+Structura de bază e `OPCODE DESTINAȚIE, SURSĂ`. Pentru x86 există două sintaxe:
 
 | Caracteristică | Intel syntax | AT&T syntax |
 |---|---|---|
@@ -50,32 +33,24 @@ Există două sintaxe pentru x86 — aceeași arhitectură, două tradiții:
 | Prefix registre | Niciunul (`EAX`) | `%` (`%eax`) |
 | Valori imediate | Niciunul (`5`) | `$` (`$5`) |
 | Sufixe de mărime | Implicite din registru | Explicite (`b`, `w`, `l`, `q`) |
-| Ecosistem | DOS, Windows, Intel docs | Unix, Linux, GCC, GAS |
+| Ecosistem | DOS, Windows, documentația Intel | Unix, Linux, GCC, GAS |
 
-**Categorii de instrucțiuni:**
+Categoriile de instrucțiuni:
 
-**Date:** `MOV` copiază date între registre sau între registru și memorie. `PUSH`/`POP` interacționează cu stack-ul. `LEA` calculează adrese de memorie fără să le acceseze — un ADD în deghizare.
+- Date: `MOV` copiază între registre sau între registru și memorie; `PUSH`/`POP` lucrează cu stack-ul; `LEA` calculează adrese fără să acceseze memoria, deci e adesea un ADD deghizat.
+- Aritmetice: `ADD`, `SUB`, `MUL`, `DIV`, `INC`, `DEC`, adică ALU-ul tău.
+- Logice: `AND`, `OR`, `XOR`, `NOT`, `SHL`, `SHR`, adică porțile din hardware. `SHL` cu 1 înmulțește cu 2, iar `SHR` cu 1 împarte la 2 un număr fără semn, de obicei mai repede decât `MUL`/`DIV`.
+- Control flow: `JMP` (salt necondiționat), `JE`/`JNE`/`JG`/`JL` (salturi condiționate), `CALL`/`RET`.
+- Comparație: `CMP` și `TEST` execută operația fără să scrie rezultatul, doar setează flag-uri.
 
-**Aritmetice:** `ADD`, `SUB`, `MUL`, `DIV`, `INC`, `DEC` — invocă direct ALU-ul pe care l-ai construit.
-
-**Logice:** `AND`, `OR`, `XOR`, `NOT`, `SHL`, `SHR` — porțile logice din hardware, direct accesibile din cod. `SHL` cu 1 = înmulțire cu 2; `SHR` cu 1 = împărțire cu 2 — mai rapid decât `MUL`/`DIV`.
-
-**Control flow:** `JMP` (salt necondiționat), `JE`/`JNE`/`JG`/`JL` (salturi condiționate), `CALL`/`RET` (funcții).
-
-**Comparație:** `CMP` și `TEST` — execută operații fără să scrie rezultatul, doar setează flag-uri.
+<InlineQuestion n="1" />
 
 ## Registrul de flag-uri: cum funcționează IF-ul în hardware
 
-`CMP RAX, RBX` nu produce un rezultat — execută o scădere silențioasă și aruncă rezultatul. Păstrează doar *proprietățile matematice* ale rezultatului în **RFLAGS**:
+`CMP RAX, RBX` execută o scădere silențioasă și o aruncă, păstrând doar proprietățile ei în RFLAGS: ZF = 1 dacă rezultatul e zero (`RAX == RBX`), SF = 1 dacă e negativ, CF marchează overflow-ul la numere fără semn, OF la numere cu semn.
 
-- **ZF** (Zero Flag): rezultatul e zero → `RAX == RBX`
-- **SF** (Sign Flag): rezultatul e negativ → bitul cel mai semnificativ e 1
-- **CF** (Carry Flag): overflow nesemnat
-- **OF** (Overflow Flag): overflow semnat
+`JE` (Jump if Equal) verifică doar ZF: dacă ZF = 1, suprascrie PC-ul cu adresa țintă, altfel PC incrementează normal. `JL`/`JG` (cu semn) citesc SF și OF (Lecția 24), cele fără semn citesc CF. Un `if (a == b)` din C devine:
 
-`JE` (Jump if Equal) verifică *doar* ZF. Dacă ZF=1, suprascrie PC-ul cu adresa țintă. Dacă ZF=0, PC incrementează normal.
-
-Un `if (a == b)` în C devine exact:
 ```asm
 CMP EDI, ESI       ; scădere silențioasă, setează ZF dacă egale
 JNE .skip_block    ; dacă ZF=0 (nu sunt egale), sari
@@ -84,6 +59,7 @@ JNE .skip_block    ; dacă ZF=0 (nu sunt egale), sari
 ```
 
 Un `for (int i = 0; i < 10; i++)` devine:
+
 ```asm
 XOR ECX, ECX       ; ECX = 0 (contor)
 .loop_start:
@@ -95,76 +71,61 @@ JMP .loop_start    ; salt înapoi
 .loop_end:
 ```
 
+<InlineQuestion n="2" />
+
 ## Același C, assembly diferit
 
 ```c
 int add(int a, int b) { return a + b; }
 ```
 
-**x86-64 (Linux, Intel syntax):**
+x86-64 (Linux, Intel syntax), într-o formă simplificată:
+
 ```asm
 add:
-    MOV EAX, EDI    ; parametrul 'a' vine în RDI (convenție System V ABI)
+    MOV EAX, EDI    ; parametrul 'a' vine în RDI (convenția System V ABI)
     ADD EAX, ESI    ; adaugă parametrul 'b' din RSI
-    RET             ; rezultatul e în EAX — convenția spune că returnu e în RAX
+    RET             ; rezultatul e în EAX, partea de jos a lui RAX
 ```
 
-**ARM64:**
+ARM64:
+
 ```asm
 add:
-    ADD W0, W0, W1  ; W0=a, W1=b (convenție AAPCS64: primii 8 params în X0-X7)
-    RET             ; rezultatul în W0 — gata
+    ADD W0, W0, W1  ; W0=a, W1=b (AAPCS64: primii 8 parametri în X0–X7)
+    RET             ; rezultatul în W0
 ```
 
-ARM are format 3 operanzi: `ADD destinație, sursă1, sursă2`. x86 are format 2 operanzi — destinația e și prima sursă. Arhitecturi diferite, filozofii diferite.
+Convenția după care parametrii intră în registre se numește <Term def="Application Binary Interface: contractul dintre funcții și compilator, care spune în ce registre intră parametrii, unde se întoarce rezultatul și ce registre are voie o funcție să strice.">ABI</Term>. ARM folosește trei operanzi, iar x86 clasic doi: destinația e și prima sursă.
 
-**Registrele x86-64** sunt artefacte istorice vii:
-- `AX` (16-bit, 8086, 1978) → `EAX` (32-bit, 80386, 1985, "Extended") → `RAX` (64-bit, AMD64, 2003, "Register")
-- Toate pointează la *aceiași flip-flop-uri fizici* — accesezi doar lățimi diferite
-- Registre speciale: `RIP` = Program Counter, `RSP` = Stack Pointer, `RBP` = Base Pointer
-- `R8`–`R15`: adăugate la tranziția 64-bit pentru a reduce presiunea pe registre
+Registrele x86-64 sunt artefacte istorice: `AX` (16 biți, 8086, 1978) devine `EAX` (32 de biți, 80386, 1985) și apoi `RAX` (64 de biți, AMD64, 2003), toate pe aceiași flip-flop-uri fizice, cu lățimi diferite. `RIP` e Program Counter-ul, `RSP` Stack Pointer-ul, `RBP` Base Pointer-ul, iar `R8`–`R15` au venit odată cu 64 de biți.
 
-**Registrele ARM64** — design modern, fără bagaj istoric:
-- `X0`–`X30`: 31 registre de uz general, uniforme, simetrice
-- `X30` = Link Register — stochează adresa de return în silicon, nu pe stack (mai rapid)
-- `XZR` = Zero Register — citit returnează mereu 0, scris aruncă datele; elimină instrucțiunile de inițializare la zero
+ARM64 nu are bagaj istoric: `X0`–`X30` sunt 31 de registre generale uniforme. `X30`, Link Register-ul, ține adresa de return într-un registru, nu pe stivă. `XZR`, registrul zero, citit dă mereu 0, iar scrierea în el aruncă datele.
 
 <CosmoHint emotion="thinking">
-De ce `XOR EAX, EAX` în loc de `MOV EAX, 0`? Două motive concrete: (1) `MOV EAX, 0` ocupă 5 bytes (opcode + constanta 32-bit); `XOR EAX, EAX` ocupă 2 bytes — mai puțin spațiu în L1 instruction cache. (2) Procesorul recunoaște idiomul XOR-pe-sine ca dependency-breaker: știe că rezultatul e zero *indiferent* de valoarea anterioară a registrului, rupe lanțul de dependențe de date și poate executa instrucțiunea fără să aștepte. Compilatoarele știu asta. Programatorii care nu știu pierd performanță.
+  De ce `XOR EAX, EAX` și nu `MOV EAX, 0`? `MOV EAX, 0` ocupă 5 octeți, iar `XOR EAX, EAX` doar 2, deci mai puțin loc în cache-ul de instrucțiuni. În plus, procesorul recunoaște idiomul ca <Term def="Instrucțiune pe care procesorul o recunoaște ca producând un rezultat independent de valoarea veche a registrului (de exemplu XOR cu el însuși = 0), deci poate rupe lanțul de dependențe și o poate executa fără să aștepte.">dependency-breaker</Term>: rezultatul e zero oricare ar fi valoarea veche, deci nu așteaptă nimic.
 </CosmoHint>
 
 ## Stack-ul în assembly
 
-Stack-ul crește *în jos* în memorie — contraintuitiv, dar universal pe x86 și ARM.
+Stack-ul crește *în jos* în memorie, convenție pe x86 și în ABI-ul ARM. `PUSH RAX` face `RSP ← RSP - 8`, apoi `Memory[RSP] ← RAX`. `POP RBX` face `RBX ← Memory[RSP]`, apoi `RSP ← RSP + 8`.
 
-`PUSH RAX`:
-1. `RSP ← RSP - 8` (stack-ul crește spre adrese mai mici)
-2. `Memory[RSP] ← RAX`
+La `CALL funcție`, CPU-ul împinge automat pe stack `RIP`, adică adresa instrucțiunii *de după* CALL, apoi sare. La `RET`, scoate adresa de pe stack înapoi în `RIP`. Un buffer overflow care suprascrie adresa de return face `RET` să sară unde vrea atacatorul: mecanismul din Lecțiile 26 și 28, acum vizibil în assembly.
 
-`POP RBX`:
-1. `RBX ← Memory[RSP]`
-2. `RSP ← RSP + 8`
+<InlineQuestion n="3" />
 
-La `CALL funcție`: CPU împinge automat `RIP` pe stack (adresa instrucțiunii *după* CALL), apoi sare. La `RET`: CPU scoate acea adresă de pe stack înapoi în `RIP`. Dacă un buffer overflow suprascrie adresa de return de pe stack, `RET` sare unde spune atacatorul. Exact mecanismul din L28 — acum vizibil în assembly.
+## Asamblorul: cine traduce mnemonicele în biți
 
-## Asamblorul: cine traduce mnemonic-urile în biți
+Kathleen Booth a conceput în 1947, la Birkbeck College din Londra, primul limbaj de asamblare, pentru calculatorul ARC, împreună cu instrumentul care îl traduce. Asambloarele moderne (NASM, GAS, MASM) lucrează de regulă în două treceri: prima construiește <Term def="Tabelul în care asamblorul notează adresa fiecărei etichete și variabile, ca să poată rezolva în a doua trecere referințele la locuri din cod care apar mai târziu.">Symbol Table</Term>, a doua traduce mnemonicele în biți, rezolvând referințele din tabel.
 
-**Kathleen Booth** a inventat primul assembler în 1947 la Birkbeck College, Londra, pentru calculatorul ARC. Înainte, programatorii introduceau binar direct prin comutatoare fizice. Booth a creat sistemul de mnemonice și toolul care le traduce — eliberând programatorii de memorarea opcode-urilor binare.
-
-Asambloarele moderne (NASM, GAS, MASM) sunt **two-pass**:
-- **Pasul 1:** citește tot codul, construiește Symbol Table — adresele tuturor labelurilor și variabilelor
-- **Pasul 2:** traduce mnemonicele în biți, rezolvând toate referințele forward din Symbol Table
-
-**Grace Hopper** a dus abstracțiunea mai departe în 1952 cu **A-0 System** pentru UNIVAC — primul compilator: traducerea nu mai era 1:1, ci mulți-la-mulți. Logica umană → subroutine assembly automat asamblate. Poarta spre FORTRAN (1957), C (anii '70), Python.
+În 1952, Grace Hopper a creat A-0 System pentru UNIVAC, un precursor al <Term def="Program care traduce un limbaj de nivel înalt în cod mașină, astfel încât o linie poate deveni mai multe instrucțiuni. Spre deosebire de un asamblor, traducerea nu mai e 1:1.">compilatorului</Term>. De acolo au urmat FORTRAN (1957), C (anii '70) și Python.
 
 ## Assembly nu e cel mai de jos nivel
 
-Assembly mapează direct pe machine code. Dar pe x86 modern, machine code nu e ce execută siliciul.
+Pe x86 modern, machine code nu e ce execută siliciul: un procesor Intel sau AMD decodează instrucțiunile CISC x86 în <Term def="Micro-operații: instrucțiuni interne, mai simple, în care un procesor x86 modern descompune instrucțiunile x86, de obicei fiecare făcând un singur lucru (încarcă, adună, stochează).">μops</Term>, instrucțiuni interne mai simple, în mare parte de tip RISC. O instrucțiune ca `ADD [RBX], EAX` (citește din memorie, adună, scrie înapoi) se sparge în μops separate: load, add, store.
 
-CPU-ul Intel sau AMD decodează instrucțiunile CISC x86 în **micro-operații (μops)** — instrucțiuni RISC interne, mai simple. O instrucțiune assembly complexă ca `ADD EAX, [RBX]` (citește din memorie, adaugă, scrie înapoi) se sparge în μops separate: load, add, store. Motorul out-of-order le execută în paralel.
-
-Assembly e interfața stabilă. Ce rulează în silicon e un nivel mai adânc — microcodul pe care l-ai văzut în L25.
+Assembly este interfața stabilă; dedesubt lucrează decodoarele și, pentru instrucțiunile complexe, microcodul din Lecția 25.
 
 <CosmoHint emotion="surprised">
-Compilatoarele moderne (GCC, Clang cu `-O3`) produc *mai bun* assembly decât programatorii experți. Nu din întâmplare — cunosc exact dimensiunea cache line-urilor, costul fiecărei instrucțiuni pe fiecare arhitectură, algoritmii de branch prediction. Vectorizează automat bucle (procesează 8 int-uri simultan cu SIMD), reordonează instrucțiuni pentru pipeline. Un programator uman nu poate ține toate astea în cap simultan. Ultimul bastion al assembly manual: driverele hardware critice, bootloader-ele, și câteva rutine criptografice unde contează fiecare ciclu.
+  Compilatoarele moderne (GCC, Clang cu `-O3`) produc adesea assembly mai bun decât un programator mediu: cunosc costul fiecărei instrucțiuni pe fiecare arhitectură și vectorizează automat buclele, procesând 8 întregi simultan cu SIMD. Experții încă le bat în rutine mici și critice. Assembly scris de mână rămâne în bootloader-e, în comutarea contextului din kernel și în nucleele criptografice și multimedia.
 </CosmoHint>

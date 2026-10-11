@@ -1,0 +1,47 @@
+{
+  "questions": [
+    {
+      "order": 1,
+      "type": "fill_blank",
+      "concept": "Decodarea manuală a machine code: B8 = MOV EAX, imediat; următorii patru octeți sunt valoarea (little-endian). Caz nou față de B8 05 00 00 00: B8 2A 00 00 00 → MOV EAX, 42.",
+      "content": {
+        "prompt": "Știi că `B8 05 00 00 00` este `MOV EAX, 5`. Atunci `B8 2A 00 00 00` este, în Intel syntax, `MOV {{1}}, {{2}}` (valoarea în zecimal).",
+        "blanks": [
+          { "accepted": ["EAX", "eax"] },
+          { "accepted": ["42", "0x2a", "2a", "2ah"] }
+        ],
+        "explanation": "B8 e opcode-ul lui MOV EAX cu o valoare imediată, iar cei patru octeți următori sunt valoarea: `05 00 00 00` înseamnă 5, deci `2A 00 00 00` înseamnă 0x2A, adică 42. Octetul cel mai puțin semnificativ vine primul, de aceea zerourile sunt la coadă, nu la început."
+      }
+    },
+    {
+      "order": 2,
+      "type": "true_false",
+      "concept": "CMP e o scădere al cărei rezultat se aruncă: modifică doar flag-urile, nu operanzii.",
+      "content": {
+        "prompt": "După execuția lui `CMP RAX, RBX`, registrul RAX conține diferența RAX − RBX.",
+        "correct": false,
+        "explanation": "CMP execută scăderea în ALU, dar aruncă rezultatul și păstrează doar flag-urile (ZF, SF, CF, OF). RAX rămâne neschimbat. Un salt condiționat ca JE sau JL citește apoi flag-urile ca să decidă dacă suprascrie PC-ul. Dacă vrei diferența în registru, folosești SUB."
+      }
+    },
+    {
+      "order": 3,
+      "type": "single_choice",
+      "concept": "PUSH scade RSP cu 8 (stack-ul crește în jos), apoi scrie valoarea la adresa nouă.",
+      "content": {
+        "prompt": "RSP = 0x7000. Se execută `PUSH RAX`. Ce valoare are RSP după aceea?",
+        "options": [
+          "RSP devine 0x7008, fiindcă stack-ul crește în sus, spre adrese mai mari",
+          "RSP devine 0x6FF8, fiindcă stack-ul crește în jos, cu 8 octeți",
+          "RSP rămâne 0x7000, fiindcă PUSH scrie în memorie fără să atingă RSP"
+        ],
+        "correct_index": 1,
+        "explanation": "PUSH face întâi RSP ← RSP − 8, apoi Memory[RSP] ← RAX. Stack-ul crește spre adrese mici, iar o valoare pe 64 de biți ocupă 8 octeți: 0x7000 − 8 = 0x6FF8. POP face exact invers. De aceea CALL, care împinge adresa de return pe stack, scade și el RSP."
+      },
+      "distractors": [
+        "Crede că stack-ul crește spre adrese mari, ca un array, deși pe x86 și ARM convenția este inversă: spre adrese mici.",
+        null,
+        "Crede că PUSH doar copiază valoarea, fără să mute vârful stivei; dar vârful stivei este tocmai RSP, deci se mută."
+      ]
+    }
+  ]
+}
