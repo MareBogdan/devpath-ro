@@ -3,39 +3,19 @@ title: "Ciclul Fetch-Decode-Execute: bătaia inimii din silicon"
 order: 27
 type: lesson
 module_index: 5
-duration: 11
+duration: 7
 difficulty: 2
 ---
 
-EDSAC, Cambridge, 6 mai 1949. Maurice Wilkes pornește calculatorul și rulează primul program practic din istorie — tabele de pătrate și numere prime. Mașina execută aproximativ 650 de instrucțiuni pe secundă. Operatorii stau și privesc cum luminițele clipesc pe panoul frontal.
+EDSAC, Cambridge, 6 mai 1949. Maurice Wilkes pornește primul calculator cu program stocat utilizabil în practică și rulează tabele de pătrate și de numere prime. Mașina execută aproximativ 650 de instrucțiuni pe secundă. Astăzi, un procesor modern bate la 4 GHz, adică 4 miliarde de cicluri pe secundă. Mecanismul e același: o buclă de trei pași numită Fetch-Decode-Execute, singurul lucru pe care îl face un CPU de la pornire până la oprire.
 
-Astăzi, un procesor modern execută **4 miliarde de cicluri pe secundă**. Același mecanism, aceeași buclă de trei pași. Doar viteza s-a schimbat.
-
-Acea buclă se numește **Fetch-Decode-Execute**. Este singurul lucru pe care îl face orice CPU, de la pornire până la oprire, fără excepție.
-
----
-
-Ai construit toate piesele: ALU care calculează, registre care stochează, Unitatea de Control care orchestrează, ceasul care sincronizează, Program Counter-ul care ține locul în memorie. Acum le punem pe toate împreună și vedem cum funcționează.
-
-Răspunsul e surprinzător de simplu.
-
----
+Ai construit toate piesele: ALU, registre, Unitatea de Control, ceasul și Program Counter-ul. Acum le punem împreună.
 
 ## Cei trei pași
 
-**FETCH** — CPU-ul citește instrucțiunea din memorie, de la adresa indicată de PC.
+Fetch: CPU-ul citește instrucțiunea din memorie, de la adresa indicată de PC. Decode: Unitatea de Control descifrează ce înseamnă instrucțiunea, adică ce operație, cu ce date și unde se scrie rezultatul. Execute: ALU calculează, sau memoria e accesată, sau PC-ul e suprascris pentru un salt. Apoi ciclul reîncepe.
 
-**DECODE** — Unitatea de Control descifrează ce înseamnă instrucțiunea: ce operație, cu ce date, unde se scrie rezultatul.
-
-**EXECUTE** — CPU-ul execută efectiv: ALU calculează, sau memoria e accesată, sau PC-ul e suprascris pentru un salt.
-
-Gata. Ciclul reîncepe imediat, cu instrucțiunea următoare. Miliarde de ori pe secundă.
-
-## Registrele implicate
-
-Cinci registre speciale coordonează ciclul:
-
-{/* TABLE */}
+Ciclul folosește patru registre speciale și registrele generale:
 
 | Registru | Abreviere | Rol |
 |---|---|---|
@@ -45,100 +25,82 @@ Cinci registre speciale coordonează ciclul:
 | Instruction Register | IR | Instrucțiunea curentă, în așteptare de decodare |
 | Registre generale | R0–Rn | Operanzii și rezultatele calculelor |
 
-## Fetch pas cu pas — în notație RTL
+## Fetch pas cu pas, în notație RTL
 
-Notația RTL (Register Transfer Level) descrie exact ce se mișcă unde la fiecare ciclu de ceas. Săgeata ← înseamnă "se transferă în":
+Notația <Term def="Register Transfer Level: descrie ce date se mută din ce registru în care, la fiecare ciclu de ceas. Săgeata ← înseamnă „se transferă în”.">RTL</Term> arată exact ce se mișcă unde la fiecare ciclu:
 
-**T1:** `MAR ← PC`
-Valoarea din PC — adresa instrucțiunii — se copiază în MAR. MAR e interfața între CPU și RAM.
+- T1: `MAR ← PC`. Adresa instrucțiunii din PC se copiază în MAR, interfața dintre CPU și RAM.
+- T2: `MDR ← Memory` și `PC ← PC + 4`. RAM returnează instrucțiunea în MDR, iar simultan PC se incrementează și arată deja spre instrucțiunea următoare.
+- T3: `IR ← MDR`. Instrucțiunea ajunge în Instruction Register și fetch-ul e complet.
 
-**T2:** `MDR ← Memory` și `PC ← PC + 4`
-MAR trimite adresa la RAM. RAM returnează instrucțiunea binară în MDR. Simultan, PC se incrementează automat — arată deja spre instrucțiunea URMĂTOARE.
+<InlineQuestion n="1" />
 
-**T3:** `IR ← MDR`
-Instrucțiunea ajunge în Instruction Register. Fetch-ul e complet.
+## Decode: din binar în acțiune
 
-## Decode — traducerea binarului în acțiune
+Unitatea de Control citește IR. Primii biți ai instrucțiunii sunt opcode-ul (adunare, salt, citire din memorie), restul identifică operanzii. Un circuit combinațional, <Term def="Circuit combinațional care recunoaște opcode-ul și activează firele de control corespunzătoare: „ALU să adune”, „deschide portul de scriere al lui R1”, „cere citire din memorie”.">instruction decoder</Term>-ul, recunoaște opcode-ul și activează fizic firele de control.
 
-Unitatea de Control citește IR. Instrucțiunea binară are câmpuri distincte: primii biți sunt **opcode-ul** (codul operației: adunare, salt, citire din memorie...), restul identifică operanzii (ce registre, ce adresă, ce valoare imediată).
+## Execute: trei scenarii
 
-Un circuit combinatorial — instruction decoder — recunoaște opcode-ul și activează fizic firele de control corespunzătoare: "ALU să adune", "deschide portul de scriere al lui R1", "cere citire din memorie".
-
-## Execute — trei scenarii diferite
-
-**Instrucțiune aritmetică: `ADD R1, R2`**
+Pentru `ADD R1, R2` totul rămâne intern, fără acces la RAM:
 
 ```
-T4: Decode — opcode identificat ca ADD, operanzi R1 și R2
+T4: Decode — opcode ADD, operanzi R1 și R2
 T5: ALUin1 ← R1 | ALUin2 ← R2 | ALU_Op = ADD
 T6: R1 ← ALUout
 ```
 
-Zero acces la RAM. Totul rămâne intern. Rapid.
-
-**Instrucțiune de memorie: `LDR R1, [R2]`**
-(Citește din adresa stocată în R2, pune rezultatul în R1)
+Pentru `LDR R1, [R2]` (citește din adresa stocată în R2 și pune rezultatul în R1) există un acces suplimentar la RAM:
 
 ```
-T4: Decode — opcode identificat ca LOAD
+T4: Decode — opcode LOAD
 T5: MAR ← R2          ← adresa din R2 merge la MAR
-T6: MDR ← Memory      ← RAM returneaza datele (lent!)
+T6: MDR ← Memory      ← RAM returnează datele (lent!)
 T7: R1 ← MDR          ← datele ajung în R1
 ```
 
-Un acces suplimentar la RAM în faza Execute. De aceea LDR ia mai mult timp decât ADD.
-
-**Instrucțiune de salt: `JMP 0x400`**
+Pentru `JMP 0x400`, valoarea incrementată automat în T2 (PC+4) e *suprascrisă*:
 
 ```
-T4: Decode — opcode identificat ca JUMP, adresă target = 0x400
+T4: Decode — opcode JUMP, adresă țintă = 0x400
 T5: PC ← 0x400
 ```
 
-Valoarea incrementată automat în T2 (PC+4) e **suprascrisă**. La ciclul următor, CPU fetch-uiește de la 0x400 — execuția continuă de acolo.
-
-Aceasta e implementarea hardware a unui `if`, a unui `for`, a oricărei funcții.
+La ciclul următor, CPU-ul face fetch de la 0x400 și execuția continuă de acolo. Așa se implementează în hardware un `if`, un `for`, orice funcție.
 
 <CosmoHint emotion="thinking">
-De ce LDR ia 7 cicluri iar ADD ia 6? Din cauza accesului la RAM în Execute. RAM e fizic mai lentă decât registrele — semnalul trebuie să iasă din CPU, să traverseze placa de bază, să aștepte memoria. Compilatoarele știu asta și reordonează instrucțiunile ca să minimizeze timpii morți de așteptare.
+  De ce LDR ia 7 pași și ADD 6, în acest model? Din cauza accesului la RAM în Execute: RAM e fizic mai lentă decât registrele, iar semnalul trebuie să iasă din CPU și să aștepte memoria.
 </CosmoHint>
 
 ## Gâtuiala Von Neumann
 
-Arhitectura originală a lui Von Neumann are o problemă structurală: **o singură magistrală** între CPU și RAM, folosită atât pentru instrucțiuni cât și pentru date.
+Arhitectura originală are o problemă structurală: o singură magistrală între CPU și RAM, folosită și pentru instrucțiuni, și pentru date. În ciclul LDR de mai sus, magistrala e ocupată de două ori, la Fetch (T2) și la Execute (T6), iar CPU-ul nu poate face ambele deodată.
 
-În ciclul LDR de mai sus, magistrala e ocupată de două ori: o dată la Fetch (T2), o dată la Execute (T6). CPU-ul nu poate face cele două operații simultan. Trebuie să aștepte.
+Soluția e <Term def="Arhitectură cu două memorii și două magistrale separate, una pentru instrucțiuni și una pentru date, astfel încât fetch-ul și accesul la date să poată rula în paralel.">arhitectura Harvard</Term>. 
 
-Soluția: **Arhitectura Harvard** — două memorii separate, două magistrale separate: una dedicată instrucțiunilor, una dedicată datelor. Fetch și accesul la date pot rula în paralel.
+Procesoarele moderne folosesc un compromis, Harvard modificată: la nivelul <Term def="Cel mai rapid nivel de cache, aflat chiar pe die lângă nucleu. Cele două părți, L1I pentru instrucțiuni și L1D pentru date, sunt separate.">cache-ului L1</Term> există L1 Instruction Cache și L1 Data Cache separate, deci CPU-ul poate face fetch la instrucțiunea următoare în timp ce execută accesul la date al celei curente. La nivelul L2 și L3, memoria e unificată, flexibil pentru sistemul de operare.
 
-Procesoarele moderne folosesc un compromis: **Harvard Modificată**. La nivelul cache-ului L1 (cel mai rapid, direct pe die), există **L1 Instruction Cache** și **L1 Data Cache** separate. CPU-ul poate fetch-ui instrucțiunea următoare în timp ce execută accesul la date al instrucțiunii curente. La nivelul L2 și L3, memoria e unificată — flexibil pentru sistemul de operare.
+<InlineQuestion n="2" />
 
-## Întreruperile — lumea din afara buclei
+## Întreruperile: lumea din afara buclei
 
-CPU-ul execută ciclul neîntrerupt. Dar tastaturile, plăcile de rețea, timer-ele hardware trebuie să comunice cu procesorul **oricând**, nu când CPU-ul ajunge el la ele.
+CPU-ul execută ciclul neîntrerupt, dar tastaturile, plăcile de rețea și timer-ele trebuie să-l poată atinge oricând. Soluția e întreruperea: la finalul fiecărei faze Execute, CPU-ul verifică dacă există un semnal de întrerupere. Dacă da:
 
-Soluția: **întreruperea** (interrupt). La finalul fiecărei faze Execute, CPU-ul verifică dacă există un semnal de întrerupere. Dacă da:
+1. Salvează starea: hardware-ul împinge pe stivă PC-ul și flag-urile, iar handler-ul salvează restul registrelor de care are nevoie.
+2. PC-ul sare la adresa handler-ului, <Term def="Interrupt Service Routine: funcția care tratează o întrerupere, de exemplu citește tasta apăsată sau pachetul de rețea sosit.">ISR</Term>.
+3. Handler-ul tratează evenimentul.
+4. Instrucțiunea RETI/IRET scoate PC-ul salvat de pe stivă.
+5. Programul original continuă exact de unde s-a oprit.
 
-1. **Salvează starea** — PC-ul și registrele se împing pe Stack
-2. **Vectorizare** — PC-ul sare la adresa handler-ului de întrerupere (ISR)
-3. **Execută handler-ul** — procesează evenimentul (citește tasta, primește pachetul de rețea)
-4. **Restaurare** — instrucțiunea RETI/IRET scoate PC-ul salvat de pe Stack
-5. **Reluare** — programul original continuă exact de unde s-a oprit
+Sistemul de operare folosește un timer hardware care generează întreruperi la câteva milisecunde: la fiecare, salvează starea aplicației A și restaurează starea aplicației B. Așa funcționează <Term def="Rularea aparent simultană a mai multor programe, prin comutarea rapidă a procesorului între ele.">multitasking-ul</Term>, cu sute de comutări pe secundă, invizibile pentru utilizator.
 
-Sistemul de operare folosește un timer hardware care generează întreruperi la fiecare câteva milisecunde. La fiecare întrerupere, OS-ul salvează starea aplicației A, restaurează starea aplicației B. Asta e **multitasking-ul** — sute de comutări pe secundă, invizibile pentru utilizator.
+<InlineQuestion n="3" />
 
 <CosmoHint emotion="surprised">
-CPU-ul nu știe că rulează un "program". Nu vede browser, nu vede joc video, nu vede sistem de operare. Vede doar: adresă în PC → fetch → decode → execute → adresă nouă în PC. Atât. Sensul îl dă programatorul. Hardware-ul e orb la context — execută orice binar găsește la adresa indicată. De aceea malware-ul funcționează: dacă rușești să-ți pui codul în memorie și să convingi PC-ul să pointeze acolo, CPU-ul îl execută fără nicio întrebare.
+  CPU-ul nu știe că rulează un „program”. Vede doar: adresă în PC, fetch, decode, execute, adresă nouă în PC. Hardware-ul e orb la context și execută orice binar găsește la adresa indicată, dacă pagina e marcată executabilă. De aceea funcționează malware-ul: dacă reușești să-ți pui codul în memorie și să convingi PC-ul să pointeze acolo, CPU-ul îl execută fără întrebări.
 </CosmoHint>
-
----
 
 ## De la 650 la 4 miliarde
 
-EDSAC 1949: 650 instrucțiuni/secundă, 550 tuburi vidate, aproape o tonă, 3.5 kilowați.
+EDSAC (1949) făcea 650 de instrucțiuni pe secundă, avea circa 3.000 de tuburi vidate și consuma 11–12 kW. Un CPU modern la 4 GHz bate de 4 miliarde de ori pe secundă, are miliarde de tranzistori, câteva grame de siliciu și câteva zeci de wați.
 
-CPU modern la 4 GHz: 4.000.000.000 cicluri/secundă, miliarde de tranzistori, câteva grame de siliciu, câteva zeci de wați.
-
-Același ciclu. Fetch → Decode → Execute. Repetat de 6 milioane de ori mai rapid.
-
-Ciclul Fetch-Decode-Execute nu e o detaliu de implementare. E definiția unui calculator. Orice altceva — sisteme de operare, limbaje de programare, inteligență artificială — e construit pe această buclă de trei pași care se repetă neîncetat în silicon.
+Frecvența lui de ceas e de milioane de ori mai mare decât numărul de instrucțiuni pe secundă al EDSAC, iar ciclul e același. Nu e un detaliu de implementare, ci definiția unui calculator: sisteme de operare, limbaje de programare și inteligență artificială stau pe bucla asta de trei pași.

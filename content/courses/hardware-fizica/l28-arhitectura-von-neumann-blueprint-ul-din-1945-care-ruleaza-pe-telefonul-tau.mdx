@@ -3,108 +3,80 @@ title: "Arhitectura Von Neumann: blueprint-ul din 1945 care rulează pe telefonu
 order: 28
 type: lesson
 module_index: 5
-duration: 12
+duration: 9
 difficulty: 2
 ---
 
-30 iunie 1945. Un document de 101 pagini, scris de mână în tren spre Los Alamos, e multiplicat în 24 de exemplare și distribuit cercetătorilor din SUA și Europa. Pe copertă apare un singur nume: John von Neumann.
+Un document de 101 de pagini, scris de mână în tren, în drum spre Los Alamos, și datat 30 iunie 1945, e multiplicat în 24 de exemplare și trimis cercetătorilor din SUA. Pe copertă apare un singur nume: John von Neumann. Documentul, „First Draft of a Report on the EDVAC”, a schimbat felul în care se construiesc calculatoarele și a declanșat o dispută acerbă. Telefonul din buzunarul tău rulează pe același blueprint: aceleași cinci componente, același principiu.
 
-Documentul se numea *"First Draft of a Report on the EDVAC"*. A schimbat pentru totdeauna modul în care sunt construite calculatoarele. Și a declanșat una dintre cele mai acerbe dispute din istoria informaticii.
+## Înainte de 1945, programul era hardware-ul
 
-Telefonul din buzunarul tău rulează pe același blueprint. Exact aceleași cinci componente. Exact același principiu.
+Calculatoarele nu aveau software. ENIAC (Electronic Numerical Integrator and Computer) era în 1945 cel mai avansat computer din lume: 17.468 de tuburi vidate, 5 milioane de îmbinări sudate manual, 30 de tone, 167 de metri pătrați, 150 kW.
 
----
+Ca să-l „programezi” pentru o problemă nouă, un echipaj de operatori, în marea majoritate femei, petrecea zile întregi mutând cabluri pe panourile de comandă și ajustând peste 6.000 de comutatoare. Hardware-ul era programul: schimbai programul schimbând fizic mașina.
 
-Înainte de 1945, calculatoarele nu aveau software. Programul era hardware-ul însuși.
+## Ideea stored-program
 
-**ENIAC** — Electronic Numerical Integrator and Computer — era în 1945 cel mai avansat computer din lume. Conținea 17.468 de tuburi vidate, 70.000 de rezistori, 10.000 de condensatori și 5 milioane de îmbinări sudate manual. Cântărea 30 de tone, ocupa 167 de metri pătrați și consuma 150 de kilowați. Două ventilatoare de câte 20 de cai putere îl răceau permanent.
-
-Ca să-l "programezi" pentru o nouă problemă matematică, un echipaj de operatori — în marea majoritate femei, inițial necreditate — petrecea zile întregi conectând și deconectând cabluri groase pe panourile de comandă și ajustând peste 6.000 de comutatoare manuale. Hardware-ul era programul. Schimbai programul schimbând fizic mașina.
-
-## Ideea care a schimbat totul
-
-Von Neumann a formulat o întrebare simplă: ce se întâmplă dacă *instrucțiunile* programului sunt stocate în memorie exact ca datele — ca numere binare?
-
-Dacă instrucțiunile sunt date, mașina le poate citi singură, secvențial, la viteza electronilor. Nu mai trebuie recablată. Hardware-ul rămâne static. Logica devine dinamică — înlocuiești biții din memorie, nu firele din mașinărie.
-
-Aceasta e **ideea stored-program**: instrucțiunile și datele stau în *aceeași memorie*.
+Von Neumann a pus o întrebare simplă: ce se întâmplă dacă *instrucțiunile* programului sunt stocate în memorie exact ca datele, ca numere binare? Atunci mașina le poate citi singură, secvențial, la viteza electronilor. Nu mai trebuie recablată: hardware-ul rămâne static, iar logica devine dinamică, pentru că înlocuiești biții din memorie, nu firele din mașinărie. Aceasta e ideea <Term def="Principiul după care instrucțiunile și datele unui program stau în aceeași memorie, ca numere binare, iar procesorul le citește pe cele dintâi la fel cum citește datele.">stored-program</Term>.
 
 <FactBox>
-Alan Turing anticipase teoretic conceptul în 1936, în lucrarea despre "Universal Turing Machine" — o bandă infinită care conținea atât regulile (instrucțiunile) cât și datele. Von Neumann știa această lucrare și s-a inspirat din ea. Dar implementarea fizică a venit din altă parte.
+  Alan Turing anticipase conceptul teoretic în 1936, în lucrarea despre <Term def="Mașină teoretică descrisă de Turing: o bandă infinită ține atât descrierea oricărei alte mașini (instrucțiunile), cât și datele ei; mașina universală citește descrierea și o execută.">mașina Turing universală</Term>, a cărei bandă conținea atât regulile, cât și datele. Von Neumann cunoștea lucrarea; cât l-a influențat e disputat. Implementarea fizică a venit din altă parte.
 </FactBox>
-
-## Controversa din spatele numelui
-
-John von Neumann era un matematician de geniu — vorbea greacă clasică la 6 ani, avea memorie fotografică, consulta simultan Manhattan Project și proiectul ENIAC. În vara lui 1944 l-a întâlnit întâmplător pe căpitanul Herman Goldstine într-o gară din Aberdeen, Maryland. Goldstine i-a spus de ENIAC. Von Neumann a obținut imediat acces la proiect.
-
-Problema: **J. Presper Eckert și John Mauchly**, inginerii care construiseră ENIAC, discutau deja un succesor — EDVAC — care să stocheze programele în memorie electronică. Von Neumann a participat la aceste discuții, le-a sintetizat cu propria lui rigoare matematică și a scris documentul în tren.
-
-Goldstine a pus doar numele lui Von Neumann pe copertă. Fără Eckert, fără Mauchly.
-
-Eckert și Mauchly au fost furioși. Au demisionat de la Moore School în martie 1946. Când au încercat mai târziu să patenteze calculatorul digital, au pierdut: documentul EDVAC fusese distribuit public, deci era "prior publication" și invalida patentele. În 1973, tribunalul a declarat patentul ENIAC invalid — ironic, tocmai pentru că Von Neumann omisese să-i menționeze pe adevărații inventatori.
-
-Arhitectura care poartă numele lui Von Neumann a fost concepută în mare parte de alții. Iar această omisiune a salvat accidental industria IT din anii '70 de la un monopol corporativ sufocant.
 
 ## Cele cinci componente
 
-Orice computer Von Neumann — de la EDVAC la iPhone — are exact aceleași cinci componente:
+Orice computer Von Neumann, de la EDVAC la iPhone, are aceleași cinci componente:
 
-**1. Unitatea Aritmetică și Logică (ALU)** — execută calculele: adunare, scădere, AND, OR, XOR. Pe Manchester Baby, din cauza costului tuburilor vidate, ALU-ul nativi suporta doar scăderea — înmulțirea se implementa în software prin scăderi repetate.
+1. Unitatea Aritmetică și Logică (ALU) execută calculele. Pe Manchester Baby, din cauza costului tuburilor vidate, ALU-ul nativ făcea doar scădere; înmulțirea se obținea în software, prin scăderi repetate.
+2. Unitatea de Control (CU) orchestrează ciclul Fetch-Decode-Execute: gestionează Program Counter-ul, decodează instrucțiunile și generează semnalele de control.
+3. Memoria unificată stochează *atât instrucțiunile, cât și datele*, fără nicio distincție fizică. Un șir de biți e instrucțiune dacă PC pointează la el și dată dacă e folosit ca operand.
+4. Unitatea de intrare: tastatură, mouse, senzori, rețea.
+5. Unitatea de ieșire: monitor, difuzoare, imprimantă.
 
-**2. Unitatea de Control (CU)** — orchestrează ciclul Fetch-Decode-Execute. Gestionează Program Counter-ul, decodează instrucțiunile, generează semnalele de control.
+Componentele comunică prin magistrala de sistem, formată din trei magistrale. Address bus (unidirecțional, CPU spre memorie) transportă adresele; lățimea lui dă memoria maximă adresabilă, la nivel de octet: 32 de biți înseamnă 4 GB, 64 de biți 16 exabytes teoretic. Data bus (bidirecțional) duce instrucțiunile și datele; lățimea lui dă câți biți se transferă per ciclu. Control bus poartă semnalele Read/Write, ceasul și întreruperile.
 
-**3. Memoria unificată** — stochează **atât instrucțiunile cât și datele**, fără nicio distincție fizică. Un șir de biți e instrucțiune sau date doar în funcție de contextul execuției: dacă PC pointează la el, e instrucțiune; dacă e referit ca operand, e dată.
+<InlineQuestion n="1" />
 
-**4. Unitatea de intrare** — tastatură, mouse, senzori, rețea.
+## Gâtuiala structurală
 
-**5. Unitatea de ieșire** — monitor, difuzoare, imprimantă.
+Memoria unificată aduce flexibilitate și o problemă fizică: o singură magistrală trebuie să transporte și instrucțiunile (la Fetch), și datele (la Execute), dar nu le poate transporta simultan. Dacă CPU-ul execută o instrucțiune LDR, magistrala e ocupată cu datele și nu poate aduce instrucțiunea următoare.
 
-Cele cinci comunică prin **magistrala de sistem** (system bus) — trei fire de date:
+Din anii '80, performanța procesoarelor a crescut cu circa 60% pe an, iar latența memoriei DRAM s-a îmbunătățit cu circa 7% pe an. Un CPU la 4 GHz execută un ciclu în 0,25 ns, dar un acces la RAM durează, văzut de CPU, 60–100 ns, adică sute de cicluri de așteptare. La sarcinile care depind de memorie, un procesor petrece mai mult timp așteptând datele decât calculând.
 
-- **Address bus** (unidirecțional): CPU → memorie, transportă adresele. Lățimea determină memoria maximă adresabilă: 32 biți → 4 GB, 64 biți → 16 exabytes teoretic.
-- **Data bus** (bidirecțional): transportă instrucțiunile și datele între CPU și memorie. Lățimea determină câți biți se transferă per ciclu.
-- **Control bus**: semnale Read/Write, clock, întreruperi hardware.
+Soluțiile ascund bottleneck-ul, nu îl elimină: cache ierarhic L1/L2/L3, execuție out-of-order și <Term def="Aducerea în cache a datelor de care programul va avea probabil nevoie, înainte să le ceară, ca să nu aștepte RAM-ul.">prefetching</Term>.
 
-## Primele implementări
+Arhitectura Harvard îl elimină direct, cu două memorii și două magistrale separate, una pentru instrucțiuni și una pentru date, astfel încât Fetch-ul și accesul la date rulează în paralel. Se folosește pe <Term def="Calculator întreg pe un singur cip, cu procesor, memorie și periferice, făcut pentru o sarcină simplă (de exemplu, placa Arduino).">microcontrollere</Term> (Arduino AVR), DSP-uri și sisteme embedded, dar e incomodă pe un computer de uz general, unde un program descărcat de pe internet intră ca *date*. Soluția industriei e Harvard modificată: Von Neumann la nivelul RAM, Harvard la L1 (L1I și L1D separate), cum ai văzut în Lecția 27.
 
-Documentul lui Von Neumann a generat o cursă globală:
-
-**Manchester Baby — 21 iunie 1948** (legătura cu L26 și L27): primul computer stored-program care a rulat un program. 32 de cuvinte de memorie, 17 instrucțiuni, 52 de minute pentru a calcula cel mai mare divizor propriu al lui 2¹⁸. Viteza: ~1.100 instrucțiuni/secundă.
-
-**EDSAC — 6 mai 1949**: primul computer stored-program practic, construit de Maurice Wilkes la Cambridge după ce citise First Draft. ~650 instrucțiuni/secundă, memorie cu linii de întârziere cu mercur.
-
-**IAS Machine — 10 iunie 1952**: implementarea lui Von Neumann însuși, la Princeton. Cuvânt de 40 biți, 1.024 cuvinte de memorie (~5.1 KB), 1.700 tuburi vidate, timp de adunare de 62 microsecunde. Von Neumann nu a construit niciodată EDVAC — l-au terminat alții după ce a plecat la Princeton.
-
-<CosmoHint emotion="surprised">
-EDVAC, mașina descrisă în celebrul document, folosea memorie cu mercur lichid: date convertite în unde acustice care circulau prin tuburi de pyrex la 50°C exact. Ca să citești un bit, trebuia să aștepți fizic ca unda sonoră să ajungă la capătul tubului. EDVAC conținea 128 de astfel de tuburi și stoca 1.024 de cuvinte de 44 biți — aproximativ 5.6 KB total.
-</CosmoHint>
-
-## Gâtuiala structurală: Von Neumann Bottleneck
-
-Memoria unificată aduce flexibilitate infinită. Aduce și o problemă fizică ireductibilă.
-
-**O singură magistrală** trebuie să transporte atât instrucțiunile (la Fetch) cât și datele (la Execute). Nu pot fi transportate simultan. Dacă CPU-ul execută o instrucțiune LDR (citire din memorie), magistrala e ocupată cu datele — nu poate aduce și instrucțiunea următoare. Pipeline-ul stagnează.
-
-Divergența a devenit catastrofală din anii '80: viteza CPU-urilor creștea cu **~60% pe an**. Latența RAM se îmbunătățea cu **~7% pe an**. Azi, un CPU la 4 GHz execută un ciclu în 0.25 nanosecunde. RAM răspunde în 10–15 nanosecunde. CPU-ul stă blocat sute de cicluri așteptând date.
-
-Paradox contraintuitiv: un procesor modern la 4 GHz petrece **mai mult timp așteptând memoria** decât calculând efectiv.
-
-Soluțiile care ascund (nu elimină) bottleneck-ul: cache ierarhic L1/L2/L3, out-of-order execution, prefetching. Toate sunt workarounds pentru o problemă structurală din 1945.
-
-**Arhitectura Harvard** elimină bottleneck-ul direct: două memorii separate, două magistrale separate — una pentru instrucțiuni, una pentru date. Fetch și acces la date pot rula în paralel. Folosită pe microcontrollere (Arduino AVR), DSP-uri, sisteme embedded. Inutilizabilă pentru computere generale: un program descărcat de pe internet intră ca *date* și nu poate fi mutat în *memoria de instrucțiuni*.
-
-Soluția industriei: **Harvard Modificată** — Von Neumann la nivel de RAM (flexibil), Harvard la nivelul cache-ului L1 (split L1I + L1D). Exact ce ai învățat în L27.
+<InlineQuestion n="2" />
 
 ## Consecința periculoasă: codul care se rescrie singur
 
-Dacă instrucțiunile și datele ocupă același spațiu de memorie, un program poate, teoretic, să-și suprascrie propriile instrucțiuni în timpul execuției.
+Dacă instrucțiunile și datele ocupă același spațiu de memorie, un program poate să-și suprascrie propriile instrucțiuni în timpul execuției. Istoric, pe IBM 701 nu existau registre de index, iar programatorii își modificau câmpurile de adresă din propriile instrucțiuni LOAD ca să parcurgă array-uri. Registrul de index (Lecția 22) a apărut tocmai ca să elimine practica. Tot IBM 704 a lăsat numele CAR și CDR din LISP, de la câmpurile de adresă și de decrement ale unui cuvânt de mașină.
 
-**Istoric:** pe IBM 701, nu existau registre de index hardware — programatorii scriau cod care își modifica dinamic câmpurile de adresă din propriile instrucțiuni LOAD ca să itereze prin array-uri. Registrul de index a fost inventat în 1949 pe Manchester Mark 1 (numit "B-line") exact ca să elimine această practică periculoasă. Succesorul IBM 704 a inclus în sfârșit trei registre de index hardware — decizie atât de semnificativă încât a influențat direct designul limbajului LISP (CAR și CDR derivă din denumirile câmpurilor acestor registre).
+Azi, același principiu stă la baza unui <Term def="Atac în care datele primite de la utilizator depășesc spațiul alocat și suprascriu memoria vecină, de exemplu adresa de return de pe stivă.">buffer overflow</Term>. Un program alocă memorie pentru datele utilizatorului; dacă nu verifică lungimea inputului, datele în plus suprascriu adresa de return de pe stivă. La RETURN, PC-ul sare la codul injectat de atacator (shellcode), pe care CPU-ul îl execută fidel, fiindcă nu distinge instrucțiunea de dată.
 
-**Azi:** același principiu stă la baza **buffer overflow**. Un program alocă memorie pentru date de la utilizator. Dacă nu verifică lungimea inputului, datele excess suprascriu adresa de return de pe Stack. CPU-ul execută RETURN, PC-ul sare la codul injectat de atacator, și CPU-ul îl execută fidel — pentru că nu distinge instrucțiune de dată.
+Apărarea se numește <Term def="Write XOR Execute: regulă după care o pagină de memorie poate fi scribilă sau executabilă, niciodată ambele în același timp.">W^X</Term>, introdusă în OpenBSD în 2003: o pagină de memorie poate fi scribilă *sau* executabilă, niciodată ambele. Shellcode-ul injectat într-o pagină scribilă nu mai poate rula. Azi e implementată în hardware (NX bit pe x86, XN pe ARM) și în toate sistemele de operare moderne.
 
-**W^X (Write XOR Execute)**, pionerat de OpenBSD în 2003: fiecare pagină de memorie poate fi *scribilă* SAU *executabilă*, niciodată ambele simultan. O pagină marcată ca scribilă nu poate fi executată — shellcode-ul injectat nu mai funcționează. Implementat azi în hardware (NX bit pe x86, XN bit pe ARM) și în toate sistemele de operare moderne.
+<InlineQuestion n="3" />
 
-<CosmoHint emotion="thinking">
-Von Neumann nu a construit niciodată EDVAC. Eckert și Mauchly, cei care avuseseră ideea, nu apar pe documentul care le poartă principiul. Judecătorul care a invalidat patentul lor în 1973 a citat chiar acel document ca dovadă că ideea era "public domain". Și totuși arhitectura se numește Von Neumann. Istoria tehnologiei e rareori dreaptă cu adevărații inovatori.
+## Controversa din spatele numelui
+
+În vara lui 1944, Von Neumann, matematician de geniu care consulta simultan Proiectul Manhattan și proiectul ENIAC, l-a întâlnit întâmplător pe căpitanul Herman Goldstine pe peronul unei gări din Aberdeen, Maryland. Goldstine i-a povestit despre ENIAC, iar Von Neumann a obținut curând acces.
+
+Dar J. Presper Eckert și John Mauchly, inginerii care construiseră ENIAC, discutau deja un succesor, EDVAC, care să țină programele în memorie electronică. Von Neumann a participat la discuții, le-a sintetizat și a scris documentul, iar Goldstine a pus pe copertă doar numele lui, fără Eckert și Mauchly.
+
+Cei doi au demisionat de la Moore School în martie 1946. Brevetul ENIAC, obținut ulterior de ei, a fost declarat invalid în 1973, în procesul Honeywell împotriva Sperry Rand, fiindcă instanța a considerat că ideile fuseseră preluate de la John Atanasoff, creatorul lui ABC. Arhitectura care poartă numele lui Von Neumann a fost deci gândită în mare parte de mai mulți oameni, iar hotărârea din 1973 a lăsat ideea calculatorului electronic digital liberă, fără monopol de brevete.
+
+## Primele implementări
+
+Documentul a pornit o cursă globală:
+
+- Manchester Baby, 21 iunie 1948: primul computer stored-program care a rulat un program. 32 de cuvinte de memorie și un program de 17 instrucțiuni, la circa 1.100 de instrucțiuni pe secundă (Lecția 26).
+- EDSAC, 6 mai 1949: primul computer stored-program practic, construit de Maurice Wilkes la Cambridge după ce citise First Draft, cu aproximativ 650 de instrucțiuni pe secundă și memorie cu linii de întârziere cu mercur.
+- IAS Machine, 10 iunie 1952: implementarea lui Von Neumann însuși, la Princeton, cu cuvinte de 40 de biți, 1.024 de cuvinte de memorie (circa 5 KB) și 62 de microsecunde pentru o adunare.
+
+Von Neumann nu a construit niciodată EDVAC: l-au terminat alții, după ce el plecase la Princeton.
+
+<CosmoHint emotion="surprised">
+  EDVAC folosea memorie cu <Term def="Memorie în care biții circulă ca unde acustice printr-un tub cu mercur și sunt recitiți când ajung la capăt. Ca să citești un bit trebuia să aștepți fizic ca unda să ajungă, de aceea accesul era secvențial.">linii de întârziere cu mercur</Term>: date convertite în unde sonore care circulau prin tuburi cu mercur, ținute la temperatură controlată, fiindcă viteza sunetului depinde de ea. Avea 128 de astfel de linii și stoca 1.024 de cuvinte de 44 de biți, circa 5,5 KB.
 </CosmoHint>

@@ -1,0 +1,48 @@
+{
+  "questions": [
+    {
+      "order": 1,
+      "type": "true_false",
+      "concept": "ALU calculează toate operațiile în paralel și MUX-ul alege; pentru o instrucțiune AND, sumatorul nu e oprit, ci rezultatul lui e ignorat. Capcana: «ALU activează doar circuitul cerut».",
+      "content": {
+        "prompt": "Când ALU-ul execută o instrucțiune AND, sumatorul din interior rămâne oprit până când o instrucțiune de adunare îl cere.",
+        "correct": false,
+        "explanation": "Toate circuitele ALU primesc aceiași operanzi și calculează simultan, pentru că electricitatea curge prin toate porțile deodată. Codul de operație nu pornește circuite, ci comandă MUX-ul de la ieșire, care alege rezultatul AND și îl ignoră pe cel al sumatorului. De aceea timpul unei operații nu depinde de câte circuite există în ALU, dar toate consumă energie."
+      }
+    },
+    {
+      "order": 2,
+      "type": "single_choice",
+      "concept": "Comparația cu semn: SF singur greșește când apare overflow. 100 − (−100) pe 8 biți = 200 → pe 8 biți cu semn apare −56 (SF = 1) cu OF = 1. Corect: SF = OF ⇒ A ≥ B, deci A > B.",
+      "content": {
+        "prompt": "Pe 8 biți cu semn, ALU-ul calculează A − B pentru A = 100 și B = −100. Rezultatul 200 nu încape și apare ca −56, cu flag-urile SF = 1 și OF = 1. Ce concluzie e corectă?",
+        "options": [
+          "A < B, fiindcă scăderea a dat un rezultat cu un semn negativ",
+          "A > B, fiindcă indicatorii SF și OF au aceeași valoare, ambii 1",
+          "Comparația e imposibilă, fiindcă s-a depășit intervalul de valori"
+        ],
+        "correct_index": 1,
+        "explanation": "Pentru numere cu semn, A < B înseamnă SF ≠ OF. Aici OF = 1 spune că bitul de semn al rezultatului e răsturnat de overflow, deci SF = 1 nu mai înseamnă «negativ». Cu SF = OF, rezultatul adevărat e pozitiv: 100 > −100. Overflow-ul nu face comparația imposibilă, ci obligă să citești și OF."
+      },
+      "distractors": [
+        "Citește doar SF și crede că un rezultat care apare negativ înseamnă A < B, ignorând că overflow-ul a răsturnat semnul.",
+        null,
+        "Crede că un overflow strică comparația, deși flag-urile SF și OF împreună conțin tocmai informația de care e nevoie."
+      ]
+    },
+    {
+      "order": 3,
+      "type": "match_pairs",
+      "concept": "Trei sarcini ↔ trei alegeri de proiectare: ramuri imprevizibile → CPU cu puține ALU-uri rapide; mii de operații independente → GPU; calculul adreselor de memorie → AGU separate de ALU.",
+      "content": {
+        "prompt": "Potrivește fiecare sarcină cu alegerea hardware care o servește cel mai bine.",
+        "pairs": [
+          { "left": "Un fir de execuție cu multe if-uri imprevizibile", "right": "Câteva ALU-uri rapide, cu predicție de ramuri" },
+          { "left": "16.000 de înmulțiri independente, aceeași operație", "right": "Mii de ALU-uri simple, în paralel" },
+          { "left": "Calculul adresei unui load, bază + index × scală", "right": "AGU separat, ca să nu blocheze aritmetica" }
+        ],
+        "explanation": "Un fir cu ramuri imprevizibile are nevoie de ALU-uri rapide și de predicție de ramuri. Un volum mare de operații independente identice se potrivește cu mii de ALU-uri simple (GPU), unde predicția nu contează. Adresele de memorie se calculează în AGU-uri separate, ca fiecare load sau store să nu ocupe ALU-urile care fac aritmetica obișnuită."
+      }
+    }
+  ]
+}

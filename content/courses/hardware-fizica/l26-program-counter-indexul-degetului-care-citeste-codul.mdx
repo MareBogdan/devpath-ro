@@ -3,99 +3,71 @@ title: "Program Counter: indexul degetului care citește codul"
 order: 26
 type: lesson
 module_index: 5
-duration: 10
+duration: 7
 difficulty: 2
 ---
 
-Pe 21 iunie 1948, la Universitatea din Manchester, un calculator experimental numit "Baby" a rulat primul program stocat vreodată pe o mașină electronică. Programul număra 17 instrucțiuni și rezolva o singură problemă matematică: cel mai mare divizor propriu al lui 2¹⁸. A rulat 52 de minute și a dat răspunsul corect.
+Pe 21 iunie 1948, la Universitatea din Manchester, un calculator experimental numit „Baby” a rulat primul program stocat pe o mașină electronică. Programul avea 17 instrucțiuni și căuta cel mai mare divizor propriu al lui 2¹⁸. A rulat 52 de minute și a dat răspunsul corect: 131.072.
 
-Ce a făcut posibil acest moment? Nu un procesor puternic — Baby era primitiv. Nu un limbaj de programare — nu exista unul. Ce a făcut posibil totul a fost un singur registru cu o singură responsabilitate: să știe mereu **la ce linie de cod a ajuns execuția**.
+Nu un procesor puternic a făcut posibil momentul, fiindcă Baby era primitiv, și nici un limbaj de programare, fiindcă nu exista niciunul. A contat un singur registru cu o singură responsabilitate: să știe mereu *la ce linie de cod a ajuns execuția*. Acela era Program Counter-ul, și funcționează la fel în orice procesor modern.
 
-Acela era Program Counter-ul. Și funcționează exact la fel în orice procesor modern.
+Până acum ai construit un ALU care calculează, registre care stochează și o Unitate de Control care orchestrează. Rămâne întrebarea: *de unde iau instrucțiunile?* Din memorie, parcursă secvențial. Program Counter-ul ține adresa instrucțiunii *următoare*. Imaginează-ți RAM-ul ca o coloană de căsuțe poștale numerotate de la zero în sus, fiecare cu o instrucțiune binară; PC-ul e biletul pe care CPU-ul îl ține în mână, cu numărul căsuței pe care trebuie s-o deschidă acum.
 
----
+## Fetch și auto-increment
 
-Până acum ai construit ALU care calculează, registre care stochează, o Unitate de Control care orchestrează. Dar toate astea ar sta blocate fără un răspuns la întrebarea fundamentală: *de unde iau instrucțiunile?*
+Mecanismul are trei pași. În Fetch, valoarea din PC pleacă la <Term def="Memory Address Register: registrul prin care CPU-ul trimite memoriei adresa pe care vrea s-o citească sau s-o scrie.">MAR</Term>, CPU-ul cere instrucțiunea de la acea adresă din RAM, iar ea ajunge în Instruction Register (IR). În Auto-increment, PC se actualizează singur ca să arate spre instrucțiunea următoare, fără intervenție externă. În Execute, CPU-ul execută instrucțiunea din IR, iar PC stă gata pentru ciclul următor.
 
-Din memorie. Iar CPU-ul parcurge memoria secvențial, instrucțiune după instrucțiune. Program Counter-ul este registrul care ține minte adresa din memorie unde se află **instrucțiunea URMĂTOARE** ce trebuie executată.
+Cât incrementează PC-ul depinde de arhitectură. ARM64 și setul de bază RISC-V au instrucțiuni de lungime fixă, 4 octeți, deci PC crește cu 4. Pe x86 instrucțiunile au lungime variabilă, de la 1 la 15 octeți: decoder-ul calculează lungimea și adaugă exact atât. Bucla fetch → increment → execute nu se oprește singură; execuția secvențială apare pentru că PC-ul avansează necontenit.
 
-Imaginează-ți memoria RAM ca o coloană de căsuțe poștale, fiecare numerotată de la zero în sus. Fiecare căsuță conține o instrucțiune binar. Program Counter-ul este biletul pe care CPU-ul îl ține în mână — pe el scrie numărul căsuței pe care trebuie s-o deschidă acum.
+<InlineQuestion n="1" />
 
----
+<CosmoHint emotion="curious">
+  SAP-1 (Simple As Possible), cel mai simplu CPU educațional, are un PC de doar 4 biți, suficient pentru 16 locații de memorie. Starea lui se vede pe 4 LED-uri care clipesc în binar pe măsură ce programul avansează: 0000, 0001, 0010, 0011.
+</CosmoHint>
+
+## Când PC-ul nu incrementează: salturile
+
+Dacă PC-ul ar putea doar să crească, un computer ar executa doar liste liniare: nicio buclă, niciun if/else, nicio funcție. Puterea vine din faptul că PC-ul poate fi *suprascris* cu orice valoare.
+
+- JUMP (salt necondiționat): instrucțiunea conține o adresă nouă, pe care CPU-ul o încarcă direct în PC. Compilatorul generează asta pentru `goto` sau pentru finalul unei bucle `for`.
+- Branch (salt condiționat): PC-ul se suprascrie doar dacă o condiție e adevărată (un flag din ALU, ca Zero Flag). Altfel incrementează normal. Așa se implementează un `if` în hardware.
+- CALL (apel de funcție): salvează adresa de întoarcere și sare la funcție. Pe x86 o pune pe stivă; pe ARM și RISC-V o păstrează întâi într-un <Term def="Registru special (LR pe ARM, ra pe RISC-V) în care o instrucțiune de apel salvează adresa de întoarcere, ca revenirea să nu ceară un acces la memorie.">link register</Term>. Instrucțiunea RETURN readuce adresa în PC.
+- Interrupt: un eveniment extern (tastatură, rețea, timer) forțează PC-ul la o adresă specială, <Term def="Adresa fixă (sau intrarea dintr-un tabel) la care sare procesorul când apare o întrerupere de un anumit tip, unde stă codul care o tratează.">vectorul de întrerupere</Term>. CPU-ul tratează evenimentul, apoi revine.
+- Reset: PC-ul e forțat la adresa de boot. Pe x86, după reset, prima instrucțiune se citește de la adresa fizică `0xFFFFFFF0`, în firmware-ul <Term def="Programul de pornire stocat într-un cip de pe placa de bază: inițializează hardware-ul și pornește sistemul de operare.">BIOS/UEFI</Term>.
+
+<InlineQuestion n="2" />
 
 ## Ce este fizic Program Counter-ul
 
-PC-ul este un **registru special** — nu stochează date ale programului, ci adrese de memorie. Fizic: aceiași flip-flop-uri D pe care le știi deja din lecția despre registre, conectate în paralel.
-
-Numărul de biți determină câtă memorie poate adresa CPU-ul:
-
-{/* TABLE */}
+PC-ul e un registru special: nu stochează date ale programului, ci adrese. Fizic, sunt aceiași flip-flop-uri D din lecția despre registre, conectate în paralel. Numărul de biți determină câtă memorie poate adresa CPU-ul:
 
 | Procesor | An | Biți PC | Memorie maximă adresabilă |
 |---|---|---|---|
-| Intel 8080 | 1974 | 16 biți | 65.536 locații = **64 KB** |
-| Intel 8086 | 1978 | 16 biți + segmentare | **1 MB** |
-| Intel 80386 | 1985 | 32 biți (EIP) | **4 GB** |
-| x86-64 / ARM64 | 2003+ | 64 biți (RIP / PC) | **16 exabytes** (teoretic) |
+| Intel 8080 | 1974 | 16 biți | 65.536 locații = 64 KB |
+| Intel 8086 | 1978 | 16 biți + <Term def="Tehnică prin care adresa fizică se obține dintr-o adresă de segment deplasată cu 4 biți plus un deplasament de 16 biți, ca un procesor pe 16 biți să adreseze 1 MB.">segmentare</Term> | 1 MB |
+| Intel 80386 | 1985 | 32 biți (EIP) | 4 GB |
+| x86-64 (2003), ARM64 (2011) | 2003+ | 64 biți (RIP / PC) | 16 exabytes (teoretic) |
 
-Intel îl numește **IP** (Instruction Pointer) pe 16 biți, **EIP** pe 32 biți, **RIP** pe 64 biți. ARM și RISC-V îl numesc **PC**. Funcția e identică — numele diferă din motive istorice.
+Intel îl numește IP pe 16 biți, EIP pe 32 și RIP pe 64. ARM și RISC-V îl numesc PC. Funcția e identică; numele diferă din motive istorice.
 
 <FactBox>
-De ce se numește "Counter" și nu "Pointer"? Pe primele calculatoare din anii '40, instrucțiunile aveau lungime fixă și stăteau secvențial în memorie. Ca să treci de la una la alta, incrementai un contor cu 1. Circuitul se numea "binary counter" — și numele a rămas, chiar dacă procesoarele moderne nu mai folosesc contoare simple ci sumatoare complete.
+  De ce „Counter” și nu „Pointer”? Pe primele calculatoare instrucțiunile aveau lungime fixă și stăteau secvențial în memorie, iar ca să treci la următoarea incrementai un contor cu 1. Circuitul se numea „binary counter”, iar numele a rămas, chiar dacă procesoarele moderne folosesc sumatoare complete.
 </FactBox>
 
-## Cum funcționează: fetch și auto-increment
+## ARM și x86: o diferență care a cauzat bug-uri
 
-Mecanismul e simplu și elegant:
+Pe ARM32, PC-ul e registrul R15 și poate fi citit și scris ca orice registru general. Dar când îl citești, primești adresa instrucțiunii curente + 8, un artefact al pipeline-ului de 3 etape, iar codul scris fără să știe asta calcula adrese greșite.
 
-**Pasul 1 — Fetch:** Valoarea din PC se trimite la Memory Address Register (MAR). CPU-ul cere instrucțiunea de la adresa respectivă din RAM. Instrucțiunea ajunge în Instruction Register (IR).
+Pe x86-64 nu poți citi RIP cu un MOV obișnuit. Dacă vrei valoarea lui, e nevoie de un truc:
 
-**Pasul 2 — Auto-increment:** PC se actualizează automat pentru a pointa la instrucțiunea URMĂTOARE. Hardware-ul face asta singur, fără nicio intervenție externă.
-
-**Pasul 3 — Execute:** CPU execută instrucțiunea din IR. PC stă liniștit, pregătit pentru ciclul următor.
-
-Cât incrementează PC-ul? Depinde de arhitectură:
-- **ARM / RISC-V** — instrucțiuni de lungime fixă, mereu 4 bytes → PC crește mereu cu **+4**
-- **x86** — instrucțiuni de lungime variabilă (1–15 bytes) → decoder-ul calculează lungimea și adaugă exact acea valoare
-
-Această buclă — fetch → increment → execute → fetch → ... — nu se oprește niciodată singură. Ea generează execuția secvențială automată. Programul "rulează" pentru că PC-ul avansează necontenit.
-
-<CosmoHint emotion="curious">
-Calculatorul SAP-1 (Simple As Possible), cel mai simplu CPU educațional care există, are un PC de doar **4 biți** — suficient pentru 16 locații de memorie. Poți vedea starea lui direct pe 4 LED-uri care clipesc în binar pe măsură ce programul avansează: 0000 → 0001 → 0010 → 0011. Toată complexitatea execuției unui program, vizibilă în 4 becuri.
-</CosmoHint>
-
-## Când PC-ul nu incrementează — salturile
-
-Dacă PC-ul ar putea doar să crească cu +4, un computer ar putea executa doar liste liniare de instrucțiuni. Nicio buclă, niciun if/else, nicio funcție.
-
-Puterea reală vine din faptul că PC-ul poate fi **suprascris** cu orice valoare:
-
-**JUMP (salt necondiționat):** instrucțiunea conține o adresă nouă. CPU-ul o încarcă direct în PC — la următorul ciclu, execuția continuă de acolo. Compilatorul generează asta pentru `goto` sau pentru finalul unei bucle `for`.
-
-**Branch (salt condiționat):** PC-ul se suprascrie **doar dacă** o condiție e adevărată (un flag din ALU: Zero Flag, Carry Flag etc.). Dacă nu e adevărată, PC-ul incrementează normal. Aceasta este implementarea hardware a instrucțiunii `if`.
-
-**CALL (apel de funcție):** mai întâi salvează valoarea curentă a PC-ului pe **Stack** (o zonă specială din memorie), apoi sare la adresa funcției. Când funcția termină, instrucțiunea **RETURN** scoate adresa salvată de pe Stack înapoi în PC — execuția continuă exact de unde a plecat.
-
-**Interrupt (întrerupere hardware):** un eveniment extern (tastatură, rețea, timer) forțează PC-ul la o adresă specială numită vector de întrerupere. CPU-ul gestionează evenimentul, apoi revine.
-
-**Reset:** PC-ul e forțat la adresa de boot. Pe x86, la reset hardware, RIP e setat la `0xFFFFFFF0` — prima instrucțiune din BIOS/UEFI.
-
----
-
-## ARM vs. x86: o diferență arhitecturală care a cauzat bug-uri reale
-
-Pe **ARM32**, PC-ul este registrul **R15** — și poate fi citit și scris ca orice alt registru general. Sună util, dar a cauzat bug-uri subtile: când citești R15, valoarea returnată este `adresa_curentă + 8` (un artefact al pipeline-ului de 3 etape). Cod scris fără să știi asta producea calcule greșite de adresă.
-
-Pe **x86-64**, nu poți citi RIP direct cu o instrucțiune MOV standard. Dacă vrei valoarea lui, trebuie un truc:
 ```asm
-LEA RAX, [RIP + 0]   ; RAX primește valoarea curentă a RIP
+LEA RAX, [RIP + 0]   ; RAX primește adresa instrucțiunii următoare
 ```
-Această restricție deliberată protejează împotriva accesului accidental la PC.
 
 <CosmoHint emotion="thinking">
-Buffer overflow — unul din cele mai vechi atacuri din istoria securității — funcționează tocmai prin manipularea PC-ului. Când apelezi o funcție, adresa de return (valoarea PC-ului de revenit) se salvează pe Stack. Dacă un atacator suprascrie Stack-ul cu date prea lungi, poate pune propria adresă acolo. Când funcția execută RETURN, PC-ul sare la codul atacatorului. ASLR (Address Space Layout Randomization) și NX bit (memorie non-executabilă) au apărut exact pentru a face această tehnică mai dificilă.
+  Buffer overflow, unul dintre cele mai vechi atacuri, funcționează prin manipularea PC-ului. La un apel, adresa de întoarcere se salvează pe stivă. Dacă un atacator o suprascrie cu date prea lungi, la RETURN PC-ul sare la codul lui. ASLR (randomizarea adreselor) și <Term def="Bit din tabelele de pagini care marchează o zonă de memorie drept ne-executabilă: procesorul refuză să încarce instrucțiuni din ea, deci cod injectat ca date nu mai poate rula.">NX bit</Term> au apărut tocmai ca să îngreuneze tehnica.
 </CosmoHint>
 
----
+<InlineQuestion n="3" />
 
-Program Counter-ul e cel mai simplu și mai important registru din CPU. Nu calculează nimic. Nu stochează date ale programului. Ține o singură valoare — o adresă — și o actualizează automat la fiecare ciclu. Din această simplitate emerge tot: execuția secvențială, buclele, funcțiile, logica condițională. Fără PC, instrucțiunile din memorie rămân text mort. Cu el, devin un program care rulează.
+Program Counter-ul e cel mai simplu și mai important registru din CPU. Nu calculează și nu stochează date: ține o adresă și o actualizează la fiecare ciclu. Din această simplitate rezultă execuția secvențială, buclele, funcțiile și logica condițională. Fără PC, instrucțiunile din memorie rămân text mort; cu el, devin un program care rulează.

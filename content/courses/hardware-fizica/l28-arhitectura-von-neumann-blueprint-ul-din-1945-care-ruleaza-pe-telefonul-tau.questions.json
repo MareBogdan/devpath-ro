@@ -1,0 +1,46 @@
+{
+  "questions": [
+    {
+      "order": 1,
+      "type": "short_answer",
+      "concept": "Lățimea magistralei de adrese dă memoria adresabilă (octeți): 2ⁿ. Caz nou: 36 de biți → 2³⁶ = 64 GB. Capcana: 36 GB sau 2³⁶ ca număr de biți.",
+      "content": {
+        "prompt": "Un procesor are o magistrală de adrese de 36 de biți, iar memoria e adresabilă la nivel de octet. Câți GB poate adresa, cel mult?",
+        "accepted": [
+          "64",
+          "64 gb",
+          "64gb",
+          "64 de gb",
+          "64 gib",
+          "64 gigabytes",
+          "64 gigaocteti"
+        ],
+        "explanation": "Cu n biți de adresă poți numerota 2ⁿ octeți. 2³⁶ = 2³⁰ · 2⁶ = 1 GB · 64 = 64 GB. Fiecare bit în plus pe magistrala de adrese dublează memoria adresabilă: de la 32 de biți (4 GB) trebuie doar 4 biți în plus ca să ajungi la 64 GB."
+      }
+    },
+    {
+      "order": 2,
+      "type": "match_pairs",
+      "concept": "Un computer modern e hibrid: Harvard pur pe microcontrolere, Von Neumann la nivelul RAM, Harvard modificată la nivelul L1. Trei niveluri/sisteme ↔ tipul de organizare a memoriei.",
+      "content": {
+        "prompt": "Potrivește fiecare sistem sau nivel de memorie cu organizarea lui.",
+        "pairs": [
+          { "left": "Microcontrolerul unei plăci Arduino AVR", "right": "Memorii și magistrale separate pentru instrucțiuni și date" },
+          { "left": "RAM-ul unui laptop", "right": "O singură memorie și o singură cale pentru instrucțiuni și date" },
+          { "left": "Cache-ul L1 al procesorului din laptop", "right": "Două cache-uri separate, unul de instrucțiuni și unul de date" }
+        ],
+        "explanation": "Un microcontroler folosește Harvard pur: memorii și magistrale separate, fiindcă programul e fix. RAM-ul unui computer de uz general rămâne Von Neumann, ca programele descărcate să intre ca date și să poată fi executate. Iar la nivelul L1, procesorul împarte cache-ul în L1I și L1D ca să facă fetch și acces la date în paralel: Harvard modificată."
+      }
+    },
+    {
+      "order": 3,
+      "type": "true_false",
+      "concept": "W^X: o pagină e scribilă SAU executabilă. Un buffer care primește input de la utilizator (scribil) nu poate fi executabil simultan, deci shellcode-ul injectat nu rulează.",
+      "content": {
+        "prompt": "Pe un sistem cu W^X, o pagină de memorie care primește input de la utilizator poate fi, în același timp, scribilă și executabilă.",
+        "correct": false,
+        "explanation": "W^X (Write XOR Execute) înseamnă că o pagină e scribilă sau executabilă, niciodată ambele. Bufferul care primește input e scribil, deci nu poate fi executabil: chiar dacă PC-ul ajunge acolo prin adresa de return suprascrisă, procesorul refuză să încarce instrucțiuni din pagină (NX bit pe x86, XN pe ARM). Memoria unificată rămâne, dar execuția din date e blocată."
+      }
+    }
+  ]
+}

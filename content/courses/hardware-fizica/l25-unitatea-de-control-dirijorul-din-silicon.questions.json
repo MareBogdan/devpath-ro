@@ -1,0 +1,55 @@
+{
+  "questions": [
+    {
+      "order": 1,
+      "type": "match_pairs",
+      "concept": "Trei situații ↔ trei răspunsuri de proiectare: viteză maximă cu set mic → hardwired; set complex într-o arie limitată → microprogramat; bug găsit după lansare → patch de microcod (posibil doar cu control microprogramat).",
+      "content": {
+        "prompt": "Potrivește fiecare situație de proiectare cu soluția potrivită.",
+        "pairs": [
+          { "left": "Nucleu RISC cu 40 de instrucțiuni simple, cu viteza ca obiectiv", "right": "Unitate de control hardwired" },
+          { "left": "Set x86 cu sute de instrucțiuni complexe, într-o arie limitată", "right": "Unitate de control microprogramată" },
+          { "left": "Bug găsit după lansare într-o instrucțiune rar folosită", "right": "Patch de microcod încărcat la pornire" }
+        ],
+        "explanation": "Un set mic și regulat se poate decoda direct în porți, ceea ce dă viteza maximă (hardwired). Un set complex ar cere prea mult siliciu cablat, așa că instrucțiunile se descompun în micro-operații stocate într-un ROM de control (microprogramat). Iar un bug descoperit după fabricare nu se poate repara în porțile cablate, dar se poate corecta dacă secvența de micro-operații stă într-o memorie care poate fi interceptată: un patch de microcod."
+      }
+    },
+    {
+      "order": 2,
+      "type": "ordering",
+      "concept": "Secvența semnalelor de control pentru ADD R1, R2: fetch (adresa în MAR, citire + incrementare PC, instrucțiunea în IR), apoi execute (operand 1, operand 2 + operația, scrierea rezultatului).",
+      "content": {
+        "prompt": "Așază în ordine semnalele pe care Unitatea de Control le emite pentru ADD R1, R2, de la fetch până la scrierea rezultatului.",
+        "items": [
+          "PC_out și MAR_in: adresa din PC ajunge în MAR",
+          "MemRead și PC_inc: memoria răspunde, iar PC avansează",
+          "MDR_out și IR_in: instrucțiunea ajunge în IR",
+          "R1_out și Temp1_in: primul operand intră în buffer",
+          "R2_out, Temp2_in și ALU_Op=ADD: al doilea operand și comanda",
+          "ALU_out și RegWrite: rezultatul se scrie în R1"
+        ],
+        "explanation": "Fetch-ul vine primul: adresa instrucțiunii pleacă din PC către MAR, memoria o citește (și PC avansează deja spre următoarea), iar instrucțiunea ajunge în IR. Abia apoi, după decodare, execuția mișcă datele: primul operand în buffer, al doilea odată cu comanda de adunare și, la final, rezultatul înapoi în R1. Fiecare pas depinde de datele lăsate de cel dinainte."
+      }
+    },
+    {
+      "order": 3,
+      "type": "single_choice",
+      "concept": "Ce poate și ce nu poate un patch de microcod: oprește cererea greșită de tensiune (logică), dar nu repară siliciul deja degradat; MSROM nu se rescrie, dar execuția poate fi redirecționată prin puncte de interceptare spre MSRAM.",
+      "content": {
+        "prompt": "Un CPU a rulat luni de zile cu tensiuni prea mari, cerute de un algoritm de microcod, și a devenit instabil. Ce face un patch de microcod încărcat acum?",
+        "options": [
+          "Patch-ul readuce tranzistorii la parametrii inițiali prin rescrierea MSROM",
+          "Patch-ul oprește cererile excesive, dar nu repară tranzistorii uzați",
+          "Patch-ul nu are efect, fiindcă memoria de microcod e fabricată în siliciu"
+        ],
+        "correct_index": 1,
+        "explanation": "Patch-ul nu rescrie MSROM-ul, dar redirecționează execuția spre cod corectat din MSRAM, deci algoritmul care cerea tensiuni prea mari e înlocuit. Uzura fizică a tranzistorilor, deja produsă, nu se desface prin software: de aceea Intel a prelungit garanția și a oferit înlocuirea procesoarelor afectate."
+      },
+      "distractors": [
+        "Crede că microcodul poate repara fizic siliciul degradat, deși patch-ul schimbă doar logica de comandă, nu starea tranzistorilor.",
+        null,
+        "Crede că un ROM nu poate fi corectat deloc, ignorând MSRAM și punctele de interceptare prin care execuția e redirecționată."
+      ]
+    }
+  ]
+}

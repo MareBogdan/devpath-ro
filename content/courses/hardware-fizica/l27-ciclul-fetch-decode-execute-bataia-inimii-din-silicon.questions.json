@@ -1,0 +1,51 @@
+{
+  "questions": [
+    {
+      "order": 1,
+      "type": "true_false",
+      "concept": "PC se incrementează în faza Fetch (T2), deci în Execute el indică deja instrucțiunea următoare, nu pe cea în curs. Legat de ARM32 R15 = adresa curentă + 8.",
+      "content": {
+        "prompt": "În timpul fazei Execute a unei instrucțiuni ADD, PC conține adresa acelei instrucțiuni ADD.",
+        "correct": false,
+        "explanation": "PC se incrementează încă din Fetch (T2: PC ← PC + 4), în timp ce instrucțiunea e adusă din memorie. Până ajunge în Execute, PC arată deja spre instrucțiunea următoare. De aceea un salt scrie în PC o adresă nouă care o înlocuiește pe cea deja incrementată, iar pe ARM32 citirea lui R15 dă o adresă înaintea instrucțiunii curente."
+      }
+    },
+    {
+      "order": 2,
+      "type": "single_choice",
+      "concept": "Harvard modificată: L1I și L1D separate permit fetch-ul următoarei instrucțiuni în paralel cu accesul la date al lui LDR. Nu permite două accese la RAM unificat și nu înseamnă execuție în afara ordinii.",
+      "content": {
+        "prompt": "Un CPU cu L1 Instruction Cache și L1 Data Cache separate execută `LDR R1, [R2]`. Ce poate face în paralel cu accesul la date al lui LDR?",
+        "options": [
+          "Poate citi două adrese distincte din RAM simultan",
+          "Poate aduce instrucțiunea următoare din cache-ul L1I",
+          "Poate executa instrucțiunea următoare înaintea lui LDR"
+        ],
+        "correct_index": 1,
+        "explanation": "Cu L1I și L1D separate, fetch-ul și accesul la date folosesc magistrale diferite, deci instrucțiunea următoare poate fi adusă în timp ce LDR își citește datele. Dar sub L1 memoria rămâne unificată (L2, L3, RAM), cu o singură cale, deci nu poți citi două adrese din RAM deodată. Iar execuția în afara ordinii e alt mecanism, care ține de Unitatea de Control, nu de separarea cache-urilor."
+      },
+      "distractors": [
+        "Crede că separarea apare și la RAM, deși doar nivelul L1 e împărțit; sub el memoria e unificată, cu o singură cale.",
+        null,
+        "Confundă separarea L1I/L1D cu execuția în afara ordinii: împărțirea cache-ului nu schimbă ordinea în care se execută instrucțiunile."
+      ]
+    },
+    {
+      "order": 3,
+      "type": "ordering",
+      "concept": "Secvența unei întreruperi: detectare la finalul Execute → salvare PC/flag-uri pe stivă → salt la ISR → tratare → IRET restaurează PC → programul continuă.",
+      "content": {
+        "prompt": "Așază în ordine ce se întâmplă când o tastă apăsată întrerupe un program.",
+        "items": [
+          "La finalul fazei Execute, CPU-ul detectează semnalul de întrerupere",
+          "PC-ul și flag-urile se salvează pe stivă",
+          "PC-ul sare la adresa handler-ului (ISR)",
+          "Handler-ul citește tasta apăsată",
+          "IRET scoate PC-ul salvat de pe stivă",
+          "Programul original continuă de unde s-a oprit"
+        ],
+        "explanation": "CPU-ul verifică întreruperile doar la finalul fazei Execute, ca să nu taie o instrucțiune la jumătate. Starea se salvează înainte de salt, altfel nu s-ar mai ști unde să revină programul; handler-ul rulează abia apoi, iar IRET refolosește adresa salvată ca să readucă PC-ul exact la instrucțiunea următoare celei întrerupte."
+      }
+    }
+  ]
+}

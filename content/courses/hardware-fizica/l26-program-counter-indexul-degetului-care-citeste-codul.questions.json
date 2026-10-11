@@ -1,0 +1,53 @@
+{
+  "questions": [
+    {
+      "order": 1,
+      "type": "short_answer",
+      "concept": "Pe x86 PC-ul avansează cu lungimea instrucțiunii citite, nu cu 4. Trei instrucțiuni de 3, 5 și 2 octeți de la 0x1000 → PC = 0x100A. Capcana: +4 per instrucțiune (0x100C).",
+      "content": {
+        "prompt": "Pe x86, trei instrucțiuni consecutive încep la adresa 0x1000 și au 3, 5 și 2 octeți. Ce adresă (în hexazecimal) ține PC după ce a treia a fost citită și PC s-a incrementat?",
+        "accepted": [
+          "0x100a",
+          "100a",
+          "0x100 a",
+          "100a h",
+          "100ah"
+        ],
+        "explanation": "Pe x86 decoder-ul calculează lungimea fiecărei instrucțiuni și PC adaugă exact atât: 0x1000 + 3 + 5 + 2 = 0x100A (10 octeți). Cine adaugă mereu 4, ca pe ARM64 sau RISC-V de bază, obține 0x100C, o adresă aflată la mijlocul unei instrucțiuni."
+      }
+    },
+    {
+      "order": 2,
+      "type": "fill_blank",
+      "concept": "Branch condiționat: PC se suprascrie doar dacă condiția e adevărată, altfel avansează normal. Caz nou: instrucțiune de 4 octeți la 0x1000, țintă 0x2000.",
+      "content": {
+        "prompt": "La adresa 0x1000 e o instrucțiune de branch de 4 octeți, care sare la 0x2000 doar dacă Zero Flag = 1. După ce a fost executată, PC = {{1}} dacă ZF = 0 și PC = {{2}} dacă ZF = 1.",
+        "blanks": [
+          { "accepted": ["0x1004", "1004"] },
+          { "accepted": ["0x2000", "2000"] }
+        ],
+        "explanation": "Branch-ul suprascrie PC-ul doar când condiția e adevărată. Cu ZF = 1 PC primește ținta, 0x2000. Cu ZF = 0 nu se întâmplă nimic special: auto-increment-ul obișnuit duce PC la 0x1000 + 4 = 0x1004, adică la instrucțiunea următoare din memorie. Aceasta e implementarea hardware a unui if."
+      }
+    },
+    {
+      "order": 3,
+      "type": "single_choice",
+      "concept": "Buffer overflow: adresa de return suprascrisă duce PC la cod injectat; NX bit blochează execuția din zone de date. ASLR ascunde adrese, dar nu ajută dacă atacatorul a aflat deja adresa exactă.",
+      "content": {
+        "prompt": "Un atacator a injectat cod pe stivă și a suprascris adresa de return cu adresa lui exactă. La RETURN, PC ajunge acolo. Ce mecanism mai poate opri execuția codului?",
+        "options": [
+          "NX bit, care marchează stiva drept zonă ne-executabilă",
+          "ASLR, care randomizează adresele la fiecare rulare",
+          "Restricția x86-64, care nu permite citirea directă a RIP"
+        ],
+        "correct_index": 0,
+        "explanation": "Atacatorul a aflat deja adresa exactă, așa că ASLR, care doar o ascunde, nu mai ajută. NX bit lucrează la altă etapă: procesorul refuză să încarce instrucțiuni dintr-o pagină marcată ne-executabilă, deci codul injectat ca date nu poate rula. Restricția asupra citirii lui RIP nu protejează nimic: RETURN scrie oricum în PC."
+      },
+      "distractors": [
+        null,
+        "Crede că ASLR oprește un atacator care a aflat deja adresa exactă; ASLR doar face adresele greu de ghicit.",
+        "Confundă restricția de citire a lui RIP cu o protecție împotriva suprascrierii adresei de return; RETURN scrie liber în PC."
+      ]
+    }
+  ]
+}
