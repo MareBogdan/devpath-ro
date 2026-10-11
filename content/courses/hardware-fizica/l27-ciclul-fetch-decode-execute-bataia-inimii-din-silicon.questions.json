@@ -15,7 +15,7 @@
       "type": "single_choice",
       "concept": "Harvard modificată: L1I și L1D separate permit fetch-ul următoarei instrucțiuni în paralel cu accesul la date al lui LDR. Nu permite două accese la RAM unificat și nu înseamnă execuție în afara ordinii.",
       "content": {
-        "prompt": "Un CPU cu L1 Instruction Cache și L1 Data Cache separate execută `LDR R1, [R2]`. Ce poate face în paralel cu accesul la date al lui LDR?",
+        "prompt": "Un CPU cu L1 Instruction Cache și L1 Data Cache separate execută LDR R1, [R2]. Ce poate face în paralel cu accesul la date al lui LDR?",
         "options": [
           "Poate citi două adrese distincte din RAM simultan",
           "Poate aduce instrucțiunea următoare din cache-ul L1I",

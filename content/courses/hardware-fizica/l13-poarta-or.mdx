@@ -36,7 +36,7 @@ Ca AND, poarta OR nu se construiește direct în CMOS. O poartă NOR CMOS are 4 
 
 Arhitectura confirmă ce arătase Shannon în 1938: comutatoarele (sau tranzistorii) în paralel emulează OR, iar cele în serie, AND. El o prevăzuse cu 25 de ani înainte să existe CMOS.
 
-Primele porți NOR integrate au apărut în 1961–1962, iar SN7402 (Texas Instruments, 1964) e varianta TTL: patru porți NOR cu două intrări, la 5 V. O găsești și azi pe breadboard-urile studenților de electronică, ca seria 7400 (NAND).
+Primele porți NOR integrate au apărut în 1961–1962, iar SN7402 (Texas Instruments, 1964) e varianta TTL: patru porți NOR cu două intrări, la 5 V. Seria 7400 (NAND) se găsește și azi pe breadboard-urile studenților de electronică.
 
 NOR e mai lent decât NAND, deși sunt duale prin De Morgan. NAND are NMOS în serie (electroni, mobilitate 1.400 cm²/V·s), iar NOR are PMOS în serie (goluri, 450 cm²/V·s). PMOS în serie înseamnă rezistență mai mare și timp de comutare mai lung: ca NOR să comute la fel de repede, tranzistorii PMOS trebuie proiectați de ~4 ori mai lați. De aceea, de câte ori poți, folosești NAND în loc de NOR, iar sintetizatoarele de logică transformă automat expresiile OR în variante bazate pe NAND.
 
@@ -108,7 +108,7 @@ Sunt 10 combinații AND unite prin OR. Un astfel de sistem tolerează două comp
 
 Monitoarele din terapie intensivă declanșează alarma dacă `Frecvență_Cardiacă_Anomală OR SpO2_Critic OR Tensiune_Arterială_Prăbușită`. De ce OR și nu AND? Cu AND, pacientul ar trebui să sufere simultan hipoxie severă, tahicardie extremă și hipotensiune ca să sune alarma, ceea ce nu are sens clinic.
 
-OR acceptă fals-pozitive (alarme date de un senzor desprins) și refuză fals-negative (pacientul se degradează, iar aparatul tace). Aceasta e filozofia OR: mai bine alertezi inutil decât să ratezi o urgență reală.
+OR acceptă fals-pozitive (alarme date de un senzor desprins) și refuză fals-negative (pacientul se degradează, iar aparatul tace). Aceasta e filozofia OR: mai bine alertezi inutil decât să ratezi o urgență reală. Are o limită: un monitor care sună prea des ajunge ignorat (alarm fatigue), de aceea pragurile se aleg cu grijă.
 
 <CosmoHint emotion="thinking">
   Un sistem de airbaguri activează protecția dacă oricare senzor de impact (frontal, lateral) depășește pragul. Nu AND: altfel un impact pur lateral n-ar declanșa nimic. OR salvează vieți tocmai pentru că e permisiv.

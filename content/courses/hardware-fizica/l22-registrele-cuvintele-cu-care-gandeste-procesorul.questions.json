@@ -7,8 +7,24 @@
       "content": {
         "prompt": "O arhitectură are instrucțiuni de 32 de biți cu trei operanzi registru și 128 de registre. Fiecare câmp de registru ocupă {{1}} biți, iar cei trei operanzi consumă împreună {{2}} biți din instrucțiune.",
         "blanks": [
-          { "accepted": ["7", "șapte", "sapte", "7 biți", "7 biti"] },
-          { "accepted": ["21", "douăzeci și unu", "douazeci si unu", "21 biți", "21 biti"] }
+          {
+            "accepted": [
+              "7",
+              "șapte",
+              "sapte",
+              "7 biți",
+              "7 biti"
+            ]
+          },
+          {
+            "accepted": [
+              "21",
+              "douăzeci și unu",
+              "douazeci si unu",
+              "21 biți",
+              "21 biti"
+            ]
+          }
         ],
         "explanation": "128 = 2⁷, deci adresarea unui registru cere 7 biți, iar trei operanzi cer 3 × 7 = 21 de biți. Din 32 rămân doar 11 pentru opcode, constante și offset-uri. Fiecare putere a lui 2 în plus la numărul de registre costă 3 biți dintr-o instrucțiune cu trei operanzi, de aceea 32 de registre (15 biți) au fost un compromis atât de stabil."
       }
@@ -34,7 +50,7 @@
       "type": "single_choice",
       "concept": "RAW hazard: dependență reală de date, rezolvată prin forwarding (ieșirea ALU → intrarea ALU, prin MUX), nu prin stall (cost în cicluri) și nu prin redenumire (care elimină dependențele false WAW/WAR).",
       "content": {
-        "prompt": "În pipeline-ul clasic cu 5 etape, `ADD R1, R2, R3` e urmată imediat de `SUB R4, R1, R5`. Cum evită hardware-ul să citească valoarea veche a lui R1, fără să piardă cicluri?",
+        "prompt": "În pipeline-ul clasic cu 5 etape, ADD R1, R2, R3 e urmată imediat de SUB R4, R1, R5. Cum evită hardware-ul să citească valoarea veche a lui R1, fără să piardă cicluri?",
         "options": [
           "Prin oprirea celei de-a doua instrucțiuni până când prima își scrie rezultatul în register file",
           "Prin rutarea ieșirii ALU a primei instrucțiuni direct în intrarea ALU a următoarei",

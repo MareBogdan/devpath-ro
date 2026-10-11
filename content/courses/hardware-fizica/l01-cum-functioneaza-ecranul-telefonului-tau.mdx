@@ -9,7 +9,7 @@ difficulty: 2
 
 ## Telefonul tău începe cu o picătură de staniu
 
-Undeva în Taiwan, o mașinărie cât un autobuz focalizează un fascicul de <Term def="Gaz încălzit atât de tare încât atomii își pierd electronii: un amestec de ioni și electroni liberi, care emite lumină.">plasmă</Term> la 200.000 de grade Celsius — de 35 de ori mai fierbinte decât suprafața Soarelui — pe o picătură de staniu lichid, de 50.000 de ori pe secundă.
+Undeva în Taiwan, o mașinărie cât un autobuz focalizează un fascicul de <Term def="Gaz încălzit atât de tare încât atomii își pierd electronii: un amestec de ioni și electroni liberi, care emite lumină.">plasmă</Term> la circa 500.000 K (după ASML) — de aproape 90 de ori mai fierbinte decât suprafața Soarelui — pe o picătură de staniu lichid, de 50.000 de ori pe secundă.
 
 Scopul: să graveze pe un cristal de siliciu pur structuri de ordinul zecilor de nanometri — de mii de ori mai subțiri decât un fir de păr.
 
@@ -21,19 +21,19 @@ Sub sticla pe care o atingi zilnic stau cinci materiale radical diferite, stivui
 
 | Strat | Grosime | Rol |
 |---|---|---|
-| Gorilla Glass Victus | ~0,4 mm | Sticla care rezistă la căderi |
-| Touch layer (ITO) | ~0,1 mm | Detectează degetul tău |
+| Gorilla Glass Victus | sub 1 mm | Sticla care rezistă la căderi |
+| Touch layer (ITO) | sute de nm (filmul ITO) | Detectează degetul tău |
 | TFT backplane | ~0,15 mm | <Term def="Comutatoare electrice microscopice care lasă curentul să treacă sau nu. Lecția 7 le explică în detaliu.">Tranzistorii</Term> care controlează fiecare pixel |
 | Strat organic OLED ★ | 100–200 nm | Produce toată lumina |
-| Electrod catod | ~15 nm | Aluminiu semitransparent |
+| Electrod catod | câțiva nm | Metal semitransparent (de ex. Mg:Ag) |
 
 Stratul marcat cu ★ are 100–200 nm — mai subțire decât lungimea de undă a luminii vizibile. Un fir de păr are 70.000 nm: de circa 500 de ori mai gros decât materialul care produce imaginea pe care o privești.
 
 ## OLED: fiecare pixel își face propria lumină
 
-Timp de 40 de ani, ecranele au avut un <Term def="Sursa de lumină albă din spatele unui ecran LCD, mereu aprinsă. Cristalele lichide și filtrele doar decid cât din ea ajunge la ochi.">backlight</Term> și filtre de cristale lichide care blocau lumina nedorită. Negrul pe LCD era de fapt un gri întunecat: lumina se scurgea mereu puțin prin filtre.
+Timp de zeci de ani, ecranele au avut un <Term def="Sursa de lumină albă din spatele unui ecran LCD, mereu aprinsă. Cristalele lichide și filtrele doar decid cât din ea ajunge la ochi.">backlight</Term> și filtre de cristale lichide care blocau lumina nedorită. Negrul pe LCD era de fapt un gri întunecat: lumina se scurgea mereu puțin prin filtre.
 
-**OLED** schimbă total paradigma: fiecare sub-pixel produce propria lumină — sau nu produce nimic. Mecanismul: tensiunea electrică lovește stratul organic, electronii absorb energie și sar pe un nivel mai înalt. Când cad înapoi, surplusul de energie se eliberează ca <Term def="Particulele din care e făcută lumina. Un foton albastru poartă mai multă energie decât unul roșu.">fotoni</Term>. Culoarea fotonului depinde de materialul organic al fiecărui sub-pixel — roșu, verde sau albastru.
+**OLED** schimbă total paradigma: fiecare sub-pixel produce propria lumină — sau nu produce nimic. Mecanismul: tensiunea electrică injectează în stratul organic electroni și goluri, iar când ele se recombină, energia se eliberează ca <Term def="Particulele din care e făcută lumina. Un foton albastru poartă mai multă energie decât unul roșu.">fotoni</Term>. Culoarea fotonului depinde de materialul organic al fiecărui sub-pixel — roșu, verde sau albastru.
 
 Negrul pe OLED e negru real: pixelul e oprit complet, fără fotoni și fără energie consumată. De asta ecranele OLED cu teme dark consumă mai puțin: 39–47% la luminozitate maximă, dar doar 3–9% la luminozitate medie (studiu Purdue, 2021).
 
@@ -53,10 +53,10 @@ Când atingi sticla, nu apeși niciun buton și nu se măsoară nicio presiune.
 
 Touch layer-ul e o rețea de electrozi transparenți din oxid de indiu și staniu (ITO). Fizica din spate e cea a unui <Term def="Dispozitiv care stochează energie electrică între două plăci conductoare separate de un izolator. Cu cât plăcile sunt mai aproape, cu atât stochează mai mult.">condensator</Term>: ecranul formează prima placă, degetul tău — care conduce electric prin apa și sărurile din corp — a doua, iar sticla și aerul dintre ele sunt izolatorul.
 
-Când degetul se apropie, <Term def="Cât de multă sarcină electrică stochează un condensator la o anumită tensiune. Crește când plăcile se apropie, de aceea ecranul simte un deget care se apropie.">capacitanța</Term> locală crește măsurabil. Cipul de touch scanează variațiile pe toată suprafața și calculează exact unde a apărut modificarea — de 240 de ori pe secundă, de două ori mai rapid decât se redesenează imaginea. Creierul uman simte latențe de peste 10 ms; la 240 Hz, scanarea revine la 4 ms — mereu sub pragul de percepție.
+Când degetul se apropie, <Term def="Cât de multă sarcină electrică stochează un condensator la o anumită tensiune. Crește când plăcile se apropie, de aceea ecranul simte un deget care se apropie.">capacitanța</Term> locală crește măsurabil. Cipul de touch scanează variațiile pe toată suprafața și calculează exact unde a apărut modificarea — de 120 de ori pe secundă pe iPhone-urile mai noi, de două ori mai rapid decât se redesenează imaginea (60 Hz). Creierul uman simte latențe de peste 10 ms; la 120 Hz, scanarea revine la circa 8 ms, sub pragul de percepție.
 
 <FactBox>
-  Sistemul detectează simultan până la 10 atingeri independente: fiecare deget modifică capacitanța la coordonate diferite, iar cipul rezolvă toate locațiile în același ciclu de 4 ms.
+  Sistemul detectează simultan mai multe atingeri independente: fiecare deget modifică capacitanța la coordonate diferite, iar cipul rezolvă toate locațiile în același ciclu de scanare.
 </FactBox>
 
 <InlineQuestion n="2" />
@@ -101,13 +101,13 @@ Telefonul din buzunarul tău execută peste 1.080.000.000 de operațiuni pe secu
 
 Un laser lovește picăturile de staniu, iar fiecare impact creează plasma din primul paragraf. Plasma emite fotoni de 13,5 nanometri — mai scurți decât orice lumină vizibilă. Acești fotoni, focalizați prin oglinzi la precizie atomică, gravează structurile pe siliciu.
 
-Totul în vid complet: orice particulă de praf, orice moleculă de apă distruge procesul. Fabricile mențin aer de 1.000 de ori mai pur decât o sală de operații.
+Totul în vid complet: orice particulă de praf, orice moleculă de apă distruge procesul. Fabricile mențin aer mult mai pur decât într-o sală de operații.
 
 <FactBox>
-  O singură mașinărie <Term def="Extreme UltraViolet: lumină ultravioletă de 13,5 nm, mult mai scurtă decât lumina vizibilă. Cu o lungime de undă atât de mică se pot grava cele mai mici structuri.">EUV</Term> ASML costă între 150 și 380 de milioane de dolari, după generație. Cântărește 180 de tone, are 100.000 de componente și necesită 40 de containere pentru transport. Există mai puțin de 200 în toată lumea — fiecare rezervată ani în avans.
+  O singură mașinărie <Term def="Extreme UltraViolet: lumină ultravioletă de 13,5 nm, mult mai scurtă decât lumina vizibilă. Cu o lungime de undă atât de mică se pot grava cele mai mici structuri.">EUV</Term> ASML costă între 150 și 380 de milioane de dolari, după generație. Cântărește peste 150 de tone, are zeci de mii de componente și necesită peste 40 de containere pentru transport. Se produc în număr mic, fiecare rezervată ani în avans.
 </FactBox>
 
-Cipul A17 Pro conține 19 miliarde de tranzistori pe o suprafață mai mică decât unghia degetului mic. Fiecare e fabricat pe nodul „3 nm” — nume comercial, nu dimensiune fizică: pasul porților are circa 45 nm.
+Cipul A17 Pro conține 19 miliarde de tranzistori pe o suprafață cam cât unghia degetului mic. Fiecare e fabricat pe nodul „3 nm” — nume comercial, nu dimensiune fizică: pasul porților are circa 45 nm.
 
 ## Un tranzistor face un singur lucru: DA sau NU
 

@@ -9,7 +9,7 @@ difficulty: 3
 
 23 februarie 1940, Bell Laboratories, New Jersey. Russell Ohl examina lingouri de siliciu pentru detectoare radar. Unul se răcise greșit în cuptor, iar o fisură neagră îl tăia în două. Ohl l-a conectat la un voltmetru și a îndreptat accidental o lanternă spre fisură: acul a sărit la 0,5 V.
 
-Fără baterie, fără sursă externă, doar lumină pe o piatră. Ohl nu știa ce văzuse, dar tocmai inventase prima joncțiune p-n din lume și, odată cu ea, dioda, celula solară și fundația tranzistorului. Șapte ani mai târziu, Bardeen, Brattain și Shockley construiau primul tranzistor.
+Fără baterie, fără sursă externă, doar lumină pe o piatră. Ohl nu știa ce văzuse, dar dăduse peste prima joncțiune p-n, formată natural de impuritățile adunate la fisură și, odată cu ea, dioda, celula solară și fundația tranzistorului. Șapte ani mai târziu, Bardeen, Brattain și Shockley construiau primul tranzistor.
 
 Lecția 5 a arătat că digitalul funcționează prin comutare între două stări. Releele și tuburile vidate (ENIAC, 1945: 17.468 de tuburi) erau zgomotoase, lente și se ardeau; un comutator fără piese în mișcare ar fi fost în siliciu, dar siliciul pur nu se poate controla. Soluția: să-l „strici” deliberat și precis, adică dopajul.
 
@@ -49,7 +49,7 @@ Dopajul de **tip P** adaugă atomi din Grupa III (bor, galiu, indiu). Borul are 
   Densitatea atomilor de siliciu în cristal: 5 × 10²² atomi/cm³. Un dopaj mediu de 10¹⁶ atomi/cm³ înseamnă un atom de fosfor sau bor la fiecare 5 milioane de atomi de siliciu. O „contaminare” de 0,00002% mărește numărul de purtători de circa un milion de ori.
 </FactBox>
 
-Fosfor sau arsenic? Ambii donează un electron la 0,045 eV, dar fosforul difuzează rapid prin siliciu la temperaturi înalte (~10⁻¹³ cm²/s la 1.100°C), pe când arsenicul, cu masă și rază atomică (1,19 Å) mai mari, se mișcă mult mai greu. La nodurile de 7 și 3 nm, unde marginile Sursei și Drenei trebuie definite cu precizie de câțiva atomi, arsenicul e preferat când profilul de dopaj trebuie să rămână abrupt.
+Fosfor sau arsenic? Ambii donează un electron la 0,045 eV, dar fosforul difuzează rapid prin siliciu la temperaturi înalte (de ordinul 10⁻¹³ cm²/s la 1.100°C), pe când arsenicul, cu masă și rază atomică (1,19 Å) mai mari, se mișcă mult mai greu. La nodurile de 7 și 3 nm, unde marginile Sursei și Drenei trebuie definite cu precizie de câțiva atomi, arsenicul e preferat când profilul de dopaj trebuie să rămână abrupt.
 
 ## Joncțiunea p-n creează o barieră de ~0,7 V
 
@@ -82,7 +82,7 @@ Lățimea zonei de dezertare variază de la zeci de nm la câțiva µm și scade
 
 O joncțiune p-n cu contacte metalice la capete e o **diodă**.
 
-În polarizare directă (plus la P, minus la N), câmpul extern se opune celui intern și bariera scade; la ~0,6–0,7 V aplicat e practic eliminată. Electronii invadează P, golurile invadează N, iar curentul crește exponențial, după ecuația lui Shockley, I<Sub>D</sub> = I<Sub>S</sub>·(e^(qV/nkT) − 1):
+În polarizare directă (plus la P, minus la N), câmpul extern se opune celui intern și bariera scade; la ~0,6–0,7 V aplicat e practic eliminată. Electronii invadează P, golurile invadează N, iar curentul crește exponențial, după ecuația lui Shockley, I<Sub>D</Sub> = I<Sub>S</Sub>·(e^(qV/nkT) − 1):
 
 | Simbol | Ce reprezintă | Valoare tipică |
 |---|---|---|
@@ -107,7 +107,7 @@ Orice diodă în polarizare directă recombină electroni cu goluri, iar diferen
 
 Într-un semiconductor cu bandă directă (GaN, GaAs), electronul și golul au același impuls (k = 0), deci tranziția e simplă: electronul cade, fotonul iese. În siliciu, cel mai jos punct al benzii de conducție și cel mai înalt al benzii de valență sunt decalate pe axa impulsului, așa că electronul trebuie să-și schimbe simultan energia ȘI impulsul, ceea ce cere un fonon cu exact impulsul potrivit, în exact același moment. Probabilitatea acestei triple coincidențe e minusculă: peste 99,9% din recombinări produc căldură, nu lumină.
 
-De aceea LED-urile se fac din GaN (3,4 eV, lumină albastră sau albă), GaAs (1,42 eV, infraroșu) și GaAsP (primul LED vizibil, al lui Holonyak, octombrie 1962). Un laser de siliciu pur, pompat electric, rămâne Sfântul Graal al fotonicii.
+De aceea LED-urile se fac din GaN (3,4 eV, lumină albastră sau albă), GaAs (1,42 eV, infraroșu) și GaAsP (primul LED vizibil, al lui Holonyak, 1962). Un laser de siliciu pur, pompat electric, rămâne Sfântul Graal al fotonicii.
 
 ## Siliciul a învins GaAs fiindcă își face singur izolatorul
 

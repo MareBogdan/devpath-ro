@@ -60,7 +60,7 @@ Un Full-Adder în <Term def="Logică CMOS în care ieșirea e legată în orice 
 
 Scăderea nu cere un sumator separat. Pentru A−B inversezi toți biții lui B și forțezi Cin = 1 la primul Full-Adder. Inversarea plus 1 dă complementul față de 2, iar același lanț de Full-Adder-e face restul. Pentru ca același sumator să și adune, biții lui B trec printr-un XOR cu un semnal „scade”.
 
-Comparația (A>B, A==B) e o scădere fantomă: ALU-ul execută A−B fără să păstreze rezultatul. Dacă rezultatul e negativ (bit de semn 1, fără overflow), A<B. Dacă toți biții sumei sunt 0 (verificat cu un NOR mare), A==B.
+Comparația (A>B, A==B) e o scădere fantomă: ALU-ul execută A−B fără să păstreze rezultatul. Dacă rezultatul e negativ (bit de semn 1, fără overflow), A &lt; B. Dacă toți biții sumei sunt 0 (verificat cu un NOR mare), A==B.
 
 <InlineQuestion n="2" />
 

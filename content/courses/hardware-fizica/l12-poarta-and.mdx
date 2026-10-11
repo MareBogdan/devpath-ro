@@ -111,7 +111,7 @@ Nivel 3: AND(ABCD, EFGH)
 Sunt 3 niveluri în loc de 8 tranzistori în serie, adică timp logaritmic, O(log₂ n), în loc de liniar. Decodificatoarele de instrucțiuni, unitățile de control și adresorii de memorie sunt arbori logici, nu lanțuri lungi.
 
 <CosmoHint emotion="surprised">
-  Un sumator <Term def="Sumator care calculează în avans, în paralel, transporturile dintre biți, în loc să le lase să se propage unul câte unul. Lecția 17 îl explică.">Carry-Lookahead</Term> pe 64 de biți calculează toate carry-urile simultan, cu lanțuri masive de AND-uri, la un cost de ~48.288 de porți față de ~640 pentru unul simplu: de 75 de ori mai mult siliciu pentru același rezultat matematic. Procesorul acceptă compromisul, fiindcă viteza valorează mai mult decât aria.
+  Un sumator <Term def="Sumator care calculează în avans, în paralel, transporturile dintre biți, în loc să le lase să se propage unul câte unul. Lecția 17 îl explică.">Carry-Lookahead</Term> pe 64 de biți calculează toate carry-urile simultan, cu lanțuri masive de AND-uri, la un cost de zeci de ori mai multe porți decât unul simplu, pentru același rezultat matematic. Procesorul acceptă compromisul, fiindcă viteza valorează mai mult decât aria.
 </CosmoHint>
 
 ## Two-man rule: AND în beton și în avioane
@@ -122,7 +122,7 @@ Același principiu apare în aviație. Sistemele <Term def="Comenzi de zbor tran
 
 ## Intel 4004: AND pe un cip de 2.300 de tranzistori
 
-În noiembrie 1971, Federico Faggin și echipa Intel au lansat primul microprocesor comercial pe o singură matriță de siliciu, Intel 4004: 2.300 de tranzistori, date pe 4 biți. Instrucțiunile de salt condiționat (JCN) testau biți de stare prin porți AND în decodificatorul de instrucțiuni, iar unitatea aritmetico-logică (<Term def="Arithmetic Logic Unit: partea procesorului care execută adunările, comparațiile și operațiile logice pe biți, ca AND și OR.">ALU</Term>) folosea AND pentru mascare și decodare.
+În noiembrie 1971, Federico Faggin și echipa Intel au lansat primul microprocesor comercial pe o singură matriță de siliciu, Intel 4004: 2.300 de tranzistori, date pe 4 biți. Decodificatorul de instrucțiuni era construit din porți, iar unitatea aritmetico-logică (<Term def="Arithmetic Logic Unit: partea procesorului care execută adunările, comparațiile și operațiile logice pe biți, ca AND și OR.">ALU</Term>) folosea AND pentru mascare și decodare.
 
 De la 2.300 de tranzistori în 1971 la 28 de miliarde în Apple M4 (2024, TSMC „3 nm”), densitatea a crescut de circa un milion de ori în 53 de ani. Aceeași logică AND, la o scară incomparabil mai mare.
 

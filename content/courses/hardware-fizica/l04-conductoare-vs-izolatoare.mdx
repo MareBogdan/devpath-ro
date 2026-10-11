@@ -39,7 +39,7 @@ La 300 K (temperatura camerei), agitația termică dă fiecărui electron o ener
 
 <small>Valori la 300 K din manualele de fizica semiconductorilor (de ex. Sze, *Physics of Semiconductor Devices*); SiO₂ amorf are ~9 eV.</small>
 
-Diferența dintre cupru și cauciuc nu e de grad, ci de arhitectură cuantică. La cauciuc, banda interzisă e de 5–6 eV față de un buget de 0,026 eV, iar probabilitatea ca un electron să sară e practic zero, nici dacă aștepți un an.
+Diferența dintre cupru și cauciuc nu e de grad, ci de arhitectură cuantică. La cauciuc, banda interzisă e de peste 4 eV față de un buget de 0,026 eV, iar probabilitatea ca un electron să sară e practic zero, nici dacă aștepți un an.
 
 Bugetul crește cu temperatura. La 0 K (−273°C) e zero: siliciul devine izolator perfect, fiindcă niciun electron nu mai sare. La 1.000°C bugetul urcă la ~0,11 eV, iar siliciul pur conduce de milioane de ori mai bine decât la temperatura camerei. Temperatura aproape nu schimbă banda interzisă; schimbă câți electroni au energia s-o traverseze.
 
@@ -57,7 +57,7 @@ Argintul conduce chiar mai bine decât cuprul, cu o <Term def="Mărime care arat
 
 ## Diamantul, izolator electric, conduce căldura mai bine decât cuprul
 
-Diamantul e un izolator electric perfect, cu banda interzisă de 5,5 eV: niciun electron nu sare la temperatura camerei. Totuși conduce căldura de peste trei ori mai bine decât cuprul: 1.350 W/m·K față de 400. Un izolator electric conduce căldura mai bine decât orice metal. Cum e posibil?
+Diamantul e un izolator electric perfect, cu banda interzisă de 5,5 eV: niciun electron nu sare la temperatura camerei. Totuși conduce căldura de circa cinci ori mai bine decât cuprul: de ordinul a 2.000 W/m·K față de 400. Un izolator electric conduce căldura mai bine decât orice metal. Cum e posibil?
 
 În metale, electronii liberi transportă și curentul, și căldura, dar se ciocnesc constant cu vibrațiile rețelei și cu impuritățile, iar fiecare coliziune pierde energie. În diamant, căldura se propagă prin <Term def="Pachete cuantificate de vibrație a rețelei de atomi: ele duc energia termică de la un atom la altul, fără să se miște vreun electron.">fononi</Term>. Legăturile carbon–carbon sunt extrem de rigide, iar atomii de carbon sunt ușori, așa că fononii traversează rețeaua aproape fără rezistență, ca un sunet printr-un material perfect elastic.
 
@@ -73,15 +73,15 @@ Același element, carbonul, în două arhitecturi. În diamant, <Term def="Felul
 
 Când încălzești un fir de cupru, rezistivitatea crește: atomii vibrează mai tare, fononii se înmulțesc, electronii liberi se ciocnesc mai des cu rețeaua și curentul scade. Când încălzești siliciu, rezistivitatea scade: energia termică în plus aruncă mai mulți electroni peste banda interzisă de 1,12 eV, iar inundația de purtători noi domină efectul coliziunilor.
 
-Nu e o curiozitate de laborator, ci o problemă reală pentru procesoare. Tranzistoarele disipă căldură, iar dacă răcirea e insuficientă și temperatura depășește ~150–160°C, generarea termică de electroni depășește electronii introduși prin dopaj. Siliciul pierde caracterul de control: rezistența scade, curentul crește, <Term def="Încălzirea unui material prin care trece curent: electronii cedează energie atomilor rețelei în ciocniri.">efectul Joule</Term> încălzește și mai tare, iar căldura aruncă și mai mulți electroni în banda de conducție.
+Nu e o curiozitate de laborator, ci o problemă reală pentru procesoare. Tranzistoarele disipă căldură, iar dacă răcirea e insuficientă și temperatura depășește 150–250°C (în funcție de dopaj), generarea termică de electroni depășește electronii introduși prin dopaj. Siliciul pierde caracterul de control: rezistența scade, curentul crește, <Term def="Încălzirea unui material prin care trece curent: electronii cedează energie atomilor rețelei în ciocniri.">efectul Joule</Term> încălzește și mai tare, iar căldura aruncă și mai mulți electroni în banda de conducție.
 
-E o reacție pozitivă care poate distruge tranzistoarele. Serverele Google au sisteme de răcire și pentru că banda interzisă de 1,12 eV a siliciului are o limită termică precisă.
+E o reacție pozitivă care poate distruge tranzistoarele. Serverele au sisteme de răcire și pentru că joncțiunile din siliciu au o limită termică precisă, legată de banda interzisă de 1,12 eV.
 
 ## Siliciul de procesor e pur la un atom din miliard
 
 Siliciul din nisip e impur și nu se poate folosi în electronice. Cel din procesoare e pur în proporție de 99,9999999% („9N”, nouă de nouă): un atom de impuritate la un miliard de atomi de siliciu. Un atom de fier sau cupru prins accidental în rețea creează o „capcană” energetică la mijlocul benzii interzise, iar electronii se blochează acolo și circuitul devine impredictibil.
 
-Procesul care produce acest siliciu a fost descoperit din greșeală. În 1916, chimistul polonez Jan Czochralski, la Berlin, și-a scufundat distrat penița nu în călimara cu cerneală, ci în vasul cu staniu topit. Când a retras-o, un fir subțire de metal solidificat atârna de vârf: un cristal perfect, format de mișcarea lentă de extracție. Czochralski a crezut că a găsit o metodă de a studia viteza de cristalizare a metalelor, a publicat-o în 1918 și a uitat de ea.
+Procesul care produce acest siliciu a fost descoperit, spune povestea, din greșeală. În 1916, chimistul polonez Jan Czochralski, la Berlin, și-a scufundat distrat penița nu în călimara cu cerneală, ci în vasul cu staniu topit. Când a retras-o, un fir subțire de metal solidificat atârna de vârf: un cristal perfect, format de mișcarea lentă de extracție. Czochralski a crezut că a găsit o metodă de a studia viteza de cristalizare a metalelor, a publicat-o în 1918 și a uitat de ea.
 
 Treizeci de ani mai târziu, inginerii Bell Labs au realizat ce aveau în mână: un proces de a extrage cristale unice din topitura unui material, exact ce le trebuia pentru siliciu. Astăzi, același principiu produce lingouri <Term def="Dintr-un singur cristal, fără granițe între bucăți: rețeaua de atomi continuă neîntrerupt prin tot lingoul.">monocristaline</Term> de siliciu de 300 mm diametru. Siliciul policristalin se topește la 1.415°C într-o atmosferă de argon, un cristal-sămânță minuscul se coboară pe suprafața topiturii și se trage lent în sus, rotind controlat. Siliciul care se răcește copiază structura semințelor, iar impuritățile preferă faza lichidă, așa că cristalul solid care iese e aproape perfect.
 
@@ -109,6 +109,6 @@ De aceea conectorii de calitate sunt placați cu aur: aurul nu oxidează, benzil
 
 ## Libertatea electronilor separă conductorul de izolator
 
-Ce separă un conductor de un izolator nu e numărul de electroni, ci libertatea lor. Cuprul nu are niciun șanț de traversat, cauciucul are unul de 5–6 eV, iar siliciul stă la mijloc, cu 1,12 eV: destul de mare cât să blocheze zgomotul termic aleator, destul de mic cât să fie traversat controlat, dacă știi ce impuritate să adaugi. Un material comutabil între izolator și conductor, cu precizie de un atom la un miliard, de miliarde de ori pe secundă, e fundamentul fiecărui procesor, telefon și server.
+Ce separă un conductor de un izolator nu e numărul de electroni, ci libertatea lor. Cuprul nu are niciun șanț de traversat, cauciucul are unul de peste 4 eV, iar siliciul stă la mijloc, cu 1,12 eV: destul de mare cât să blocheze zgomotul termic aleator, destul de mic cât să fie traversat controlat, dacă știi ce impuritate să adaugi. Un material comutabil între izolator și conductor, cu precizie de un atom la un miliard, de miliarde de ori pe secundă, e fundamentul fiecărui procesor, telefon și server.
 
 Dar cum transformi asta în calcul? Un semnal electric variabil poate reprezenta orice valoare, de la temperatură la sunet: e analogic, bogat și continuu, dar greu de procesat exact. Alternativa e radicală: folosești doar două stări, blocat și liber, zero și unu. Decizia asta a schimbat calculul, comunicațiile și tot ce înțelegem prin computer modern.

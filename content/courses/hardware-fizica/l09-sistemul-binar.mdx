@@ -26,7 +26,7 @@ De ce baza 2 și nu baza 10? Răspunsul e fizic, nu matematic. Un tranzistor luc
 În 1937, în teza sa de masterat, Claude Shannon arată că releele și comutatoarele pot rezolva fizic ecuații de algebră booleană. În 1948, în *A Mathematical Theory of Communication*, definește cantitatea fundamentală de informație, **bitul**, termen propus de colegul său J.W. Tukey: răspunsul la o întrebare cu două variante la fel de probabile.
 
 <FactBox>
-  Calculatorul sovietic Setun (1958) opera în baza 3, cu o logică <Term def="Logică cu trei valori, de exemplu −1, 0 și +1, în loc de două. Fiecare cifră ternară poartă mai multă informație decât un bit.">ternară</Term>. Baza 3 e mai eficientă matematic, fiind mai apropiată de numărul lui Euler (e ≈ 2,718); s-au produs circa 50 de unități, folosite în 30 de universități sovietice. A pierdut totuși: circuitele cu trei niveluri stabile sunt mult mai greu de produs în masă decât cele on/off.
+  Calculatorul sovietic Setun (1958) opera în baza 3, cu o logică <Term def="Logică cu trei valori, de exemplu −1, 0 și +1, în loc de două. Fiecare cifră ternară poartă mai multă informație decât un bit.">ternară</Term>. Baza 3 e mai eficientă matematic, fiind mai apropiată de numărul lui Euler (e ≈ 2,718); s-au produs circa 50 de unități, folosite în universități sovietice. A pierdut totuși: circuitele cu trei niveluri stabile sunt mult mai greu de produs în masă decât cele on/off.
 </FactBox>
 
 ## Se numără în binar ca în zecimal, cu două simboluri
@@ -80,7 +80,7 @@ ASCII acoperă doar 128 de caractere: suficient pentru engleză, dezastruos pent
 
 ## Culorile, sunetul și numerele negative sunt tot biți
 
-Fiecare pixel are 3 canale (roșu, verde, albastru), fiecare pe 8 biți (0–255). Roșul pur înseamnă R = 255, G = 0, B = 0, adică #FF0000 în hex. 24 de biți per pixel dau 2²⁴ = 16.777.216 de culori, aproape de limita ochiului uman. Sunetul e tot o listă de numere (Lecția 5).
+Fiecare pixel are 3 canale (roșu, verde, albastru), fiecare pe 8 biți (0–255). Roșul pur înseamnă R = 255, G = 0, B = 0, adică #FF0000 în hex. 24 de biți per pixel dau 2²⁴ = 16.777.216 de culori, mai multe decât distinge, de regulă, ochiul uman. Sunetul e tot o listă de numere (Lecția 5).
 
 Calculatoarele nu știu simbolul minus și folosesc **complementul față de 2**: inversezi toți biții și aduni 1. Exemplu, −5 pe 4 biți: 5 = 0101 → inversezi: 1010 → aduni 1: 1011. Eleganța e că scăderea devine adunare cu complementul, deci un singur circuit face totul. Același șir de biți se citește diferit după context: 1011 înseamnă 11 fără semn și −5 cu semn.
 
@@ -112,7 +112,7 @@ Schaerbeek, Belgia, 18 mai 2003. La alegerile federale, un candidat a primit exa
 
 Toyota, 2009–2013. Sistemul electronic de control al accelerației (ETCS) rula fără protecție ECC. În procesul Bookout v. Toyota (2013), experții Barr Group au arătat că un singur bit flip putea opri un task critic de monitorizare a frânei („Task Death”), lăsând sistemul incapabil să oprească accelerația.
 
-Super Mario 64, 2013. Un jucător de speedrun a fost teleportat brusc în sus, prin geometrie solidă, fizic imposibil în cod. Explicația cea mai probabilă: o rază cosmică a răsturnat un singur bit din valoarea altitudinii personajului (0xC5 → 0xC4).
+Super Mario 64, 2013. Un jucător de speedrun a fost teleportat brusc în sus, prin geometrie solidă, fizic imposibil în cod. Explicația cea mai probabilă: o rază cosmică a răsturnat un singur bit din valoarea altitudinii personajului.
 
 <CosmoHint emotion="surprised">
   Serverele din centrele de date folosesc RAM cu <Term def="Error-Correcting Code: biți de control adăugați fiecărui cuvânt din memorie, care permit detectarea și corectarea automată a unui bit răsturnat.">ECC</Term>, care corectează bit flip-urile înainte ca procesorul să le vadă. Laptopul tău probabil nu are ECC.

@@ -9,7 +9,7 @@ difficulty: 2
 
 Imaginează-ți o fabrică automată cu mii de roboți și un dirijor care bate tactul, dar fără rafturi sau cutii. Robotul termină operația, piesa cade pe jos, iar robotul următor n-are ce prelua. Ceasul din Lecția 20 e dirijorul; fără flip-flop sincronizează perfect nimicul. Flip-flop-ul e raftul: locul unde calculul rămâne între un ciclu și următorul.
 
-Toate circuitele de până acum sunt combinaționale: reacționează la intrări și nu rețin nimic. Ceasul a adus ordinea în timp, iar flip-flop-ul aduce persistența: capturează un bit la frontul crescător al ceasului și îl menține stabil până la următorul front, orice ar face intrarea între timp. Bucla din Lecția 15, două NAND-uri încrucișate, ținea deja un bit, dar asincron; flip-flop-ul o face sincronă. Memoria apare din aceeași cărămidă din care e făcut orice alt circuit.
+Toate circuitele de până acum sunt combinaționale: reacționează la intrări și nu rețin nimic. Ceasul a adus ordinea în timp, iar flip-flop-ul aduce persistența: capturează un bit la frontul crescător al ceasului și îl menține stabil până la următorul front, orice ar face intrarea între timp. Bucla din Lecția 15, două NAND-uri încrucișate, ținea deja un bit, dar asincron; flip-flop-ul o face sincronă.
 
 ## 1918: două tuburi în cruce
 
@@ -67,14 +67,14 @@ Flip-flop-urile sunt răspândite pe tot die-ul, în trei locuri mari.
 
 Flip-flop-urile nu sunt izolate de univers. Un <Term def="Single-Event Upset: schimbarea stării unui bit stocat, provocată de o particulă ionizantă (neutron cosmic sau particulă alfa din ambalajul cipului) care lovește un nod sensibil al siliciului.">SEU</Term> creează în siliciu perechi electron-gaură; dacă lovitura cade lângă joncțiunea unui tranzistor din flip-flop, curentul tranzitoriu poate răsturna feedback-ul cross-coupled. Bitul se schimbă din 0 în 1 sau invers, fără nicio comandă software și fără nicio urmă fizică de deteriorare. Se numește **soft error** tocmai pentru că siliciul rămâne intact: doar starea stocată e coruptă.
 
-Un studiu Google (2009), pe 2,5 ani de date de la mii de servere, a măsurat erori de memorie DRAM de 25.000–70.000 de eșecuri per miliard de ore per megabit și peste 8% din module afectate pe an. Majoritatea erau însă erori repetitive, defecte de hardware, nu raze cosmice. Pentru erorile induse de radiație, o estimare IBM mai veche vorbește de circa o eroare la 256 MB de RAM pe lună, adică ~4 pe gigabyte pe lună în sisteme neprotejate.
+Un studiu Google (2009), pe 2,5 ani de date de la mii de servere, a măsurat erori de memorie DRAM de 25.000–70.000 de eșecuri per miliard de ore per megabit și peste 8% din module afectate pe an. Majoritatea erau însă erori repetitive, defecte de hardware, nu raze cosmice. Pentru erorile induse de radiație, o estimare IBM din 1996 vorbește de circa o eroare la 256 MB de RAM pe lună, adică ~4 pe gigabyte pe lună în sisteme neprotejate.
 
 <FactBox>
   Schaerbeek, Belgia, 2003. O mașină de vot electronică a înregistrat pentru o candidată cu exact 4.096 de voturi mai mult decât era posibil. Explicația cea mai probabilă: o rază cosmică a răsturnat bitul 13 din contorul de voturi, care în binar are valoarea 2¹² = 4.096. Un singur bit, o singură particulă.
 
   Qantas Flight 72 (2008). Un Airbus A330 la 37.000 de picioare a intrat brusc în picaj, rănind pasageri. Investigația ATSB a găsit o unitate de referință inerțială care trimitea valori false (în special de unghi de atac) și a atribuit incidentul acestei defecțiuni combinate cu o limitare de design a software-ului de zbor. Declanșatorul exact nu a fost identificat și niciun SEU nu a fost dovedit.
 
-  Super Mario 64 (2013). Într-un speedrun, personajul s-a teleportat în sus prin geometria nivelului. Explicația cea mai probabilă: o rază cosmică a răsturnat cel mai puțin semnificativ bit din octetul superior al coordonatei de înălțime, schimbând `11000101` în `11000100`.
+  Super Mario 64 (2013). Într-un speedrun, personajul s-a teleportat în sus prin geometria nivelului. Explicația cea mai probabilă: o rază cosmică a răsturnat un singur bit din coordonata de înălțime.
 </FactBox>
 
 <InlineQuestion n="3" />

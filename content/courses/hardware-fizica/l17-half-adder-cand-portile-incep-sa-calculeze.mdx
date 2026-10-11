@@ -76,7 +76,7 @@ S  = (A NAND W1) NAND (B NAND W1) → Sumă (XOR)
 
 Un Half-Adder adună un singur bit. Pentru numere de 8, 32 sau 64 de biți înlănțuiești mai mulți adders: Carry-out de la poziția k devine Carry-in la poziția k+1. Problema: carry-ul trebuie să *aștepte* să se propage prin fiecare poziție, iar într-un procesor pe 64 de biți cu <Term def="Sumator în care transportul se propagă de la un bit la următorul, ca o undă, de la poziția cea mai mică spre cea mai mare.">Ripple-Carry</Term> naiv semnalul parcurge 64 de porți în serie.
 
-De aceea există Carry-Lookahead Adder (CLA): în loc să aștepte propagarea, calculează în avans dacă un bloc de biți va *genera* un carry sau doar îl va *propaga* (`P = A XOR B`, `G = A AND B`). <Term def="Arhitectură de sumator rapid, în care toate transporturile se calculează în paralel, printr-un arbore ierarhic cu log₂ n niveluri.">Kogge-Stone</Term>, folosit în ALU-urile performante, calculează toate carry-urile în paralel, de 11,7 ori mai rapid decât Ripple-Carry, cu prețul a de 2,9 ori mai mult siliciu.
+De aceea există Carry-Lookahead Adder (CLA): în loc să aștepte propagarea, calculează în avans dacă un bloc de biți va *genera* un carry sau doar îl va *propaga* (`P = A XOR B`, `G = A AND B`). <Term def="Arhitectură de sumator rapid, în care toate transporturile se calculează în paralel, printr-un arbore ierarhic cu log₂ n niveluri.">Kogge-Stone</Term>, folosit în ALU-urile performante, calculează toate carry-urile în paralel, mult mai rapid decât Ripple-Carry, cu prețul unei arii de siliciu de câteva ori mai mari.
 
 | Arhitectură | Întârziere | Cost siliciu | Unde se folosește |
 |-------------|-----------|--------------|-------------------|
@@ -85,7 +85,7 @@ De aceea există Carry-Lookahead Adder (CLA): în loc să aștepte propagarea, c
 | Kogge-Stone | O(log n) | Maxim | CPU/GPU high-performance |
 
 <FactBox>
-  În practică, carry-ul nu parcurge aproape niciodată toți cei 64 de biți. Profilările pe aplicații reale arată că peste 90% din adunări au lanțul de carry mai scurt de 3–4 poziții, iar von Neumann a demonstrat că lungimea medie a celui mai lung lanț e log₂(n), adică 6 poziții pentru 64 de biți. Procesoarele moderne exploatează asta cu <Term def="Sumatoare care renunță la corectitudinea pentru cazul cel mai rar, în schimbul vitezei și consumului: pariază că lanțul lung de carry nu apare.">approximate adders</Term>, care pariază că worst-case-ul nu se va întâmpla.
+  În practică, carry-ul nu parcurge aproape niciodată toți cei 64 de biți. Von Neumann și colegii lui au demonstrat că lungimea medie a celui mai lung lanț e log₂(n), adică 6 poziții pentru 64 de biți. Procesoarele moderne exploatează asta cu <Term def="Sumatoare care renunță la corectitudinea pentru cazul cel mai rar, în schimbul vitezei și consumului: pariază că lanțul lung de carry nu apare.">approximate adders</Term>, care pariază că worst-case-ul nu se va întâmpla.
 </FactBox>
 
 <InlineQuestion n="2" />

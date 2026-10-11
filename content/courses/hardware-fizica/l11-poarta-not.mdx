@@ -31,12 +31,12 @@ Un invertor CMOS are doi tranzistori complementari, care funcționează opus:
 
 La intrarea 1, NMOS conduce, PMOS se blochează, iar ieșirea e trasă la GND (0). La intrarea 0, PMOS conduce, NMOS se blochează, iar ieșirea e trasă la V<Sub>DD</Sub> (1).
 
-Cheia: în orice stare statică, unul dintre cei doi tranzistori e blocat, deci nu există cale directă de curent între V<Sub>DD</Sub> și GND, iar disiparea statică e teoretic zero. Energia se consumă doar la comutare, în fracțiunile de nanosecundă în care ambii tranzistori conduc parțial în timp ce semnalul se schimbă. Asta a făcut posibile bateria laptopului, telefonul mobil și orice dispozitiv portabil cu consum redus.
+Cheia: în orice stare statică, unul dintre cei doi tranzistori e blocat, deci nu există cale directă de curent între V<Sub>DD</Sub> și GND, iar disiparea statică e practic neglijabilă (rămâne doar scurgerea din Lecția 7). Energia se consumă doar la comutare, în fracțiunile de nanosecundă în care ambii tranzistori conduc parțial în timp ce semnalul se schimbă. Asta a făcut posibile bateria laptopului, telefonul mobil și orice dispozitiv portabil cu consum redus.
 
 <InlineQuestion n="1" />
 
 <FactBox>
-  Un invertor CMOS din generația „3 nm” consumă ~26 <Term def="Un attojoule este 10⁻¹⁸ jouli, o miliardime de miliardime dintr-un joule.">attojouli</Term> per comutare. Un foton vizibil are ~0,32 attojouli, deci o comutare costă cât circa 80 de fotoni. Energia termică kT la temperatura camerei e de ~0,004 attojouli: o comutare costă de circa 6.000 de ori mai mult.
+  Un invertor CMOS din generația „3 nm” consumă, după estimare, ~25 de <Term def="Un attojoule este 10⁻¹⁸ jouli, o miliardime de miliardime dintr-un joule.">attojouli</Term> per comutare. Un foton vizibil are ~0,32 attojouli, deci o comutare costă cât circa 80 de fotoni. Energia termică kT la temperatura camerei e de ~0,004 attojouli: o comutare costă de circa 6.000 de ori mai mult.
 </FactBox>
 
 ## PMOS trebuie să fie mai lat decât NMOS
@@ -60,7 +60,7 @@ Poarta NOT a trecut prin patru generații fizice:
 
 La relee, poarta NOT era un contact metalic menținut închis de un arc și deschis de un electromagnet când apărea curent pe intrare. În ENIAC era o triodă, un tub de sticlă vidat cu trei electrozi, de o mie de ori mai rapid decât un releu, dar răcit cu două suflante de 20 de cai putere.
 
-În 1961, Fairchild a lansat RTL, primul circuit integrat logic. Calculatorul Apollo Guidance Computer folosea peste 4.000 de cipuri RTL ca să trimită oameni pe Lună. Seria TTL 7400 e încă în producție după 60 de ani și se găsește pe orice breadboard universitar. CMOS, cu un consum static de un milion de ori mai mic decât TTL, e baza fiecărui microprocesor modern.
+În 1961, Fairchild a lansat RTL, primul circuit integrat logic. Calculatorul Apollo Guidance Computer a folosit în versiunea care a zburat spre Lună circa 2.800 de cipuri RTL, cu câte două porți NOR fiecare. Seria TTL 7400 e încă în producție după 60 de ani și se găsește pe orice breadboard universitar. CMOS, cu un consum static de un milion de ori mai mic decât TTL, e baza fiecărui microprocesor modern.
 
 <CosmoHint emotion="surprised">
   Poarta NOT din calculatorul tău comută în câteva picosecunde (o picosecundă e 10⁻¹² secunde), iar lumina parcurge doar 0,3 mm într-o picosecundă. Un neuron are nevoie de ~1 ms pentru un impuls: tranzistorul e mai rapid de sute de milioane de ori.
@@ -70,7 +70,7 @@ La relee, poarta NOT era un contact metalic menținut închis de un arc și desc
 
 Iei trei inversoare NOT și conectezi ieșirea ultimului la intrarea primului. Numărul e impar, deci sistemul nu poate găsi o stare stabilă: 0 devine 1, 1 devine 0, la infinit. Rezultatul e un oscilator care funcționează fără nicio sursă externă de ceas.
 
-La nodurile moderne de „3 nm”, un astfel de inel oscilează la 40–50 GHz. Inginerii producătorilor de cipuri folosesc inele cu un număr impar de inversoare ca să măsoare viteza reală a unui lot de plachete proaspăt fabricate: frecvența oscilației spune cât de bine a ieșit procesul de litografie. Un oscilator cu inel e rigla de măsurat a industriei semiconductoarelor.
+La nodurile moderne de „3 nm”, un inel ideal de trei inversoare ar oscila la 40–50 GHz (cele de test au zeci de etape). Inginerii producătorilor de cipuri folosesc inele cu un număr impar de inversoare ca să măsoare viteza reală a unui lot de plachete proaspăt fabricate: frecvența oscilației spune cât de bine a ieșit procesul de litografie. Un oscilator cu inel e rigla de măsurat a industriei semiconductoarelor.
 
 <InlineQuestion n="2" />
 
@@ -84,7 +84,7 @@ Matricele de porți (gate arrays) din anii '70–'80 foloseau exact ideea: un wa
 
 ## NOT apare peste tot, de la seriale la memoria cache
 
-Standardul <Term def="Standard vechi de comunicație serială (portul COM), folosit în calculatoare și în echipamente industriale.">RS-232</Term> al portului serial clasic folosește logică inversată: 0 logic = +3 V până la +15 V, iar 1 logic = −3 V până la −15 V. Explicația istorică: liniile de telegraf din cupru erau ținute la tensiune negativă în repaus ca să încetinească coroziunea electrolitică, așa că starea naturală „inactivă” a rețelei a devenit „1” logic negativ. Adaptoarele dintre RS-232 și circuitele TTL sau CMOS (de exemplu MAX232) conțin inversoare care traduc nivelurile înapoi.
+Standardul <Term def="Standard vechi de comunicație serială (portul COM), folosit în calculatoare și în echipamente industriale.">RS-232</Term> al portului serial clasic folosește logică inversată: 0 logic = +3 V până la +15 V, iar 1 logic = −3 V până la −15 V. Explicația istorică, moștenită din telegrafie: linia în repaus (starea „mark”) era ținută la tensiune negativă, așa că starea inactivă a rețelei a devenit „1” logic negativ. Adaptoarele dintre RS-232 și circuitele TTL sau CMOS (de exemplu MAX232) conțin inversoare care traduc nivelurile înapoi.
 
 Pe unele plăci de dezvoltare (de exemplu STM32 „Blue Pill”, pinul PC13), un LED se aprinde când pinul e la 0, nu la 1: logică <Term def="Semnal activ la nivel scăzut: acțiunea are loc când linia e la 0, nu la 1.">active low</Term>. Obiceiul vine din TTL, unde o ieșire putea absorbi mult mai mult curent (~16 mA) decât să furnizeze (~0,4 mA), așa că era mai ușor să tragi LED-ul la masă decât să-l alimentezi din ieșire.
 
@@ -95,12 +95,12 @@ Bucla de <Term def="Un circuit în care ieșirea întărește intrarea care a pr
 <InlineQuestion n="3" />
 
 <FactBox>
-  Primul circuit integrat logic comercial (Fairchild RTL, 1961) costa 43,50 $ per poartă. Astăzi, la ~216 milioane de tranzistori pe mm², un tranzistor costă sub 0,000001 cenți. În 60 de ani, prețul per poartă logică a scăzut de peste un miliard de ori.
+  Primul circuit integrat logic comercial (Fairchild Micrologic, 1961) costa în loturi de evaluare circa 120 $ bucata, un bistabil de câteva porți. Astăzi, la ~216 milioane de tranzistori pe mm², un tranzistor costă sub 0,000001 cenți. În 60 de ani, prețul per poartă logică a scăzut de peste un miliard de ori.
 </FactBox>
 
 ## Negarea e temelia calculului digital
 
-Poarta NOT e banală ca tabel de adevăr, dar în spatele ei stau doi tranzistori complementari care elimină consumul static, completitudinea funcțională care face NAND suficientă pentru orice circuit, un oscilator de zeci de GHz din trei porți și memoria cache a procesorului. De la releele lui Zuse la CMOS, regula a rămas aceeași, inversează tot ce primești, dar implementarea s-a transformat complet.
+Poarta NOT e banală ca tabel de adevăr, dar în spatele ei stau doi tranzistori complementari care reduc consumul static aproape la zero, completitudinea funcțională care face NAND suficientă pentru orice circuit, un oscilator de zeci de GHz din trei porți și memoria cache a procesorului. De la releele lui Zuse la CMOS, regula a rămas aceeași, inversează tot ce primești, dar implementarea s-a transformat complet.
 
 <CosmoHint emotion="thinking">
   Dacă ai doar porți NAND, poți construi orice circuit digital din lume: NOT, AND, OR, XOR, flip-flop, sumator, procesor.
