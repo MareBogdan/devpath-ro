@@ -7,7 +7,7 @@
       "content": {
         "prompt": "În timpul fazei Execute a unei instrucțiuni ADD, PC conține adresa acelei instrucțiuni ADD.",
         "correct": false,
-        "explanation": "PC se incrementează încă din Fetch (T2: PC ← PC + 4), în timp ce instrucțiunea e adusă din memorie. Până ajunge în Execute, PC arată deja spre instrucțiunea următoare. De aceea un salt scrie în PC o adresă nouă care o înlocuiește pe cea deja incrementată, iar pe ARM32 citirea lui R15 dă o adresă înaintea instrucțiunii curente."
+        "explanation": "PC se incrementează încă din Fetch (T2: PC ← PC + 4), în timp ce instrucțiunea e adusă din memorie. Până ajunge în Execute, PC arată deja spre instrucțiunea următoare. De aceea un salt scrie în PC o adresă nouă care o înlocuiește pe cea deja incrementată, iar pe ARM32 citirea lui R15 dă adresa instrucțiunii curente plus 8, nu pe a ei."
       }
     },
     {
