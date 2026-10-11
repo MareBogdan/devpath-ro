@@ -1,0 +1,56 @@
+{
+  "questions": [
+    {
+      "order": 1,
+      "type": "fill_blank",
+      "concept": "Expansiunea Shannon aplicată la o funcție nouă (nu cea din tabel): Y = A AND NOT B cu selectorul pe B. B = 0 → Y = A; B = 1 → Y = 0. Două intrări de completat = structura MUX-ului.",
+      "content": {
+        "prompt": "Vrei Y = A AND (NOT B) dintr-un singur MUX 2:1, cu selectorul legat la B. Pe intrarea 0 (selectată când B = 0) pui {{1}}, iar pe intrarea 1 (selectată când B = 1) pui {{2}}.",
+        "blanks": [
+          { "accepted": ["A", "a"] },
+          { "accepted": ["0", "zero", "GND", "masa"] }
+        ],
+        "explanation": "Fixezi variabila de pe selector și vezi ce rămâne din funcție. Când B = 0, NOT B = 1, deci Y = A AND 1 = A: pe intrarea 0 pui A. Când B = 1, NOT B = 0, deci Y = A AND 0 = 0: pe intrarea 1 pui constanta 0. Aceasta e expansiunea Shannon: f = B·f(B=1) + B̄·f(B=0), cu sub-funcțiile pe intrările MUX-ului."
+      }
+    },
+    {
+      "order": 2,
+      "type": "short_answer",
+      "concept": "Un singur NMOS transmite un 1 degradat cu V_th; de aceea transmission gate are și PMOS. Se produce o tensiune: V_DD − V_th = 0,7 V. Capcana: 1,0 V (semnal întreg) sau 0,3 V.",
+      "content": {
+        "prompt": "Un comutator analogic are doar un NMOS, fără PMOS în paralel. Alimentarea e VDD = 1,0 V, iar tensiunea de prag e Vth = 0,3 V. Ce tensiune maximă ajunge la ieșire când transmiți un 1 logic? Răspunde în volți.",
+        "accepted": [
+          "0,7",
+          "0.7",
+          "0,7 v",
+          "0.7 v",
+          "0,7v",
+          "0.7v",
+          "0,7 volti",
+          "0.7 volti",
+          "0,7 volt",
+          "0.7 volt",
+          "700 mv",
+          "700mv"
+        ],
+        "explanation": "NMOS-ul conduce doar cât timp tensiunea poartă-sursă depășește Vth, deci pe măsură ce ieșirea urcă el se închide singur la VDD − Vth = 1,0 − 0,3 = 0,7 V. Un 1 logic ajunge degradat, cu marja de zgomot mai mică. PMOS-ul din transmission gate are problema inversă (ridică un 0 cu Vth), iar în paralel cele două transmit ambele nivele întregi."
+      }
+    },
+    {
+      "order": 3,
+      "type": "ordering",
+      "concept": "Latch-up ca lanț cauzal: depășirea VDD → curent în substrat → tiristorul parazit se aprinde → feedback pozitiv → scurtcircuit VDD–GND → distrugere termică dacă alimentarea nu e tăiată.",
+      "content": {
+        "prompt": "Așază în ordine cum se ajunge la distrugerea unui cip CMOS prin latch-up.",
+        "items": [
+          "Un semnal extern depășește VDD cu mai mult de ~0,7 V și injectează curent în substrat",
+          "Tiristorul parazit P-N-P-N se aprinde",
+          "Un tranzistor NPN îl aprinde pe un PNP, care îl aprinde înapoi pe NPN, în feedback pozitiv",
+          "Între VDD și GND se stabilește un scurtcircuit direct și curge un curent masiv",
+          "Dacă alimentarea nu e întreruptă imediat, cipul se topește termic"
+        ],
+        "explanation": "Declanșatorul e un semnal care depășește alimentarea cu mai mult de o diodă: curentul injectat în substrat aprinde tiristorul P-N-P-N parazit. Cele două tranzistori bipolari se mențin unul pe altul (feedback pozitiv), așa că scurtcircuitul rămâne chiar dacă semnalul extern dispare. Singura scăpare e tăierea alimentării; altfel curentul masiv încălzește cipul până se distruge."
+      }
+    }
+  ]
+}

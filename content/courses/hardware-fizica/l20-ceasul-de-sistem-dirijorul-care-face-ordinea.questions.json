@@ -1,0 +1,44 @@
+{
+  "questions": [
+    {
+      "order": 1,
+      "type": "short_answer",
+      "concept": "Divizarea frecvenței cu flip-flop-uri: fiecare împarte la 2. Caz nou față de FactBox (32.768 Hz = 2¹⁵ → 15): un cristal de 4.096 Hz = 2¹² → 12.",
+      "content": {
+        "prompt": "Un ceas folosește un cristal de 4.096 Hz (adică 2¹²) și vrea un puls la fiecare secundă (1 Hz). Câte flip-flop-uri trebuie puse în serie, știind că fiecare împarte frecvența la 2?",
+        "accepted": [
+          "12",
+          "12 flip-flop-uri",
+          "12 flip-flopuri",
+          "12 flip flop uri",
+          "doisprezece"
+        ],
+        "explanation": "Fiecare flip-flop în serie înjumătățește frecvența, deci n flip-flop-uri o împart la 2ⁿ. Ca să cobori de la 4.096 = 2¹² Hz la 1 Hz ai nevoie de 12 flip-flop-uri. Același raționament explică de ce ceasurile de mână folosesc 32.768 Hz = 2¹⁵: cu 15 divizoare ajungi exact la 1 Hz, fără circuite de împărțire cu rest."
+      }
+    },
+    {
+      "order": 2,
+      "type": "match_pairs",
+      "concept": "Fiecare problemă de temporizare are leacul ei: setup violation = ceas mai lent; hold violation = întârziere adăugată pe calea prea scurtă; metastabilitate la trecerea între domenii asincrone = sincronizator din mai multe flip-flop-uri. Hold nu se rezolvă prin scăderea frecvenței.",
+      "content": {
+        "prompt": "Potrivește fiecare problemă de temporizare cu remediul potrivit.",
+        "pairs": [
+          { "left": "Setup violation pe o cale logică prea lungă", "right": "Măresc perioada ceasului (scad frecvența)" },
+          { "left": "Hold violation pe o cale prea scurtă", "right": "Adaug buffere care încetinesc semnalul" },
+          { "left": "Date asincrone care trec într-un alt domeniu de ceas", "right": "Pun mai multe flip-flop-uri în serie ca sincronizator" }
+        ],
+        "explanation": "Setup depinde de perioada ceasului: dacă datele sosesc prea târziu, dai mai mult timp (frecvență mai mică). Hold nu depinde de perioadă, ci de cât de repede ajung datele după front, deci scăderea frecvenței nu ajută: încetinești calea cu buffere. Metastabilitatea de la granița dintre domenii de ceas nu poate fi eliminată fizic, doar lăsată să se rezolve printr-un lanț de flip-flop-uri."
+      }
+    },
+    {
+      "order": 3,
+      "type": "true_false",
+      "concept": "Clock gating oprește comutarea (puterea dinamică ∝ f) dar nu elimină scurgerea statică; cuplat cu L7 (tunelare, sub-prag).",
+      "content": {
+        "prompt": "Dacă oprești ceasul unui bloc inactiv din cip (clock gating), consumul acelui bloc devine zero.",
+        "correct": false,
+        "explanation": "Clock gating oprește comutarea, iar puterea dinamică P = C·V²·f scade la zero odată cu f. Dar blocul rămâne alimentat, iar tranzistorii lui lasă să treacă un curent de scurgere (sub-prag, tunelare prin oxid) care consumă energie și fără ceas. Pentru a elimina și scurgerea ar trebui oprită alimentarea blocului (power gating), nu doar ceasul."
+      }
+    }
+  ]
+}

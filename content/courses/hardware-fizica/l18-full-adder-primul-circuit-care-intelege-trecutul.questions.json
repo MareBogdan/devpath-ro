@@ -1,0 +1,46 @@
+{
+  "questions": [
+    {
+      "order": 1,
+      "type": "match_pairs",
+      "concept": "Generate vs propagate în Cout = AB + Cin(A⊕B): trei situații de intrare mapate pe mecanismul carry-ului. Sum/Cout se pot afla și prin adunare, dar întrebarea cere rolul fiecărei intrări în carry.",
+      "content": {
+        "prompt": "Potrivește fiecare combinație de intrări ale unui Full-Adder cu ce se întâmplă cu carry-ul.",
+        "pairs": [
+          { "left": "A = 1, B = 1, Cin = 0", "right": "Cout = 1: carry generat de A și B" },
+          { "left": "A = 1, B = 0, Cin = 1", "right": "Cout = 1: carry propagat din Cin" },
+          { "left": "A = 0, B = 0, Cin = 1", "right": "Cout = 0: Cin nu mai produce carry" }
+        ],
+        "explanation": "Cout = (A AND B) OR (Cin AND (A XOR B)). Când A și B sunt amândouă 1, primul termen dă 1 oricare ar fi Cin: carry-ul se generează. Când A și B diferă, Cin trece mai departe prin al doilea termen: se propagă. Când A = B = 0, nici unul dintre termeni nu e 1, deci Cin ajunge doar în Sum (Sum = 1) și Cout rămâne 0."
+      }
+    },
+    {
+      "order": 2,
+      "type": "short_answer",
+      "concept": "Scăderea cu același lanț de Full-Adder-e: inversezi B și forțezi Cin = 1. 6 − 3 pe 4 biți. Capcana: cine uită Cin = 1 obține 0010 (adică 2).",
+      "content": {
+        "prompt": "Calculezi 6 − 3 pe 4 biți cu trucul din lecție: A = 0110, B = 0011 trecut prin inversoare, iar primul Full-Adder primește Cin = 1. Ce valoare binară de 4 biți apare pe biții de sumă?",
+        "accepted": [
+          "0011",
+          "11",
+          "011",
+          "3",
+          "0b0011",
+          "0b11",
+          "0011b"
+        ],
+        "explanation": "Inversat, B = 0011 devine 1100. Apoi 0110 + 1100 + 1 (Cin) = 10011: pe 4 biți rămâne 0011, adică 3, iar bitul 1 de peste ieșirea din stânga este carry-ul final. Fără Cin = 1 ai obține 0110 + 1100 = 0010 (adică 2, rezultat greșit cu 1): +1 e ce transformă inversarea în complement față de 2."
+      }
+    },
+    {
+      "order": 3,
+      "type": "true_false",
+      "concept": "Wallace Tree comprimă pe verticală, în paralel: un strat nu așteaptă propagarea carry-ului pe orizontală; propagarea completă apare doar în sumatorul final.",
+      "content": {
+        "prompt": "Într-un Wallace Tree, un strat de Full-Adder-e se termină abia după ce un carry a străbătut coloanele stratului, de la dreapta spre stânga.",
+        "correct": false,
+        "explanation": "Full-Adder-ele unui strat lucrează în paralel: fiecare comprimă 3 biți de aceeași coloană în 2, iar carry-ul lui merge în coloana vecină abia în stratul următor. Nimic nu așteaptă propagarea pe orizontală, de aceea întârzierea crește logaritmic cu numărul de rânduri, nu liniar. Propagarea completă a carry-ului apare o singură dată, în sumatorul rapid care adună cele două rânduri rămase."
+      }
+    }
+  ]
+}

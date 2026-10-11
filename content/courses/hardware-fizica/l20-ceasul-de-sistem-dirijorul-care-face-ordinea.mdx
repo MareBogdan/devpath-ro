@@ -3,85 +3,57 @@ title: "Ceasul de sistem — dirijorul care face ordinea"
 order: 20
 type: lesson
 module_index: 4
-duration: 14
+duration: 11
 difficulty: 2
 ---
 
-# Ceasul de sistem — dirijorul care face ordinea
+Imaginează-ți o orchestră cu un miliard de instrumente. Fiecare muzician începe să cânte imediat ce primește partitura, fără să aștepte pe nimeni. Semnalele trec prin porți la viteze ușor diferite și ajung în momente diferite: rezultatul nu e muzică, ci zgomot. Un dirijor ridică bagheta: orchestra se oprește și toți cântă simultan, abia când bagheta coboară.
 
-## HOOK
+Ceasul de sistem e acea baghetă. Toate circuitele de până acum (porți, sumatoare, MUX) sunt combinaționale: ieșirea se schimbă imediat ce se schimbă intrarea, fără „înainte” sau „după”. Ceasul introduce timpul: un semnal electric care oscilează între 0 și 1 la frecvență fixă. La fiecare front crescător, momentul în care trece de la 0 la 1, registrele din CPU captează valorile curente și le transmit mai departe. Un ciclu de ceas e un pas discret de calcul; procesorul face „instantanee”, de miliarde de ori pe secundă.
 
-Imaginează-ți o orchestră cu un miliard de instrumente.
+## De unde vine ritmul: cristalul de cuarț
 
-Fiecare muzician primește partitura și începe să cânte imediat — fără să aștepte pe nimeni. Semnalele electrice se propagă prin porți logice la viteze ușor diferite, ajung în momente diferite, se suprapun haotic. Rezultatul nu e muzică. E zgomot.
+Ceasul unui procesor pornește dintr-o bucată de cuarț sintetic de câțiva milimetri. Fizica din spate e <Term def="Proprietatea unor cristale de a genera tensiune electrică când sunt comprimate și de a se deforma când li se aplică tensiune. Descoperit de frații Curie în 1880.">efectul piezoelectric</Term>. Conectat la un amplificator, cristalul intră în rezonanță mecanică: se deformează, generează un puls electric, pulsul îl deformează din nou, la o frecvență dictată de dimensiunile și unghiul lui de tăiere.
 
-Acum imaginează-ți un dirijor care ridică bagheta. Toată orchestra se oprește. Nimeni nu cântă until bagheta coboară — și atunci toți cântă simultan, sincron, un singur moment discret de calcul.
-
-Ceasul de sistem e acea baghetă. Fără el, miliardele de porți logice pe care le-ai învățat calculează continuu și haotic. Cu el, calculul devine ritmic, ordonat, predictibil.
-
-## CONTEXT
-
-Toate circuitele de până acum — porți logice, adders, MUX — sunt **combinaționale**: ieșirea se schimbă instant când se schimbă intrarea. Nu există concept de „înainte" sau „după". Fără memorie, fără secvențialitate.
-
-Ceasul introduce **timpul** în calcul. E un semnal electric care oscilează între 0 și 1 la o frecvență fixă. La fiecare front crescător — momentul când semnalul trece de la 0 la 1 — toate registrele din CPU captează simultan valorile curente și le transmit mai departe.
-
-Un ciclu de ceas = un pas discret de calcul. Procesorul nu „gândește continuu" — face snapshots, un miliard de ori pe secundă.
-
-## MIEZUL
-
-### Cristalul de cuarț — de unde vine ritmul
-
-Ceasul unui procesor modern pornește dintr-o bucată de cuarț sintetic de câțiva milimetri.
-
-Fizica din spate: **efectul piezoelectric**, descoperit de frații Curie în 1880. Când comprimi un cristal de cuarț, generezi tensiune electrică. Invers — când aplici tensiune electrică, cristalul se deformează fizic. Conectat la un circuit amplificator, cristalul intră în rezonanță mecanică: se deformează, generează puls electric, pulsul îl deformează din nou, și tot așa — la o frecvență determinată de dimensiunile și unghiul de tăiere al cristalului.
-
-De ce cuarț și nu alt material? **Q-factor** — raportul dintre energia stocată și energia pierdută per ciclu. Un circuit LC simplu are Q~100. Un cristal de cuarț: Q între 10.000 și 100.000. Mai puțină energie pierdută per oscilație = frecvență mai stabilă, mai puțin drift.
+De ce cuarț și nu alt material? Din cauza <Term def="Factor de calitate: raportul dintre energia stocată într-un oscilator și energia pierdută la fiecare ciclu (înmulțit cu 2π). Cu cât e mai mare, cu atât oscilația e mai stabilă.">factorului Q</Term>. Un circuit LC simplu are Q de ordinul a 100, un cristal de cuarț între 10.000 și 100.000. Mai puțină energie pierdută per oscilație înseamnă frecvență mai stabilă.
 
 <FactBox>
-Ceasul tău de mână folosește un cristal de cuarț la exact **32.768 Hz** — adică 2¹⁵. De ce? Pentru că 15 flip-flop-uri în serie împart frecvența exact la 32.768, producând 1 Hz precis — un puls pe secundă. Aceeași logică binară din L9, aplicată la timekeeping.
+  Ceasul tău de mână folosește un cristal de cuarț la exact 32.768 Hz, adică 2¹⁵. Cincisprezece flip-flop-uri în serie împart frecvența exact la 32.768 și dau 1 Hz, un puls pe secundă. Aceeași logică binară din Lecția 9, aplicată măsurării timpului.
 </FactBox>
 
-Problema: cuarțul nu poate oscila mecanic la 3 GHz. Limita fizică e în jur de 100 MHz. Soluția: **Phase-Locked Loop (PLL)**.
+Un cristal oscilează practic la zeci, cel mult sute de MHz, nu la 3 GHz. Soluția e un <Term def="Phase-Locked Loop: circuit care compară continuu faza unui oscilator intern cu cea a unui semnal de referință și își ajustează tensiunea de comandă până când oscilatorul bate la un multiplu exact al referinței.">PLL</Term>. Placa de bază furnizează o referință stabilă de 100 MHz, iar PLL-ul din CPU forțează un oscilator intern să bată la exact N × 100 MHz. Cu un multiplicator de 36×, nucleul ajunge la 3,6 GHz, stabil și sincronizat cu referința.
 
-Placa de bază furnizează un semnal stabil de 100 MHz. PLL-ul din CPU compară continuu acest semnal cu ieșirea unui oscilator intern și ajustează tensiunea până când oscilatorul intern bate la exact N×100 MHz. Dacă multiplierul CPU e 36×, PLL-ul forțează VCO-ul intern la **3.6 GHz** — stabil, sincronizat cu referința externă.
+<InlineQuestion n="1" />
 
-### Setup time, hold time — ferestrele de timp
+## Setup, hold și frecvența maximă
 
-Un flip-flop capturează date la frontul crescător al ceasului. Dar datele nu pot apărea exact în acel moment — au nevoie de o fereastră de stabilitate.
+Un <Term def="Circuit care păstrează un bit între două fronturi de ceas: îl captează la frontul crescător și îl menține stabil până la următorul. Îl construiești în lecția următoare.">flip-flop</Term> captează datele la frontul crescător al ceasului, dar datele au nevoie de o fereastră de stabilitate în jurul lui.
 
-**Setup time** ($T_{su}$): datele trebuie să fie stabile cu cel puțin $T_{su}$ înainte de frontul ceasului. Dacă datele sosesc prea târziu — setup violation. Flip-flop-ul poate captura o valoare greșită sau intră în metastabilitate.
+Timpul de setup (T<Sub>su</Sub>) cere ca datele să fie stabile cu cel puțin T<Sub>su</Sub> înainte de front. Dacă sosesc prea târziu apare o setup violation: flip-flop-ul poate captura o valoare greșită sau intră în <Term def="Stare în care ieșirea unui circuit rămâne blocată la o tensiune intermediară, nici 0, nici 1, și se stabilizează abia după un timp imprevizibil.">metastabilitate</Term>. Timpul de hold (T<Sub>hold</Sub>) cere ca datele să rămână stabile cel puțin T<Sub>hold</Sub> după front. Dacă se schimbă prea repede, apare o hold violation: noua valoare o suprascrie pe cea veche înainte ca flip-flop-ul să o fi capturat corect.
 
-**Hold time** ($T_{hold}$): datele trebuie să rămână stabile cel puțin $T_{hold}$ după frontul ceasului. Dacă datele se schimbă prea repede — hold violation. Noua valoare suprascrie înregistrarea înainte că flip-flop-ul să o fi capturat corect.
-
-Formula care determină frecvența maximă a oricărui cip:
+Frecvența maximă a oricărui cip rezultă din inegalitatea
 
 $$T_{cq} + T_{pd} + T_{su} - T_{skew} \leq T_{clk}$$
 
-Unde $T_{cq}$ e întârzierea flip-flop-ului, $T_{pd}$ e propagarea prin logica combinațională, $T_{su}$ e setup time și $T_{skew}$ e diferența de sosire a ceasului. Dacă suma depășește perioada ceasului, cipul greșește.
+unde T<Sub>cq</Sub> e întârzierea flip-flop-ului (de la ceas la ieșire), T<Sub>pd</Sub> propagarea prin logica combinațională, T<Sub>su</Sub> timpul de setup, iar T<Sub>skew</Sub> cât de mult mai târziu ajunge ceasul la registrul care captează decât la cel care lansează. Dacă suma depășește perioada ceasului, cipul greșește.
 
-**Calea critică** (critical path): din toate miliardele de căi logice dintr-un CPU, cea mai lentă dictează frecvența maximă. Inginerii petrec luni rulând algoritmi de Static Timing Analysis ca să găsească și să optimizeze acea singură cale.
+Din miliardele de căi logice dintr-un CPU, cea mai lentă, calea critică, dictează frecvența maximă. Inginerii petrec luni rulând <Term def="Static Timing Analysis: verificare automată, fără simulare, a întârzierii tuturor căilor dintre registre, ca să se vadă dacă fiecare respectă setup și hold la frecvența țintă.">analiza statică a timpilor</Term> ca să o găsească și s-o optimizeze.
 
-{/* ANIMATION */}
+## Metastabilitatea: când datele sosesc în fereastra interzisă
 
-### Metastabilitatea — starea imposibilă
+Dacă datele se schimbă chiar în fereastra setup–hold din jurul frontului, flip-flop-ul nu știe ce să captureze. Tranzistoarele interne încearcă să se stabilizeze la 0 sau 1, dar rămân blocate la o tensiune intermediară, ca o minge echilibrată pe vârful unui munte: va cădea într-o parte, nu se știe când, iar zgomotul termic din siliciu decide în cele din urmă.
 
-Dacă datele sosesc exact în momentul frontului de ceas — nu cu $T_{su}$ înainte, ci exact simultan — flip-flop-ul nu știe ce să captureze.
-
-Tranzistoarele interne încearcă să se stabilizeze la 0 sau 1, dar rămân blocate la o tensiune intermediară. E ca o minge perfect echilibrată pe vârful unui munte: va cădea într-o parte sau alta, dar nu se știe când. Zgomotul termic din siliciu va decide în cele din urmă.
-
-Dacă metastabilitatea nu se rezolvă înainte de următorul front de ceas, tensiunea invalidă se propagă downstream și corupe calcule. Metastabilitatea e **fizic inevitabilă** la granița dintre domenii de ceas asincrone — orice sistem real trebuie să o gestioneze prin sincronizatoare cu mai mulți flip-flop-uri în serie.
+Dacă nu se rezolvă înainte de următorul front, tensiunea invalidă se propagă și corupe calculul. Metastabilitatea e fizic inevitabilă la granița dintre domenii de ceas asincrone, așa că orice sistem real o gestionează cu sincronizatoare din mai multe flip-flop-uri în serie, care îi lasă timp să se rezolve.
 
 <CosmoHint emotion="thinking">
-Hold time violations sunt mai periculoase decât setup violations — nu pot fi rezolvate prin scăderea frecvenței. Sunt o problemă structurală: o cale logică prea scurtă care livrează date prea rapid. Soluția e să adaugi buffere pentru a încetini intenționat semnalul. Contra-intuitiv: uneori trebuie să faci cipul mai lent ca să funcționeze corect.
+  Hold violations sunt mai periculoase decât setup violations: nu pot fi rezolvate prin scăderea frecvenței, fiindcă sunt o problemă structurală, o cale logică prea scurtă care livrează datele prea repede. Soluția e să adaugi buffere care încetinesc intenționat semnalul. Contra-intuitiv, uneori trebuie să faci o cale mai lentă ca cipul să funcționeze corect.
 </CosmoHint>
 
-### Cursa frecvenței — și zidul de putere
+<InlineQuestion n="2" />
 
-Intel 4004 (1971): **740 kHz**. Tehnologie PMOS, condensatoare de poartă uriașe, tensiuni de -10V. Electronii aveau nevoie de timp să umple aceste condensatoare imense.
+## Cursa frecvenței și zidul de putere
 
-Tranziția la CMOS și reducerea dimensiunilor a accelerat totul:
-
-{/* TABLE */}
+Intel 4004 (1971) mergea la 740 kHz. Tehnologie PMOS, condensatoare de poartă mari, alimentare negativă de ordinul a 10–15 V: electronii aveau nevoie de timp să umple condensatoarele acelea. Trecerea la CMOS și micșorarea tranzistoarelor au accelerat totul:
 
 | Procesor | An | Frecvență |
 |----------|-----|-----------|
@@ -89,68 +61,39 @@ Tranziția la CMOS și reducerea dimensiunilor a accelerat totul:
 | Intel 8086 | 1978 | 5–10 MHz |
 | Intel 486 | 1989 | 25–100 MHz |
 | Pentium | 1993 | 60–200 MHz |
-| Pentium 4 | 2004 | 3.8 GHz |
+| Pentium 4 | 2000–2004 | 1,4–3,8 GHz |
 
-Motorul acestei creșteri: **Dennard Scaling**. Pe măsură ce tranzistoarele se micșorau, capacitanța și tensiunea scădeau proporțional. Formula puterii dinamice:
+Motorul acestei creșteri a fost <Term def="Regula după care, pe măsură ce tranzistoarele se micșorează cu un factor k, capacitatea și tensiunea scad proporțional, așa că puterea pe unitatea de arie rămâne constantă chiar dacă frecvența crește.">Dennard Scaling</Term>. Puterea dinamică este
 
 $$P_{dynamic} = C \cdot V^2 \cdot f$$
 
-Dacă $C$ și $V$ scad cu fiecare generație, poți crește $f$ și menține puterea constantă. Gratuit.
-
-Până în 2004, când Dennard Scaling s-a oprit. Oxidul de poartă a ajuns la câțiva atomi grosime — curentul de scurgere prin efect tunel a explodat. Tensiunea nu mai putea fi redusă. Creșterea frecvenței creștea puterea liniar, generând căldură pe care niciun cooler de silicon nu o putea disipa. Zidul de putere: ~100W pentru răcire cu aer.
-
-Soluția: nu mai crești frecvența. Adaugi nuclee. Era multi-core.
+Dacă C și V scad cu fiecare generație, poți crește f fără ca densitatea de putere să crească. Până în jurul lui 2004, când scalarea s-a oprit: oxidul de poartă ajunsese la circa 1,2 nm, câteva straturi de atomi, iar curentul de scurgere prin efect tunel a explodat. Tensiunea nu mai putea fi redusă, deci creșterea frecvenței mărea puterea cel puțin liniar, iar căldura depășea ce puteau disipa coolerele de aer ale epocii (ordinul a 100 W). Soluția: nu mai crești frecvența, ci adaugi nuclee. Începe era multi-core.
 
 <FactBox>
-În mai 2026, overclockerul chinez „wytiwx" a dus un Intel Core i9-14900KF la **9206.34 MHz** — recordul mondial absolut. Metoda: azot lichid (-196°C) pentru a suprima scurgerea termică și 7 din 24 de nuclee dezactivate pentru a concentra puterea. La temperatura normală, același procesor ar arde în secunde la această frecvență.
+  În mai 2026, overclockerul „wytiwx” a dus un Intel Core i9-14900KF la 9.206,34 MHz, recordul mondial pentru frecvența unui procesor. Metoda: heliu lichid (circa −269°C), cu nucleele în mare parte dezactivate ca să concentreze puterea pe unul singur. La temperatura obișnuită, același procesor nu poate rula stabil la această frecvență.
 </FactBox>
 
-### Distribuția ceasului — coșmarul ingineriei
+## Cum ajunge ceasul la miliarde de tranzistori
 
-Generezi un semnal de 3 GHz. Acum trebuie să-l livrezi simultan la miliarde de tranzistoare răspândite pe un die de câțiva cm².
+Generezi un semnal de 3 GHz și acum trebuie să-l livrezi simultan la miliarde de tranzistori, pe un die de câțiva cm². Semnalele electrice nu călătoresc instantaneu: rezistența și capacitatea firelor de cupru introduc întârzieri, iar un registru de la capătul cipului ar primi ceasul cu nanosecunde după unul de lângă generator. Acesta e <Term def="Diferența dintre momentele în care același front de ceas ajunge la două registre diferite.">clock skew</Term>-ul.
 
-Problema: semnalele electrice nu călătoresc instantaneu. Rezistența și capacitanța firelor de cupru introduc întârzieri. Un registru la capătul cipului ar primi ceasul cu nanosecunde mai târziu decât unul lângă generator — **clock skew** devastator.
+Soluția clasică e <Term def="Rețea de distribuție a ceasului în formă de H, repetată fractal: ceasul intră în centrul cipului și se ramifică simetric, astfel încât lungimea de la sursă la fiecare capăt e aceeași.">H-tree</Term>-ul: ceasul e injectat în centrul geometric al cipului și distribuit simetric, în ramuri în formă de H, apoi sub-H, fractal. Lungimea fizică de la sursă la orice capăt e identică, deci și întârzierea, iar skew-ul e minim. La noduri mici, variațiile de proces fac ca fire și buffere geometric identice să aibă întârzieri ușor diferite, așa că designurile moderne completează H-tree-ul cu grile locale (clock mesh), care leagă între ele ieșirile bufferelor ca să netezească diferențele.
 
-Soluția clasică: **H-tree**. Ceasul e injectat în centrul geometric al cipului și distribuit simetric în ramuri în formă de H, apoi sub-H, fractal. Lungimea fizică de la sursă la orice endpoint e identică — deci întârzierea e identică. Skew minim.
+<Term def="Oprirea ceasului pentru blocurile inactive ale cipului, ca să nu mai comute deloc.">Clock gating</Term> e cea mai eficientă metodă de economisire a energiei. Fiindcă P<Sub>dynamic</Sub> ∝ f, zero oscilații înseamnă zero putere dinamică; scurgerea statică rămâne. Rețeaua de distribuție a ceasului consumă singură o fracțiune mare din puterea cipului, adesea citată între 20% și 40%: e cel mai activ net din cip, comută la fiecare ciclu, fără excepție.
 
-La 3nm, chiar și H-tree are probleme: variații atomice în dopajul siliciului fac ca fire geometric identice să aibă rezistențe ușor diferite. Soluția modernă: **mii de domenii locale de ceas**, fiecare cu propriul generator, sincronizate între ele.
+<InlineQuestion n="3" />
 
-**Clock gating** — cea mai eficientă metodă de economisire a energiei: oprești ceasul pentru blocurile inactive. Deoarece $P_{dynamic} \propto f$, zero oscilații = zero putere dinamică. Rețeaua de clock gating poate salva între 6% și 80% din energia totală a cipului.
+## GPS: ceasul întâlnește relativitatea
 
-Rețeaua de distribuție a ceasului consumă singură **20–40% din puterea totală** a unui procesor modern. E cel mai activ net electric din cip — comutează la fiecare ciclu, fără excepție.
+Sateliții GPS orbitează la circa 20.000 km altitudine, cu 3,874 km/s. Două efecte relativiste acționează simultan:
 
-### GPS și relativitatea — când ceasul întâlnește fizica lui Einstein
+- relativitatea specială (viteză mare): ceasurile sateliților bat mai lent cu 7 microsecunde/zi;
+- relativitatea generală (gravitație mai slabă): ceasurile bat mai repede cu 45 de microsecunde/zi.
 
-Sateliții GPS orbitează la 20.000 km altitudine, la 3.874 km/s. Două efecte relativiste acționează simultan:
-
-**Relativitate specială** (viteză mare): ceasurile sateliților tick mai lent cu **7 microsecunde/zi**.
-
-**Relativitate generală** (gravitație mai slabă): ceasurile sateliților tick mai rapid cu **45 microsecunde/zi**.
-
-Net: sateliții câștigă **+38 microsecunde/zi** față de receptoarele de pe Pământ.
-
-GPS localizează prin măsurarea timpului de propagare a semnalelor radio. La viteza luminii, 38 de microsecunde = **11 km eroare acumulată zilnic**. GPS ar deveni inutil în câteva minute.
-
-Soluția: înainte de lansare, ceasurile atomice de pe sateliți sunt intenționat „încetinite" de la 10.23 MHz la **10.22999999543 MHz**. Odată în orbită, relativitatea le accelerează exact la 10.23 MHz față de un observator de pe Pământ.
+Net, sateliții câștigă 38 de microsecunde/zi față de receptoarele de pe Pământ. GPS localizează prin timpul de propagare al semnalelor radio, iar la viteza luminii 38 µs înseamnă 11 km de eroare acumulată pe zi, adică circa 8 m pe minut. Soluția: înainte de lansare, ceasurile atomice sunt intenționat „încetinite” de la 10,23 MHz la 10,22999999543 MHz; odată în orbită, relativitatea le aduce exact la 10,23 MHz față de un observator de pe Pământ.
 
 <CosmoHint emotion="surprised">
-Therac-25 — un accelerator de radioterapie folosit între 1985 și 1987 — a omorât pacienți din cauza unui race condition legat de timing. Un contor de 1 byte (maxim 255) număra erori de poziționare. La fiecare 256 de incrementări, depășea 255 și revenea la 0 — valoare interpretată ca „totul e în ordine". Dacă operatorul apăsa o tastă exact în acel moment de overflow, mașina ignora verificările de siguranță și emitea doze de 250× normale. Ordinea în timp — cine ajunge primul, ceasul sau tastatura — a decis viața sau moartea pacientului.
+  Therac-25, un accelerator de radioterapie folosit între 1985 și 1987, a supradozat șase pacienți, dintre care cel puțin trei au murit. Una dintre cauze: un contor pe 1 octet (maxim 255), dintr-o rutină de verificare, era incrementat la fiecare trecere și revenea la 0 la a 256-a; 0 însemna „totul e în ordine”. Dacă operatorul apăsa o tastă exact în acel moment, verificările erau sărite, iar doza putea fi de ordinul a 100× cea prescrisă. Contează momentul: cine ajunge primul, contorul sau tastatura.
 </CosmoHint>
 
-## REVEAL
-
-Fiecare circuit pe care l-ai învățat până acum — poartă logică, adder, MUX — e un instrument care reacționează instant și continuu la intrări.
-
-Ceasul introduce ceva ce niciun circuit combinațional nu poate produce singur: **ordinea în timp**.
-
-Un front de ceas îngheață starea întregului sistem pentru o fracțiune de nanosecundă. Captează valoarea curentă. O trimite mai departe. Pregătește sistemul pentru pasul următor. Repetat de un miliard de ori pe secundă.
-
-De la cristalul de cuarț care vibrează mecanic la 100 MHz, la PLL-ul care multiplică până la 3+ GHz, la H-tree-ul care distribuie sincron la miliarde de tranzistoare — totul servește un singur scop: să garanteze că fiecare flip-flop din cip vede frontul de ceas în același moment, capturând o stare consistentă a calculului.
-
-Fără sincronizare, ai instrumente. Cu sincronizare, ai un computer.
-
-## ÎNCHEIERE
-
-Acum ai toate componentele unui CPU real: porți logice, NAND universal, aritmetică binară, selecție și sincronizare temporală.
-
-Lecția următoare: **Flip-Flop-ul** — primul element de memorie secvențială, construit direct din NAND-uri încrucișate. Dacă ceasul e dirijorul, flip-flop-ul e notițele — locul unde calculul e scris înainte de a trece la pasul următor.
+Ceasul adaugă ceva ce niciun circuit combinațional nu produce singur: ordinea în timp. Cristalul, PLL-ul și H-tree-ul servesc același scop, ca fiecare flip-flop din cip să vadă frontul în același moment. Lecția următoare: flip-flop-ul, locul unde calculul e scris înainte de a trece la pasul următor.

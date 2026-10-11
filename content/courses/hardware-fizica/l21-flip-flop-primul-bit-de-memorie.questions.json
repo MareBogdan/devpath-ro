@@ -1,0 +1,65 @@
+{
+  "questions": [
+    {
+      "order": 1,
+      "type": "match_pairs",
+      "concept": "Latch transparent vs flip-flop edge-triggered: trei situații (latch cu ceas 1, latch cu ceas 0, flip-flop la front) mapate pe comportamentul ieșirii. Diferența dintre un nivel și un front.",
+      "content": {
+        "prompt": "Potrivește fiecare situație cu ce arată ieșirea Q.",
+        "pairs": [
+          { "left": "D latch, ceas = 1, iar D se schimbă de două ori", "right": "Q urmărește D și se schimbă odată cu el" },
+          { "left": "D latch, ceas = 0", "right": "Q ține ultima valoare, oricum s-ar schimba D" },
+          { "left": "Flip-flop master-slave, în clipa frontului crescător", "right": "Q ia valoarea lui D din acel moment și o ține un ciclu întreg" }
+        ],
+        "explanation": "Un D latch e sensibil la nivel: cât ceasul e 1 e transparent și ieșirea copiază intrarea, iar cât e 0 e opac și ține valoarea. Flip-flop-ul master-slave leagă două latch-uri cu faze opuse, așa că nu e niciodată transparent cap-coadă: eșantionează D o singură dată, la frontul crescător, și ține acea valoare un ciclu întreg, indiferent ce face D între fronturi."
+      }
+    },
+    {
+      "order": 2,
+      "type": "short_answer",
+      "concept": "Frecvența maximă o dictează cea mai lentă cale combinațională dintre două ziduri de registre. Capcane: media etapelor (0,6 ns → 1,67 GHz) sau suma (2,4 ns → 417 MHz).",
+      "content": {
+        "prompt": "Un pipeline are patru etape separate de registre, cu logică combinațională de 0,4 ns, 0,9 ns, 0,5 ns și 0,6 ns (ignori întârzierea proprie a registrelor). Care e frecvența maximă de ceas, în GHz?",
+        "accepted": [
+          "1,1",
+          "1.1",
+          "1,11",
+          "1.11",
+          "1,1 ghz",
+          "1.1 ghz",
+          "1,11 ghz",
+          "1.11 ghz",
+          "1,1ghz",
+          "1.1ghz",
+          "1,11ghz",
+          "1.11ghz",
+          "1,111",
+          "1.111",
+          "1100 mhz",
+          "1111 mhz"
+        ],
+        "explanation": "Perioada ceasului trebuie să acopere cea mai lentă etapă, 0,9 ns, deci f = 1 / 0,9 ns ≈ 1,11 GHz. Etapele mai rapide așteaptă, nu contează. Media (0,6 ns → 1,67 GHz) ar face etapa de 0,9 ns să greșească, iar suma (2,4 ns → 417 MHz) ar fi frecvența unui procesor fără pipeline."
+      }
+    },
+    {
+      "order": 3,
+      "type": "single_choice",
+      "concept": "Soft error (SEU) vs defect permanent vs încălcare de timing: un bit se schimbă fără comandă, siliciul e intact și bitul se rescrie normal. Ultimul indiciu elimină defectul permanent; natura aleatorie elimină hold violation (deterministă).",
+      "content": {
+        "prompt": "Un bit dintr-un registru fără ECC trece brusc din 0 în 1, fără nicio comandă. Teste ulterioare arată siliciul intact, iar bitul se rescrie fără probleme. Ce s-a întâmplat?",
+        "options": [
+          "Un tranzistor s-a deteriorat permanent și a rămas blocat într-o stare fixă",
+          "Un front de ceas a prins datele în fereastra de hold și le-a capturat greșit",
+          "O particulă ionizantă a răsturnat starea stocată, fără a deteriora siliciul"
+        ],
+        "correct_index": 2,
+        "explanation": "Un bit răsturnat de o particulă ionizantă (soft error, SEU) se schimbă fără nicio comandă software și nu lasă nicio urmă fizică: doar starea stocată e coruptă, iar rescrierea o repară. Un defect permanent ar persista și după rescriere, iar o încălcare de hold ar apărea repetabil, la aceeași cale și la același front, nu o dată, la întâmplare."
+      },
+      "distractors": [
+        "Confundă soft error-ul cu un defect permanent: dar siliciul e intact și bitul se rescrie normal, deci nu e stricat nimic.",
+        "Confundă o eroare aleatorie cu o încălcare de timing (hold violation), care ar apărea repetabil, la același front, nu o singură dată.",
+        null
+      ]
+    }
+  ]
+}
