@@ -2,7 +2,7 @@
 
 **Gamified IT & AI learning platform in Romanian.** From "I know nothing" to real technical thinking — interactive lessons, a personal AI coach, and code that runs right in the browser.
 
-🔗 **Live demo:** https://devpath-ro.vercel.app
+ **Live demo:** https://devpath-ro.vercel.app
 
 ![DevPath RO — landing](docs/landing.jpg)
 
@@ -14,12 +14,12 @@ DevPath RO helps Romanian beginners understand how computers and AI actually wor
 
 ## Features
 
-- 🧭 **"Serpentine" progress map** — 131 lessons across 6 courses, with XP, levels, streaks, and badges
-- 🐍 **In-browser Python editor** — runs real code client-side (Pyodide in a Web Worker), with an infinite-loop guard
-- 🤖 **AI Coach** — a conversational tutor in Romanian, powered by Anthropic Claude
-- ❓ **AI-generated adaptive quizzes** — on-topic questions with explanations, cached per lesson
-- 🔐 **Auth & security** — email + Google OAuth (Supabase), with Row-Level Security
-- 📜 Certificates, auto-generated portfolio, leaderboard, glossary, and flashcards
+-  **"Serpentine" progress map** — 131 lessons across 6 courses, with XP, levels, streaks, and badges
+-  **In-browser Python editor** — runs real code client-side (Pyodide in a Web Worker), with an infinite-loop guard
+-  **AI Coach** — a conversational tutor in Romanian, powered by Anthropic Claude
+- **AI-generated adaptive quizzes** — on-topic questions with explanations, cached per lesson
+-  **Auth & security** — email + Google OAuth (Supabase), with Row-Level Security
+-  Certificates, auto-generated portfolio, leaderboard, glossary, and flashcards
 
 ## Tech stack
 
