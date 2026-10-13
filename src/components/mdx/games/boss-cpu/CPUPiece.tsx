@@ -10,7 +10,7 @@ import {
 import { motion, useReducedMotion } from "framer-motion";
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { CPUComponent, CPUComponentId, IconKind } from "./cpu-types";
+import { readableOnDark, type CPUComponent, type CPUComponentId, type IconKind } from "./cpu-types";
 
 // ─── Icon ────────────────────────────────────────────────────────────────
 
@@ -21,13 +21,14 @@ import type { CPUComponent, CPUComponentId, IconKind } from "./cpu-types";
  */
 export function CPUIcon({
   kind,
-  color,
+  color: accent,
   size = 28,
 }: {
   kind: IconKind;
   color: string;
   size?: number;
 }) {
+  const color = readableOnDark(accent);
   const strokeProps = {
     stroke: color,
     strokeWidth: 1.4,
@@ -354,7 +355,7 @@ export default function CPUPiece({
         <div className="flex items-start justify-between gap-2">
           <span
             className="font-mono text-2xl font-bold leading-none tracking-tight"
-            style={{ color: component.color }}
+            style={{ color: readableOnDark(component.color) }}
           >
             {component.label}
           </span>
@@ -368,14 +369,14 @@ export default function CPUPiece({
         </div>
 
         {/* Full name */}
-        <span className="mt-1 font-mono text-[9px] uppercase leading-tight tracking-[0.12em] text-white/50">
+        <span className="mt-1 font-mono text-[9px] uppercase leading-tight tracking-[0.12em] text-white/60">
           {component.fullName}
         </span>
 
         {/* Fact */}
         <span
           className="mt-auto font-mono text-[9px] leading-tight"
-          style={{ color: `${component.color}dd` }}
+          style={{ color: readableOnDark(component.color) }}
         >
           {component.facts[0]}
         </span>

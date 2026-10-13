@@ -7,6 +7,7 @@ import {
   validateFillBlankMarkers,
 } from "@/lib/fill-blank-parser";
 import type { FillBlankContent, InlineUserAnswer } from "@/types";
+import { RichText } from "@/components/interactive/rich-text";
 
 interface FillBlankInputProps {
   content: FillBlankContent;
@@ -64,7 +65,7 @@ export function FillBlankInput({
     <p className="text-sm leading-[2.2] text-foreground">
       {segments.map((seg, i) => {
         if (seg.kind === "text") {
-          return seg.text ? <span key={i}>{seg.text}</span> : null;
+          return seg.text ? <span key={i}><RichText text={seg.text} /></span> : null;
         }
         const accepted = content.blanks[seg.index]?.accepted ?? [];
         const display = locked ? accepted[0] ?? "" : values[seg.index] ?? "";

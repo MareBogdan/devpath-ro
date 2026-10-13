@@ -333,7 +333,7 @@ function StatusIndicator({
     GamePhase,
     { label: string; color: string; blink: boolean }
   > = {
-    intro: { label: "STANDBY", color: "#6C5CE7", blink: false },
+    intro: { label: "STANDBY", color: "#8B7FF0", blink: false },
     "wave-active": {
       label: "BREACH ATTEMPT ACTIVE",
       color: "#FF6B6B",
@@ -687,7 +687,6 @@ function TruthRow({
     <div
       className={cn(
         "grid grid-cols-[1fr_1fr_1fr_1.3fr] items-center gap-1 rounded px-2 py-1.5 font-mono text-xs transition-all duration-300",
-        row.discovered ? "opacity-100" : "opacity-45",
         isCurrent && "ring-1 ring-[#00CEC9]/45 bg-[#00CEC9]/[0.05]",
         isWinning &&
           "border border-[#FDCB6E]/55 bg-[#FDCB6E]/[0.08] boss-winning-pulse"
@@ -700,7 +699,7 @@ function TruthRow({
               key={i}
               className={cn(
                 "text-center font-bold tabular-nums",
-                v === 1 ? "text-[#00FF94]" : "text-[#FF6B6B]/70"
+                v === 1 ? "text-[#00FF94]" : "text-[#FF6B6B]"
               )}
             >
               {v}
@@ -712,7 +711,7 @@ function TruthRow({
             transition={{ duration: 0.3 }}
             className={cn(
               "text-center font-bold tabular-nums",
-              row.output === 1 ? "text-[#FDCB6E]" : "text-white/35"
+              row.output === 1 ? "text-[#FDCB6E]" : "text-white/60"
             )}
           >
             {row.output}
@@ -721,7 +720,7 @@ function TruthRow({
       ) : (
         <>
           {[0, 1, 2, 3].map((i) => (
-            <span key={i} className="text-center text-white/25">
+            <span key={i} className="text-center font-bold text-[#9aa0b0]">
               ?
             </span>
           ))}
@@ -841,7 +840,7 @@ export function BossFightAlarmaSef({ onComplete }: GameCompletionProps = {}) {
 
       <div
         className={cn(
-          "relative border-y bg-[#080810] text-foreground transition-colors duration-500",
+          "relative border-y bg-[#080810] text-[#e6e8ef] transition-colors duration-500",
           finalHpFlash
             ? "border-[#FDCB6E]/70"
             : lowHp
@@ -878,14 +877,14 @@ export function BossFightAlarmaSef({ onComplete }: GameCompletionProps = {}) {
 
         {/* Top bar */}
         <div className="relative z-10 flex items-center justify-between gap-4 border-b border-[#FF6B6B]/15 bg-gradient-to-r from-[#FF6B6B]/[0.05] via-transparent to-[#6C5CE7]/[0.05] px-5 py-2.5">
-          <span className="font-mono text-[10px] tracking-[0.18em] text-[#6C5CE7]/75">
+          <span className="font-mono text-[10px] tracking-[0.18em] text-[#8B7FF0]">
             VAULT_SEC_SYS // LEVEL_3_CLEARANCE
           </span>
           {showWaveCounter && (
             <span className="font-mono text-[10px] font-bold tracking-[0.2em] text-white/85">
               WAVE{" "}
               <span className="text-white">{state.currentWave}</span>
-              <span className="text-white/40">/3</span>
+              <span className="text-white/60">/3</span>
             </span>
           )}
           <StatusIndicator phase={state.phase} reduced={reduced} />
@@ -969,7 +968,7 @@ export function BossFightAlarmaSef({ onComplete }: GameCompletionProps = {}) {
                   Sistemul de securitate folosește 3 straturi de porți logice.
                   Fiecare strat e mai complex decât precedentul. Găsește
                   combinația care deschide seiful.{" "}
-                  <span className="text-[#FF6B6B]/85">3 minute pe ceas.</span>
+                  <span className="text-[#FF6B6B]">3 minute pe ceas.</span>
                 </motion.p>
 
                 <motion.button
@@ -1002,7 +1001,7 @@ export function BossFightAlarmaSef({ onComplete }: GameCompletionProps = {}) {
                 {/* Status row + HP */}
                 <div className="mb-5">
                   <div className="mb-2 flex items-center justify-between gap-3 font-mono text-[10px] uppercase tracking-[0.18em]">
-                    <span className="text-[#00CEC9]/75">
+                    <span className="text-[#00CEC9]">
                       SECURITATE:{" "}
                       <span className="font-bold tabular-nums text-[#00CEC9]">
                         {state.hp}
@@ -1114,15 +1113,15 @@ export function BossFightAlarmaSef({ onComplete }: GameCompletionProps = {}) {
 
                   <div className="rounded border border-[#6C5CE7]/20 bg-[#0a0a14] p-4">
                     <div className="mb-3 flex items-center justify-between">
-                      <h3 className="font-mono text-[10px] uppercase tracking-[0.22em] text-[#6C5CE7]/75">
+                      <h3 className="font-mono text-[10px] uppercase tracking-[0.22em] text-[#8B7FF0]">
                         TABEL DE ADEVĂR
                       </h3>
-                      <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-white/45">
+                      <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-white/60">
                         {currentCircuit.id}
                       </span>
                     </div>
 
-                    <div className="mb-2 grid grid-cols-[1fr_1fr_1fr_1.3fr] gap-1 border-b border-white/10 pb-2 font-mono text-[10px] font-bold uppercase tracking-wider text-white/55">
+                    <div className="mb-2 grid grid-cols-[1fr_1fr_1fr_1.3fr] gap-1 border-b border-white/10 pb-2 font-mono text-[10px] font-bold uppercase tracking-wider text-white/60">
                       <span className="text-center">A</span>
                       <span className="text-center">B</span>
                       <span className="text-center">C</span>
@@ -1140,13 +1139,13 @@ export function BossFightAlarmaSef({ onComplete }: GameCompletionProps = {}) {
                       ))}
                     </div>
 
-                    <div className="mt-3 border-t border-white/10 pt-2 font-mono text-[10px] text-white/55">
+                    <div className="mt-3 border-t border-white/10 pt-2 font-mono text-[10px] text-white/60">
                       <span className="font-bold text-[#00CEC9]">
                         {discoveredCount}
                       </span>
                       <span>/8 combinații descoperite</span>
                       {state.wrongAttemptsThisWave > 0 && (
-                        <span className="ml-3 text-[#FF6B6B]/70">
+                        <span className="ml-3 text-[#FF6B6B]">
                           · {state.wrongAttemptsThisWave} ratate
                         </span>
                       )}
@@ -1156,10 +1155,10 @@ export function BossFightAlarmaSef({ onComplete }: GameCompletionProps = {}) {
 
                 {/* Bottom row */}
                 <div className="mt-5 flex items-center justify-between gap-3 font-mono text-[10px]">
-                  <span className="italic text-white/55">
+                  <span className="italic text-white/60">
                     {WAVE_FLAVOR[waveIdx]}
                   </span>
-                  <span className="shrink-0 uppercase tracking-[0.18em] text-white/40">
+                  <span className="shrink-0 uppercase tracking-[0.18em] text-white/60">
                     ATTEMPTS:{" "}
                     <span className="text-white tabular-nums">
                       {state.attemptCount}
@@ -1275,7 +1274,7 @@ export function BossFightAlarmaSef({ onComplete }: GameCompletionProps = {}) {
                           )}
                         </motion.div>
 
-                        <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.28em] text-white/55">
+                        <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.28em] text-white/60">
                           LAYER {state.currentWave} BREACHED
                         </p>
 
@@ -1303,7 +1302,7 @@ export function BossFightAlarmaSef({ onComplete }: GameCompletionProps = {}) {
                             }
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.5 }}
-                            className="mt-3 font-mono text-xs text-white/55"
+                            className="mt-3 font-mono text-xs text-white/60"
                           >
                             Combinația câștigătoare:{" "}
                             <span className="ml-1 text-[#00FF94]">
@@ -1421,7 +1420,7 @@ export function BossFightAlarmaSef({ onComplete }: GameCompletionProps = {}) {
                   />
                 </svg>
 
-                <p className="relative mt-4 font-mono text-[11px] uppercase tracking-[0.18em] text-white/45">
+                <p className="relative mt-4 font-mono text-[11px] uppercase tracking-[0.18em] text-white/60">
                   Straturi sparte:{" "}
                   <span className="text-white">
                     {state.waveSolvedFlags.filter(Boolean).length}
@@ -1537,7 +1536,7 @@ export function BossFightAlarmaSef({ onComplete }: GameCompletionProps = {}) {
                             },
                             {
                               label: `+${firstSolveBonusScore} FIRST-SOLVE`,
-                              color: "#6C5CE7",
+                              color: "#8B7FF0",
                               show: firstSolveBonusScore > 0,
                             },
                             {

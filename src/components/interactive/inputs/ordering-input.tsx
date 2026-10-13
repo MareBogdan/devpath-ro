@@ -5,6 +5,7 @@ import { Reorder, useDragControls } from "framer-motion";
 import { GripVertical, ChevronUp, ChevronDown } from "lucide-react";
 import { seededShuffle } from "@/lib/seeded-shuffle";
 import type { InlineUserAnswer, OrderingContent } from "@/types";
+import { RichText, plainText } from "@/components/interactive/rich-text";
 
 interface OrderingInputProps {
   content: OrderingContent;
@@ -61,7 +62,7 @@ export function OrderingInput({
             className="flex items-center gap-2 rounded-lg border border-green-400 bg-green-50 px-3 py-2 text-sm text-green-800 dark:bg-green-950/30 dark:text-green-300 dark:border-green-700"
           >
             <span className="w-5 text-xs font-semibold opacity-70">{i + 1}.</span>
-            <span className="flex-1">{item}</span>
+            <span className="flex-1"><RichText text={item} /></span>
           </li>
         ))}
       </ol>
@@ -110,7 +111,7 @@ function OrderingItem({ item, index, total, disabled, onMove }: OrderingItemProp
     >
       <button
         type="button"
-        aria-label={`Trage pentru a reordona „${item}”`}
+        aria-label={`Trage pentru a reordona „${plainText(item)}”`}
         disabled={disabled}
         onPointerDown={(e) => {
           if (!disabled) controls.start(e);
@@ -120,13 +121,13 @@ function OrderingItem({ item, index, total, disabled, onMove }: OrderingItemProp
         <GripVertical className="h-4 w-4" />
       </button>
 
-      <span className="flex-1">{item}</span>
+      <span className="flex-1"><RichText text={item} /></span>
 
       {/* Keyboard/mobile-reliable reorder controls (Reorder has no keyboard support). */}
       <span className="flex flex-col">
         <button
           type="button"
-          aria-label={`Mută „${item}” mai sus`}
+          aria-label={`Mută „${plainText(item)}” mai sus`}
           disabled={disabled || index === 0}
           onClick={() => onMove(index, -1)}
           className="text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed"
@@ -135,7 +136,7 @@ function OrderingItem({ item, index, total, disabled, onMove }: OrderingItemProp
         </button>
         <button
           type="button"
-          aria-label={`Mută „${item}” mai jos`}
+          aria-label={`Mută „${plainText(item)}” mai jos`}
           disabled={disabled || index === total - 1}
           onClick={() => onMove(index, 1)}
           className="text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed"

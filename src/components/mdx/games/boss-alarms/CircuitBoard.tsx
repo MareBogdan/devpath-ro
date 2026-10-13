@@ -104,7 +104,7 @@ const LAYOUT_WAVE_3: CircuitLayout = {
     G1: { x: 250, y: 130 }, // NAND(A, B)
     G2: { x: 250, y: 240 }, // NOT(B)
     G3: { x: 420, y: 295 }, // NAND(C, G2)
-    G4: { x: 570, y: 200 }, // AND(G1, G3)
+    G4: { x: 570, y: 200 }, // NAND(G1, G3)
   },
   output: { x: 630, y: 200 },
   wires: [
@@ -117,7 +117,7 @@ const LAYOUT_WAVE_3: CircuitLayout = {
     { fromNodeId: "G2", d: "M 276 240 L 340 240 L 340 285 L 390 285" },
     { fromNodeId: "G1", d: "M 286 130 L 510 130 L 510 190 L 540 190" },
     { fromNodeId: "G3", d: "M 456 295 L 510 295 L 510 210 L 540 210" },
-    { fromNodeId: "G4", d: "M 600 200 L 630 200" },
+    { fromNodeId: "G4", d: "M 606 200 L 630 200" },
   ],
   junctions: [{ x: 170, y: 210, fromNodeId: "B" }],
 };
@@ -293,7 +293,7 @@ function InputNode({
         fontSize="13"
         fontFamily="ui-monospace, monospace"
         fontWeight={700}
-        fill={isOn ? "#00ff88" : "#5a5e6e"}
+        fill={isOn ? "#00ff88" : "#9aa0b0"}
         textAnchor="start"
         style={{ transition: "fill 300ms ease" }}
       >
@@ -308,7 +308,7 @@ function InputNode({
           fontSize="12"
           fontFamily="ui-monospace, monospace"
           fontWeight={500}
-          fill="#7a7d8a"
+          fill="#9aa0b0"
           textAnchor="middle"
           letterSpacing={0.4}
         >
@@ -416,7 +416,7 @@ function OutputNode({
         fontSize="12"
         fontFamily="ui-monospace, monospace"
         fontWeight={700}
-        fill="#7a7d8a"
+        fill="#9aa0b0"
         textAnchor="middle"
         letterSpacing={1.4}
       >

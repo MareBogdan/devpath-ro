@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { X } from "lucide-react";
 import { seededShuffle } from "@/lib/seeded-shuffle";
 import type { InlineUserAnswer, MatchPairsContent } from "@/types";
+import { RichText, plainText } from "@/components/interactive/rich-text";
 
 interface MatchPairsInputProps {
   content: MatchPairsContent;
@@ -49,7 +50,7 @@ export function MatchPairsInput({
   function pickLeft(left: string) {
     if (disabled) return;
     setSelectedLeft(left);
-    setAnnounce(`Ai selectat „${left}”. Alege perechea din coloana dreaptă.`);
+    setAnnounce(`Ai selectat „${plainText(left)}”. Alege perechea din coloana dreaptă.`);
   }
 
   function pickRight(right: string) {
@@ -61,7 +62,7 @@ export function MatchPairsInput({
     }
     next[selectedLeft] = right;
     setAssign(next);
-    setAnnounce(`Ai legat „${selectedLeft}” cu „${right}”.`);
+    setAnnounce(`Ai legat „${plainText(selectedLeft)}” cu „${plainText(right)}”.`);
     setSelectedLeft(null);
     emit(next);
   }
@@ -71,7 +72,7 @@ export function MatchPairsInput({
     const next = { ...assign };
     delete next[left];
     setAssign(next);
-    setAnnounce(`Ai șters perechea pentru „${left}”.`);
+    setAnnounce(`Ai șters perechea pentru „${plainText(left)}”.`);
     emit(next);
   }
 
@@ -85,9 +86,9 @@ export function MatchPairsInput({
             key={p.left}
             className="flex items-center gap-2 rounded-lg border border-green-400 bg-green-50 px-3 py-2 text-sm text-green-800 dark:bg-green-950/30 dark:text-green-300 dark:border-green-700"
           >
-            <span className="font-medium">{p.left}</span>
+            <span className="font-medium"><RichText text={p.left} /></span>
             <span className="opacity-60">→</span>
-            <span>{p.right}</span>
+            <span><RichText text={p.right} /></span>
           </li>
         ))}
       </ul>
@@ -120,7 +121,7 @@ export function MatchPairsInput({
                       : "border-border bg-background hover:bg-muted/50 text-foreground")
                   }
                 >
-                  {left}
+                  <RichText text={left} />
                 </button>
                 {paired && (
                   <div className="flex items-center gap-1 pl-2 text-xs text-muted-foreground">
@@ -128,7 +129,7 @@ export function MatchPairsInput({
                     <span className="truncate">{paired}</span>
                     <button
                       type="button"
-                      aria-label={`Șterge perechea pentru „${left}”`}
+                      aria-label={`Șterge perechea pentru „${plainText(left)}”`}
                       disabled={disabled}
                       onClick={() => clearLeft(left)}
                       className="ml-1 text-muted-foreground hover:text-red-500 disabled:cursor-not-allowed"
@@ -161,7 +162,7 @@ export function MatchPairsInput({
                     : "border-border bg-background text-foreground")
                 }
               >
-                {right}
+                <RichText text={right} />
               </button>
             );
           })}

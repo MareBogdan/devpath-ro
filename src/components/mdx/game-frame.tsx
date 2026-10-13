@@ -59,7 +59,7 @@ export function FullscreenToggle({
       type="button"
       onClick={onToggle}
       aria-label={isFullscreen ? "Ieși din fullscreen" : "Intră în fullscreen"}
-      className={cn("text-[#7a7d8a] transition-colors hover:text-white", className)}
+      className={cn("text-[#9aa0b0] transition-colors hover:text-white", className)}
     >
       <Icon className="h-4 w-4" aria-hidden />
       {label ? <span className="ml-1.5 text-xs">{label}</span> : null}
@@ -112,7 +112,7 @@ export function FullscreenHint({
             "font-mono text-xs transition-colors",
             tone === "page"
               ? "text-muted-foreground hover:text-foreground"
-              : "text-[#5a5e6e] hover:text-[#b0b4c0]"
+              : "text-[#9aa0b0] hover:text-[#b0b4c0]"
           )}
         >
           ✕
@@ -154,6 +154,10 @@ export function GameFrame({
         data-game-frame
         data-fullscreen={fs.isFullscreen ? "true" : undefined}
         className={cn(
+          // Games draw their own text colours: opt out of the lesson's `.prose` typography
+          // (prose-p/li/strong/… colours would otherwise override them, and in light theme
+          // turn white-on-dark game text into dark-on-dark).
+          "not-prose",
           fs.isFullscreen
             ? cn(
                 "h-[100dvh] w-screen overflow-y-auto overflow-x-hidden bg-[#06060c] pt-0",
@@ -162,8 +166,11 @@ export function GameFrame({
                 chrome === "game" ? "px-0 pb-0" : "px-2 pb-6 sm:px-4",
                 fs.isOverlay && "fixed inset-0 z-[9999] m-0 border-0"
               )
-            : // Break out of the 680px prose column: centred on it, up to 1200px wide.
-              "relative left-1/2 w-[min(calc(100vw-1rem),1200px)] -translate-x-1/2"
+            : // Break out of the 680px prose column: centred on it, up to 1200px wide —
+              // but at >=1360px the lesson shows circuit rails in the side margins
+              // (lesson-content.tsx: 160px wide, 170px clear of the column), so there the
+              // game stops 10px short of them (680 + 2*160 = 1000px).
+              "relative left-1/2 w-[min(calc(100vw-1rem),1200px)] -translate-x-1/2 min-[1360px]:w-[1000px]"
         )}
       >
         {chrome === "frame" &&

@@ -370,7 +370,7 @@ function ClockCounter({ reduced }: { reduced: boolean }) {
     return () => clearInterval(id);
   }, [reduced]);
   return (
-    <span className="font-mono text-[10px] tracking-[0.18em] text-[#00CEC9]/75">
+    <span className="font-mono text-[10px] tracking-[0.18em] text-[#00CEC9]">
       CLOCK: {hz.toFixed(2)} GHz
     </span>
   );
@@ -408,7 +408,7 @@ function StrikeChips({
 }) {
   return (
     <div className="flex items-center gap-2">
-      <span className="font-mono text-[10px] tracking-[0.18em] text-white/40">
+      <span className="font-mono text-[10px] tracking-[0.18em] text-white/60">
         ECC_FAULTS
       </span>
       <div className="flex items-center gap-1.5">
@@ -421,7 +421,7 @@ function StrikeChips({
                   "h-5 w-5 transition-colors duration-200",
                   used
                     ? "text-[#FF6B6B]"
-                    : "text-[#00CEC9]/70"
+                    : "text-[#00CEC9]"
                 )}
                 aria-label={used ? "Defect" : "Operațional"}
               />
@@ -473,7 +473,7 @@ function InstructionLine({
           "border-[#6C5CE7] bg-[#6C5CE7]/[0.12] shadow-[0_0_14px_rgba(108,92,231,0.35)] ram-instr-pulse",
         isCompleted &&
           "border-[#00FF94]/30 bg-[#00FF94]/[0.04] text-[#00FF94]/85",
-        isPending && "border-white/[0.08] bg-transparent text-white/30"
+        isPending && "border-white/[0.08] bg-transparent text-white/60"
       )}
     >
       <div className="flex items-center gap-2">
@@ -481,11 +481,11 @@ function InstructionLine({
           <Check className="h-3.5 w-3.5 shrink-0 text-[#00FF94]" aria-hidden />
         ) : isCurrent ? (
           <ChevronRight
-            className="h-3.5 w-3.5 shrink-0 animate-pulse text-[#6C5CE7]"
+            className="h-3.5 w-3.5 shrink-0 animate-pulse text-[#8B7FF0]"
             aria-hidden
           />
         ) : (
-          <span className="w-3.5 text-center text-[10px] text-white/30">
+          <span className="w-3.5 text-center text-[10px] text-white/60">
             {index + 1}
           </span>
         )}
@@ -495,16 +495,16 @@ function InstructionLine({
             instr.kind === "write"
               ? isCurrent || isCompleted
                 ? "text-[#00CEC9]"
-                : "text-[#00CEC9]/40"
+                : "text-[#00CEC9]"
               : isCurrent || isCompleted
-              ? "text-[#6C5CE7]"
-              : "text-[#6C5CE7]/40"
+              ? "text-[#8B7FF0]"
+              : "text-[#8B7FF0]"
           )}
         >
           {instr.kind === "write" ? "WRITE" : "READ "}
         </span>
         <span className="text-white/70">{addr}</span>
-        <span className="text-white/40">→</span>
+        <span className="text-white/60">→</span>
         <span
           className={cn(
             "tabular-nums",
@@ -512,7 +512,7 @@ function InstructionLine({
               ? "text-[#00FF94]"
               : isCurrent
               ? "text-white"
-              : "text-white/40"
+              : "text-white/60"
           )}
         >
           {valueText}
@@ -531,7 +531,7 @@ function OutputRegister({
 }) {
   return (
     <div className="border border-[#6C5CE7]/25 bg-[#0a0a14] px-4 py-3">
-      <div className="mb-1 flex items-center justify-between font-mono text-[9px] uppercase tracking-[0.22em] text-[#6C5CE7]/65">
+      <div className="mb-1 flex items-center justify-between font-mono text-[9px] uppercase tracking-[0.22em] text-[#8B7FF0]">
         <span className="flex items-center gap-1.5">
           <Zap className="h-3 w-3" aria-hidden />
           REG_OUT
@@ -573,7 +573,7 @@ function OutputRegister({
                       : ch === "0" || ch === "1"
                       ? "text-[#00CEC9]"
                       : ch === "(" || ch === ")" || ch === "@"
-                      ? "text-white/40"
+                      ? "text-white/60"
                       : "text-[#FDCB6E]"
                   )}
                   style={{ display: "inline-block" }}
@@ -583,7 +583,7 @@ function OutputRegister({
               ))}
             </motion.div>
           ) : (
-            <div className="font-mono text-base text-white/25 tabular-nums">
+            <div className="font-mono text-base text-white/60 tabular-nums">
               -------- (0x--) @ 0x--
             </div>
           )}
@@ -660,14 +660,14 @@ function MemoryCell({
         <span
           className={cn(
             "font-mono text-[9px] leading-none tracking-wider transition-opacity duration-500",
-            filled ? "text-[#00CEC9]/80" : "text-white/30",
+            filled ? "text-[#00CEC9]" : "text-white/60",
             showAddress ? "opacity-100" : "opacity-0"
           )}
         >
           {formatHexAddr(address)}
         </span>
         {filled && (
-          <span className="font-mono text-[9px] leading-none text-white/30">
+          <span className="font-mono text-[9px] leading-none text-white/60">
             ●
           </span>
         )}
@@ -701,14 +701,14 @@ function MemoryCell({
             <span
               className={cn(
                 "font-mono text-[10px] font-bold tracking-tight tabular-nums transition-colors duration-200",
-                isReading ? "text-[#a89bf5]" : "text-[#00CEC9]/90"
+                isReading ? "text-[#a89bf5]" : "text-[#00CEC9]"
               )}
             >
               {formatBinary(value)}
             </span>
           )
         ) : (
-          <span className="font-mono text-[10px] tracking-widest text-white/15">
+          <span className="font-mono text-[10px] tracking-widest text-white/60">
             --------
           </span>
         )}
@@ -719,7 +719,7 @@ function MemoryCell({
         <span
           className={cn(
             "font-mono text-[9px] leading-none tabular-nums",
-            filled ? "text-[#FDCB6E]/85" : "text-white/15"
+            filled ? "text-[#FDCB6E]/85" : "text-white/60"
           )}
         >
           {filled ? formatHexValue(value) : "0x--"}
@@ -778,7 +778,7 @@ function StarsRow({ count }: { count: number }) {
                 "h-9 w-9",
                 filled
                   ? "fill-[#FDCB6E] text-[#FDCB6E] drop-shadow-[0_0_12px_rgba(253,203,110,0.55)]"
-                  : "text-white/15"
+                  : "text-white/60"
               )}
             />
           </motion.span>
@@ -871,7 +871,7 @@ export function RAMGridGame({ onComplete }: GameCompletionProps) {
 
         {/* Top header */}
         <div className="relative z-10 flex items-center justify-between gap-4 border-b border-[#00CEC9]/15 bg-gradient-to-r from-[#00CEC9]/[0.04] via-transparent to-[#6C5CE7]/[0.05] px-5 py-2.5">
-          <span className="font-mono text-[10px] tracking-[0.18em] text-[#00CEC9]/70">
+          <span className="font-mono text-[10px] tracking-[0.18em] text-[#00CEC9]">
             MEM_UNIT_01 // 16-CELL DRAM
           </span>
           <ClockCounter reduced={reduced} />
@@ -892,7 +892,7 @@ export function RAMGridGame({ onComplete }: GameCompletionProps) {
                 <span className="mb-5 flex h-16 w-16 items-center justify-center rounded-md border border-[#00CEC9]/40 bg-[#00CEC9]/[0.08] text-[#00CEC9]">
                   <Layers className="h-7 w-7" aria-hidden />
                 </span>
-                <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-[#00CEC9]/70">
+                <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-[#00CEC9]">
                   Memory simulator
                 </p>
                 <h3 className="mb-3 mt-1 text-3xl font-bold text-white">
@@ -901,7 +901,7 @@ export function RAMGridGame({ onComplete }: GameCompletionProps) {
                 <p className="mb-6 max-w-md text-sm text-white/65">
                   Tu ești CPU-ul. Procesorul îți dă instrucțiuni{" "}
                   <span className="font-mono text-[#00CEC9]">WRITE</span> și{" "}
-                  <span className="font-mono text-[#6C5CE7]">READ</span> peste o
+                  <span className="font-mono text-[#8B7FF0]">READ</span> peste o
                   matrice de 16 adrese. Execută-le în ordine. 3 greșeli =
                   runda picată.
                 </p>
@@ -912,9 +912,9 @@ export function RAMGridGame({ onComplete }: GameCompletionProps) {
                       key={name}
                       className="border border-white/10 bg-white/[0.02] p-2 text-left"
                     >
-                      <p className="text-[#6C5CE7]/70">RND_{i + 1}</p>
+                      <p className="text-[#8B7FF0]">RND_{i + 1}</p>
                       <p className="mt-0.5 text-white/80">{name}</p>
-                      <p className="mt-1 text-[9px] text-white/40 leading-snug">
+                      <p className="mt-1 text-[9px] text-white/60 leading-snug">
                         {ROUND_FLAVOR[i]}
                       </p>
                     </div>
@@ -943,7 +943,7 @@ export function RAMGridGame({ onComplete }: GameCompletionProps) {
                 {/* Round header + strikes */}
                 <div className="mb-4 flex items-center justify-between gap-4">
                   <div>
-                    <p className="font-mono text-[9px] uppercase tracking-[0.22em] text-[#6C5CE7]/65">
+                    <p className="font-mono text-[9px] uppercase tracking-[0.22em] text-[#8B7FF0]">
                       Runda {state.roundIndex + 1} / {TOTAL_ROUNDS}
                     </p>
                     <p className="font-mono text-sm font-bold uppercase tracking-wider text-white/85">
@@ -1011,9 +1011,9 @@ export function RAMGridGame({ onComplete }: GameCompletionProps) {
                     </div>
 
                     {/* Grid footer — coordinate axis */}
-                    <div className="mt-3 flex w-full max-w-[334px] items-center justify-between font-mono text-[9px] uppercase tracking-[0.18em] text-[#6C5CE7]/45">
+                    <div className="mt-3 flex w-full max-w-[334px] items-center justify-between font-mono text-[9px] uppercase tracking-[0.18em] text-[#8B7FF0]">
                       <span>0x00</span>
-                      <span className="text-[#6C5CE7]/60">
+                      <span className="text-[#8B7FF0]">
                         DRAM_BANK_A
                       </span>
                       <span>0x0F</span>
@@ -1023,7 +1023,7 @@ export function RAMGridGame({ onComplete }: GameCompletionProps) {
                   {/* Instructions */}
                   <div className="flex flex-col gap-3">
                     <div className="border border-[#6C5CE7]/25 bg-[#0a0a14] p-3">
-                      <div className="mb-2 flex items-center justify-between font-mono text-[9px] uppercase tracking-[0.22em] text-[#6C5CE7]/65">
+                      <div className="mb-2 flex items-center justify-between font-mono text-[9px] uppercase tracking-[0.22em] text-[#8B7FF0]">
                         <span>CPU_QUEUE</span>
                         <span>
                           {state.currentInstructionIdx} /{" "}
@@ -1056,7 +1056,7 @@ export function RAMGridGame({ onComplete }: GameCompletionProps) {
                     </div>
 
                     {/* Hint card */}
-                    <div className="border border-white/[0.08] bg-white/[0.02] p-3 font-mono text-[10px] text-white/55 leading-relaxed">
+                    <div className="border border-white/[0.08] bg-white/[0.02] p-3 font-mono text-[10px] text-white/60 leading-relaxed">
                       {currentInstr?.kind === "write" ? (
                         <>
                           <span className="text-[#00CEC9]">{"// WRITE"}</span> —
@@ -1064,7 +1064,7 @@ export function RAMGridGame({ onComplete }: GameCompletionProps) {
                         </>
                       ) : currentInstr?.kind === "read" ? (
                         <>
-                          <span className="text-[#6C5CE7]">{"// READ"}</span> —
+                          <span className="text-[#8B7FF0]">{"// READ"}</span> —
                           găsește celula de la adresa{" "}
                           <span className="text-white">
                             {formatHexAddr(currentInstr.address)}
@@ -1109,7 +1109,7 @@ export function RAMGridGame({ onComplete }: GameCompletionProps) {
 
                 <div className="mb-6 grid w-full max-w-md grid-cols-3 gap-2 font-mono text-[11px]">
                   <div className="border border-white/10 bg-white/[0.02] p-3">
-                    <p className="text-[10px] uppercase tracking-wider text-white/40">
+                    <p className="text-[10px] uppercase tracking-wider text-white/60">
                       Acuratețe
                     </p>
                     <p className="mt-1 text-lg font-bold tabular-nums text-[#00CEC9]">
@@ -1117,7 +1117,7 @@ export function RAMGridGame({ onComplete }: GameCompletionProps) {
                     </p>
                   </div>
                   <div className="border border-white/10 bg-white/[0.02] p-3">
-                    <p className="text-[10px] uppercase tracking-wider text-white/40">
+                    <p className="text-[10px] uppercase tracking-wider text-white/60">
                       Scor total
                     </p>
                     <p className="mt-1 text-lg font-bold tabular-nums text-[#FDCB6E]">
@@ -1125,7 +1125,7 @@ export function RAMGridGame({ onComplete }: GameCompletionProps) {
                     </p>
                   </div>
                   <div className="border border-white/10 bg-white/[0.02] p-3">
-                    <p className="text-[10px] uppercase tracking-wider text-white/40">
+                    <p className="text-[10px] uppercase tracking-wider text-white/60">
                       ECC_faults
                     </p>
                     <p className="mt-1 text-lg font-bold tabular-nums text-[#FF6B6B]">
@@ -1136,7 +1136,7 @@ export function RAMGridGame({ onComplete }: GameCompletionProps) {
 
                 {state.roundIndex < TOTAL_ROUNDS - 1 && (
                   <div className="mb-5 max-w-md border border-[#6C5CE7]/30 bg-[#6C5CE7]/[0.05] p-3 text-left font-mono text-[11px] text-white/70">
-                    <p className="mb-1 text-[#6C5CE7]/75 uppercase tracking-wider text-[9px]">
+                    <p className="mb-1 text-[#8B7FF0] uppercase tracking-wider text-[9px]">
                       Next: {ROUND_NAMES[state.roundIndex + 1]}
                     </p>
                     <p>{ROUND_FLAVOR[state.roundIndex + 1]}</p>
@@ -1268,7 +1268,7 @@ export function RAMGridGame({ onComplete }: GameCompletionProps) {
                   <span className="text-6xl font-bold tabular-nums text-[#FDCB6E] drop-shadow-[0_0_18px_rgba(253,203,110,0.5)]">
                     {state.totalScore}
                   </span>
-                  <span className="text-lg text-white/55">puncte</span>
+                  <span className="text-lg text-white/60">puncte</span>
                 </div>
 
                 <motion.div

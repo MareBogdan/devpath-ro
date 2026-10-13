@@ -33,6 +33,7 @@ import { FillBlankInput } from "@/components/interactive/inputs/fill-blank-input
 import { OrderingInput } from "@/components/interactive/inputs/ordering-input";
 import { MatchPairsInput } from "@/components/interactive/inputs/match-pairs-input";
 import type { InlineQuestion as InlineQuestionRow, InlineUserAnswer } from "@/types";
+import { RichText } from "@/components/interactive/rich-text";
 
 // The 6 locally-verifiable types (essay_ai handled separately in the dispatcher).
 type AnswerableQuestion = Exclude<InlineQuestionRow, { type: "essay_ai" }>;
@@ -144,7 +145,7 @@ function InlineQuestionInner({ q }: { q: AnswerableQuestion }) {
 
       {/* fill_blank renders its prompt inline (with the blanks); others show it here. */}
       {q.type !== "fill_blank" && (
-        <p className="mb-3 text-sm font-medium text-foreground">{q.content.prompt}</p>
+        <p className="mb-3 text-sm font-medium text-foreground"><RichText text={q.content.prompt} /></p>
       )}
 
       {renderInput()}
@@ -183,7 +184,7 @@ function InlineQuestionInner({ q }: { q: AnswerableQuestion }) {
 
       {revealed && (
         <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-          {q.content.explanation}
+          <RichText text={q.content.explanation} />
         </p>
       )}
 

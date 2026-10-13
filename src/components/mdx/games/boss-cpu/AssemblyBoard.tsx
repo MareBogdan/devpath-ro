@@ -21,6 +21,7 @@ import {
   type CPUComponentId,
   type Connection,
   type SlotId,
+  readableOnDark,
 } from "./cpu-types";
 
 // ─── Props ────────────────────────────────────────────────────────────────
@@ -361,7 +362,7 @@ export default function AssemblyBoard({
                 <EmptyHint
                   label={component.label}
                   color={
-                    showCorrectHint ? component.color : "#5a5e6e"
+                    showCorrectHint ? component.color : "#9aa0b0"
                   }
                   highlighted={showCorrectHint}
                 />
@@ -404,11 +405,11 @@ function PlacedGhost({
       <CPUIcon kind={icon} color={color} size={26} />
       <span
         className="font-mono text-sm font-bold leading-none"
-        style={{ color }}
+        style={{ color: readableOnDark(color) }}
       >
         {label}
       </span>
-      <span className="font-mono text-[9px] uppercase leading-tight tracking-wider text-white/45">
+      <span className="font-mono text-[9px] uppercase leading-tight tracking-wider text-white/60">
         {fullName}
       </span>
     </div>
@@ -429,15 +430,15 @@ function EmptyHint({
       <span
         className={cn(
           "font-mono text-[10px] uppercase tracking-[0.18em] transition-colors duration-200",
-          highlighted ? "font-bold" : "opacity-65"
+          highlighted && "font-bold"
         )}
-        style={{ color }}
+        style={{ color: readableOnDark(color) }}
       >
         ↓ Plasează
       </span>
       <span
         className="font-mono text-base font-bold leading-none transition-colors duration-200"
-        style={{ color, opacity: highlighted ? 1 : 0.6 }}
+        style={{ color: readableOnDark(color) }}
       >
         {label}
       </span>

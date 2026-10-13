@@ -555,7 +555,7 @@ function TimerBar({
         <span
           className={cn(
             "font-mono tabular-nums",
-            critical && "text-[#FF6B6B] font-semibold",
+            critical && "text-[#c42b2b] dark:text-[#FF6B6B] font-semibold",
             veryCritical && "bt-pulse-fast"
           )}
         >
@@ -618,7 +618,7 @@ function BitButton({
       <span
         className={cn(
           "mt-1 text-xs font-semibold leading-none sm:text-sm",
-          on ? "text-white/85" : "text-muted-foreground/70"
+          on ? "text-white" : "text-muted-foreground"
         )}
       >
         {weight}
@@ -703,7 +703,7 @@ function CorrectAnswerStrip({
               className={cn(
                 "flex h-7 w-7 items-center justify-center rounded-md border text-xs font-mono font-bold",
                 b
-                  ? "border-[#00CEC9] bg-[#00CEC9]/20 text-[#00CEC9]"
+                  ? "border-[#00CEC9] bg-[#00CEC9]/20 text-[#006e69] dark:text-[#00CEC9]"
                   : "border-border bg-muted/30 text-muted-foreground"
               )}
             >
@@ -725,9 +725,9 @@ function CorrectAnswerStrip({
                 className={cn(
                   "flex h-7 w-7 items-center justify-center rounded-md border text-xs font-mono font-bold",
                   wrong
-                    ? "border-[#FF6B6B] bg-[#FF6B6B]/15 text-[#FF6B6B]"
+                    ? "border-[#FF6B6B] bg-[#FF6B6B]/15 text-[#c42b2b] dark:text-[#FF6B6B]"
                     : b
-                    ? "border-[#00CEC9]/60 bg-[#00CEC9]/10 text-[#00CEC9]"
+                    ? "border-[#00CEC9]/60 bg-[#00CEC9]/10 text-[#006e69] dark:text-[#00CEC9]"
                     : "border-border bg-muted/30 text-muted-foreground"
                 )}
               >
@@ -910,7 +910,7 @@ export function BinaryTranslator({ onComplete }: GameCompletionProps = {}) {
         {/* Header */}
         <div className="relative z-10 flex items-center justify-between gap-3 border-b border-border/60 bg-gradient-to-r from-[#6C5CE7]/15 via-transparent to-[#00CEC9]/10 px-5 py-3">
           <div className="flex items-center gap-2.5">
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#6C5CE7]/15 text-[#6C5CE7]">
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#6C5CE7]/15 text-[#5a4bd1] dark:text-[#A29BFE]">
               <Zap className="h-4 w-4" aria-hidden />
             </span>
             <div className="leading-tight">
@@ -930,12 +930,12 @@ export function BinaryTranslator({ onComplete }: GameCompletionProps = {}) {
                   <p className="text-muted-foreground">Runda</p>
                   <p className="font-mono text-foreground">
                     <span className="font-semibold">{state.currentRound + 1}</span>
-                    <span className="opacity-50"> / {levelCfg.rounds}</span>
+                    <span className="text-muted-foreground"> / {levelCfg.rounds}</span>
                   </p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Scor</p>
-                  <p className="font-mono font-semibold text-[#FDCB6E]">
+                  <p className="font-mono font-semibold text-[#8a5a00] dark:text-[#FDCB6E]">
                     {state.totalScore}
                   </p>
                 </div>
@@ -984,7 +984,7 @@ export function BinaryTranslator({ onComplete }: GameCompletionProps = {}) {
                 {isFullscreen ? (
                   <div className="flex h-full w-full flex-col items-center justify-center gap-4">
                     <div className="flex flex-col items-center gap-1">
-                      <p className="text-[11px] uppercase tracking-[0.2em] text-[#6C5CE7]">
+                      <p className="text-[11px] uppercase tracking-[0.2em] text-[#5a4bd1] dark:text-[#A29BFE]">
                         Nivelul {state.currentLevel}
                       </p>
                       <h4 className="text-3xl font-bold text-foreground sm:text-4xl">
@@ -1009,7 +1009,7 @@ export function BinaryTranslator({ onComplete }: GameCompletionProps = {}) {
                         <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
                           Timp/rundă
                         </p>
-                        <p className="mt-0.5 font-mono text-xl font-bold text-[#00CEC9]">
+                        <p className="mt-0.5 font-mono text-xl font-bold text-[#006e69] dark:text-[#00CEC9]">
                           {Math.round(levelCfg.timerMs / 1000)}s
                         </p>
                       </div>
@@ -1034,7 +1034,7 @@ export function BinaryTranslator({ onComplete }: GameCompletionProps = {}) {
                         className="h-4 w-4 shrink-0 text-[#FF6B6B]"
                         aria-hidden
                       />
-                      <p className="truncate text-xs text-[#FF6B6B]">
+                      <p className="truncate text-xs text-[#c42b2b] dark:text-[#FF6B6B]">
                         {levelCfg.untoggleKills
                           ? "Bit pornit = game over instant"
                           : "Bit pornit = pierzi o viață"}
@@ -1053,7 +1053,7 @@ export function BinaryTranslator({ onComplete }: GameCompletionProps = {}) {
                 ) : (
                   <>
                     <div className="mb-2 flex items-center gap-2">
-                      <span className="rounded bg-[#6C5CE7]/15 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-[#6C5CE7]">
+                      <span className="rounded bg-[#6C5CE7]/15 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-[#5a4bd1] dark:text-[#A29BFE]">
                         Nivelul {state.currentLevel}
                       </span>
                       <span className="text-xl font-bold text-foreground">
@@ -1075,7 +1075,7 @@ export function BinaryTranslator({ onComplete }: GameCompletionProps = {}) {
                         </p>
                       </div>
                       <div className="rounded-lg border border-border/70 bg-muted/20 px-2 py-2 text-center">
-                        <p className="font-mono text-lg font-bold text-[#00CEC9]">
+                        <p className="font-mono text-lg font-bold text-[#006e69] dark:text-[#00CEC9]">
                           {Math.round(levelCfg.timerMs / 1000)}s
                         </p>
                         <p className="text-[9px] uppercase tracking-wider text-muted-foreground">
@@ -1103,7 +1103,7 @@ export function BinaryTranslator({ onComplete }: GameCompletionProps = {}) {
                         className="h-3.5 w-3.5 shrink-0 text-[#FF6B6B]"
                         aria-hidden
                       />
-                      <p className="truncate text-xs text-[#FF6B6B]">
+                      <p className="truncate text-xs text-[#c42b2b] dark:text-[#FF6B6B]">
                         {levelCfg.untoggleKills
                           ? "Bit pornit = game over instant"
                           : "Bit pornit = pierzi o viață"}
@@ -1176,7 +1176,7 @@ export function BinaryTranslator({ onComplete }: GameCompletionProps = {}) {
                     className="flex w-full max-w-md flex-col items-center gap-4"
                   >
                     {state.lastResult?.kind === "correct" ? (
-                      <div className="inline-flex items-center gap-2 rounded-xl bg-[#00CEC9]/15 px-5 py-2.5 text-sm font-semibold text-[#00CEC9]">
+                      <div className="inline-flex items-center gap-2 rounded-xl bg-[#00CEC9]/15 px-5 py-2.5 text-sm font-semibold text-[#006e69] dark:text-[#00CEC9]">
                         <Sparkles className="h-4 w-4" aria-hidden />
                         Corect! +{state.lastResult.pointsEarned} pct
                         {state.lastResult.pointsEarned === 15 && (
@@ -1187,7 +1187,7 @@ export function BinaryTranslator({ onComplete }: GameCompletionProps = {}) {
                       </div>
                     ) : (
                       <>
-                        <div className="inline-flex items-center gap-2 rounded-xl bg-[#FF6B6B]/15 px-5 py-2.5 text-sm font-semibold text-[#FF6B6B]">
+                        <div className="inline-flex items-center gap-2 rounded-xl bg-[#FF6B6B]/15 px-5 py-2.5 text-sm font-semibold text-[#c42b2b] dark:text-[#FF6B6B]">
                           {state.lastResult?.kind === "timeout"
                             ? "Timpul a expirat"
                             : "Greșit"}
@@ -1226,7 +1226,7 @@ export function BinaryTranslator({ onComplete }: GameCompletionProps = {}) {
                 >
                   <Award className="h-8 w-8" aria-hidden />
                 </motion.span>
-                <p className="text-[11px] uppercase tracking-[0.2em] text-[#00CEC9]">
+                <p className="text-[11px] uppercase tracking-[0.2em] text-[#006e69] dark:text-[#00CEC9]">
                   Nivel finalizat
                 </p>
                 <h4 className="mb-3 text-3xl font-bold text-foreground">
@@ -1242,7 +1242,7 @@ export function BinaryTranslator({ onComplete }: GameCompletionProps = {}) {
                     <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
                       Scor total
                     </p>
-                    <p className="mt-1 font-mono text-2xl font-bold text-[#FDCB6E]">
+                    <p className="mt-1 font-mono text-2xl font-bold text-[#8a5a00] dark:text-[#FDCB6E]">
                       {state.totalScore}
                     </p>
                   </div>
@@ -1250,7 +1250,7 @@ export function BinaryTranslator({ onComplete }: GameCompletionProps = {}) {
                     <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
                       Acuratețe
                     </p>
-                    <p className="mt-1 font-mono text-2xl font-bold text-[#00CEC9]">
+                    <p className="mt-1 font-mono text-2xl font-bold text-[#006e69] dark:text-[#00CEC9]">
                       {accuracy}%
                     </p>
                   </div>
@@ -1312,7 +1312,7 @@ export function BinaryTranslator({ onComplete }: GameCompletionProps = {}) {
                   <Skull className="h-10 w-10" aria-hidden />
                 </motion.span>
 
-                <p className="text-[11px] uppercase tracking-[0.22em] text-[#FF6B6B]">
+                <p className="text-[11px] uppercase tracking-[0.22em] text-[#c42b2b] dark:text-[#FF6B6B]">
                   Game Over
                 </p>
                 <h4 className="mb-2 text-3xl font-bold text-foreground">
@@ -1331,7 +1331,7 @@ export function BinaryTranslator({ onComplete }: GameCompletionProps = {}) {
                 </p>
 
                 <div className="mb-6 inline-flex items-baseline gap-2 font-mono">
-                  <span className="text-4xl font-bold text-[#FDCB6E]">
+                  <span className="text-4xl font-bold text-[#8a5a00] dark:text-[#FDCB6E]">
                     {state.totalScore}
                   </span>
                   <span className="text-sm text-muted-foreground">
@@ -1375,7 +1375,7 @@ export function BinaryTranslator({ onComplete }: GameCompletionProps = {}) {
                   <Trophy className="h-12 w-12 drop-shadow-md" aria-hidden />
                 </motion.span>
 
-                <p className="text-[11px] uppercase tracking-[0.24em] text-[#FDCB6E]">
+                <p className="text-[11px] uppercase tracking-[0.24em] text-[#8a5a00] dark:text-[#FDCB6E]">
                   Toate cele 3 niveluri
                 </p>
                 <h4 className="mb-2 text-4xl font-extrabold text-foreground">
@@ -1387,7 +1387,7 @@ export function BinaryTranslator({ onComplete }: GameCompletionProps = {}) {
                 </p>
 
                 <div className="mb-6 flex items-baseline gap-2 font-mono">
-                  <span className="text-6xl font-bold tabular-nums text-[#FDCB6E] drop-shadow-[0_0_20px_rgba(253,203,110,0.5)]">
+                  <span className="text-6xl font-bold tabular-nums text-[#8a5a00] dark:text-[#FDCB6E] drop-shadow-[0_0_20px_rgba(253,203,110,0.5)]">
                     {state.totalScore}
                   </span>
                   <span className="text-lg text-muted-foreground">puncte</span>
@@ -1397,7 +1397,7 @@ export function BinaryTranslator({ onComplete }: GameCompletionProps = {}) {
                   initial={reduced ? false : { y: 12, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
                   transition={{ delay: 0.5, duration: 0.4 }}
-                  className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#FDCB6E]/40 bg-[#FDCB6E]/10 px-4 py-1.5 text-xs font-semibold text-[#FDCB6E]"
+                  className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#FDCB6E]/40 bg-[#FDCB6E]/10 px-4 py-1.5 text-xs font-semibold text-[#8a5a00] dark:text-[#FDCB6E]"
                 >
                   <Award className="h-3.5 w-3.5" aria-hidden />
                   Badge: Traducător Binar

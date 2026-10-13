@@ -170,7 +170,11 @@ export const CIRCUIT_WAVE_2: CircuitDefinition = {
   outputGateId: "G3",
 };
 
-/** Wave 3 — NAND(A, B) AND NAND(C, NOT B) — 4 gates, NAND as universal. */
+/**
+ * Wave 3 — NAND(NAND(A, B), NAND(C, NOT B)) = (A·B) + (C·¬B) — 4 gates, NAND as
+ * universal (a multiplexer: B picks A or C). The top gate is a NAND, not an AND, so
+ * the all-zero start state (A=B=C=0) is NOT a solution — a wave never begins solved.
+ */
 export const CIRCUIT_WAVE_3: CircuitDefinition = {
   id: "wave-3",
   inputs: [
@@ -182,7 +186,7 @@ export const CIRCUIT_WAVE_3: CircuitDefinition = {
     { id: "G1", type: "NAND", inputIds: ["A", "B"] },
     { id: "G2", type: "NOT", inputIds: ["B"] },
     { id: "G3", type: "NAND", inputIds: ["C", "G2"] },
-    { id: "G4", type: "AND", inputIds: ["G1", "G3"] },
+    { id: "G4", type: "NAND", inputIds: ["G1", "G3"] },
   ],
   outputGateId: "G4",
 };

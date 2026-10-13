@@ -26,11 +26,11 @@ const V_PARTIAL = 1.5;
 // the current slider voltage and used as the AnimatePresence key so the
 // message swaps with a fade/slide transition when the player crosses a band.
 const ANALYSIS_MESSAGES: readonly string[] = [
-  "Joncțiunea B-E e blocată. Electronii nu pot trece. Tranzistorul = perete.",
-  "Tensiune sub prag. Curentul de bază e prea mic — tranzistorul rezistă.",
-  "Sub prag. Curentul de bază crește — joncțiunea simte tensiunea, dar nu cedează încă.",
-  "Prag atins! Un curent mic pe Bază controlează unul de 100× mai mare pe C→E.",
-  "Saturație completă. Tranzistorul e complet deschis — se comportă ca un fir.",
+  "Fără tensiune pe poartă nu se formează canal. Între Sursă și Drenă stă un perete.",
+  "Tensiune sub prag. Câmpul de sub poartă e prea slab — canalul nu s-a format încă.",
+  "Aproape de prag. Câmpul adună electroni sub poartă, dar canalul încă nu conduce.",
+  "Prag atins! Canalul s-a format: poarta, prin care nu trece curent, comandă un curent mare Drenă → Sursă.",
+  "Canal complet format. Tranzistorul e deschis — între Drenă și Sursă se comportă ca un fir.",
 ];
 
 function analysisBand(v: number): number {
@@ -156,7 +156,7 @@ function RegionBars({ region }: { region: Region }) {
     },
     {
       id: "on",
-      label: "SATURATION",
+      label: "ON",
       color: "bg-[#00CEC9]",
       glow: "shadow-[0_0_10px_rgba(0,206,201,0.8)]",
     },
@@ -176,7 +176,7 @@ function RegionBars({ region }: { region: Region }) {
             <p
               className={cn(
                 "font-mono text-[10px] uppercase tracking-[0.18em] transition-colors duration-300",
-                active ? "font-bold text-white" : "text-[#5a5e6e]"
+                active ? "font-bold text-white" : "text-[#9aa0b0]"
               )}
             >
               {it.label}
@@ -195,10 +195,10 @@ function Oscilloscope({ isOn, reduced }: { isOn: boolean; reduced: boolean }) {
     "M -40 45 L -20 45 L -20 15 L 0 15 L 0 45 L 20 45 L 20 15 L 40 15 L 40 45 L 60 45 L 60 15 L 80 15 L 80 45 L 100 45 L 100 15 L 120 15 L 120 45 L 140 45 L 140 15 L 160 15 L 160 45 L 180 45 L 180 15 L 200 15 L 200 45 L 220 45 L 220 15 L 240 15";
   return (
     <div className="min-h-[90px] rounded-sm border border-[#6C5CE7]/30 bg-[#0a0a14] p-3">
-      <div className="mb-2 flex items-center justify-between font-mono text-[9px] uppercase tracking-[0.18em] text-[#6C5CE7]/70">
+      <div className="mb-2 flex items-center justify-between font-mono text-[9px] uppercase tracking-[0.18em] text-[#8B7FF0]">
         <span className="flex items-center gap-1.5">
           <Activity className="h-3 w-3" aria-hidden />
-          I_collector × T
+          I<sub>DS</sub> × T
         </span>
         <span>CH1</span>
       </div>
@@ -323,22 +323,22 @@ export function TransistorLab({ onComplete }: GameCompletionProps) {
       : "#00CEC9";
 
   // STATE display: split label/value into two intentional lines so the
-  // `STATE: SATURATION` label never wraps with the `I_ce = MAX` value.
+  // `STATE: ON` label never wraps with the `I_DS = MAX` value.
   const stateName =
     region === "off"
       ? "BLOCKED"
       : region === "partial"
       ? "PARTIAL"
-      : "SATURATION";
+      : "ON";
   const stateValue =
     region === "off"
-      ? "I_ce ≈ 0"
+      ? <>I<sub>DS</sub> ≈ 0</>
       : region === "partial"
-      ? "V_be < V_th"
-      : "I_ce = MAX";
+      ? <>V<sub>GS</sub> &lt; V<sub>th</sub></>
+      : <>I<sub>DS</sub> = MAX</>;
   const stateColorClass =
     region === "off"
-      ? "text-red-400"
+      ? "text-[#FF6B6B]"
       : region === "partial"
       ? "text-[#FDCB6E]"
       : "text-[#00CEC9]";
@@ -358,7 +358,7 @@ export function TransistorLab({ onComplete }: GameCompletionProps) {
   );
   const electronDurKey = Math.round(electronDur * 10); // stable integer
 
-  // Mini-challenge: reach SATURATION (>= 3.5V). Latches once reached so
+  // Mini-challenge: reach the ON state with the channel fully formed (>= 3.5V). Latches once reached so
   // sliding back doesn't undo the reward.
   const [challengeCompleted, setChallengeCompleted] = useState(false);
   useEffect(() => {
@@ -375,11 +375,11 @@ export function TransistorLab({ onComplete }: GameCompletionProps) {
   }, [challengeCompleted]);
 
   return (
-    <div className="relative left-1/2 my-10 w-[90vw] max-w-[1200px] -translate-x-1/2 rounded-lg border border-[#6C5CE7]/30">
+    <div className="relative my-10 w-full rounded-lg border border-[#6C5CE7]/30">
       <style>{CSS_STYLES}</style>
 
       <div
-        className="relative flex flex-col bg-[#080810] text-foreground lg:h-[560px] lg:overflow-hidden xl:h-[680px]"
+        className="relative flex flex-col bg-[#080810] text-[#e6e8ef] lg:h-[560px] lg:overflow-hidden xl:h-[680px]"
         style={{ boxShadow: "0 0 40px rgba(108,92,231,0.15)" }}
       >
         {/* Scanlines overlay */}
@@ -410,8 +410,8 @@ export function TransistorLab({ onComplete }: GameCompletionProps) {
 
         {/* Header bar */}
         <div className="relative z-10 flex items-center justify-between gap-4 border-b border-[#6C5CE7]/20 bg-gradient-to-r from-[#6C5CE7]/[0.06] via-transparent to-[#00CEC9]/[0.04] px-5 py-2.5">
-          <span className="font-mono text-[10px] tracking-[0.18em] text-[#6C5CE7]/70">
-            LAB_008 // TRANSISTOR_NPN
+          <span className="font-mono text-[10px] tracking-[0.18em] text-[#8B7FF0]">
+            LAB_008 // TRANSISTOR_NMOS
           </span>
           <StatusIndicator isOn={isOn} reduced={reduced} />
         </div>
@@ -425,7 +425,7 @@ export function TransistorLab({ onComplete }: GameCompletionProps) {
               preserveAspectRatio="xMidYMid meet"
               className="block h-auto w-full lg:h-full"
               role="img"
-              aria-label={`Circuit cu tranzistor, V_gate ${voltage.toFixed(1)} volți, ${isOn ? "saturat" : region === "partial" ? "tranziție" : "blocat"}`}
+              aria-label={`Circuit cu tranzistor, V_GS ${voltage.toFixed(1)} volți, ${isOn ? "deschis" : region === "partial" ? "tranziție" : "blocat"}`}
             >
               <defs>
                 <pattern
@@ -482,8 +482,8 @@ export function TransistorLab({ onComplete }: GameCompletionProps) {
                 y={36}
                 fontSize="8"
                 fontFamily="ui-monospace, monospace"
-                fill="#6C5CE7"
-                fillOpacity="0.5"
+                fill="#8B7FF0"
+               
               >
                 x:080  y:080
               </text>
@@ -492,8 +492,8 @@ export function TransistorLab({ onComplete }: GameCompletionProps) {
                 y={36}
                 fontSize="8"
                 fontFamily="ui-monospace, monospace"
-                fill="#6C5CE7"
-                fillOpacity="0.5"
+                fill="#8B7FF0"
+               
               >
                 x:430  y:080
               </text>
@@ -619,8 +619,8 @@ export function TransistorLab({ onComplete }: GameCompletionProps) {
                   y={C.batTop - 4}
                   fontSize="8"
                   fontFamily="ui-monospace, monospace"
-                  fill="#6C5CE7"
-                  fillOpacity="0.6"
+                  fill="#8B7FF0"
+                 
                   textAnchor="start"
                 >
                   V_SRC
@@ -809,7 +809,7 @@ export function TransistorLab({ onComplete }: GameCompletionProps) {
                   y={C.ledCy - 4}
                   fontSize="9"
                   fontFamily="ui-monospace, monospace"
-                  fill={isOn ? "#FDCB6E" : "#6C5CE7"}
+                  fill={isOn ? "#FDCB6E" : "#8B7FF0"}
                   fillOpacity={isOn ? 1 : 0.6}
                   style={{ transition: "fill 300ms ease" }}
                 >
@@ -820,8 +820,8 @@ export function TransistorLab({ onComplete }: GameCompletionProps) {
                   y={C.ledCy + 8}
                   fontSize="8"
                   fontFamily="ui-monospace, monospace"
-                  fill="#6C5CE7"
-                  fillOpacity="0.55"
+                  fill="#8B7FF0"
+                 
                 >
                   λ=580nm
                 </text>
@@ -852,69 +852,74 @@ export function TransistorLab({ onComplete }: GameCompletionProps) {
                   strokeOpacity={0.55}
                 />
 
-                {/* Base bar */}
+                {/* Gate plate — a gap (the oxide) separates it from the channel */}
                 <line
-                  x1={C.transBarX}
+                  x1={C.transBarX - 6}
                   y1={C.transBarTop}
-                  x2={C.transBarX}
+                  x2={C.transBarX - 6}
                   y2={C.transBarBot}
                   stroke="#e5e5ec"
                   strokeWidth={3}
                   strokeLinecap="round"
                 />
 
-                {/* Collector (top-right diagonal) */}
-                <line
-                  x1={C.transBarX}
-                  y1={C.transBarTop + 2}
-                  x2={C.transCx}
-                  y2={C.transCy - C.transR}
-                  stroke={isOn ? "#00CEC9" : "#7a7d8a"}
+                {/* Channel (three segments), drain lead (top) and source lead (bottom) */}
+                <g
+                  fill="none"
+                  stroke={isOn ? "#00CEC9" : "#9aa0b0"}
                   strokeWidth={2.2}
                   strokeLinecap="round"
+                  strokeLinejoin="round"
                   style={{
                     filter: isOn
                       ? "drop-shadow(0 0 3px #00CEC9)"
                       : undefined,
                     transition: "stroke 400ms ease, filter 400ms ease",
                   }}
-                />
+                >
+                  <line x1={C.transBarX + 2} y1={C.transBarTop} x2={C.transBarX + 2} y2={C.transBarTop + 8} />
+                  <line x1={C.transBarX + 2} y1={C.transCy - 4} x2={C.transBarX + 2} y2={C.transCy + 4} />
+                  <line x1={C.transBarX + 2} y1={C.transBarBot - 8} x2={C.transBarX + 2} y2={C.transBarBot} />
+                  {/* Drain */}
+                  <polyline
+                    points={`${C.transBarX + 2},${C.transBarTop + 4} ${C.transCx},${C.transBarTop + 4} ${C.transCx},${C.transCy - C.transR}`}
+                  />
+                  {/* Source (the substrate/body terminal is tied to it) */}
+                  <polyline
+                    points={`${C.transBarX + 2},${C.transBarBot - 4} ${C.transCx},${C.transBarBot - 4} ${C.transCx},${C.transCy + C.transR}`}
+                  />
+                  <line
+                    x1={C.transBarX + 2}
+                    y1={C.transCy}
+                    x2={C.transCx}
+                    y2={C.transCy}
+                  />
+                  <line
+                    x1={C.transCx}
+                    y1={C.transCy}
+                    x2={C.transCx}
+                    y2={C.transBarBot - 4}
+                  />
+                </g>
 
-                {/* Emitter (bottom-right diagonal) */}
-                <line
-                  x1={C.transBarX}
-                  y1={C.transBarBot - 2}
-                  x2={C.transCx}
-                  y2={C.transCy + C.transR}
-                  stroke={isOn ? "#00CEC9" : "#7a7d8a"}
-                  strokeWidth={2.2}
-                  strokeLinecap="round"
-                  style={{
-                    filter: isOn
-                      ? "drop-shadow(0 0 3px #00CEC9)"
-                      : undefined,
-                    transition: "stroke 400ms ease, filter 400ms ease",
-                  }}
-                />
-
-                {/* Emitter arrowhead */}
+                {/* Body arrow (N-channel: points into the channel) */}
                 <polygon
                   points={`
-                    ${C.transCx},${C.transCy + C.transR}
-                    ${C.transCx - 8},${C.transCy + C.transR - 5}
-                    ${C.transCx - 4},${C.transCy + C.transR - 11}
+                    ${C.transBarX + 2},${C.transCy}
+                    ${C.transBarX + 9},${C.transCy - 4}
+                    ${C.transBarX + 9},${C.transCy + 4}
                   `}
-                  fill={isOn ? "#00CEC9" : "#7a7d8a"}
+                  fill={isOn ? "#00CEC9" : "#9aa0b0"}
                   style={{ transition: "fill 400ms ease" }}
                 />
 
-                {/* Base inside-circle stub */}
+                {/* Gate lead inside the circle */}
                 <line
                   x1={C.baseStubX}
                   y1={C.transCy}
-                  x2={C.transBarX}
+                  x2={C.transBarX - 6}
                   y2={C.transCy}
-                  stroke={voltageActive ? "#6C5CE7" : "#7a7d8a"}
+                  stroke={voltageActive ? "#8B7FF0" : "#9aa0b0"}
                   strokeWidth={2.2}
                   strokeLinecap="round"
                   style={{
@@ -931,27 +936,27 @@ export function TransistorLab({ onComplete }: GameCompletionProps) {
                   y={C.transCy - C.transR + 4}
                   fontSize="9"
                   fontFamily="ui-monospace, monospace"
-                  fill="#9aa0aa"
+                  fill="#9aa0b0"
                 >
-                  C
+                  D
                 </text>
                 <text
                   x={C.transCx + C.transR + 8}
                   y={C.transCy + C.transR + 2}
                   fontSize="9"
                   fontFamily="ui-monospace, monospace"
-                  fill="#9aa0aa"
+                  fill="#9aa0b0"
                 >
-                  E
+                  S
                 </text>
                 <text
                   x={C.baseStubX - 12}
                   y={C.transCy - 5}
                   fontSize="9"
                   fontFamily="ui-monospace, monospace"
-                  fill="#9aa0aa"
+                  fill="#9aa0b0"
                 >
-                  B
+                  G
                 </text>
 
                 {/* Component label */}
@@ -960,16 +965,16 @@ export function TransistorLab({ onComplete }: GameCompletionProps) {
                   y={C.transCy + C.transBgR + 14}
                   fontSize="9"
                   fontFamily="ui-monospace, monospace"
-                  fill="#6C5CE7"
-                  fillOpacity="0.7"
+                  fill="#8B7FF0"
+                 
                   textAnchor="middle"
                   fontWeight={600}
                 >
-                  Q₁ // 2N2222
+                  Q₁ // NMOS
                 </text>
               </g>
 
-              {/* ─── V_gate probe (diamond + floating label) ─── */}
+              {/* ─── V_GS probe (diamond + floating label) ─── */}
               <g>
                 {/* Floating data label */}
                 <rect
@@ -989,18 +994,18 @@ export function TransistorLab({ onComplete }: GameCompletionProps) {
                   y={C.transCy - 25}
                   fontSize="8"
                   fontFamily="ui-monospace, monospace"
-                  fill="#6C5CE7"
-                  fillOpacity="0.65"
+                  fill="#8B7FF0"
+                 
                   textAnchor="middle"
                 >
-                  V_GATE
+                  V<tspan baselineShift="sub" fontSize="7">GS</tspan>
                 </text>
                 <text
                   x={C.baseEndX}
                   y={C.transCy - 18}
                   fontSize="10"
                   fontFamily="ui-monospace, monospace"
-                  fill={voltageActive ? "#a89bf5" : "#6C5CE7"}
+                  fill={voltageActive ? "#a89bf5" : "#8B7FF0"}
                   fontWeight={700}
                   textAnchor="middle"
                   style={{ transition: "fill 300ms ease" }}
@@ -1105,7 +1110,7 @@ export function TransistorLab({ onComplete }: GameCompletionProps) {
                 y={C.botY + 16}
                 fontSize="9"
                 fontFamily="ui-monospace, monospace"
-                fill="#7a7d8a"
+                fill="#9aa0b0"
               >
                 GND
               </text>
@@ -1137,10 +1142,10 @@ export function TransistorLab({ onComplete }: GameCompletionProps) {
 
           {/* ─── RIGHT: Control panel ────────────────────────────── */}
           <div className="flex min-h-0 flex-col gap-3 border-t border-[#6C5CE7]/20 p-4 lg:overflow-hidden lg:border-l lg:border-t-0">
-            {/* V_GATE display */}
+            {/* V_GS display */}
             <div className="border border-[#6C5CE7]/20 bg-[#0a0a14] px-3 py-2">
-              <p className="font-mono text-[9px] uppercase tracking-[0.22em] text-[#6C5CE7]/65">
-                V_gate
+              <p className="font-mono text-[9px] uppercase tracking-[0.22em] text-[#8B7FF0]">
+                V<sub>GS</sub> (poartă–sursă)
               </p>
               <div className="flex items-baseline gap-1.5">
                 <motion.span
@@ -1158,7 +1163,7 @@ export function TransistorLab({ onComplete }: GameCompletionProps) {
                   {voltage.toFixed(1)}
                 </motion.span>
                 <span
-                  className="font-mono text-2xl font-semibold opacity-50"
+                  className="font-mono text-2xl font-semibold opacity-80"
                   style={{ color: readoutColor }}
                 >
                   V
@@ -1168,7 +1173,7 @@ export function TransistorLab({ onComplete }: GameCompletionProps) {
 
             {/* STATE + I_CE — color-coded by region */}
             <div className="border border-[#6C5CE7]/20 bg-[#0a0a14] px-3 py-2">
-              <p className="font-mono text-xs uppercase tracking-widest text-[#7a7d8a]">
+              <p className="font-mono text-xs uppercase tracking-widest text-[#9aa0b0]">
                 STATE:
               </p>
               <p
@@ -1191,7 +1196,7 @@ export function TransistorLab({ onComplete }: GameCompletionProps) {
 
             {/* BIAS_CTRL slider — compact */}
             <div className="border border-[#6C5CE7]/20 bg-[#0a0a14] px-3 py-2">
-              <div className="mb-2 flex items-center justify-between font-mono text-[9px] uppercase tracking-[0.18em] text-[#6C5CE7]/65">
+              <div className="mb-2 flex items-center justify-between font-mono text-[9px] uppercase tracking-[0.18em] text-[#8B7FF0]">
                 <span>BIAS_CTRL</span>
                 <span>0.0V — 5.0V</span>
               </div>
@@ -1203,7 +1208,7 @@ export function TransistorLab({ onComplete }: GameCompletionProps) {
                   step={V_STEP}
                   value={voltage}
                   onChange={onChange}
-                  aria-label="Voltaj la base (V_gate)"
+                  aria-label="Tensiune poartă–sursă (V_GS)"
                   className="tl-slider block w-full"
                   style={{ "--tl-fill": `${fillPct}%` } as CSSProperties}
                 />
@@ -1231,14 +1236,14 @@ export function TransistorLab({ onComplete }: GameCompletionProps) {
                   <span>2.0V</span>
                 </div>
               </div>
-              <div className="mt-8 flex justify-between font-mono text-[9px] text-white/35">
+              <div className="mt-8 flex justify-between font-mono text-[9px] text-white/60">
                 <span>0V</span>
                 <span>2.5V</span>
                 <span>5V</span>
               </div>
             </div>
 
-            {/* OFF / PARTIAL / SATURATION region bars */}
+            {/* OFF / PARTIAL / ON region bars */}
             <RegionBars region={region} />
 
             {/* Oscilloscope */}
@@ -1266,7 +1271,7 @@ export function TransistorLab({ onComplete }: GameCompletionProps) {
                 >
                   ✅
                 </motion.span>{" "}
-                MISIUNE COMPLETĂ — Tranzistorul conduce la capacitate maximă!
+                MISIUNE COMPLETĂ — Canalul e complet format — tranzistorul conduce la capacitate maximă!
               </motion.div>
             ) : (
               <motion.div
@@ -1277,8 +1282,8 @@ export function TransistorLab({ onComplete }: GameCompletionProps) {
                 transition={{ duration: 0.2 }}
                 className="text-[#b0b4c0]"
               >
-                <span aria-hidden>🎯</span> MISIUNE: Atinge starea SATURATION —
-                trage slider-ul la maxim
+                <span aria-hidden>🎯</span> MISIUNE: Atinge starea ON, cu canalul
+                complet format — trage slider-ul la maxim
               </motion.div>
             )}
           </AnimatePresence>
@@ -1287,7 +1292,7 @@ export function TransistorLab({ onComplete }: GameCompletionProps) {
         {/* ─── LIVE ANALYSIS ───────────────────────────────────── */}
         <div className="border-t border-[#6C5CE7]/20 px-6 py-4">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
-            <span className="shrink-0 font-mono text-xs uppercase tracking-widest text-[#6C5CE7]">
+            <span className="shrink-0 font-mono text-xs uppercase tracking-widest text-[#8B7FF0]">
               ⚡ ANALIZĂ LIVE
             </span>
             <div className="relative min-h-[1.25rem] flex-1">

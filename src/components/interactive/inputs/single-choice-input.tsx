@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { CheckCircle2, XCircle } from "lucide-react";
 import type { InlineUserAnswer, SingleChoiceContent } from "@/types";
+import { RichText } from "@/components/interactive/rich-text";
 
 interface SingleChoiceInputProps {
   content: SingleChoiceContent;
@@ -59,7 +60,7 @@ export function SingleChoiceInput({
             {showSolution && isSelected && !isCorrect && (
               <XCircle className="h-4 w-4 shrink-0" />
             )}
-            <span>{option}</span>
+            <span><RichText text={option} /></span>
           </button>
         );
       })}

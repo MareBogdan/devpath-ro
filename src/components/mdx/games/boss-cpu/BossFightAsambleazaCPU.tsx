@@ -971,7 +971,7 @@ function FactOverlay({
         >
           {component.label}
         </p>
-        <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.22em] text-white/55">
+        <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.22em] text-white/60">
           {component.fullName}
         </p>
 
@@ -1176,7 +1176,7 @@ export function BossFightAsambleazaCPU({ onComplete }: GameCompletionProps) {
       <style>{CSS_STYLES}</style>
 
       <div
-        className="relative border-y border-[#6C5CE7]/50 bg-[#080810] text-foreground"
+        className="relative border-y border-[#6C5CE7]/50 bg-[#080810] text-[#e6e8ef]"
         style={{ boxShadow: "0 0 60px rgba(108,92,231,0.12)" }}
       >
         {/* PCB trace lines (static) */}
@@ -1228,8 +1228,8 @@ export function BossFightAsambleazaCPU({ onComplete }: GameCompletionProps) {
         )}
 
         {/* Top header bar */}
-        <div className="relative z-10 flex items-center justify-between gap-4 border-b border-[#6C5CE7]/15 bg-gradient-to-r from-[#6C5CE7]/[0.06] via-transparent to-[#00CEC9]/[0.04] px-5 py-2.5">
-          <span className="font-mono text-[10px] tracking-[0.18em] text-[#6C5CE7]/75">
+        <div className="relative z-10 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-[#6C5CE7]/15 bg-gradient-to-r from-[#6C5CE7]/[0.06] via-transparent to-[#00CEC9]/[0.04] px-3 py-2.5 sm:px-5">
+          <span className="font-mono text-[10px] tracking-[0.18em] text-[#8B7FF0]">
             CPU_ASSEMBLY_SYS // VON_NEUMANN_ARCH
           </span>
           <span className="font-mono text-[10px] font-bold tracking-[0.2em] text-white/85">
@@ -1377,14 +1377,14 @@ export function BossFightAsambleazaCPU({ onComplete }: GameCompletionProps) {
                 {/* HP / score row */}
                 <div className="mb-4">
                   <div className="mb-2 flex items-center justify-between gap-3 font-mono text-[10px] uppercase tracking-[0.18em]">
-                    <span className="text-[#FF6B6B]/85">
+                    <span className="text-[#FF6B6B]">
                       CPU DEFECT:{" "}
                       <span className="font-bold tabular-nums text-[#FF6B6B]">
                         {state.hp}
                       </span>
                       /{TOTAL_HP}
                     </span>
-                    <span className="text-white/45">
+                    <span className="text-white/60">
                       PIESE:{" "}
                       <span className="font-bold text-white tabular-nums">
                         {placedCount}
@@ -1553,9 +1553,9 @@ export function BossFightAsambleazaCPU({ onComplete }: GameCompletionProps) {
                 {/* Tray + hint */}
                 <div className="mt-6">
                   <div className="mb-3 flex items-center justify-between gap-3">
-                    <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-[#6C5CE7]/75">
+                    <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-[#8B7FF0]">
                       COMPONENTE DISPONIBILE{" "}
-                      <span className="text-white/45">
+                      <span className="text-white/60">
                         · {availablePieces.length}/6
                       </span>
                     </span>
@@ -1571,7 +1571,7 @@ export function BossFightAsambleazaCPU({ onComplete }: GameCompletionProps) {
                         "inline-flex items-center gap-1.5 border px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.18em] transition-colors",
                         state.hintsUsed >= MAX_HINTS ||
                           state.phase !== "assembling"
-                          ? "cursor-not-allowed border-white/15 bg-white/[0.02] text-white/30"
+                          ? "cursor-not-allowed border-white/15 bg-white/[0.02] text-white/60"
                           : "cursor-pointer border-[#FDCB6E]/45 bg-[#FDCB6E]/[0.08] text-[#FDCB6E] hover:bg-[#FDCB6E]/[0.15]",
                         hintIdle &&
                           state.phase === "assembling" &&
@@ -1623,7 +1623,7 @@ export function BossFightAsambleazaCPU({ onComplete }: GameCompletionProps) {
                       ))}
                     </AnimatePresence>
                     {availablePieces.length === 0 && (
-                      <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/40">
+                      <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-white/60">
                         ✓ Toate componentele sunt la locul lor
                       </span>
                     )}
@@ -1679,7 +1679,7 @@ export function BossFightAsambleazaCPU({ onComplete }: GameCompletionProps) {
                         transition={{ duration: 0.5, ease: "easeOut" }}
                         className="flex flex-col items-center"
                       >
-                        <p className="mt-4 font-mono text-[11px] uppercase tracking-[0.3em] text-[#00CEC9]/85">
+                        <p className="mt-4 font-mono text-[11px] uppercase tracking-[0.3em] text-[#00CEC9]">
                           VON_NEUMANN_ONLINE
                         </p>
                         <h2 className="mt-2 text-5xl font-extrabold tracking-tight">

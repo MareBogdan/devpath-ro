@@ -227,3 +227,12 @@ export const CONNECTIONS: readonly Connection[] = [
     path: "M 580 205 L 580 312",
   },
 ];
+
+/**
+ * Piece accent colours are tuned for borders/glows. As TEXT on the dark board the brand
+ * violet #6C5CE7 is only ~4:1, so text and glyphs use this lighter violet (≈6:1 on #080810);
+ * every other piece colour already passes AA as text.
+ */
+export function readableOnDark(color: string): string {
+  return color.toLowerCase() === "#6c5ce7" ? "#8B7FF0" : color;
+}
