@@ -28,19 +28,19 @@
         "prompt": "Potrivește fiecare situație cu ce face MOSFET-ul între Sursă și Drenă.",
         "pairs": [
           {
-            "left": "V_GS sub V_th",
+            "left": "V<Sub>GS</Sub> sub V<Sub>th</Sub>",
             "right": "Trece doar curent de scurgere sub-prag, care scade exponențial"
           },
           {
-            "left": "V_GS peste V_th, V_DS mic",
+            "left": "V<Sub>GS</Sub> peste V<Sub>th</Sub>, V<Sub>DS</Sub> mic",
             "right": "Se comportă ca un rezistor variabil, comandat de poartă"
           },
           {
-            "left": "V_GS peste V_th, V_DS mare",
-            "right": "Curentul se plafonează și e controlat aproape numai de V_GS"
+            "left": "V<Sub>GS</Sub> peste V<Sub>th</Sub>, V<Sub>DS</Sub> mare",
+            "right": "Curentul se plafonează și e controlat aproape numai de V<Sub>GS</Sub>"
           }
         ],
-        "explanation": "Sub prag canalul nu există: trece doar scurgerea sub-prag. Peste prag, cu V_DS mic canalul e complet format și tranzistorul se comportă ca un rezistor variabil; cu V_DS mare, câmpul distruge parțial canalul la capătul dinspre Drenă, iar curentul se plafonează (saturație) și depinde aproape numai de V_GS."
+        "explanation": "Sub prag canalul nu există: trece doar scurgerea sub-prag. Peste prag, cu V<Sub>DS</Sub> mic canalul e complet format și tranzistorul se comportă ca un rezistor variabil; cu V<Sub>DS</Sub> mare, câmpul distruge parțial canalul la capătul dinspre Drenă, iar curentul se plafonează (saturație) și depinde aproape numai de V<Sub>GS</Sub>."
       }
     },
     {

@@ -108,9 +108,7 @@ La fel, termometrul digital din bucătărie are un senzor analogic, termistorul,
 
 **Codarea**: fiecare treaptă primește un număr binar. Treapta 128 din 256 devine `10000000`, iar analogicul a devenit digital.
 
-<ADCSimulator />
-
-Joacă-te cu frecvența de eșantionare și rezoluția în biți. La 8.000 Hz și 8 biți, vocea telefonică clasică: 64 kbps, inteligibilă dar înăbușită. La 44.100 Hz și 16 biți, audio CD: 1.411 kbps, fidelitate ridicată. La 8.000 Hz și 1 bit, doar pornit sau oprit, ca în Morse. Vocea sună înăbușit la telefon fiindcă eșantionarea la 8.000 Hz păstrează doar banda de circa 300–3.400 Hz, o decizie deliberată de compresie, nu o limită hardware: 64 kbps ajung pentru inteligibilitate, nu pentru fidelitate.
+Frecvența de eșantionare și rezoluția în biți decid calitatea. La 8.000 Hz și 8 biți, vocea telefonică clasică: 64 kbps, inteligibilă dar înăbușită. La 44.100 Hz și 16 biți, audio CD: 1.411 kbps, fidelitate ridicată. La 8.000 Hz și 1 bit, doar pornit sau oprit, ca în Morse. Vocea sună înăbușit la telefon fiindcă eșantionarea la 8.000 Hz păstrează doar banda de circa 300–3.400 Hz, o decizie deliberată de compresie, nu o limită hardware: 64 kbps ajung pentru inteligibilitate, nu pentru fidelitate.
 
 <CosmoHint emotion="thinking">
   Un osciloscop îți arată tensiunea exact cum e, haotică, zgomotoasă, curbată; un analizor logic ignoră totul și arată doar 1 și 0, linii perfect drepte. Același semnal fizic, două perspective. Care e „realitatea”? Depinde de ce vrei să faci cu ea.
